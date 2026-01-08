@@ -41,6 +41,8 @@ export default function Receptoras() {
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
   const [selectedFazendaId, setSelectedFazendaId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<string>('all');
+  const [statusDisponiveis, setStatusDisponiveis] = useState<string[]>([]);
   const [loadingFazendas, setLoadingFazendas] = useState(true);
   const [loadingReceptoras, setLoadingReceptoras] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
@@ -76,20 +78,26 @@ export default function Receptoras() {
 
   useEffect(() => {
     filterReceptoras();
-  }, [searchTerm, receptoras]);
+  }, [searchTerm, filtroStatus, receptoras]);
 
   const filterReceptoras = () => {
-    if (!searchTerm.trim()) {
-      setFilteredReceptoras(receptoras);
-      return;
+    let filtered = receptoras;
+
+    // Aplicar filtro de status
+    if (filtroStatus !== 'all') {
+      filtered = filtered.filter((r) => r.status_calculado === filtroStatus);
     }
 
-    const term = searchTerm.toLowerCase();
-    const filtered = receptoras.filter(
-      (r) =>
-        r.identificacao.toLowerCase().includes(term) ||
-        r.nome?.toLowerCase().includes(term)
-    );
+    // Aplicar busca por nome/brinco
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.identificacao.toLowerCase().includes(term) ||
+          r.nome?.toLowerCase().includes(term)
+      );
+    }
+
     setFilteredReceptoras(filtered);
   };
 
@@ -135,8 +143,15 @@ export default function Receptoras() {
         status_calculado: statusMap.get(r.id) || 'VAZIA',
       }));
 
+      // Extrair status únicos para o filtro
+      const statusUnicos = Array.from(new Set(receptorasComStatus.map(r => r.status_calculado)))
+        .filter(s => s) // Remove valores vazios
+        .sort();
+
+      setStatusDisponiveis(statusUnicos);
       setReceptoras(receptorasComStatus);
       setFilteredReceptoras(receptorasComStatus);
+      setFiltroStatus('all'); // Reset filtro ao carregar nova fazenda
     } catch (error) {
       toast({
         title: 'Erro ao carregar receptoras',
@@ -276,6 +291,7 @@ export default function Receptoras() {
     }
   };
 
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', className?: string }> = {
       'VAZIA': { variant: 'outline' },
@@ -304,6 +320,8 @@ export default function Receptoras() {
           <p className="text-slate-600 mt-1">Gerenciar receptoras por fazenda</p>
         </div>
       </div>
+
+      <div className="space-y-6">
 
       {/* Fazenda Selection - OBRIGATÓRIO */}
       <Card>
@@ -334,18 +352,47 @@ export default function Receptoras() {
         </Card>
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Buscar por brinco ou nome..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          {/* Filtros: Status e Busca */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 max-w-md">
+                  <Label htmlFor="filtro-status">Status</Label>
+                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                    <SelectTrigger id="filtro-status">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {statusDisponiveis.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 max-w-md">
+                  <Label htmlFor="busca">Buscar por brinco ou nome</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <Input
+                      id="busca"
+                      placeholder="Buscar por brinco ou nome..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-end">
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
                 <Button className="bg-green-600 hover:bg-green-700">
@@ -528,6 +575,7 @@ export default function Receptoras() {
         open={showHistorico}
         onClose={() => setShowHistorico(false)}
       />
+      </div>
     </div>
   );
 }

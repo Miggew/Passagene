@@ -57,6 +57,8 @@ export interface ProtocoloSincronizacao {
   status?: string;
   pacote_producao_id?: string;
   observacoes?: string;
+  passo2_data?: string;
+  passo2_tecnico_responsavel?: string;
   created_at?: string;
 }
 

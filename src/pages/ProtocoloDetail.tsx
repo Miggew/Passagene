@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { calcularStatusReceptora } from '@/lib/receptoraStatus';
@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
 import { ArrowLeft, Plus, UserPlus, CheckCircle, Lock, Trash2 } from 'lucide-react';
 
 interface ReceptoraWithStatus extends Receptora {
@@ -65,6 +66,7 @@ export default function ProtocoloDetail() {
   const [fazendaNome, setFazendaNome] = useState('');
   const [receptoras, setReceptoras] = useState<ReceptoraWithStatus[]>([]);
   const [receptorasDisponiveis, setReceptorasDisponiveis] = useState<Receptora[]>([]);
+  const isAddingReceptoraRef = useRef(false); // Proteção contra múltiplas chamadas
   
   // Dialog states
   const [showAddReceptora, setShowAddReceptora] = useState(false);
@@ -205,6 +207,9 @@ export default function ProtocoloDetail() {
   };
 
   const handleAddReceptora = async () => {
+    // Proteção dupla contra múltiplas chamadas
+    if (submitting || isAddingReceptoraRef.current) return;
+    
     if (!addReceptoraForm.receptora_id) {
       toast({
         title: 'Erro',
@@ -215,9 +220,10 @@ export default function ProtocoloDetail() {
     }
 
     try {
+      isAddingReceptoraRef.current = true;
       setSubmitting(true);
 
-      // Check if receptora already in protocol
+      // Check if receptora already in THIS protocol
       const { data: existing, error: existingError } = await supabase
         .from('protocolo_receptoras')
         .select('id')
@@ -233,7 +239,90 @@ export default function ProtocoloDetail() {
           description: 'Essa receptora já está adicionada a este protocolo.',
           variant: 'destructive',
         });
+        setSubmitting(false);
+        isAddingReceptoraRef.current = false;
         return;
+      }
+
+      // Verificar se a receptora está em algum protocolo ATIVO (não fechado)
+      // A constraint unq_receptora_protocolo_ativo impede múltiplos protocolos ativos
+      // IMPORTANTE: Receptoras descartadas (INAPTA) em protocolos fechados ou aguardando 2º passo
+      // NÃO devem bloquear o reuso em novo protocolo
+      const { data: protocolosAtivos, error: protocolosAtivosError } = await supabase
+        .from('protocolo_receptoras')
+        .select(`
+          id,
+          protocolo_id,
+          status,
+          motivo_inapta,
+          protocolos_sincronizacao!inner (
+            id,
+            status,
+            data_inicio
+          )
+        `)
+        .eq('receptora_id', addReceptoraForm.receptora_id)
+        .neq('protocolos_sincronizacao.status', 'PASSO2_FECHADO');
+
+      if (protocolosAtivosError) {
+        console.error('Erro ao verificar protocolos ativos:', protocolosAtivosError);
+      }
+
+      if (protocolosAtivos && protocolosAtivos.length > 0) {
+        // Verificar se está no protocolo atual
+        const noProtocoloAtual = protocolosAtivos.find(
+          (pr: any) => pr.protocolo_id === id
+        );
+
+        if (noProtocoloAtual) {
+          toast({
+            title: 'Receptora já está no protocolo',
+            description: `Esta receptora já foi adicionada a este protocolo anteriormente (Status: ${noProtocoloAtual.status}). Recarregue a página para ver a lista atualizada.`,
+            variant: 'destructive',
+          });
+          setSubmitting(false);
+          isAddingReceptoraRef.current = false;
+          loadData();
+          return;
+        }
+
+        // Filtrar protocolos que realmente bloqueiam:
+        // - Receptoras com status APTA ou INICIADA em protocolos ativos (não fechados)
+        // - Receptoras descartadas (INAPTA) NÃO bloqueiam se o protocolo estiver fechado ou aguardando 2º passo
+        const protocolosBloqueantes = protocolosAtivos.filter((pr: any) => {
+          const protocoloStatus = pr.protocolos_sincronizacao?.status;
+          const receptoraStatus = pr.status;
+          
+          // Se foi descartada (INAPTA), não bloqueia (pode ser reutilizada)
+          if (receptoraStatus === 'INAPTA') {
+            return false;
+          }
+          
+          // Se está APTA ou INICIADA e o protocolo não está fechado, bloqueia
+          if ((receptoraStatus === 'APTA' || receptoraStatus === 'INICIADA') && 
+              protocoloStatus !== 'PASSO2_FECHADO') {
+            return true;
+          }
+          
+          return false;
+        });
+
+        if (protocolosBloqueantes.length > 0) {
+          const outroProtocolo = protocolosBloqueantes[0];
+          const protocoloInfo = outroProtocolo.protocolos_sincronizacao;
+          const idProtocolo = protocoloInfo?.id?.substring(0, 8) || 'N/A';
+          const statusProtocolo = protocoloInfo?.status || 'N/A';
+          const receptoraStatus = outroProtocolo.status;
+          
+          toast({
+            title: 'Receptora em outro protocolo ativo',
+            description: `Esta receptora está vinculada a outro protocolo ativo (ID: ${idProtocolo}, Status do protocolo: ${statusProtocolo}, Status da receptora: ${receptoraStatus}). Uma receptora só pode estar em um protocolo ativo por vez. Finalize ou feche o protocolo anterior antes de adicionar a um novo.`,
+            variant: 'destructive',
+          });
+          setSubmitting(false);
+          isAddingReceptoraRef.current = false;
+          return;
+        }
       }
 
       // Check receptora status
@@ -255,6 +344,8 @@ export default function ProtocoloDetail() {
           description: motivoMap[status] || 'Receptora não está disponível.',
           variant: 'destructive',
         });
+        setSubmitting(false);
+        isAddingReceptoraRef.current = false;
         return;
       }
 
@@ -267,11 +358,81 @@ export default function ProtocoloDetail() {
         observacoes: addReceptoraForm.observacoes || null,
       };
 
-      const { error } = await supabase.from('protocolo_receptoras').insert([insertData]);
+      const { error, data: insertedData } = await supabase
+        .from('protocolo_receptoras')
+        .insert([insertData])
+        .select();
 
       if (error) {
-        if (error.code === '409' || error.code === '23505') {
-          throw new Error('Receptora já está adicionada a este protocolo.');
+        console.error('Erro ao inserir receptora:', error);
+        console.error('Dados tentados:', insertData);
+        console.error('Código do erro:', error.code);
+        console.error('Mensagem do erro:', error.message);
+        
+        // Tratar erro de constraint única (receptora já no protocolo)
+        if (error.code === '409' || error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          // Buscar TODOS os registros dessa receptora (em qualquer protocolo)
+          const { data: allReceptoraProtocols, error: searchError } = await supabase
+            .from('protocolo_receptoras')
+            .select(`
+              id,
+              protocolo_id,
+              receptora_id,
+              status,
+              data_inclusao,
+              protocolos_sincronizacao!inner (
+                id,
+                status,
+                data_inicio,
+                fazenda_id
+              )
+            `)
+            .eq('receptora_id', addReceptoraForm.receptora_id);
+
+          if (searchError) {
+            console.error('Erro ao buscar protocolos da receptora:', searchError);
+          }
+
+          // Verificar se está no protocolo atual
+          const noProtocoloAtual = allReceptoraProtocols?.find(
+            (pr: any) => pr.protocolo_id === id
+          );
+
+          if (noProtocoloAtual) {
+            toast({
+              title: 'Receptora já está no protocolo',
+              description: `Esta receptora já foi adicionada a este protocolo anteriormente (Status: ${noProtocoloAtual.status}). Recarregue a página para ver a lista atualizada.`,
+              variant: 'destructive',
+            });
+          } else {
+            // Está em outro protocolo - listar todos
+            const outrosProtocolos = allReceptoraProtocols?.filter(
+              (pr: any) => pr.protocolo_id !== id
+            ) || [];
+
+            if (outrosProtocolos.length > 0) {
+              const protocolosList = outrosProtocolos
+                .map((pr: any) => `Protocolo ${pr.protocolos_sincronizacao?.id?.substring(0, 8)} (${pr.protocolos_sincronizacao?.status || 'N/A'})`)
+                .join(', ');
+
+              toast({
+                title: 'Receptora vinculada a outro(s) protocolo(s)',
+                description: `Esta receptora está vinculada a outro(s) protocolo(s): ${protocolosList}. Ela precisa estar disponível (sem vínculos ativos) para ser adicionada a um novo protocolo.`,
+                variant: 'destructive',
+              });
+            } else {
+              // Erro inesperado - pode ser constraint de banco
+              toast({
+                title: 'Erro ao adicionar receptora',
+                description: `Não foi possível adicionar esta receptora. Código de erro: ${error.code || 'DESCONHECIDO'}. Verifique o histórico da receptora ou entre em contato com o suporte.`,
+                variant: 'destructive',
+              });
+            }
+          }
+          
+          setSubmitting(false);
+          isAddingReceptoraRef.current = false;
+          return;
         }
         throw error;
       }
@@ -292,6 +453,7 @@ export default function ProtocoloDetail() {
       });
     } finally {
       setSubmitting(false);
+      isAddingReceptoraRef.current = false;
     }
   };
 
@@ -675,7 +837,7 @@ export default function ProtocoloDetail() {
           <div>
             <p className="text-sm font-medium text-slate-500">Data Início</p>
             <p className="text-base text-slate-900">
-              {new Date(protocolo.data_inicio).toLocaleDateString('pt-BR')}
+              {formatDate(protocolo.data_inicio)}
             </p>
           </div>
           <div>
@@ -684,13 +846,13 @@ export default function ProtocoloDetail() {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Status</p>
-            <p className="text-base text-slate-900">
+            <div className="text-base text-slate-900">
               {isPasso1Aberto ? (
                 <Badge variant="default">1º Passo</Badge>
               ) : (
                 <Badge variant="secondary">1º Passo Concluído</Badge>
               )}
-            </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -756,7 +918,7 @@ export default function ProtocoloDetail() {
               <div>
                 <p className="text-sm font-medium text-slate-500">Data do 1º Passo</p>
                 <p className="text-base text-slate-900">
-                  {protocolo && new Date(protocolo.data_inicio).toLocaleDateString('pt-BR')}
+                  {protocolo && formatDate(protocolo.data_inicio)}
                 </p>
               </div>
               <div>

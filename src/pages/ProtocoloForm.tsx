@@ -71,9 +71,10 @@ export default function ProtocoloForm() {
       // Format responsavel_inicio as "VET: <veterinario> | TEC: <tecnico>"
       const responsavel_inicio = `VET: ${formData.veterinario.trim()} | TEC: ${formData.tecnico.trim()}`;
 
+      // Garantir que data_inicio seja salva como string YYYY-MM-DD (sem conversão de timezone)
       const insertData: Record<string, string> = {
         fazenda_id: formData.fazenda_id,
-        data_inicio: formData.data_inicio,
+        data_inicio: formData.data_inicio, // Já vem como YYYY-MM-DD do input type="date"
         responsavel_inicio: responsavel_inicio,
         status: 'ABERTO',
       };

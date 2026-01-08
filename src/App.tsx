@@ -13,9 +13,10 @@ import Doadoras from './pages/Doadoras';
 import Receptoras from './pages/Receptoras';
 import ReceptoraHistorico from './pages/ReceptoraHistorico';
 import Protocolos from './pages/Protocolos';
-import ProtocoloForm from './pages/ProtocoloForm';
+import ProtocoloFormWizard from './pages/ProtocoloFormWizard';
 import ProtocoloDetail from './pages/ProtocoloDetail';
 import ProtocoloPasso2 from './pages/ProtocoloPasso2';
+import ProtocoloRelatorioFechado from './pages/ProtocoloRelatorioFechado';
 import Aspiracoes from './pages/Aspiracoes';
 import DosesSemen from './pages/DosesSemen';
 import LotesFIV from './pages/LotesFIV';
@@ -55,9 +56,10 @@ const App = () => (
 
             {/* Protocolos */}
             <Route path="/protocolos" element={<Protocolos />} />
-            <Route path="/protocolos/novo" element={<ProtocoloForm />} />
+            <Route path="/protocolos/novo" element={<ProtocoloFormWizard />} />
             <Route path="/protocolos/:id" element={<ProtocoloDetail />} />
             <Route path="/protocolos/:id/passo2" element={<ProtocoloPasso2 />} />
+            <Route path="/protocolos/fechados/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
 
             {/* Aspirações */}
             <Route path="/aspiracoes" element={<Aspiracoes />} />

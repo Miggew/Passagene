@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
 import { ArrowLeft, CheckCircle, XCircle, Lock } from 'lucide-react';
 
 interface ReceptoraWithStatus extends Receptora {
@@ -162,15 +163,8 @@ export default function ProtocoloPasso2() {
       if (statusForm.status === 'CONFIRMADA') {
         updateData.motivo_inapta = null;
       } else {
-        if (!statusForm.motivo_inapta.trim()) {
-          toast({
-            title: 'Erro de validação',
-            description: 'Motivo é obrigatório para receptoras descartadas',
-            variant: 'destructive',
-          });
-          return;
-        }
-        updateData.motivo_inapta = statusForm.motivo_inapta;
+        // Motivo agora é opcional - pode ser vazio/null
+        updateData.motivo_inapta = statusForm.motivo_inapta.trim() || null;
       }
 
       setSubmitting(true);
@@ -218,11 +212,15 @@ export default function ProtocoloPasso2() {
       setSubmitting(true);
 
       // Update protocol status to PASSO2_FECHADO
+      // Usar data atual como string YYYY-MM-DD (sem conversão de timezone)
+      const hoje = new Date();
+      const dataRetirada = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+      
       const { error } = await supabase
         .from('protocolos_sincronizacao')
         .update({ 
           status: 'PASSO2_FECHADO',
-          data_retirada: new Date().toISOString().split('T')[0],
+          data_retirada: dataRetirada,
           responsavel_retirada: protocolo?.responsavel_inicio || null,
         })
         .eq('id', id);
@@ -318,16 +316,20 @@ export default function ProtocoloPasso2() {
           <div>
             <p className="text-sm font-medium text-slate-500">Data Início</p>
             <p className="text-base text-slate-900">
-              {new Date(protocolo.data_inicio).toLocaleDateString('pt-BR')}
+              {formatDate(protocolo.data_inicio)}
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Responsável</p>
-            <p className="text-base text-slate-900">{protocolo.responsavel_inicio}</p>
+            <p className="text-sm font-medium text-slate-500">Data do 2º Passo</p>
+            <p className="text-base text-slate-900">
+              {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '-'}
+            </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Status</p>
-            <Badge variant="secondary">2º Passo</Badge>
+            <p className="text-sm font-medium text-slate-500">Técnico 2º Passo</p>
+            <p className="text-base text-slate-900">
+              {protocolo.passo2_tecnico_responsavel || '-'}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -390,22 +392,23 @@ export default function ProtocoloPasso2() {
                     <TableCell>{r.pr_motivo_inapta || '-'}</TableCell>
                     <TableCell className="text-right">
                       {r.pr_status === 'INICIADA' && (
-                        <div className="flex gap-1 justify-end">
+                        <div className="flex gap-2 justify-end">
                           <Button
-                            variant="ghost"
+                            variant="default"
                             size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
                             onClick={() => {
                               setSelectedReceptoraId(r.id);
                               setSelectedReceptoraBrinco(r.identificacao);
                               setStatusForm({ status: 'CONFIRMADA', motivo_inapta: '' });
                               setShowMarcarStatus(true);
                             }}
-                            title="Confirmar"
                           >
-                            <CheckCircle className="w-4 h-4 text-green-600" />
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Confirmar
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="sm"
                             onClick={() => {
                               setSelectedReceptoraId(r.id);
@@ -413,9 +416,9 @@ export default function ProtocoloPasso2() {
                               setStatusForm({ status: 'DESCARTAR', motivo_inapta: '' });
                               setShowMarcarStatus(true);
                             }}
-                            title="Descartar"
                           >
-                            <XCircle className="w-4 h-4 text-red-600" />
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Descartar
                           </Button>
                         </div>
                       )}
@@ -456,17 +459,18 @@ export default function ProtocoloPasso2() {
 
             {statusForm.status === 'DESCARTAR' && (
               <div className="space-y-2">
-                <Label>Motivo *</Label>
+                <Label>Motivo (opcional)</Label>
                 <Select
-                  value={statusForm.motivo_inapta}
+                  value={statusForm.motivo_inapta || 'none'}
                   onValueChange={(value) =>
-                    setStatusForm({ ...statusForm, motivo_inapta: value })
+                    setStatusForm({ ...statusForm, motivo_inapta: value === 'none' ? '' : value })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o motivo" />
+                    <SelectValue placeholder="Selecione o motivo (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Sem motivo</SelectItem>
                     <SelectItem value="Descartada no 2º passo: Morreu">Morreu</SelectItem>
                     <SelectItem value="Descartada no 2º passo: Doente">Doente</SelectItem>
                     <SelectItem value="Descartada no 2º passo: Sumiu">Sumiu</SelectItem>
@@ -510,7 +514,7 @@ export default function ProtocoloPasso2() {
               <div>
                 <p className="text-sm font-medium text-slate-500">Data do Protocolo</p>
                 <p className="text-base text-slate-900">
-                  {protocolo && new Date(protocolo.data_inicio).toLocaleDateString('pt-BR')}
+                  {protocolo && formatDate(protocolo.data_inicio)}
                 </p>
               </div>
               <div>
