@@ -2,30 +2,38 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Routes, Route } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import MainLayout from './components/layout/MainLayout';
-import Dashboard from './pages/Dashboard';
-import Clientes from './pages/Clientes';
-import ClienteForm from './pages/ClienteForm';
-import ClienteDetail from './pages/ClienteDetail';
-import Fazendas from './pages/Fazendas';
-import FazendaDetail from './pages/FazendaDetail';
-import Doadoras from './pages/Doadoras';
-import Receptoras from './pages/Receptoras';
-import ReceptoraHistorico from './pages/ReceptoraHistorico';
-import Protocolos from './pages/Protocolos';
-import ProtocoloForm from './pages/ProtocoloForm';
-import ProtocoloDetail from './pages/ProtocoloDetail';
-import ProtocoloPasso2 from './pages/ProtocoloPasso2';
-import Aspiracoes from './pages/Aspiracoes';
-import DosesSemen from './pages/DosesSemen';
-import LotesFIV from './pages/LotesFIV';
-import Embrioes from './pages/Embrioes';
-import TransferenciaEmbrioes from './pages/TransferenciaEmbrioes';
-import DiagnosticoGestacao from './pages/DiagnosticoGestacao';
-import Sexagem from './pages/Sexagem';
-import NotFound from './pages/NotFound';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import type { ReactElement } from 'react';
 
 const queryClient = new QueryClient();
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Clientes = lazy(() => import('./pages/Clientes'));
+const ClienteForm = lazy(() => import('./pages/ClienteForm'));
+const ClienteDetail = lazy(() => import('./pages/ClienteDetail'));
+const Fazendas = lazy(() => import('./pages/Fazendas'));
+const FazendaDetail = lazy(() => import('./pages/FazendaDetail'));
+const Doadoras = lazy(() => import('./pages/Doadoras'));
+const Receptoras = lazy(() => import('./pages/Receptoras'));
+const ReceptoraHistorico = lazy(() => import('./pages/ReceptoraHistorico'));
+const Protocolos = lazy(() => import('./pages/Protocolos'));
+const ProtocoloForm = lazy(() => import('./pages/ProtocoloForm'));
+const ProtocoloDetail = lazy(() => import('./pages/ProtocoloDetail'));
+const ProtocoloPasso2 = lazy(() => import('./pages/ProtocoloPasso2'));
+const Aspiracoes = lazy(() => import('./pages/Aspiracoes'));
+const DosesSemen = lazy(() => import('./pages/DosesSemen'));
+const LotesFIV = lazy(() => import('./pages/LotesFIV'));
+const Embrioes = lazy(() => import('./pages/Embrioes'));
+const TransferenciaEmbrioes = lazy(() => import('./pages/TransferenciaEmbrioes'));
+const DiagnosticoGestacao = lazy(() => import('./pages/DiagnosticoGestacao'));
+const Sexagem = lazy(() => import('./pages/Sexagem'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+const withSuspense = (element: ReactElement) => (
+  <Suspense fallback={<LoadingSpinner />}>{element}</Suspense>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -34,53 +42,53 @@ const App = () => (
       <HashRouter>
         <Routes>
           <Route element={<MainLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={withSuspense(<Dashboard />)} />
 
             {/* Clientes */}
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/clientes/novo" element={<ClienteForm />} />
-            <Route path="/clientes/:id" element={<ClienteDetail />} />
-            <Route path="/clientes/:id/editar" element={<ClienteForm />} />
+            <Route path="/clientes" element={withSuspense(<Clientes />)} />
+            <Route path="/clientes/novo" element={withSuspense(<ClienteForm />)} />
+            <Route path="/clientes/:id" element={withSuspense(<ClienteDetail />)} />
+            <Route path="/clientes/:id/editar" element={withSuspense(<ClienteForm />)} />
 
             {/* Fazendas */}
-            <Route path="/fazendas" element={<Fazendas />} />
-            <Route path="/fazendas/:id" element={<FazendaDetail />} />
+            <Route path="/fazendas" element={withSuspense(<Fazendas />)} />
+            <Route path="/fazendas/:id" element={withSuspense(<FazendaDetail />)} />
 
             {/* Doadoras */}
-            <Route path="/doadoras" element={<Doadoras />} />
+            <Route path="/doadoras" element={withSuspense(<Doadoras />)} />
 
             {/* Receptoras */}
-            <Route path="/receptoras" element={<Receptoras />} />
-            <Route path="/receptoras/:id/historico" element={<ReceptoraHistorico />} />
+            <Route path="/receptoras" element={withSuspense(<Receptoras />)} />
+            <Route path="/receptoras/:id/historico" element={withSuspense(<ReceptoraHistorico />)} />
 
             {/* Protocolos */}
-            <Route path="/protocolos" element={<Protocolos />} />
-            <Route path="/protocolos/novo" element={<ProtocoloForm />} />
-            <Route path="/protocolos/:id" element={<ProtocoloDetail />} />
-            <Route path="/protocolos/:id/passo2" element={<ProtocoloPasso2 />} />
+            <Route path="/protocolos" element={withSuspense(<Protocolos />)} />
+            <Route path="/protocolos/novo" element={withSuspense(<ProtocoloForm />)} />
+            <Route path="/protocolos/:id" element={withSuspense(<ProtocoloDetail />)} />
+            <Route path="/protocolos/:id/passo2" element={withSuspense(<ProtocoloPasso2 />)} />
 
             {/* Aspirações */}
-            <Route path="/aspiracoes" element={<Aspiracoes />} />
+            <Route path="/aspiracoes" element={withSuspense(<Aspiracoes />)} />
 
             {/* Doses de Sêmen */}
-            <Route path="/doses-semen" element={<DosesSemen />} />
+            <Route path="/doses-semen" element={withSuspense(<DosesSemen />)} />
 
             {/* Lotes FIV */}
-            <Route path="/lotes-fiv" element={<LotesFIV />} />
+            <Route path="/lotes-fiv" element={withSuspense(<LotesFIV />)} />
 
             {/* Embriões */}
-            <Route path="/embrioes" element={<Embrioes />} />
+            <Route path="/embrioes" element={withSuspense(<Embrioes />)} />
 
             {/* Transferência de Embriões */}
-            <Route path="/transferencia" element={<TransferenciaEmbrioes />} />
+            <Route path="/transferencia" element={withSuspense(<TransferenciaEmbrioes />)} />
 
             {/* Diagnóstico de Gestação */}
-            <Route path="/dg" element={<DiagnosticoGestacao />} />
+            <Route path="/dg" element={withSuspense(<DiagnosticoGestacao />)} />
 
             {/* Sexagem */}
-            <Route path="/sexagem" element={<Sexagem />} />
+            <Route path="/sexagem" element={withSuspense(<Sexagem />)} />
           </Route>
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={withSuspense(<NotFound />)} />
         </Routes>
       </HashRouter>
     </TooltipProvider>
