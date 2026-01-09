@@ -5,7 +5,7 @@ import type { VTentativaTeStatus, VProtocoloReceptoraStatus } from './types';
  * Calculate the real-world status of a receptora using views
  * Priority order:
  * 1. Check v_tentativas_te_status (most recent TE attempt)
- * 2. Check v_protocolo_receptoras_status (active protocol)
+ * 2. Check protocolo_receptoras for active protocols (not PASSO2_FECHADO)
  * 3. Default to VAZIA
  */
 export async function calcularStatusReceptora(receptoraId: string): Promise<string> {
@@ -39,32 +39,78 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
       }
     }
 
-    // 2) Check v_protocolo_receptoras_status for active protocol
-    const { data: protocoloStatus, error: protocoloError } = await supabase
-      .from('v_protocolo_receptoras_status')
-      .select('*')
-      .eq('receptora_id', receptoraId)
-      .limit(1);
+    // 2) Check protocolo_receptoras for ACTIVE protocols (not PASSO2_FECHADO)
+    // Receptoras APTA/INICIADA em protocolos ativos não devem ser elegíveis
+    const { data: protocoloReceptoras, error: protocoloError } = await supabase
+      .from('protocolo_receptoras')
+      .select('status, protocolo_id')
+      .eq('receptora_id', receptoraId);
 
     if (protocoloError) {
-      console.error('Error fetching v_protocolo_receptoras_status:', protocoloError);
+      console.error('Error fetching protocolo_receptoras:', protocoloError);
     }
 
-    if (protocoloStatus && protocoloStatus.length > 0) {
-      const status = protocoloStatus[0] as VProtocoloReceptoraStatus;
-      const faseCicloMap: Record<string, string> = {
-        'SINCRONIZANDO': 'EM SINCRONIZAÇÃO',
-        'SINCRONIZADA': 'SINCRONIZADA',
-        'INOVULADA': 'SERVIDA',
-        'ENCERRADA': 'VAZIA',
-      };
-      
-      if (faseCicloMap[status.fase_ciclo]) {
-        return faseCicloMap[status.fase_ciclo];
+    if (protocoloReceptoras && protocoloReceptoras.length > 0) {
+      // Buscar status dos protocolos relacionados
+      const protocoloIds = protocoloReceptoras.map(pr => pr.protocolo_id);
+      const { data: protocolos, error: protocolosError } = await supabase
+        .from('protocolos_sincronizacao')
+        .select('id, status')
+        .in('id', protocoloIds);
+
+      if (protocolosError) {
+        console.error('Error fetching protocolos_sincronizacao:', protocolosError);
+      }
+
+      // Criar mapa de status dos protocolos
+      const protocoloStatusMap = new Map(
+        (protocolos || []).map((p: any) => [p.id, p.status])
+      );
+
+      // Verificar se há protocolo ATIVO (não fechado) com receptora APTA ou INICIADA
+      const protocolosAtivos = protocoloReceptoras.filter((pr) => {
+        const protocoloStatus = protocoloStatusMap.get(pr.protocolo_id);
+        const receptoraStatus = pr.status;
+        
+        // Protocolo fechado não bloqueia elegibilidade (pode entrar em novo protocolo)
+        if (protocoloStatus === 'PASSO2_FECHADO') {
+          return false;
+        }
+        
+        // Receptoras APTA ou INICIADA em protocolos ativos bloqueiam elegibilidade
+        if ((receptoraStatus === 'APTA' || receptoraStatus === 'INICIADA') && 
+            protocoloStatus !== 'PASSO2_FECHADO') {
+          return true;
+        }
+        
+        return false;
+      });
+
+      if (protocolosAtivos.length > 0) {
+        // Receptoras APTA em protocolos ativos estão em sincronização
+        const temApta = protocolosAtivos.some((pr) => pr.status === 'APTA');
+        if (temApta) {
+          return 'SINCRONIZADA'; // Receptora aprovada aguardando TE
+        }
+        return 'EM SINCRONIZAÇÃO'; // Receptora em protocolo ativo
+      }
+
+      // Verificar se há protocolo fechado com receptora APTA (já foi aprovada mas protocolo fechou)
+      // Receptoras APTA em protocolos fechados não devem entrar em novo protocolo até terem TE
+      const protocolosFechadosComApta = protocoloReceptoras.filter((pr) => {
+        const protocoloStatus = protocoloStatusMap.get(pr.protocolo_id);
+        return protocoloStatus === 'PASSO2_FECHADO' && pr.status === 'APTA';
+      });
+
+      if (protocolosFechadosComApta.length > 0) {
+        // Receptora foi aprovada em protocolo fechado - verificar se teve TE
+        // Se não teve TE ainda, ainda está "aguardando" mesmo com protocolo fechado
+        // Por segurança, vamos retornar SINCRONIZADA para não permitir novo protocolo
+        return 'SINCRONIZADA';
       }
     }
 
-    // 3) Default
+    // 3) Default - receptora disponível
     return 'VAZIA';
   } catch (error) {
     console.error('Error calculating receptora status:', error);

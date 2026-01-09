@@ -15,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { formatDate } from '@/lib/utils';
-import { ArrowLeft, Printer, Calendar, User, Home, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
 
 interface ReceptoraComStatusFinal extends Receptora {
   pr_id: string;
@@ -25,22 +25,13 @@ interface ReceptoraComStatusFinal extends Receptora {
   pr_data_retirada?: string;
 }
 
-interface TimelineEvent {
-  tipo: string;
-  data: string;
-  descricao: string;
-  detalhes?: string;
-}
-
 export default function ProtocoloRelatorioFechado() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [protocolo, setProtocolo] = useState<ProtocoloSincronizacao | null>(null);
   const [fazendaNome, setFazendaNome] = useState('');
-  const [receptorasIniciaram, setReceptorasIniciaram] = useState<ReceptoraComStatusFinal[]>([]);
   const [receptorasFinal, setReceptorasFinal] = useState<ReceptoraComStatusFinal[]>([]);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [resumo, setResumo] = useState({
     totalIniciaram: 0,
     totalConcluiram: 0,
@@ -87,9 +78,6 @@ export default function ProtocoloRelatorioFechado() {
 
       // Load receptoras do protocolo
       await loadReceptoras(protocoloData);
-
-      // Build timeline
-      buildTimeline(protocoloData);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -132,10 +120,7 @@ export default function ProtocoloRelatorioFechado() {
         });
       }
 
-      // Receptoras que iniciaram = todas que foram adicionadas
-      setReceptorasIniciaram(receptorasComStatus);
-
-      // Receptoras finais = todas (mesmo conjunto, mas com status final)
+      // Receptoras finais = todas com status final
       setReceptorasFinal(receptorasComStatus);
 
       // Calcular resumo
@@ -155,57 +140,17 @@ export default function ProtocoloRelatorioFechado() {
     }
   };
 
-  const buildTimeline = (protocolo: ProtocoloSincronizacao) => {
-    const events: TimelineEvent[] = [];
-
-    // Protocolo criado
-    if (protocolo.created_at) {
-      events.push({
-        tipo: 'CRIACAO',
-        data: protocolo.created_at,
-        descricao: 'Protocolo criado',
-        detalhes: `Responsável: ${protocolo.responsavel_inicio}`,
-      });
-    }
-
-    // Data início
-    if (protocolo.data_inicio) {
-      events.push({
-        tipo: 'INICIO',
-        data: protocolo.data_inicio,
-        descricao: '1º Passo iniciado',
-        detalhes: `Data: ${formatDate(protocolo.data_inicio)}`,
-      });
-    }
-
-    // Passo 2 iniciado
-    if (protocolo.passo2_data) {
-      events.push({
-        tipo: 'PASSO2',
-        data: protocolo.passo2_data,
-        descricao: '2º Passo realizado',
-        detalhes: protocolo.passo2_tecnico_responsavel
-          ? `Técnico: ${protocolo.passo2_tecnico_responsavel}`
-          : undefined,
-      });
-    }
-
-    // Protocolo fechado
-    if (protocolo.data_retirada) {
-      events.push({
-        tipo: 'FECHAMENTO',
-        data: protocolo.data_retirada,
-        descricao: 'Protocolo fechado',
-        detalhes: protocolo.responsavel_retirada
-          ? `Responsável: ${protocolo.responsavel_retirada}`
-          : undefined,
-      });
-    }
-
-    // Ordenar por data
-    events.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-
-    setTimeline(events);
+  // Extrair veterinário e técnico do responsavel_inicio
+  const parseResponsavelInicio = (responsavelInicio: string | undefined) => {
+    if (!responsavelInicio) return { veterinario: null, tecnico: null };
+    
+    const vetMatch = responsavelInicio.match(/VET:\s*(.+?)(?:\s*\||$)/i);
+    const tecMatch = responsavelInicio.match(/TEC:\s*(.+?)(?:\s*\||$)/i);
+    
+    return {
+      veterinario: vetMatch ? vetMatch[1].trim() : null,
+      tecnico: tecMatch ? tecMatch[1].trim() : null,
+    };
   };
 
   const getStatusBadge = (status: string) => {
@@ -256,42 +201,50 @@ export default function ProtocoloRelatorioFechado() {
         </Button>
       </div>
 
-      {/* Informações Básicas */}
+      {/* Informações do Protocolo - Ordem Fixa */}
       <Card>
         <CardHeader>
           <CardTitle>Informações do Protocolo</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 1) Fazenda */}
           <div>
-            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
-              <Home className="w-4 h-4" />
-              Fazenda
-            </p>
-            <p className="text-base text-slate-900 mt-1">{fazendaNome}</p>
+            <p className="text-sm font-medium text-slate-500">Fazenda</p>
+            <p className="text-base text-slate-900 mt-1">{fazendaNome || '—'}</p>
           </div>
+          {/* 2) Data início */}
           <div>
-            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Data Início
-            </p>
-            <p className="text-base text-slate-900 mt-1">{formatDate(protocolo.data_inicio)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Data 2º Passo
-            </p>
+            <p className="text-sm font-medium text-slate-500">Data início</p>
             <p className="text-base text-slate-900 mt-1">
-              {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '-'}
+              {protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}
             </p>
           </div>
+          {/* 3) Vet responsável pelo início */}
           <div>
-            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Técnico 2º Passo
-            </p>
+            <p className="text-sm font-medium text-slate-500">Vet responsável pelo início</p>
             <p className="text-base text-slate-900 mt-1">
-              {protocolo.passo2_tecnico_responsavel || '-'}
+              {parseResponsavelInicio(protocolo.responsavel_inicio).veterinario || '—'}
+            </p>
+          </div>
+          {/* 4) Tec responsável pelo início */}
+          <div>
+            <p className="text-sm font-medium text-slate-500">Tec responsável pelo início</p>
+            <p className="text-base text-slate-900 mt-1">
+              {parseResponsavelInicio(protocolo.responsavel_inicio).tecnico || '—'}
+            </p>
+          </div>
+          {/* 5) Data segundo passo */}
+          <div>
+            <p className="text-sm font-medium text-slate-500">Data segundo passo</p>
+            <p className="text-base text-slate-900 mt-1">
+              {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '—'}
+            </p>
+          </div>
+          {/* 6) Responsável pelo segundo passo */}
+          <div>
+            <p className="text-sm font-medium text-slate-500">Responsável pelo segundo passo</p>
+            <p className="text-base text-slate-900 mt-1">
+              {protocolo.passo2_tecnico_responsavel || '—'}
             </p>
           </div>
         </CardContent>
@@ -338,75 +291,10 @@ export default function ProtocoloRelatorioFechado() {
         </Card>
       </div>
 
-      {/* Timeline */}
+      {/* Receptoras e Resultado Final */}
       <Card>
         <CardHeader>
-          <CardTitle>Linha do Tempo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {timeline.length === 0 ? (
-              <p className="text-slate-500 text-center py-4">
-                Nenhum evento registrado na timeline
-              </p>
-            ) : (
-              timeline.map((event, index) => (
-                <div key={index} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                    {index < timeline.length - 1 && (
-                      <div className="w-0.5 h-full bg-slate-200 min-h-[40px]"></div>
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <p className="font-semibold text-slate-900">{event.descricao}</p>
-                    <p className="text-sm text-slate-600">{formatDate(event.data)}</p>
-                    {event.detalhes && (
-                      <p className="text-sm text-slate-500 mt-1">{event.detalhes}</p>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Receptoras que Iniciaram */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Receptoras que Iniciaram o Protocolo ({receptorasIniciaram.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {receptorasIniciaram.length === 0 ? (
-            <p className="text-slate-500 text-center py-4">Nenhuma receptora iniciou este protocolo</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Brinco</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Data Inclusão</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {receptorasIniciaram.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.identificacao}</TableCell>
-                    <TableCell>{r.nome || '-'}</TableCell>
-                    <TableCell>{r.pr_data_inclusao ? formatDate(r.pr_data_inclusao) : '-'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Resultado Final */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resultado Final das Receptoras</CardTitle>
+          <CardTitle>Receptoras e Resultado Final</CardTitle>
         </CardHeader>
         <CardContent>
           {receptorasFinal.length === 0 ? (
@@ -415,19 +303,20 @@ export default function ProtocoloRelatorioFechado() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Brinco</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Status Final</TableHead>
-                  <TableHead>Motivo (se descartada)</TableHead>
+                  <TableHead>Identificação</TableHead>
+                  <TableHead>Resultado Final</TableHead>
+                  <TableHead>Motivo do Descarte</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {receptorasFinal.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.identificacao}</TableCell>
-                    <TableCell>{r.nome || '-'}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.identificacao}
+                      {r.nome ? ` - ${r.nome}` : ''}
+                    </TableCell>
                     <TableCell>{getStatusBadge(r.pr_status)}</TableCell>
-                    <TableCell>{r.pr_motivo_inapta || '-'}</TableCell>
+                    <TableCell>{r.pr_motivo_inapta || '—'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -641,8 +641,34 @@ export default function Protocolos() {
                     return;
                   }
 
+                  // Proteção contra multi-clique
+                  if (submittingPasso2) {
+                    return;
+                  }
+
                   try {
                     setSubmittingPasso2(true);
+
+                    // CRITICAL: Validar que o protocolo possui receptoras vinculadas
+                    const { count, error: countError } = await supabase
+                      .from('protocolo_receptoras')
+                      .select('*', { count: 'exact', head: true })
+                      .eq('protocolo_id', selectedProtocoloId);
+
+                    if (countError) {
+                      console.error('Erro ao verificar receptoras:', countError);
+                      throw new Error('Erro ao verificar receptoras vinculadas ao protocolo');
+                    }
+
+                    if (!count || count === 0) {
+                      toast({
+                        title: 'Erro: Protocolo sem receptoras',
+                        description: 'Este protocolo não possui receptoras vinculadas. Não é possível iniciar o 2º passo.',
+                        variant: 'destructive',
+                      });
+                      setSubmittingPasso2(false);
+                      return;
+                    }
 
                     // Salvar dados do passo 2 no protocolo
                     const { error } = await supabase
@@ -664,6 +690,7 @@ export default function Protocolos() {
                     // Navegar para a tela do passo 2
                     navigate(`/protocolos/${selectedProtocoloId}/passo2`);
                   } catch (error) {
+                    console.error('Erro ao iniciar 2º passo:', error);
                     toast({
                       title: 'Erro ao iniciar 2º passo',
                       description: error instanceof Error ? error.message : 'Erro desconhecido',
