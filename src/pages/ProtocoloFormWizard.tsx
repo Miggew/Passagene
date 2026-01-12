@@ -132,13 +132,40 @@ export default function ProtocoloFormWizard() {
   const loadAllReceptoras = async (fazendaId: string) => {
     try {
       setLoadingReceptoras(true);
-      const { data: receptorasData, error: allError } = await supabase
-        .from('receptoras')
-        .select('id, identificacao, nome')
-        .eq('fazenda_atual_id', fazendaId)
-        .order('identificacao', { ascending: true });
+      
+      // Usar view vw_receptoras_fazenda_atual para filtrar por fazenda atual
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', fazendaId);
 
-      if (allError) throw allError;
+      if (viewError) throw viewError;
+
+      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
+
+      // Se não houver receptoras na view, usar fallback para receptoras.fazenda_atual_id (compatibilidade durante transição)
+      let receptorasData;
+      if (receptoraIds.length === 0) {
+        // Fallback: buscar diretamente da tabela receptoras (durante transição)
+        const { data, error } = await supabase
+          .from('receptoras')
+          .select('id, identificacao, nome')
+          .eq('fazenda_atual_id', fazendaId)
+          .order('identificacao', { ascending: true });
+        
+        if (error) throw error;
+        receptorasData = data || [];
+      } else {
+        // Buscar dados completos das receptoras usando os IDs da view
+        const { data, error } = await supabase
+          .from('receptoras')
+          .select('id, identificacao, nome')
+          .in('id', receptoraIds)
+          .order('identificacao', { ascending: true });
+        
+        if (error) throw error;
+        receptorasData = data || [];
+      }
 
       if (!receptorasData) receptorasData = [];
 

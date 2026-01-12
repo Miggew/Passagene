@@ -14,10 +14,10 @@ import {
 } from '@/components/ui/sheet';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Syringe, Activity, Baby } from 'lucide-react';
+import { Calendar, Syringe, Activity, Baby, MapPin } from 'lucide-react';
 
 interface HistoryEvent {
-  tipo: 'PROTOCOLO' | 'TE' | 'DG' | 'SEXAGEM';
+  tipo: 'PROTOCOLO' | 'TE' | 'DG' | 'SEXAGEM' | 'MUDANCA_FAZENDA';
   data: string;
   descricao: string;
   detalhes?: string;
@@ -58,7 +58,74 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
       // Build timeline
       const events: HistoryEvent[] = [];
 
-      // 1. Protocolos via v_protocolo_receptoras_status
+      // 1. Mudanças de fazenda via receptora_fazenda_historico
+      const { data: historicoFazendas, error: historicoError } = await supabase
+        .from('receptora_fazenda_historico')
+        .select(`
+          id,
+          fazenda_id,
+          data_inicio,
+          data_fim,
+          observacoes,
+          fazendas!receptora_fazenda_historico_fazenda_id_fkey (
+            id,
+            nome
+          )
+        `)
+        .eq('receptora_id', receptoraId)
+        .order('data_inicio', { ascending: false });
+
+      if (!historicoError && historicoFazendas && historicoFazendas.length > 0) {
+        // Para cada registro no histórico:
+        // - Se data_fim IS NULL: vínculo ativo (chegada na fazenda atual)
+        // - Se data_fim IS NOT NULL: saída dessa fazenda (mudança)
+        for (let i = 0; i < historicoFazendas.length; i++) {
+          const historico = historicoFazendas[i];
+          const fazendaNome = (historico.fazendas as any)?.nome || 'Fazenda desconhecida';
+          
+          if (historico.data_fim) {
+            // Mudança: saiu desta fazenda em data_fim
+            // A fazenda de destino é a próxima entrada na lista (i+1), que é anterior no tempo
+            let fazendaDestinoNome = 'Fazenda desconhecida';
+            if (i + 1 < historicoFazendas.length) {
+              const historicoDestino = historicoFazendas[i + 1];
+              fazendaDestinoNome = (historicoDestino.fazendas as any)?.nome || 'Fazenda desconhecida';
+            }
+            
+            events.push({
+              tipo: 'MUDANCA_FAZENDA',
+              data: historico.data_fim,
+              descricao: `Mudança de Fazenda`,
+              detalhes: `De: ${fazendaNome} → Para: ${fazendaDestinoNome}${historico.observacoes ? ` | Observações: ${historico.observacoes}` : ''}`,
+            });
+          } else {
+            // Vínculo ativo (data_fim IS NULL): chegada nesta fazenda em data_inicio
+            // A fazenda de origem é a próxima entrada na lista (i+1), que é anterior no tempo
+            if (i + 1 < historicoFazendas.length) {
+              // Tem histórico anterior: foi uma mudança
+              const historicoOrigem = historicoFazendas[i + 1];
+              const fazendaOrigemNome = (historicoOrigem.fazendas as any)?.nome || 'Fazenda desconhecida';
+              
+              events.push({
+                tipo: 'MUDANCA_FAZENDA',
+                data: historico.data_inicio,
+                descricao: `Mudança de Fazenda`,
+                detalhes: `De: ${fazendaOrigemNome} → Para: ${fazendaNome}${historico.observacoes ? ` | Observações: ${historico.observacoes}` : ''}`,
+              });
+            } else {
+              // Primeira entrada: chegada inicial/criação na fazenda
+              events.push({
+                tipo: 'MUDANCA_FAZENDA',
+                data: historico.data_inicio,
+                descricao: `Chegada à Fazenda`,
+                detalhes: `Fazenda: ${fazendaNome}${historico.observacoes ? ` | Observações: ${historico.observacoes}` : ''}`,
+              });
+            }
+          }
+        }
+      }
+
+      // 2. Protocolos via v_protocolo_receptoras_status
       const { data: protocoloStatus } = await supabase
         .from('v_protocolo_receptoras_status')
         .select('*')
@@ -75,7 +142,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
         }
       }
 
-      // 2. Tentativas TE via v_tentativas_te_status
+      // 3. Tentativas TE via v_tentativas_te_status
       const { data: tentativas } = await supabase
         .from('v_tentativas_te_status')
         .select('*')
@@ -131,6 +198,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
       'TE': <Syringe className="w-5 h-5 text-green-600" />,
       'DG': <Activity className="w-5 h-5 text-purple-600" />,
       'SEXAGEM': <Baby className="w-5 h-5 text-pink-600" />,
+      'MUDANCA_FAZENDA': <MapPin className="w-5 h-5 text-orange-600" />,
     };
     return icons[tipo as keyof typeof icons];
   };
@@ -141,6 +209,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
       'TE': <Badge variant="default" className="bg-green-600">TE</Badge>,
       'DG': <Badge variant="default" className="bg-purple-600">DG</Badge>,
       'SEXAGEM': <Badge variant="default" className="bg-pink-600">Sexagem</Badge>,
+      'MUDANCA_FAZENDA': <Badge variant="default" className="bg-orange-600">Mudança de Fazenda</Badge>,
     };
     return badges[tipo as keyof typeof badges] || <Badge>{tipo}</Badge>;
   };

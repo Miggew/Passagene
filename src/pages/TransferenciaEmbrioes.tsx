@@ -114,40 +114,48 @@ export default function TransferenciaEmbrioes() {
     setFormData({ ...formData, fazenda_id: fazendaId, receptora_id: '', protocolo_receptora_id: '' });
 
     try {
-      // Load receptoras sincronizadas from view
+      // 1. Buscar receptoras da fazenda atual via vw_receptoras_fazenda_atual
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', fazendaId);
+
+      if (viewError) throw viewError;
+
+      const receptoraIdsNaFazenda = viewData?.map(v => v.receptora_id) || [];
+
+      if (receptoraIdsNaFazenda.length === 0) {
+        setReceptoras([]);
+        return;
+      }
+
+      // 2. Buscar receptoras sincronizadas que estão na fazenda atual
       const { data: statusData, error: statusError } = await supabase
         .from('v_protocolo_receptoras_status')
         .select('*')
-        .eq('fase_ciclo', 'SINCRONIZADA');
+        .eq('fase_ciclo', 'SINCRONIZADA')
+        .in('receptora_id', receptoraIdsNaFazenda);
 
       if (statusError) throw statusError;
 
-      // Filter by fazenda through protocolo
-      const { data: protocolosData, error: protocolosError } = await supabase
-        .from('protocolos_sincronizacao')
-        .select('id')
-        .eq('fazenda_id', fazendaId)
-        .eq('status', 'ABERTO');
+      if (!statusData || statusData.length === 0) {
+        setReceptoras([]);
+        return;
+      }
 
-      if (protocolosError) throw protocolosError;
-
-      const protocolosIds = protocolosData?.map((p) => p.id) || [];
-
-      const receptorasFiltradas = statusData?.filter((r) =>
-        protocolosIds.includes(r.protocolo_id)
-      ) || [];
-
-      // Get protocolo_receptora_id for each
+      // 3. Buscar protocolo_receptora_id para cada uma
+      const protocolosIds = Array.from(new Set(statusData.map(r => r.protocolo_id)));
       const { data: prData, error: prError } = await supabase
         .from('protocolo_receptoras')
         .select('id, receptora_id, protocolo_id')
-        .in('protocolo_id', protocolosIds);
+        .in('protocolo_id', protocolosIds)
+        .in('receptora_id', receptoraIdsNaFazenda);
 
       if (prError) throw prError;
 
-      const prMap = new Map(prData?.map((pr) => [pr.receptora_id + pr.protocolo_id, pr.id]));
+      const prMap = new Map(prData?.map((pr) => [pr.receptora_id + pr.protocolo_id, pr.id]) || []);
 
-      const receptorasComId = receptorasFiltradas.map((r) => ({
+      const receptorasComId = statusData.map((r) => ({
         receptora_id: r.receptora_id,
         brinco: r.brinco,
         protocolo_id: r.protocolo_id,
