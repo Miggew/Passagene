@@ -43,6 +43,128 @@ export default function ProtocoloRelatorioFechado() {
     totalConfirmadas: 0,
   });
 
+  // Função para enriquecer observações com informações da mudança de fazenda
+  const enriquecerObservacoesMudancaFazenda = async (protocolo: ProtocoloSincronizacao): Promise<string> => {
+    try {
+      // Buscar receptoras do protocolo
+      const { data: prData } = await supabase
+        .from('protocolo_receptoras')
+        .select('receptora_id')
+        .eq('protocolo_id', protocolo.id)
+        .limit(1); // Precisamos apenas de uma receptora para identificar a mudança
+
+      if (!prData || prData.length === 0) {
+        return protocolo.observacoes || '';
+      }
+
+      const primeiraReceptoraId = prData[0].receptora_id;
+
+      // Buscar histórico de fazendas dessa receptora
+      const { data: historicoFazendas } = await supabase
+        .from('receptora_fazenda_historico')
+        .select(`
+          fazenda_id,
+          data_inicio
+        `)
+        .eq('receptora_id', primeiraReceptoraId)
+        .order('data_inicio', { ascending: true });
+
+      if (!historicoFazendas || historicoFazendas.length < 2) {
+        return protocolo.observacoes || '';
+      }
+
+      // Coletar IDs de fazendas para buscar nomes
+      const fazendaIds = new Set<string>();
+      for (const historico of historicoFazendas) {
+        if (historico.fazenda_id) {
+          fazendaIds.add(historico.fazenda_id);
+        }
+      }
+
+      // Buscar nomes das fazendas
+      const { data: fazendasData } = await supabase
+        .from('fazendas')
+        .select('id, nome')
+        .in('id', Array.from(fazendaIds));
+
+      const fazendasMap = new Map<string, string>();
+      if (fazendasData) {
+        for (const fazenda of fazendasData) {
+          fazendasMap.set(fazenda.id, fazenda.nome);
+        }
+      }
+
+      // Encontrar a mudança que corresponde à data_inicio do protocolo
+      // A mudança deve ter ocorrido na mesma data ou próximo à data_inicio do protocolo
+      // Normalizar data do protocolo para comparar apenas o dia (sem horas)
+      const dataProtocoloStr = protocolo.data_inicio.split('T')[0]; // YYYY-MM-DD
+      const [anoProtocolo, mesProtocolo, diaProtocolo] = dataProtocoloStr.split('-').map(Number);
+      const dataProtocolo = new Date(anoProtocolo, mesProtocolo - 1, diaProtocolo);
+      
+      // Procurar mudança que ocorreu na data do protocolo ou próximo
+      let mudancaEncontrada = null;
+      let menorDiffDias = Infinity;
+      
+      for (let i = 1; i < historicoFazendas.length; i++) {
+        const historicoAtual = historicoFazendas[i];
+        const historicoAnterior = historicoFazendas[i - 1];
+        
+        // Normalizar data da mudança para comparar apenas o dia (sem horas)
+        const dataMudancaStr = historicoAtual.data_inicio.split('T')[0]; // YYYY-MM-DD
+        const [anoMudanca, mesMudanca, diaMudanca] = dataMudancaStr.split('-').map(Number);
+        const dataMudanca = new Date(anoMudanca, mesMudanca - 1, diaMudanca);
+        
+        // Calcular diferença em dias (valor absoluto)
+        const diffDias = Math.abs((dataMudanca.getTime() - dataProtocolo.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Aceitar mudanças que ocorreram na mesma data ou até 1 dia antes/depois
+        // Mas preferir a mudança mais próxima da data do protocolo
+        if (diffDias <= 1 && diffDias < menorDiffDias) {
+          menorDiffDias = diffDias;
+          mudancaEncontrada = {
+            fazendaOrigem: fazendasMap.get(historicoAnterior.fazenda_id) || 'Fazenda desconhecida',
+            fazendaDestino: fazendasMap.get(historicoAtual.fazenda_id) || 'Fazenda desconhecida',
+            dataMudanca: historicoAtual.data_inicio, // Usar a data original do histórico
+          };
+        }
+      }
+      
+      // Se não encontrou mudança próxima, usar a mudança mais recente antes da data do protocolo
+      // (pode ser que o protocolo foi criado no dia seguinte à mudança)
+      if (!mudancaEncontrada && historicoFazendas.length > 1) {
+        // Buscar a última mudança antes ou na data do protocolo
+        for (let i = historicoFazendas.length - 1; i >= 1; i--) {
+          const historicoAtual = historicoFazendas[i];
+          const historicoAnterior = historicoFazendas[i - 1];
+          
+          const dataMudancaStr = historicoAtual.data_inicio.split('T')[0];
+          const [anoMudanca, mesMudanca, diaMudanca] = dataMudancaStr.split('-').map(Number);
+          const dataMudanca = new Date(anoMudanca, mesMudanca - 1, diaMudanca);
+          
+          // Se a mudança foi antes ou na data do protocolo (até 2 dias antes)
+          if (dataMudanca <= dataProtocolo && (dataProtocolo.getTime() - dataMudanca.getTime()) / (1000 * 60 * 60 * 24) <= 2) {
+            mudancaEncontrada = {
+              fazendaOrigem: fazendasMap.get(historicoAnterior.fazenda_id) || 'Fazenda desconhecida',
+              fazendaDestino: fazendasMap.get(historicoAtual.fazenda_id) || 'Fazenda desconhecida',
+              dataMudanca: historicoAtual.data_inicio,
+            };
+            break;
+          }
+        }
+      }
+
+      if (mudancaEncontrada) {
+        const dataFormatada = new Date(mudancaEncontrada.dataMudanca).toLocaleDateString('pt-BR');
+        return `${protocolo.observacoes} (Mudança: ${mudancaEncontrada.fazendaOrigem} → ${mudancaEncontrada.fazendaDestino} em ${dataFormatada})`;
+      }
+
+      return protocolo.observacoes || '';
+    } catch (error) {
+      console.error('Erro ao enriquecer observações:', error);
+      return protocolo.observacoes || '';
+    }
+  };
+
   useEffect(() => {
     if (id) {
       loadData();
@@ -68,7 +190,16 @@ export default function ProtocoloRelatorioFechado() {
         return;
       }
 
-      setProtocolo(protocoloData);
+      // Se a observação indica que foi criado automaticamente, buscar informações da mudança
+      let observacoesEnriquecidas = protocoloData.observacoes;
+      if (protocoloData.observacoes && protocoloData.observacoes.includes('Protocolo criado automaticamente')) {
+        observacoesEnriquecidas = await enriquecerObservacoesMudancaFazenda(protocoloData);
+      }
+
+      setProtocolo({
+        ...protocoloData,
+        observacoes: observacoesEnriquecidas,
+      });
 
       // Load fazenda nome
       const { data: fazendaData, error: fazendaError } = await supabase
@@ -81,7 +212,10 @@ export default function ProtocoloRelatorioFechado() {
       setFazendaNome(fazendaData.nome);
 
       // Load receptoras do protocolo
-      await loadReceptoras(protocoloData);
+      await loadReceptoras({
+        ...protocoloData,
+        observacoes: observacoesEnriquecidas,
+      });
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {

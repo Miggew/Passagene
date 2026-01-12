@@ -343,8 +343,15 @@ export default function ProtocoloFormWizard() {
         }]);
 
       if (historicoError) {
-        console.error('Erro ao criar histórico de fazenda:', historicoError);
-        // Não falhar - mas isso pode causar problemas de visibilidade
+        // Se o erro for de duplicata (trigger), significa que a validação falhou
+        // Mas a receptora já foi criada, então precisamos tratá-la
+        if (historicoError.message?.includes('brinco') || historicoError.code === 'P0001') {
+          // Não logar como erro - é um caso esperado quando a validação falha
+          // A receptora foi criada mas não pode ser vinculada à fazenda
+          // Isso será tratado pela validação melhorada no ProtocoloDetail
+        } else {
+          console.error('Erro ao criar histórico de fazenda:', historicoError);
+        }
       }
 
       setReceptorasLocais([

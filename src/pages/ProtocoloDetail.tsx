@@ -252,25 +252,66 @@ export default function ProtocoloDetail() {
       isAddingReceptoraRef.current = true;
       setSubmitting(true);
 
-      // Check if receptora already in THIS protocol
-      const { data: existing, error: existingError } = await supabase
+      // Buscar informações da receptora que está sendo adicionada
+      const { data: receptoraData, error: receptoraDataError } = await supabase
+        .from('receptoras')
+        .select('id, identificacao')
+        .eq('id', addReceptoraForm.receptora_id)
+        .single();
+
+      if (receptoraDataError) throw receptoraDataError;
+
+      // Verificar se já existe receptora com o mesmo brinco no protocolo
+      // (pode ser a mesma receptora ou outra com o mesmo brinco)
+      const { data: prData, error: prDataError } = await supabase
         .from('protocolo_receptoras')
-        .select('id')
-        .eq('protocolo_id', id)
-        .eq('receptora_id', addReceptoraForm.receptora_id)
-        .maybeSingle();
+        .select('receptora_id')
+        .eq('protocolo_id', id);
 
-      if (existingError) throw existingError;
+      if (prDataError) {
+        console.error('Erro ao verificar receptoras no protocolo:', prDataError);
+      }
 
-      if (existing) {
-        toast({
-          title: 'Receptora já está no protocolo',
-          description: 'Essa receptora já está adicionada a este protocolo.',
-          variant: 'destructive',
-        });
-        setSubmitting(false);
-        isAddingReceptoraRef.current = false;
-        return;
+      if (prData && prData.length > 0) {
+        const receptoraIdsNoProtocolo = prData.map(pr => pr.receptora_id);
+        
+        // Verificar se a mesma receptora já está no protocolo
+        if (receptoraIdsNoProtocolo.includes(addReceptoraForm.receptora_id)) {
+          toast({
+            title: 'Receptora já está no protocolo',
+            description: 'Essa receptora já está adicionada a este protocolo.',
+            variant: 'destructive',
+          });
+          setSubmitting(false);
+          isAddingReceptoraRef.current = false;
+          return;
+        }
+
+        // Buscar dados das receptoras no protocolo para verificar por brinco
+        const { data: receptorasNoProtocolo, error: receptorasError } = await supabase
+          .from('receptoras')
+          .select('id, identificacao')
+          .in('id', receptoraIdsNoProtocolo);
+
+        if (receptorasError) {
+          console.error('Erro ao buscar receptoras do protocolo:', receptorasError);
+        }
+
+        // Verificar se já existe outra receptora com o mesmo brinco no protocolo
+        const mesmoBrinco = receptorasNoProtocolo?.find(
+          (r) => r.identificacao === receptoraData.identificacao
+        );
+
+        if (mesmoBrinco) {
+          toast({
+            title: 'Brinco já está no protocolo',
+            description: `Já existe uma receptora com o brinco "${receptoraData.identificacao}" neste protocolo. Não é possível adicionar outra receptora com o mesmo brinco.`,
+            variant: 'destructive',
+          });
+          setSubmitting(false);
+          isAddingReceptoraRef.current = false;
+          return;
+        }
       }
 
       // Verificar se a receptora está em algum protocolo ATIVO (não fechado)
@@ -499,13 +540,178 @@ export default function ProtocoloDetail() {
     try {
       setSubmitting(true);
 
+      // Verificar se já existe receptora com esse brinco na fazenda do protocolo
+      // Primeiro, buscar todas as receptoras com esse brinco
+      const { data: receptorasComBrinco, error: brincoCheckError } = await supabase
+        .from('receptoras')
+        .select('id, identificacao')
+        .eq('identificacao', createReceptoraForm.identificacao.trim());
+
+      if (brincoCheckError) {
+        console.error('Erro ao verificar receptoras com brinco:', brincoCheckError);
+      }
+
+      // Se encontrou receptoras com esse brinco, verificar status e protocolos
+      if (receptorasComBrinco && receptorasComBrinco.length > 0) {
+        const receptoraIds = receptorasComBrinco.map(r => r.id);
+        
+        // PRIMEIRO: Verificar se alguma receptora com esse brinco já está no protocolo atual
+        const { data: prData, error: prDataError } = await supabase
+          .from('protocolo_receptoras')
+          .select('receptora_id, status')
+          .eq('protocolo_id', id);
+
+        if (prDataError) {
+          console.error('Erro ao verificar receptoras no protocolo:', prDataError);
+        }
+
+        if (prData && prData.length > 0) {
+          const receptoraIdsNoProtocolo = prData.map(pr => pr.receptora_id);
+          
+          // Verificar se alguma dessas receptoras específicas já está no protocolo
+          const prJaNoProtocolo = prData.find(pr => receptoraIds.includes(pr.receptora_id));
+          
+          if (prJaNoProtocolo) {
+            toast({
+              title: 'Receptora já está no protocolo',
+              description: `Esta receptora já foi adicionada a este protocolo (Status: ${prJaNoProtocolo.status}).`,
+              variant: 'destructive',
+            });
+            setSubmitting(false);
+            return;
+          }
+
+          // Buscar dados das receptoras no protocolo para verificar por brinco
+          const { data: receptorasNoProtocolo, error: receptorasError } = await supabase
+            .from('receptoras')
+            .select('id, identificacao')
+            .in('id', receptoraIdsNoProtocolo);
+
+          if (receptorasError) {
+            console.error('Erro ao buscar receptoras do protocolo:', receptorasError);
+          }
+
+          // Verificar se alguma receptora com esse brinco já está no protocolo
+          const brincoParaVerificar = createReceptoraForm.identificacao.trim();
+          const mesmoBrincoNoProtocolo = receptorasNoProtocolo?.find(
+            (r) => r.identificacao === brincoParaVerificar
+          );
+
+          if (mesmoBrincoNoProtocolo) {
+            // Buscar o status dessa receptora no protocolo
+            const prComMesmoBrinco = prData.find(pr => pr.receptora_id === mesmoBrincoNoProtocolo.id);
+            const status = prComMesmoBrinco?.status || 'N/A';
+            
+            toast({
+              title: 'Brinco já está no protocolo',
+              description: `Já existe uma receptora com o brinco "${brincoParaVerificar}" neste protocolo (Status: ${status}). Não é possível criar ou adicionar outra receptora com o mesmo brinco.`,
+              variant: 'destructive',
+            });
+            setSubmitting(false);
+            return;
+          }
+        }
+        
+        // SEGUNDO: Verificar status de cada receptora existente com esse brinco
+        // Se alguma estiver em protocolo ativo ou sincronizada, bloquear criação
+        for (const receptoraExistente of receptorasComBrinco) {
+          const status = await calcularStatusReceptora(receptoraExistente.id);
+          
+          if (status !== 'VAZIA') {
+            const motivoMap: Record<string, string> = {
+              'EM SINCRONIZAÇÃO': 'Já está em protocolo em andamento.',
+              'SINCRONIZADA': 'Já está sincronizada aguardando TE.',
+              'SERVIDA': 'Já recebeu embrião e aguarda diagnóstico/sexagem.',
+              'PRENHE': 'Está prenhe.',
+              'PRENHE (FÊMEA)': 'Está prenhe.',
+              'PRENHE (MACHO)': 'Está prenhe.',
+            };
+            
+            const motivo = motivoMap[status] || `Status: ${status}`;
+            
+            toast({
+              title: 'Receptora não disponível',
+              description: `Já existe uma receptora com esse brinco que está ${motivo} Não é possível criar uma nova receptora com o mesmo brinco.`,
+              variant: 'destructive',
+            });
+            setSubmitting(false);
+            return;
+          }
+        }
+        
+        // TERCEIRO: Verificar histórico de fazendas para ver se alguma está na fazenda do protocolo
+        const { data: historicoFazendas, error: historicoError } = await supabase
+          .from('receptora_fazenda_historico')
+          .select('receptora_id, fazenda_id')
+          .in('receptora_id', receptoraIds)
+          .eq('fazenda_id', protocolo!.fazenda_id)
+          .is('data_fim', null); // Apenas vínculos ativos
+
+        if (historicoError) {
+          console.error('Erro ao verificar histórico de fazendas:', historicoError);
+        }
+
+        if (historicoFazendas && historicoFazendas.length > 0) {
+          // Receptora com mesmo brinco já existe na fazenda e está VAZIA
+          const receptoraIdNaFazenda = historicoFazendas[0].receptora_id;
+          const receptoraExistente = receptorasComBrinco.find(r => r.id === receptoraIdNaFazenda);
+          
+          if (receptoraExistente) {
+            // Receptora existe na fazenda mas não está no protocolo - usar a existente
+            const protocoloReceptoraData = {
+              protocolo_id: id,
+              receptora_id: receptoraExistente.id,
+              evento_fazenda_id: protocolo?.fazenda_id,
+              data_inclusao: protocolo?.data_inicio,
+              status: 'INICIADA',
+              observacoes: createReceptoraForm.observacoes || null,
+            };
+
+            const { error: protocoloError } = await supabase
+              .from('protocolo_receptoras')
+              .insert([protocoloReceptoraData]);
+
+            if (protocoloError) {
+              // Se for erro de duplicata, verificar novamente
+              if (protocoloError.code === '23505') {
+                toast({
+                  title: 'Receptora já está no protocolo',
+                  description: 'Esta receptora já foi adicionada a este protocolo.',
+                  variant: 'destructive',
+                });
+                setSubmitting(false);
+                await loadData();
+                return;
+              }
+              throw protocoloError;
+            }
+
+            toast({
+              title: 'Receptora adicionada',
+              description: 'Receptora existente foi adicionada ao protocolo com sucesso',
+            });
+
+            setShowCreateReceptora(false);
+            setCreateReceptoraForm({
+              identificacao: '',
+              nome: '',
+              observacoes: '',
+            });
+            
+            await loadData();
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
+
       // Create receptora in protocol's fazenda
       const receptoraData: Record<string, string> = {
-        identificacao: createReceptoraForm.identificacao,
+        identificacao: createReceptoraForm.identificacao.trim(),
       };
 
       if (createReceptoraForm.nome.trim()) {
-        receptoraData.nome = createReceptoraForm.nome;
+        receptoraData.nome = createReceptoraForm.nome.trim();
       }
 
       const { data: novaReceptora, error: receptoraError } = await supabase
@@ -516,24 +722,137 @@ export default function ProtocoloDetail() {
 
       if (receptoraError) {
         if (receptoraError.code === '23505') {
-          throw new Error('Já existe uma receptora com esse brinco nesta fazenda.');
+          throw new Error('Já existe uma receptora com esse brinco. Verifique se ela já está na fazenda.');
         }
         throw receptoraError;
       }
 
       // Inserir no histórico de fazendas (fonte oficial da fazenda atual)
-      const { error: historicoError } = await supabase
+      // Verificar primeiro se já não tem histórico ativo (por segurança)
+      const { data: historicoExistente, error: checkHistoricoError } = await supabase
         .from('receptora_fazenda_historico')
-        .insert([{
-          receptora_id: novaReceptora.id,
-          fazenda_id: protocolo!.fazenda_id,
-          data_inicio: new Date().toISOString().split('T')[0],
-          data_fim: null, // vínculo ativo
-        }]);
+        .select('id')
+        .eq('receptora_id', novaReceptora.id)
+        .eq('fazenda_id', protocolo!.fazenda_id)
+        .is('data_fim', null)
+        .maybeSingle();
 
-      if (historicoError) {
-        console.error('Erro ao criar histórico de fazenda:', historicoError);
-        // Não falhar - mas isso pode causar problemas de visibilidade
+      if (checkHistoricoError) {
+        console.error('Erro ao verificar histórico existente:', checkHistoricoError);
+      }
+
+      // Só criar histórico se não existir
+      if (!historicoExistente) {
+        const { error: historicoError } = await supabase
+          .from('receptora_fazenda_historico')
+          .insert([{
+            receptora_id: novaReceptora.id,
+            fazenda_id: protocolo!.fazenda_id,
+            data_inicio: new Date().toISOString().split('T')[0],
+            data_fim: null, // vínculo ativo
+          }]);
+
+        if (historicoError) {
+          // Se o erro for de duplicata (trigger), significa que a validação falhou
+          // Mas a receptora já foi criada, então precisamos removê-la e usar a existente
+          if (historicoError.message?.includes('brinco') || historicoError.code === 'P0001') {
+            // Remover a receptora que acabamos de criar
+            await supabase
+              .from('receptoras')
+              .delete()
+              .eq('id', novaReceptora.id);
+            
+            // Buscar a receptora existente e adicionar ao protocolo
+            const { data: receptorasComBrinco } = await supabase
+              .from('receptoras')
+              .select('id')
+              .eq('identificacao', createReceptoraForm.identificacao.trim())
+              .neq('id', novaReceptora.id); // Excluir a que acabamos de criar (já deletada)
+            
+            if (receptorasComBrinco && receptorasComBrinco.length > 0) {
+              const receptoraExistenteId = receptorasComBrinco[0].id;
+              
+              // Verificar se já está no protocolo
+              const { data: prExistente } = await supabase
+                .from('protocolo_receptoras')
+                .select('id, status')
+                .eq('protocolo_id', id)
+                .eq('receptora_id', receptoraExistenteId)
+                .maybeSingle();
+              
+              if (prExistente) {
+                // Já está no protocolo - não fazer nada, apenas informar
+                toast({
+                  title: 'Receptora já está no protocolo',
+                  description: `Esta receptora já foi adicionada a este protocolo (Status: ${prExistente.status}).`,
+                });
+              } else {
+                // Adicionar ao protocolo
+                const { error: protocoloError } = await supabase
+                  .from('protocolo_receptoras')
+                  .insert([{
+                    protocolo_id: id,
+                    receptora_id: receptoraExistenteId,
+                    evento_fazenda_id: protocolo?.fazenda_id,
+                    data_inclusao: protocolo?.data_inicio,
+                    status: 'INICIADA',
+                    observacoes: createReceptoraForm.observacoes || null,
+                  }]);
+                
+                if (protocoloError) throw protocoloError;
+                
+                toast({
+                  title: 'Receptora adicionada',
+                  description: 'Receptora existente foi adicionada ao protocolo com sucesso',
+                });
+              }
+              
+              setShowCreateReceptora(false);
+              setCreateReceptoraForm({
+                identificacao: '',
+                nome: '',
+                observacoes: '',
+              });
+              
+              await loadData();
+              setSubmitting(false);
+              return;
+            }
+            
+            throw new Error('Já existe uma receptora com esse brinco nesta fazenda.');
+          }
+          throw historicoError;
+        }
+      }
+
+      // Verificar se o histórico foi criado com sucesso antes de adicionar ao protocolo
+      // Se não foi criado, não adicionar ao protocolo
+      const { data: historicoVerificado, error: verificarHistoricoError } = await supabase
+        .from('receptora_fazenda_historico')
+        .select('id')
+        .eq('receptora_id', novaReceptora.id)
+        .eq('fazenda_id', protocolo!.fazenda_id)
+        .is('data_fim', null)
+        .maybeSingle();
+
+      if (verificarHistoricoError) {
+        console.error('Erro ao verificar histórico após criação:', verificarHistoricoError);
+      }
+
+      if (!historicoVerificado) {
+        // Histórico não foi criado - remover a receptora criada
+        await supabase
+          .from('receptoras')
+          .delete()
+          .eq('id', novaReceptora.id);
+        
+        toast({
+          title: 'Erro ao criar receptora',
+          description: 'Não foi possível vincular a receptora à fazenda. Verifique se já existe uma receptora com esse brinco.',
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
       }
 
       // Add to protocol
@@ -550,7 +869,26 @@ export default function ProtocoloDetail() {
         .from('protocolo_receptoras')
         .insert([protocoloReceptoraData]);
 
-      if (protocoloError) throw protocoloError;
+      if (protocoloError) {
+        // Se falhar ao adicionar ao protocolo, remover a receptora criada
+        await supabase
+          .from('receptoras')
+          .delete()
+          .eq('id', novaReceptora.id);
+        
+        // Se for erro de duplicata (constraint unique), verificar novamente
+        if (protocoloError.code === '23505') {
+          toast({
+            title: 'Receptora já está no protocolo',
+            description: 'Esta receptora já foi adicionada a este protocolo.',
+            variant: 'destructive',
+          });
+          setSubmitting(false);
+          await loadData();
+          return;
+        }
+        throw protocoloError;
+      }
 
       toast({
         title: 'Receptora criada e adicionada',

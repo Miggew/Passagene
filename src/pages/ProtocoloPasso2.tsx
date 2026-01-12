@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { ProtocoloSincronizacao, Receptora } from '@/lib/types';
@@ -58,9 +58,11 @@ export default function ProtocoloPasso2() {
   const [showConfirmarDialog, setShowConfirmarDialog] = useState(false);
   const [showDescartarDialog, setShowDescartarDialog] = useState(false);
   const [showResumoPasso2, setShowResumoPasso2] = useState(false);
+  const [showCancelarDialog, setShowCancelarDialog] = useState(false);
   const [selectedReceptoraId, setSelectedReceptoraId] = useState('');
   const [selectedReceptoraBrinco, setSelectedReceptoraBrinco] = useState('');
   const [isSavingConfirmar, setIsSavingConfirmar] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   
   // Form states (apenas para descartar)
   const [descartarForm, setDescartarForm] = useState({
@@ -72,6 +74,51 @@ export default function ProtocoloPasso2() {
       loadData();
     }
   }, [id]);
+
+  // Verificar se há mudanças pendentes
+  useEffect(() => {
+    const pendentes = receptoras.filter(r => r.pr_status === 'INICIADA');
+    setHasPendingChanges(pendentes.length > 0 && protocolo?.status !== 'PASSO2_FECHADO');
+  }, [receptoras, protocolo]);
+
+  // Ref para controlar navegação bloqueada
+  const navigationBlockedRef = useRef(false);
+
+  // Prevenir fechar aba/janela e navegação quando há mudanças pendentes
+  useEffect(() => {
+    if (!hasPendingChanges) {
+      navigationBlockedRef.current = false;
+      return;
+    }
+
+    navigationBlockedRef.current = true;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Você tem receptoras pendentes de revisão. Tem certeza que deseja sair?';
+      return e.returnValue;
+    };
+
+    // Interceptar navegação do browser (botão voltar)
+    const handlePopState = (e: PopStateEvent) => {
+      if (hasPendingChanges) {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        setShowCancelarDialog(true);
+      }
+    };
+
+    // Adicionar estado ao histórico para poder interceptar
+    window.history.pushState(null, '', window.location.href);
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasPendingChanges]);
 
   const loadData = async () => {
     try {
@@ -386,6 +433,10 @@ export default function ProtocoloPasso2() {
         responsavel_retirada: protocolo?.responsavel_inicio || null,
       });
 
+      // Resetar mudanças pendentes
+      setHasPendingChanges(false);
+      navigationBlockedRef.current = false;
+
       // Show summary modal
       setShowResumoPasso2(true);
     } catch (error) {
@@ -407,6 +458,55 @@ export default function ProtocoloPasso2() {
       description: `${receptoras.filter(r => r.pr_status === 'APTA').length} receptoras confirmadas para TE`,
     });
     navigate('/protocolos');
+  };
+
+  const handleCancelarPasso2 = async () => {
+    try {
+      setSubmitting(true);
+
+      // Reverter passo2_data e passo2_tecnico_responsavel
+      const { error } = await supabase
+        .from('protocolos_sincronizacao')
+        .update({
+          passo2_data: null,
+          passo2_tecnico_responsavel: null,
+          status: 'PASSO1_FECHADO', // Voltar para o status anterior
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: '2º passo cancelado',
+        description: 'O protocolo voltou para o status de aguardando 2º passo',
+      });
+
+      setShowCancelarDialog(false);
+      setHasPendingChanges(false);
+      navigationBlockedRef.current = false;
+      
+      navigate('/protocolos');
+    } catch (error) {
+      console.error('Erro ao cancelar 2º passo:', error);
+      toast({
+        title: 'Erro ao cancelar 2º passo',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVoltarClick = () => {
+    // Se houver mudanças pendentes, sempre mostrar dialog de cancelamento
+    if (hasPendingChanges) {
+      setShowCancelarDialog(true);
+    } else {
+      // Se não houver pendências, permitir voltar normalmente
+      navigationBlockedRef.current = false;
+      navigate('/protocolos');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -441,7 +541,7 @@ export default function ProtocoloPasso2() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/protocolos')}>
+            <Button variant="ghost" size="sm" onClick={handleVoltarClick}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
@@ -479,7 +579,7 @@ export default function ProtocoloPasso2() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/protocolos')}>
+          <Button variant="ghost" size="sm" onClick={handleVoltarClick}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -808,6 +908,45 @@ export default function ProtocoloPasso2() {
               className="w-full bg-green-600 hover:bg-green-700"
             >
               OK - Voltar para Protocolos
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Cancelamento do 2º Passo */}
+      <Dialog open={showCancelarDialog} onOpenChange={(open) => {
+        if (!open && !submitting) {
+          setShowCancelarDialog(false);
+          navigationBlockedRef.current = false;
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar 2º Passo?</DialogTitle>
+            <DialogDescription>
+              Você tem {receptorasPendentes.length} receptora(s) pendente(s) de revisão.
+              <br />
+              <br />
+              Ao cancelar, o protocolo voltará para o status de "Aguardando 2º Passo" e você precisará iniciar o 2º passo novamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCancelarDialog(false);
+                navigationBlockedRef.current = false;
+              }}
+              disabled={submitting}
+            >
+              Não, continuar revisão
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelarPasso2}
+              disabled={submitting}
+            >
+              {submitting ? 'Cancelando...' : 'Sim, cancelar 2º passo'}
             </Button>
           </div>
         </DialogContent>

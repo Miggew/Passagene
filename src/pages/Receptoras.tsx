@@ -54,6 +54,8 @@ export default function Receptoras() {
   const [submittingMover, setSubmittingMover] = useState(false);
   const [editingReceptora, setEditingReceptora] = useState<Receptora | null>(null);
   const [novaFazendaId, setNovaFazendaId] = useState<string>('');
+  const [novoBrincoProposto, setNovoBrincoProposto] = useState<string>('');
+  const [temConflitoBrinco, setTemConflitoBrinco] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -300,8 +302,12 @@ export default function Receptoras() {
     try {
       setSubmitting(true);
 
+      const brincoAnterior = editingReceptora.identificacao;
+      const brincoNovo = editFormData.identificacao.trim();
+      const brincoAlterado = brincoAnterior !== brincoNovo;
+
       const updateData: Record<string, string | null> = {
-        identificacao: editFormData.identificacao,
+        identificacao: brincoNovo,
         nome: editFormData.nome.trim() || null,
       };
 
@@ -317,9 +323,40 @@ export default function Receptoras() {
         throw error;
       }
 
+      // Registrar renomeação no histórico se o brinco foi alterado
+      if (brincoAlterado) {
+        try {
+          const { error: historicoError } = await supabase
+            .from('receptora_renomeacoes_historico')
+            .insert([{
+              receptora_id: editingReceptora.id,
+              brinco_anterior: brincoAnterior,
+              brinco_novo: brincoNovo,
+              data_renomeacao: new Date().toISOString(),
+              motivo: 'EDICAO_MANUAL',
+              observacoes: null,
+            }]);
+
+          if (historicoError) {
+            // Se a tabela não existir (erro 42P01), apenas logar
+            if (historicoError.code === '42P01') {
+              console.warn('Tabela receptora_renomeacoes_historico não existe. Execute o script criar_tabela_historico_renomeacoes.sql');
+            } else {
+              console.error('Erro ao registrar renomeação no histórico:', historicoError);
+            }
+            // Não falhar a operação se o histórico falhar
+          }
+        } catch (error) {
+          console.error('Erro ao registrar renomeação no histórico:', error);
+          // Não falhar a operação se o histórico falhar
+        }
+      }
+
       toast({
         title: 'Receptora atualizada',
-        description: 'Receptora atualizada com sucesso',
+        description: brincoAlterado 
+          ? `Receptora atualizada. Brinco alterado de "${brincoAnterior}" para "${brincoNovo}".`
+          : 'Receptora atualizada com sucesso',
       });
 
       setShowEditDialog(false);
@@ -336,6 +373,110 @@ export default function Receptoras() {
     }
   };
 
+  // Verificar conflito de brinco quando a fazenda destino é selecionada
+  useEffect(() => {
+    const verificarConflitoBrinco = async () => {
+      if (!editingReceptora || !novaFazendaId) {
+        setTemConflitoBrinco(false);
+        setNovoBrincoProposto('');
+        return;
+      }
+
+      try {
+        // Buscar receptoras na fazenda destino com o mesmo brinco
+        const { data: viewData, error: viewError } = await supabase
+          .from('vw_receptoras_fazenda_atual')
+          .select('receptora_id')
+          .eq('fazenda_id_atual', novaFazendaId);
+
+        if (viewError) {
+          console.error('Erro ao verificar receptoras na fazenda destino:', viewError);
+          return;
+        }
+
+        const receptoraIdsNaFazendaDestino = viewData?.map(v => v.receptora_id) || [];
+
+        if (receptoraIdsNaFazendaDestino.length === 0) {
+          setTemConflitoBrinco(false);
+          setNovoBrincoProposto('');
+          return;
+        }
+
+        // Buscar receptoras com o mesmo brinco
+        const { data: receptorasComBrinco, error: brincoError } = await supabase
+          .from('receptoras')
+          .select('id, identificacao')
+          .in('id', receptoraIdsNaFazendaDestino)
+          .eq('identificacao', editingReceptora.identificacao);
+
+        if (brincoError) {
+          console.error('Erro ao verificar brinco:', brincoError);
+          return;
+        }
+
+        if (receptorasComBrinco && receptorasComBrinco.length > 0) {
+          // Há conflito - gerar novo brinco disponível
+          setTemConflitoBrinco(true);
+          
+          // Função para gerar brinco disponível
+          const gerarBrincoDisponivel = async (brincoBase: string, tentativa: number = 0): Promise<string> => {
+            // Limitar tentativas para evitar loop infinito
+            if (tentativa > 10) {
+              throw new Error('Não foi possível gerar um brinco disponível após várias tentativas');
+            }
+
+            // Gerar novo brinco: brinco original + "-MOV" + data (DDMM) + contador se necessário
+            const dataAtual = new Date();
+            const dia = String(dataAtual.getDate()).padStart(2, '0');
+            const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
+            const sufixo = tentativa === 0 ? `-MOV${dia}${mes}` : `-MOV${dia}${mes}-${tentativa}`;
+            const novoBrinco = `${brincoBase}${sufixo}`;
+            
+            // Verificar se o novo brinco já existe na fazenda destino
+            const { data: receptorasComNovoBrinco, error: novoBrincoError } = await supabase
+              .from('receptoras')
+              .select('id, identificacao')
+              .in('id', receptoraIdsNaFazendaDestino)
+              .eq('identificacao', novoBrinco);
+
+            if (novoBrincoError) {
+              console.error('Erro ao verificar novo brinco:', novoBrincoError);
+              return novoBrinco; // Retornar mesmo com erro para não bloquear
+            }
+
+            // Se o brinco já existe, tentar outro
+            if (receptorasComNovoBrinco && receptorasComNovoBrinco.length > 0) {
+              return gerarBrincoDisponivel(brincoBase, tentativa + 1);
+            }
+
+            // Brinco disponível encontrado
+            return novoBrinco;
+          };
+
+          try {
+            const brincoDisponivel = await gerarBrincoDisponivel(editingReceptora.identificacao);
+            setNovoBrincoProposto(brincoDisponivel);
+          } catch (error) {
+            console.error('Erro ao gerar brinco disponível:', error);
+            // Fallback: usar o padrão básico mesmo com possível conflito
+            const dataAtual = new Date();
+            const dia = String(dataAtual.getDate()).padStart(2, '0');
+            const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
+            const sufixo = `-MOV${dia}${mes}`;
+            setNovoBrincoProposto(`${editingReceptora.identificacao}${sufixo}`);
+          }
+        } else {
+          setTemConflitoBrinco(false);
+          setNovoBrincoProposto('');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar conflito de brinco:', error);
+      }
+    };
+
+    verificarConflitoBrinco();
+  }, [editingReceptora, novaFazendaId]);
+
   const handleMoverFazenda = async () => {
     if (!editingReceptora || !novaFazendaId) {
       toast({
@@ -348,6 +489,105 @@ export default function Receptoras() {
 
     try {
       setSubmittingMover(true);
+
+      // Se há conflito de brinco, verificar novamente e atualizar o brinco da receptora
+      const brincoAnterior = editingReceptora.identificacao;
+      let brincoFinal = brincoAnterior;
+      
+      if (temConflitoBrinco && novoBrincoProposto) {
+        // Verificar uma última vez se o brinco proposto está disponível na fazenda destino
+        const { data: viewDataFinal, error: viewErrorFinal } = await supabase
+          .from('vw_receptoras_fazenda_atual')
+          .select('receptora_id')
+          .eq('fazenda_id_atual', novaFazendaId);
+
+        if (!viewErrorFinal && viewDataFinal) {
+          const receptoraIdsNaFazendaDestinoFinal = viewDataFinal.map(v => v.receptora_id);
+          
+          if (receptoraIdsNaFazendaDestinoFinal.length > 0) {
+            const { data: receptorasComBrincoFinal, error: brincoErrorFinal } = await supabase
+              .from('receptoras')
+              .select('id, identificacao')
+              .in('id', receptoraIdsNaFazendaDestinoFinal)
+              .eq('identificacao', novoBrincoProposto);
+
+            if (!brincoErrorFinal && receptorasComBrincoFinal && receptorasComBrincoFinal.length > 0) {
+              // O brinco proposto também tem conflito - gerar um novo
+              let tentativa = 1;
+              let brincoDisponivel = novoBrincoProposto;
+              
+              while (tentativa <= 10) {
+                const dataAtual = new Date();
+                const dia = String(dataAtual.getDate()).padStart(2, '0');
+                const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
+                const sufixo = `-MOV${dia}${mes}-${tentativa}`;
+                brincoDisponivel = `${brincoAnterior}${sufixo}`;
+                
+                const { data: verificarBrinco, error: verificarError } = await supabase
+                  .from('receptoras')
+                  .select('id')
+                  .in('id', receptoraIdsNaFazendaDestinoFinal)
+                  .eq('identificacao', brincoDisponivel);
+
+                if (!verificarError && (!verificarBrinco || verificarBrinco.length === 0)) {
+                  // Brinco disponível encontrado
+                  break;
+                }
+                
+                tentativa++;
+              }
+              
+              brincoFinal = brincoDisponivel;
+            } else {
+              brincoFinal = novoBrincoProposto;
+            }
+          } else {
+            brincoFinal = novoBrincoProposto;
+          }
+        } else {
+          brincoFinal = novoBrincoProposto;
+        }
+
+        // Atualizar o brinco da receptora
+        const { error: updateError } = await supabase
+          .from('receptoras')
+          .update({ identificacao: brincoFinal })
+          .eq('id', editingReceptora.id);
+
+        if (updateError) {
+          throw new Error(`Erro ao atualizar brinco: ${updateError.message}`);
+        }
+
+        // Registrar renomeação no histórico
+        try {
+          const { error: historicoError } = await supabase
+            .from('receptora_renomeacoes_historico')
+            .insert([{
+              receptora_id: editingReceptora.id,
+              brinco_anterior: brincoAnterior,
+              brinco_novo: brincoFinal,
+              data_renomeacao: new Date().toISOString(),
+              motivo: 'MUDANCA_FAZENDA',
+              observacoes: `Renomeação automática devido a conflito de brinco na fazenda destino`,
+            }]);
+
+          if (historicoError) {
+            // Se a tabela não existir (erro 42P01), apenas logar
+            if (historicoError.code === '42P01') {
+              console.warn('Tabela receptora_renomeacoes_historico não existe. Execute o script criar_tabela_historico_renomeacoes.sql');
+            } else {
+              console.error('Erro ao registrar renomeação no histórico:', historicoError);
+            }
+            // Não falhar a operação se o histórico falhar
+          }
+        } catch (error) {
+          console.error('Erro ao registrar renomeação no histórico:', error);
+          // Não falhar a operação se o histórico falhar
+        }
+
+        // Atualizar o objeto editingReceptora com o novo brinco
+        editingReceptora.identificacao = brincoFinal;
+      }
 
       // Chamar RPC mover_receptora_fazenda
       const { data, error } = await supabase.rpc('mover_receptora_fazenda', {
@@ -387,13 +627,17 @@ export default function Receptoras() {
 
       toast({
         title: 'Receptora movida',
-        description: 'Receptora movida para a nova fazenda com sucesso. Protocolos e histórico não foram afetados.',
+        description: temConflitoBrinco 
+          ? `Receptora movida com sucesso. Brinco atualizado de "${brincoAnterior}" para "${editingReceptora.identificacao}" devido a conflito na fazenda destino.`
+          : 'Receptora movida para a nova fazenda com sucesso. Protocolos e histórico não foram afetados.',
       });
 
       setShowMoverFazendaDialog(false);
       setShowEditDialog(false);
       setEditingReceptora(null);
       setNovaFazendaId('');
+      setTemConflitoBrinco(false);
+      setNovoBrincoProposto('');
       
       // Recarregar receptoras (a receptora pode ter saído da lista atual)
       loadReceptoras();
@@ -713,7 +957,14 @@ export default function Receptoras() {
       </Dialog>
 
       {/* Dialog Mover Fazenda */}
-      <Dialog open={showMoverFazendaDialog} onOpenChange={setShowMoverFazendaDialog}>
+      <Dialog open={showMoverFazendaDialog} onOpenChange={(open) => {
+        setShowMoverFazendaDialog(open);
+        if (!open) {
+          // Resetar estados ao fechar
+          setTemConflitoBrinco(false);
+          setNovoBrincoProposto('');
+        }
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Mover Receptora</DialogTitle>
@@ -741,6 +992,30 @@ export default function Receptoras() {
               </Select>
             </div>
 
+            {temConflitoBrinco && novoBrincoProposto && (
+              <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <div className="text-yellow-800 text-sm font-medium">
+                    ⚠️ Conflito de Brinco Detectado
+                  </div>
+                </div>
+                <div className="text-yellow-700 text-sm">
+                  Já existe uma receptora com o brinco "{editingReceptora?.identificacao}" na fazenda destino.
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-yellow-800 text-sm font-medium">
+                    Novo Brinco Proposto:
+                  </Label>
+                  <div className="p-2 bg-white border border-yellow-300 rounded text-sm font-mono text-yellow-900">
+                    {novoBrincoProposto}
+                  </div>
+                  <div className="text-yellow-600 text-xs">
+                    O brinco será automaticamente atualizado para permitir a movimentação.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <Button
                 type="button"
@@ -753,7 +1028,11 @@ export default function Receptoras() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowMoverFazendaDialog(false)}
+                onClick={() => {
+                  setShowMoverFazendaDialog(false);
+                  setTemConflitoBrinco(false);
+                  setNovoBrincoProposto('');
+                }}
                 disabled={submittingMover}
               >
                 Cancelar

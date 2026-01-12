@@ -32,6 +32,7 @@ import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Dna, Search } from 'lucide-react';
+import GenealogiaTree, { type GenealogiaData } from '@/components/shared/GenealogiaTree';
 
 interface Fazenda {
   id: string;
@@ -54,17 +55,23 @@ export default function Doadoras() {
     registro: '',
     nome: '',
     raca: '',
-    gpta: '',
-    controle_leiteiro: '',
-    beta_caseina: '',
-    pai_registro: '',
-    pai_nome: '',
-    mae_registro: '',
-    mae_nome: '',
+    racaCustom: '', // Para quando selecionar "Outra"
     genealogia_texto: '',
-    link_abcz: '',
     foto_url: '',
   });
+
+  const [genealogia, setGenealogia] = useState<GenealogiaData>({
+    pai: { nome: '', registro: '' },
+    mae: { nome: '', registro: '' },
+    pai_pai: { nome: '', registro: '' },
+    pai_mae: { nome: '', registro: '' },
+    mae_pai: { nome: '', registro: '' },
+    mae_mae: { nome: '', registro: '' },
+  });
+
+  // Preparação para campos específicos por raça (será implementado depois)
+  const racasPredefinidas = ['Holandesa', 'Jersey', 'Gir', 'Girolando'];
+  const [racaSelecionada, setRacaSelecionada] = useState<string>('');
 
   useEffect(() => {
     loadFazendas();
@@ -148,36 +155,72 @@ export default function Doadoras() {
       registro: '',
       nome: '',
       raca: '',
-      gpta: '',
-      controle_leiteiro: '',
-      beta_caseina: '',
-      pai_registro: '',
-      pai_nome: '',
-      mae_registro: '',
-      mae_nome: '',
+      racaCustom: '',
       genealogia_texto: '',
-      link_abcz: '',
       foto_url: '',
     });
+    setGenealogia({
+      pai: { nome: '', registro: '' },
+      mae: { nome: '', registro: '' },
+      pai_pai: { nome: '', registro: '' },
+      pai_mae: { nome: '', registro: '' },
+      mae_pai: { nome: '', registro: '' },
+      mae_mae: { nome: '', registro: '' },
+    });
+    setRacaSelecionada('');
     setEditingId(null);
   };
 
   const handleEdit = (doadora: Doadora) => {
+    const raca = doadora.raca || '';
+    const isRacaPredefinida = racasPredefinidas.includes(raca);
+    
+    setRacaSelecionada(isRacaPredefinida ? raca : 'Outra');
+    
+    // Extrair genealogia do campo genealogia_texto (pode estar em JSON)
+    let genealogiaExtraida: GenealogiaData = {
+      pai: { nome: doadora.pai_nome || '', registro: doadora.pai_registro || '' },
+      mae: { nome: doadora.mae_nome || '', registro: doadora.mae_registro || '' },
+      pai_pai: { nome: '', registro: '' },
+      pai_mae: { nome: '', registro: '' },
+      mae_pai: { nome: '', registro: '' },
+      mae_mae: { nome: '', registro: '' },
+    };
+    
+    let genealogiaTexto = doadora.genealogia_texto || '';
+    
+    // Tentar extrair JSON da genealogia se existir
+    if (genealogiaTexto.includes('[GENEALOGIA_JSON]')) {
+      try {
+        const match = genealogiaTexto.match(/\[GENEALOGIA_JSON\](.*?)\[\/GENEALOGIA_JSON\]/s);
+        if (match) {
+          const genealogiaJSON = JSON.parse(match[1]);
+          genealogiaExtraida = {
+            pai: genealogiaJSON.pai || genealogiaExtraida.pai,
+            mae: genealogiaJSON.mae || genealogiaExtraida.mae,
+            pai_pai: genealogiaJSON.pai_pai || genealogiaExtraida.pai_pai,
+            pai_mae: genealogiaJSON.pai_mae || genealogiaExtraida.pai_mae,
+            mae_pai: genealogiaJSON.mae_pai || genealogiaExtraida.mae_pai,
+            mae_mae: genealogiaJSON.mae_mae || genealogiaExtraida.mae_mae,
+          };
+          // Remover JSON do texto de observações
+          genealogiaTexto = genealogiaTexto.replace(/\[GENEALOGIA_JSON\].*?\[\/GENEALOGIA_JSON\]/s, '').trim();
+        }
+      } catch (e) {
+        console.warn('Erro ao parsear genealogia JSON:', e);
+      }
+    }
+    
     setFormData({
       registro: doadora.registro || '',
       nome: doadora.nome || '',
-      raca: doadora.raca || '',
-      gpta: doadora.gpta?.toString() || '',
-      controle_leiteiro: doadora.controle_leiteiro?.toString() || '',
-      beta_caseina: doadora.beta_caseina || '',
-      pai_registro: doadora.pai_registro || '',
-      pai_nome: doadora.pai_nome || '',
-      mae_registro: doadora.mae_registro || '',
-      mae_nome: doadora.mae_nome || '',
-      genealogia_texto: doadora.genealogia_texto || '',
-      link_abcz: doadora.link_abcz || '',
+      raca: isRacaPredefinida ? raca : '',
+      racaCustom: isRacaPredefinida ? '' : raca,
+      genealogia_texto: genealogiaTexto,
       foto_url: doadora.foto_url || '',
     });
+    
+    setGenealogia(genealogiaExtraida);
     setEditingId(doadora.id);
     setShowDialog(true);
   };
@@ -203,25 +246,61 @@ export default function Doadoras() {
       return;
     }
 
+    // Validar raça: deve ter selecionado uma raça pré-definida ou digitado uma raça customizada
+    const racaFinal = racaSelecionada === 'Outra' ? formData.racaCustom.trim() : formData.raca.trim();
+    if (!racaFinal) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Raça é obrigatória',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
 
+      // Determinar raça final (pré-definida ou customizada)
+      const racaFinal = racaSelecionada === 'Outra' ? formData.racaCustom.trim() : formData.raca.trim();
+      
+      // Converter genealogia para formato do banco (mantendo compatibilidade com campos antigos)
       const doadoraData: Record<string, string | number | null> = {
         fazenda_id: selectedFazendaId,
-        registro: formData.registro,
+        registro: formData.registro.trim(),
         nome: formData.nome.trim() || null,
-        raca: formData.raca.trim() || null,
-        gpta: formData.gpta ? parseFloat(formData.gpta) : null,
-        controle_leiteiro: formData.controle_leiteiro ? parseFloat(formData.controle_leiteiro) : null,
-        beta_caseina: formData.beta_caseina.trim() || null,
-        pai_registro: formData.pai_registro.trim() || null,
-        pai_nome: formData.pai_nome.trim() || null,
-        mae_registro: formData.mae_registro.trim() || null,
-        mae_nome: formData.mae_nome.trim() || null,
-        genealogia_texto: formData.genealogia_texto.trim() || null,
-        link_abcz: formData.link_abcz.trim() || null,
+        raca: racaFinal, // Obrigatório
+        // Manter campos antigos para compatibilidade
+        pai_registro: genealogia.pai.registro.trim() || null,
+        pai_nome: genealogia.pai.nome.trim() || null,
+        mae_registro: genealogia.mae.registro.trim() || null,
+        mae_nome: genealogia.mae.nome.trim() || null,
         foto_url: formData.foto_url.trim() || null,
       };
+
+      // Adicionar genealogia completa como JSON no campo genealogia_texto
+      const genealogiaCompleta = {
+        pai: genealogia.pai,
+        mae: genealogia.mae,
+        pai_pai: genealogia.pai_pai,
+        pai_mae: genealogia.pai_mae,
+        mae_pai: genealogia.mae_pai,
+        mae_mae: genealogia.mae_mae,
+      };
+      
+      // Verificar se há pelo menos um campo preenchido na genealogia
+      const temGenealogia = Object.values(genealogiaCompleta).some(
+        (pessoa) => pessoa.nome.trim() || pessoa.registro.trim()
+      );
+      
+      if (temGenealogia) {
+        // Armazenar JSON da genealogia completa junto com o texto de observações
+        const genealogiaJSON = JSON.stringify(genealogiaCompleta);
+        doadoraData.genealogia_texto = formData.genealogia_texto.trim()
+          ? `${formData.genealogia_texto}\n\n[GENEALOGIA_JSON]${genealogiaJSON}[/GENEALOGIA_JSON]`
+          : `[GENEALOGIA_JSON]${genealogiaJSON}[/GENEALOGIA_JSON]`;
+      } else {
+        doadoraData.genealogia_texto = formData.genealogia_texto.trim() || null;
+      }
 
       if (editingId) {
         const { error } = await supabase
@@ -363,134 +442,86 @@ export default function Doadoras() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="raca">Raça</Label>
-                      <Input
-                        id="raca"
-                        value={formData.raca}
-                        onChange={(e) => setFormData({ ...formData, raca: e.target.value })}
-                        placeholder="Raça"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="beta_caseina">Beta Caseína</Label>
-                      <Input
-                        id="beta_caseina"
-                        value={formData.beta_caseina}
-                        onChange={(e) => setFormData({ ...formData, beta_caseina: e.target.value })}
-                        placeholder="A2A2, A1A2, etc."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gpta">GPTA</Label>
-                      <Input
-                        id="gpta"
-                        type="number"
-                        step="0.01"
-                        value={formData.gpta}
-                        onChange={(e) => setFormData({ ...formData, gpta: e.target.value })}
-                        placeholder="Valor numérico"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="controle_leiteiro">Controle Leiteiro</Label>
-                      <Input
-                        id="controle_leiteiro"
-                        type="number"
-                        step="0.01"
-                        value={formData.controle_leiteiro}
-                        onChange={(e) =>
-                          setFormData({ ...formData, controle_leiteiro: e.target.value })
-                        }
-                        placeholder="Valor numérico"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-semibold mb-3">Genealogia</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="pai_registro">Registro do Pai</Label>
-                        <Input
-                          id="pai_registro"
-                          value={formData.pai_registro}
-                          onChange={(e) => setFormData({ ...formData, pai_registro: e.target.value })}
-                          placeholder="Registro"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="pai_nome">Nome do Pai</Label>
-                        <Input
-                          id="pai_nome"
-                          value={formData.pai_nome}
-                          onChange={(e) => setFormData({ ...formData, pai_nome: e.target.value })}
-                          placeholder="Nome"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="mae_registro">Registro da Mãe</Label>
-                        <Input
-                          id="mae_registro"
-                          value={formData.mae_registro}
-                          onChange={(e) => setFormData({ ...formData, mae_registro: e.target.value })}
-                          placeholder="Registro"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="mae_nome">Nome da Mãe</Label>
-                        <Input
-                          id="mae_nome"
-                          value={formData.mae_nome}
-                          onChange={(e) => setFormData({ ...formData, mae_nome: e.target.value })}
-                          placeholder="Nome"
-                        />
-                      </div>
-
-                      <div className="space-y-2 col-span-2">
-                        <Label htmlFor="genealogia_texto">Genealogia (Texto)</Label>
-                        <Textarea
-                          id="genealogia_texto"
-                          value={formData.genealogia_texto}
-                          onChange={(e) =>
-                            setFormData({ ...formData, genealogia_texto: e.target.value })
+                      <Label htmlFor="raca">Raça *</Label>
+                      <Select
+                        value={racaSelecionada}
+                        onValueChange={(value) => {
+                          setRacaSelecionada(value);
+                          if (value === 'Outra') {
+                            setFormData({ ...formData, raca: '', racaCustom: '' });
+                          } else {
+                            setFormData({ ...formData, raca: value, racaCustom: '' });
                           }
-                          placeholder="Informações adicionais sobre genealogia"
-                          rows={3}
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a raça" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {racasPredefinidas.map((raca) => (
+                            <SelectItem key={raca} value={raca}>
+                              {raca}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Outra">Outra</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {racaSelecionada === 'Outra' && (
+                        <Input
+                          id="raca_custom"
+                          value={formData.racaCustom}
+                          onChange={(e) => setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })}
+                          placeholder="Digite a raça"
+                          className="mt-2"
+                          required
                         />
-                      </div>
+                      )}
+                      {/* Preparação para campos específicos por raça */}
+                      {racaSelecionada && racaSelecionada !== 'Outra' && (
+                        <div className="mt-2 text-xs text-slate-500">
+                          {/* Aqui serão adicionados campos específicos por raça no futuro */}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <GenealogiaTree
+                      value={genealogia}
+                      onChange={setGenealogia}
+                      doadoraNome={formData.nome || formData.registro}
+                      doadoraRegistro={formData.registro}
+                    />
+                    
+                    <div className="mt-4 space-y-2">
+                      <Label htmlFor="genealogia_texto">Observações sobre Genealogia</Label>
+                      <Textarea
+                        id="genealogia_texto"
+                        value={formData.genealogia_texto}
+                        onChange={(e) =>
+                          setFormData({ ...formData, genealogia_texto: e.target.value })
+                        }
+                        placeholder="Informações adicionais sobre genealogia (opcional)"
+                        rows={3}
+                      />
                     </div>
                   </div>
 
                   <div className="border-t pt-4">
-                    <h3 className="text-sm font-semibold mb-3">Links e Mídia</h3>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="link_abcz">Link ABCZ</Label>
-                        <Input
-                          id="link_abcz"
-                          type="url"
-                          value={formData.link_abcz}
-                          onChange={(e) => setFormData({ ...formData, link_abcz: e.target.value })}
-                          placeholder="https://..."
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="foto_url">URL da Foto</Label>
-                        <Input
-                          id="foto_url"
-                          type="url"
-                          value={formData.foto_url}
-                          onChange={(e) => setFormData({ ...formData, foto_url: e.target.value })}
-                          placeholder="https://..."
-                        />
-                      </div>
+                    <h3 className="text-sm font-semibold mb-3">Foto</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="foto_url">Foto</Label>
+                      <Input
+                        id="foto_url"
+                        type="url"
+                        value={formData.foto_url}
+                        onChange={(e) => setFormData({ ...formData, foto_url: e.target.value })}
+                        placeholder="URL da foto (opcional)"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Cole a URL da foto da doadora
+                      </p>
                     </div>
                   </div>
 
@@ -532,15 +563,13 @@ export default function Doadoras() {
                       <TableHead>Registro</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Raça</TableHead>
-                      <TableHead>GPTA</TableHead>
-                      <TableHead>Beta Caseína</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredDoadoras.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-slate-500">
+                        <TableCell colSpan={4} className="text-center text-slate-500">
                           {searchTerm ? 'Nenhuma doadora encontrada' : 'Nenhuma doadora cadastrada nesta fazenda'}
                         </TableCell>
                       </TableRow>
@@ -550,8 +579,6 @@ export default function Doadoras() {
                           <TableCell className="font-medium">{doadora.registro}</TableCell>
                           <TableCell>{doadora.nome || '-'}</TableCell>
                           <TableCell>{doadora.raca || '-'}</TableCell>
-                          <TableCell>{doadora.gpta || '-'}</TableCell>
-                          <TableCell>{doadora.beta_caseina || '-'}</TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="ghost"
