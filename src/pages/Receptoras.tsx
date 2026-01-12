@@ -132,51 +132,36 @@ export default function Receptoras() {
       // Usar view vw_receptoras_fazenda_atual para filtrar por fazenda atual
       const { data: viewData, error: viewError } = await supabase
         .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
+        .select('receptora_id, fazenda_nome_atual')
         .eq('fazenda_id_atual', selectedFazendaId);
 
       if (viewError) throw viewError;
 
       const receptoraIds = viewData?.map(v => v.receptora_id) || [];
 
-      // Se não houver receptoras na view, usar fallback para receptoras.fazenda_atual_id (compatibilidade durante transição)
-      let receptorasData;
       if (receptoraIds.length === 0) {
-        // Fallback: buscar diretamente da tabela receptoras (durante transição)
-        const { data, error } = await supabase
-          .from('receptoras')
-          .select('*')
-          .eq('fazenda_atual_id', selectedFazendaId)
-          .order('identificacao', { ascending: true });
-        
-        if (error) throw error;
-        receptorasData = data || [];
-      } else {
-        // Buscar dados completos das receptoras usando os IDs da view
-        const { data, error } = await supabase
-          .from('receptoras')
-          .select('*')
-          .in('id', receptoraIds)
-          .order('identificacao', { ascending: true });
-        
-        if (error) throw error;
-        
-        // Buscar informações da fazenda atual da view para cada receptora
-        const { data: viewDataFull, error: viewErrorFull } = await supabase
-          .from('vw_receptoras_fazenda_atual')
-          .select('receptora_id, fazenda_nome_atual')
-          .in('receptora_id', receptoraIds);
-        
-        if (viewErrorFull) throw viewErrorFull;
-        
-        const fazendaMap = new Map(viewDataFull?.map(v => [v.receptora_id, v.fazenda_nome_atual]) || []);
-        
-        // Combinar dados
-        receptorasData = (data || []).map(r => ({
-          ...r,
-          fazenda_nome_atual: fazendaMap.get(r.id),
-        }));
+        setReceptoras([]);
+        setFilteredReceptoras([]);
+        setStatusDisponiveis([]);
+        return;
       }
+
+      // Buscar dados completos das receptoras usando os IDs da view
+      const { data, error } = await supabase
+        .from('receptoras')
+        .select('*')
+        .in('id', receptoraIds)
+        .order('identificacao', { ascending: true });
+      
+      if (error) throw error;
+      
+      const fazendaMap = new Map(viewData?.map(v => [v.receptora_id, v.fazenda_nome_atual]) || []);
+      
+      // Combinar dados
+      const receptorasData = (data || []).map(r => ({
+        ...r,
+        fazenda_nome_atual: fazendaMap.get(r.id),
+      }));
 
       // Calculate status for all receptoras
       const receptoraIdsForStatus = receptorasData.map(r => r.id);
@@ -233,7 +218,6 @@ export default function Receptoras() {
 
       const insertData: Record<string, string> = {
         identificacao: formData.identificacao,
-        fazenda_atual_id: selectedFazendaId, // Mantido para compatibilidade durante transição
       };
 
       if (formData.nome.trim()) {

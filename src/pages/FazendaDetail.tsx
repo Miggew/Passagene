@@ -158,20 +158,21 @@ export default function FazendaDetail() {
         }
       }
 
-      // Load receptoras da fazenda (via protocolo_receptoras)
-      const { data: protocoloReceptorasData, error: prError } = await supabase
-        .from('protocolo_receptoras')
-        .select('receptora_id, fazenda_atual_id')
-        .eq('fazenda_atual_id', id);
+      // Load receptoras da fazenda atual (via vw_receptoras_fazenda_atual)
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', id);
 
-      if (!prError && protocoloReceptorasData) {
-        const receptoraIds = [...new Set(protocoloReceptorasData.map(pr => pr.receptora_id))];
+      if (!viewError && viewData) {
+        const receptoraIds = viewData.map(v => v.receptora_id);
         
         if (receptoraIds.length > 0) {
           const { data: receptorasData, error: receptorasError } = await supabase
             .from('receptoras')
             .select('id, identificacao, nome, status_reprodutivo')
-            .in('id', receptoraIds);
+            .in('id', receptoraIds)
+            .order('identificacao', { ascending: true });
 
           if (!receptorasError) {
             setReceptorasFazenda(receptorasData?.map(r => ({
@@ -181,6 +182,8 @@ export default function FazendaDetail() {
               status_reprodutivo: r.status_reprodutivo,
             })) || []);
           }
+        } else {
+          setReceptorasFazenda([]);
         }
       }
 

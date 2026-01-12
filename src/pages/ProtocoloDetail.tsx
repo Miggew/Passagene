@@ -139,28 +139,40 @@ export default function ProtocoloDetail() {
 
       if (prError) throw prError;
 
-      const receptorasWithStatus: ReceptoraWithStatus[] = [];
-
-      for (const pr of prData || []) {
-        const { data: receptoraData, error: receptoraError } = await supabase
-          .from('receptoras')
-          .select('*')
-          .eq('id', pr.receptora_id)
-          .single();
-
-        if (receptoraError) {
-          console.error('Error loading receptora:', receptoraError);
-          continue;
-        }
-
-        receptorasWithStatus.push({
-          ...receptoraData,
-          pr_id: pr.id,
-          pr_status: pr.status,
-          pr_motivo_inapta: pr.motivo_inapta,
-          pr_observacoes: pr.observacoes,
-        });
+      if (!prData || prData.length === 0) {
+        setReceptoras([]);
+        return;
       }
+
+      // Buscar todas as receptoras de uma vez (otimização: 1 query ao invés de N)
+      const receptoraIds = prData.map(pr => pr.receptora_id);
+      const { data: receptorasData, error: receptorasError } = await supabase
+        .from('receptoras')
+        .select('*')
+        .in('id', receptoraIds);
+
+      if (receptorasError) throw receptorasError;
+
+      // Criar mapa para lookup rápido
+      const receptorasMap = new Map(receptorasData?.map(r => [r.id, r]) || []);
+
+      // Combinar dados
+      const receptorasWithStatus: ReceptoraWithStatus[] = prData
+        .map(pr => {
+          const receptoraData = receptorasMap.get(pr.receptora_id);
+          if (!receptoraData) {
+            console.warn(`Receptora ${pr.receptora_id} não encontrada`);
+            return null;
+          }
+          return {
+            ...receptoraData,
+            pr_id: pr.id,
+            pr_status: pr.status,
+            pr_motivo_inapta: pr.motivo_inapta,
+            pr_observacoes: pr.observacoes,
+          };
+        })
+        .filter((r): r is ReceptoraWithStatus => r !== null);
 
       setReceptoras(receptorasWithStatus);
     } catch (error) {
@@ -180,29 +192,21 @@ export default function ProtocoloDetail() {
 
       const receptoraIds = viewData?.map(v => v.receptora_id) || [];
 
-      // Se não houver receptoras na view, usar fallback para receptoras.fazenda_atual_id (compatibilidade durante transição)
-      let allReceptoras;
       if (receptoraIds.length === 0) {
-        // Fallback: buscar diretamente da tabela receptoras (durante transição)
-        const { data, error } = await supabase
-          .from('receptoras')
-          .select('id, identificacao, nome')
-          .eq('fazenda_atual_id', fazendaId)
-          .order('identificacao', { ascending: true });
-        
-        if (error) throw error;
-        allReceptoras = data || [];
-      } else {
-        // Buscar dados completos das receptoras usando os IDs da view
-        const { data, error } = await supabase
-          .from('receptoras')
-          .select('id, identificacao, nome')
-          .in('id', receptoraIds)
-          .order('identificacao', { ascending: true });
-        
-        if (error) throw error;
-        allReceptoras = data || [];
+        setReceptorasDisponiveis([]);
+        return;
       }
+
+      // Buscar dados completos das receptoras usando os IDs da view
+      const { data, error } = await supabase
+        .from('receptoras')
+        .select('id, identificacao, nome')
+        .in('id', receptoraIds)
+        .order('identificacao', { ascending: true });
+      
+      if (error) throw error;
+      
+      const allReceptoras = data || [];
 
       // Get receptoras already in this protocol
       const { data: prData, error: prError } = await supabase
@@ -498,7 +502,6 @@ export default function ProtocoloDetail() {
       // Create receptora in protocol's fazenda
       const receptoraData: Record<string, string> = {
         identificacao: createReceptoraForm.identificacao,
-        fazenda_atual_id: protocolo!.fazenda_id,
       };
 
       if (createReceptoraForm.nome.trim()) {

@@ -143,31 +143,21 @@ export default function ProtocoloFormWizard() {
 
       const receptoraIds = viewData?.map(v => v.receptora_id) || [];
 
-      // Se não houver receptoras na view, usar fallback para receptoras.fazenda_atual_id (compatibilidade durante transição)
-      let receptorasData;
       if (receptoraIds.length === 0) {
-        // Fallback: buscar diretamente da tabela receptoras (durante transição)
-        const { data, error } = await supabase
-          .from('receptoras')
-          .select('id, identificacao, nome')
-          .eq('fazenda_atual_id', fazendaId)
-          .order('identificacao', { ascending: true });
-        
-        if (error) throw error;
-        receptorasData = data || [];
-      } else {
-        // Buscar dados completos das receptoras usando os IDs da view
-        const { data, error } = await supabase
-          .from('receptoras')
-          .select('id, identificacao, nome')
-          .in('id', receptoraIds)
-          .order('identificacao', { ascending: true });
-        
-        if (error) throw error;
-        receptorasData = data || [];
+        setAllReceptoras([]);
+        return;
       }
 
-      if (!receptorasData) receptorasData = [];
+      // Buscar dados completos das receptoras usando os IDs da view
+      const { data, error } = await supabase
+        .from('receptoras')
+        .select('id, identificacao, nome')
+        .in('id', receptoraIds)
+        .order('identificacao', { ascending: true });
+      
+      if (error) throw error;
+      
+      const receptorasData = data || [];
 
       // Filtrar apenas receptoras com status VAZIA
       const receptorasVaziasPromises = (receptorasData || [])
@@ -323,7 +313,6 @@ export default function ProtocoloFormWizard() {
 
       const receptoraData: Record<string, string> = {
         identificacao: createReceptoraForm.identificacao,
-        fazenda_atual_id: protocoloData.fazenda_id,
       };
 
       if (createReceptoraForm.nome.trim()) {
