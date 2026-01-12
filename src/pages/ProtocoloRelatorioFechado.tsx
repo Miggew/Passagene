@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { formatDate } from '@/lib/utils';
 import { ArrowLeft, Printer } from 'lucide-react';
+import CiclandoBadge from '@/components/shared/CiclandoBadge';
+import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 
 interface ReceptoraComStatusFinal extends Receptora {
   pr_id: string;
@@ -23,6 +25,8 @@ interface ReceptoraComStatusFinal extends Receptora {
   pr_motivo_inapta?: string;
   pr_data_inclusao?: string;
   pr_data_retirada?: string;
+  pr_ciclando_classificacao?: 'N' | 'CL' | null;
+  pr_qualidade_semaforo?: 1 | 2 | 3 | null;
 }
 
 export default function ProtocoloRelatorioFechado() {
@@ -117,6 +121,8 @@ export default function ProtocoloRelatorioFechado() {
           pr_motivo_inapta: pr.motivo_inapta,
           pr_data_inclusao: pr.data_inclusao,
           pr_data_retirada: pr.data_retirada,
+          pr_ciclando_classificacao: pr.ciclando_classificacao as 'N' | 'CL' | null | undefined,
+          pr_qualidade_semaforo: pr.qualidade_semaforo as 1 | 2 | 3 | null | undefined,
         });
       }
 
@@ -304,6 +310,8 @@ export default function ProtocoloRelatorioFechado() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Identificação</TableHead>
+                  <TableHead>Ciclando</TableHead>
+                  <TableHead>Qualidade</TableHead>
                   <TableHead>Resultado Final</TableHead>
                   <TableHead>Motivo do Descarte</TableHead>
                 </TableRow>
@@ -314,6 +322,20 @@ export default function ProtocoloRelatorioFechado() {
                     <TableCell className="font-medium">
                       {r.identificacao}
                       {r.nome ? ` - ${r.nome}` : ''}
+                    </TableCell>
+                    <TableCell>
+                      <CiclandoBadge
+                        value={r.pr_ciclando_classificacao}
+                        variant="display"
+                        disabled={true}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <QualidadeSemaforo
+                        value={r.pr_qualidade_semaforo}
+                        variant="single"
+                        disabled={true}
+                      />
                     </TableCell>
                     <TableCell>{getStatusBadge(r.pr_status)}</TableCell>
                     <TableCell>{r.pr_motivo_inapta || '—'}</TableCell>

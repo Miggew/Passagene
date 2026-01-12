@@ -493,11 +493,26 @@ export default function ProtocoloDetail() {
         throw receptoraError;
       }
 
+      // Inserir no histórico de fazendas (fonte oficial da fazenda atual)
+      const { error: historicoError } = await supabase
+        .from('receptora_fazenda_historico')
+        .insert([{
+          receptora_id: novaReceptora.id,
+          fazenda_id: protocolo!.fazenda_id,
+          data_inicio: new Date().toISOString().split('T')[0],
+          data_fim: null, // vínculo ativo
+        }]);
+
+      if (historicoError) {
+        console.error('Erro ao criar histórico de fazenda:', historicoError);
+        // Não falhar - mas isso pode causar problemas de visibilidade
+      }
+
       // Add to protocol
       const protocoloReceptoraData = {
         protocolo_id: id,
         receptora_id: novaReceptora.id,
-        fazenda_atual_id: protocolo?.fazenda_id,
+        evento_fazenda_id: protocolo?.fazenda_id, // Renomeado de fazenda_atual_id: apenas para auditoria
         data_inclusao: protocolo?.data_inicio,
         status: 'INICIADA',
         observacoes: createReceptoraForm.observacoes || null,

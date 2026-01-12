@@ -66,12 +66,14 @@ export interface ProtocoloReceptora {
   id: string;
   protocolo_id: string;
   receptora_id: string;
-  fazenda_atual_id?: string;
+  evento_fazenda_id?: string; // Renomeado de fazenda_atual_id: apenas para auditoria, não usado na lógica
   data_inclusao: string;
   data_retirada?: string;
   status: string;
   motivo_inapta?: string;
   observacoes?: string;
+  ciclando_classificacao?: 'N' | 'CL' | null;
+  qualidade_semaforo?: 1 | 2 | 3 | null;
   created_at?: string;
 }
 
@@ -135,7 +137,7 @@ export interface TransferenciaEmbriao {
   id: string;
   embriao_id: string;
   receptora_id: string;
-  fazenda_id: string;
+  evento_fazenda_id?: string; // Renomeado de fazenda_id: apenas para auditoria, não usado na lógica
   protocolo_receptora_id?: string;
   data_te: string;
   tipo_te?: string;
@@ -195,9 +197,34 @@ export interface VEmbrioDisponivelTE {
   status_atual: string;
 }
 
+// Histórico de fazendas da receptora
+export interface ReceptoraFazendaHistorico {
+  id: string;
+  receptora_id: string;
+  fazenda_id: string;
+  data_inicio: string;
+  data_fim?: string | null;
+  observacoes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// View: Fazenda atual da receptora
+export interface VReceptoraFazendaAtual {
+  receptora_id: string;
+  fazenda_id_atual: string;
+  data_inicio_atual: string;
+  fazenda_nome_atual: string;
+  cliente_id: string;
+  cliente_nome: string;
+}
+
 // Helper type for receptora with calculated status
 export interface ReceptoraComStatus extends Receptora {
   status_calculado: string;
+  // Fazenda atual (quando carregada via view)
+  fazenda_atual_id?: string;
+  fazenda_nome_atual?: string;
 }
 
 // Timeline event for receptora history

@@ -45,12 +45,17 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Plus, UserPlus, Lock, X } from 'lucide-react';
+import CiclandoBadge from '@/components/shared/CiclandoBadge';
+import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
+import ClassificacoesCicloInline from '@/components/shared/ClassificacoesCicloInline';
 
 interface ReceptoraLocal {
   id?: string; // undefined se for nova (ainda não criada)
   identificacao: string;
   nome?: string;
   observacoes?: string;
+  ciclando_classificacao?: 'N' | 'CL' | null;
+  qualidade_semaforo?: 1 | 2 | 3 | null;
   isNew?: boolean; // true se for criada neste wizard
 }
 
@@ -83,6 +88,8 @@ export default function ProtocoloFormWizard() {
   const [addReceptoraForm, setAddReceptoraForm] = useState({
     receptora_id: '',
     observacoes: '',
+    ciclando_classificacao: null as 'N' | 'CL' | null,
+    qualidade_semaforo: null as 1 | 2 | 3 | null,
   });
   const [createReceptoraForm, setCreateReceptoraForm] = useState({
     identificacao: '',
@@ -132,6 +139,8 @@ export default function ProtocoloFormWizard() {
         .order('identificacao', { ascending: true });
 
       if (allError) throw allError;
+
+      if (!receptorasData) receptorasData = [];
 
       // Filtrar apenas receptoras com status VAZIA
       const receptorasVaziasPromises = (receptorasData || [])
@@ -254,12 +263,19 @@ export default function ProtocoloFormWizard() {
           identificacao: receptora.identificacao,
           nome: receptora.nome,
           observacoes: addReceptoraForm.observacoes?.trim() || undefined,
+          ciclando_classificacao: addReceptoraForm.ciclando_classificacao || null,
+          qualidade_semaforo: addReceptoraForm.qualidade_semaforo || null,
         },
       ];
     });
 
     // Limpar o formulário (resetar Select para placeholder) - IMPORTANTE: antes de fechar dialog
-    setAddReceptoraForm({ receptora_id: '', observacoes: '' });
+    setAddReceptoraForm({ 
+      receptora_id: '', 
+      observacoes: '', 
+      ciclando_classificacao: null,
+      qualidade_semaforo: null,
+    });
     setShowAddReceptora(false);
     
     // NÃO recarregar do banco - o cálculo derivado já remove da lista disponível
@@ -300,6 +316,21 @@ export default function ProtocoloFormWizard() {
         throw receptoraError;
       }
 
+      // Inserir no histórico de fazendas (fonte oficial da fazenda atual)
+      const { error: historicoError } = await supabase
+        .from('receptora_fazenda_historico')
+        .insert([{
+          receptora_id: novaReceptora.id,
+          fazenda_id: protocoloData.fazenda_id,
+          data_inicio: new Date().toISOString().split('T')[0],
+          data_fim: null, // vínculo ativo
+        }]);
+
+      if (historicoError) {
+        console.error('Erro ao criar histórico de fazenda:', historicoError);
+        // Não falhar - mas isso pode causar problemas de visibilidade
+      }
+
       setReceptorasLocais([
         ...receptorasLocais,
         {
@@ -307,6 +338,8 @@ export default function ProtocoloFormWizard() {
           identificacao: novaReceptora.identificacao,
           nome: novaReceptora.nome,
           observacoes: createReceptoraForm.observacoes || undefined,
+          ciclando_classificacao: createReceptoraForm.ciclando_classificacao || null,
+          qualidade_semaforo: createReceptoraForm.qualidade_semaforo || null,
           isNew: true,
         },
       ]);
@@ -315,6 +348,8 @@ export default function ProtocoloFormWizard() {
         identificacao: '',
         nome: '',
         observacoes: '',
+        ciclando_classificacao: null,
+        qualidade_semaforo: null,
       });
       setShowCreateReceptora(false);
       
@@ -384,6 +419,8 @@ export default function ProtocoloFormWizard() {
 
     const receptorasIds = receptorasValidas.map(r => r.id!);
     const receptorasObservacoes = receptorasValidas.map(r => r.observacoes || null);
+    const receptorasCiclando = receptorasValidas.map(r => r.ciclando_classificacao || null);
+    const receptorasQualidade = receptorasValidas.map(r => r.qualidade_semaforo || null);
 
     try {
       isFinalizingRef.current = true;
@@ -399,7 +436,8 @@ export default function ProtocoloFormWizard() {
           p_data_inicio: protocoloData.data_inicio,
           p_responsavel_inicio: responsavel_inicio,
           p_receptoras_ids: receptorasIds,
-          p_fazenda_atual_id: protocoloData.fazenda_id,
+          // p_fazenda_atual_id removido: coluna foi renomeada para evento_fazenda_id
+          // e é apenas para auditoria (opcional). Se a RPC precisar, deve usar evento_fazenda_id
           p_data_inclusao: protocoloData.data_inicio,
           p_observacoes: protocoloData.observacoes.trim() || null,
           p_receptoras_observacoes: receptorasObservacoes,
@@ -413,6 +451,48 @@ export default function ProtocoloFormWizard() {
 
       if (!protocoloId) {
         throw new Error('Protocolo criado mas ID não retornado');
+      }
+
+      // Atualizar classificações após criar protocolo (se houver alguma)
+      // Buscar os IDs das receptoras criadas no protocolo
+      const { data: prData, error: prError } = await supabase
+        .from('protocolo_receptoras')
+        .select('id, receptora_id')
+        .eq('protocolo_id', protocoloId)
+        .in('receptora_id', receptorasIds);
+
+      if (prError) {
+        console.error('Erro ao buscar receptoras do protocolo:', prError);
+        // Não falhar aqui - protocolo já foi criado, apenas logar o erro
+      } else if (prData && prData.length > 0) {
+        // Fazer UPDATE em lote das classificações (um UPDATE por receptora)
+        // Criar mapa para acesso rápido: receptora_id -> índice
+        const receptoraIndexMap = new Map(receptorasIds.map((id, idx) => [id, idx]));
+        
+        // Executar updates em paralelo (mas aguardar para garantir persistência)
+        const updatePromises = prData.map(async (pr) => {
+          const receptoraIndex = receptoraIndexMap.get(pr.receptora_id);
+          if (receptoraIndex === undefined) return;
+          
+          const ciclando = receptorasCiclando[receptoraIndex];
+          const qualidade = receptorasQualidade[receptoraIndex];
+          
+          // Sempre fazer update (pode ser null para limpar)
+          const { error: updateError } = await supabase
+            .from('protocolo_receptoras')
+            .update({
+              ciclando_classificacao: ciclando,
+              qualidade_semaforo: qualidade,
+            })
+            .eq('id', pr.id);
+
+          if (updateError) {
+            console.error(`Erro ao atualizar classificações da receptora ${pr.receptora_id}:`, updateError);
+          }
+        });
+
+        // Aguardar todos os updates (mas não falhar se algum der erro)
+        await Promise.allSettled(updatePromises);
       }
 
       toast({
@@ -645,7 +725,12 @@ export default function ProtocoloFormWizard() {
                   setShowAddReceptora(open);
                   // Limpar formulário quando dialog fecha
                   if (!open) {
-                    setAddReceptoraForm({ receptora_id: '', observacoes: '' });
+                    setAddReceptoraForm({ 
+                      receptora_id: '', 
+                      observacoes: '',
+                      ciclando_classificacao: null,
+                      qualidade_semaforo: null,
+                    });
                   }
                 }}
               >
@@ -702,6 +787,19 @@ export default function ProtocoloFormWizard() {
                       </Select>
                     </div>
                     <div className="space-y-2">
+                      <ClassificacoesCicloInline
+                        ciclandoValue={addReceptoraForm.ciclando_classificacao}
+                        qualidadeValue={addReceptoraForm.qualidade_semaforo}
+                        onChangeCiclando={(value) =>
+                          setAddReceptoraForm({ ...addReceptoraForm, ciclando_classificacao: value })
+                        }
+                        onChangeQualidade={(value) =>
+                          setAddReceptoraForm({ ...addReceptoraForm, qualidade_semaforo: value })
+                        }
+                        size="sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Observações</Label>
                       <Textarea
                         value={addReceptoraForm.observacoes}
@@ -723,7 +821,22 @@ export default function ProtocoloFormWizard() {
                 </DialogContent>
               </Dialog>
 
-              <Dialog open={showCreateReceptora} onOpenChange={setShowCreateReceptora}>
+              <Dialog 
+                open={showCreateReceptora} 
+                onOpenChange={(open) => {
+                  setShowCreateReceptora(open);
+                  // Limpar formulário quando dialog fecha
+                  if (!open) {
+                    setCreateReceptoraForm({
+                      identificacao: '',
+                      nome: '',
+                      observacoes: '',
+                      ciclando_classificacao: null,
+                      qualidade_semaforo: null,
+                    });
+                  }
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button variant="outline">
                     <UserPlus className="w-4 h-4 mr-2" />
@@ -756,6 +869,19 @@ export default function ProtocoloFormWizard() {
                           setCreateReceptoraForm({ ...createReceptoraForm, nome: e.target.value })
                         }
                         placeholder="Nome da receptora (opcional)"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <ClassificacoesCicloInline
+                        ciclandoValue={createReceptoraForm.ciclando_classificacao}
+                        qualidadeValue={createReceptoraForm.qualidade_semaforo}
+                        onChangeCiclando={(value) =>
+                          setCreateReceptoraForm({ ...createReceptoraForm, ciclando_classificacao: value })
+                        }
+                        onChangeQualidade={(value) =>
+                          setCreateReceptoraForm({ ...createReceptoraForm, qualidade_semaforo: value })
+                        }
+                        size="sm"
                       />
                     </div>
                     <div className="space-y-2">
@@ -797,6 +923,8 @@ export default function ProtocoloFormWizard() {
                 <TableRow>
                   <TableHead>Brinco</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Ciclando</TableHead>
+                  <TableHead>Qualidade</TableHead>
                   <TableHead>Observações</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -805,10 +933,42 @@ export default function ProtocoloFormWizard() {
                 {receptorasLocais.map((r, index) => {
                   // Usar ID como key se existir, caso contrário usar índice (para receptoras novas sem ID ainda)
                   const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
+                  
+                  // Função para atualizar classificações inline
+                  const handleUpdateCiclando = (value: 'N' | 'CL' | null) => {
+                    setReceptorasLocais((prev) =>
+                      prev.map((item, i) =>
+                        i === index ? { ...item, ciclando_classificacao: value } : item
+                      )
+                    );
+                  };
+
+                  const handleUpdateQualidade = (value: 1 | 2 | 3 | null) => {
+                    setReceptorasLocais((prev) =>
+                      prev.map((item, i) =>
+                        i === index ? { ...item, qualidade_semaforo: value } : item
+                      )
+                    );
+                  };
+
                   return (
                     <TableRow key={rowKey}>
                       <TableCell className="font-medium">{r.identificacao}</TableCell>
                       <TableCell>{r.nome || '-'}</TableCell>
+                      <TableCell>
+                        <CiclandoBadge
+                          value={r.ciclando_classificacao}
+                          onChange={handleUpdateCiclando}
+                          variant="editable"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <QualidadeSemaforo
+                          value={r.qualidade_semaforo}
+                          onChange={handleUpdateQualidade}
+                          variant="row"
+                        />
+                      </TableCell>
                       <TableCell>{r.observacoes || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button

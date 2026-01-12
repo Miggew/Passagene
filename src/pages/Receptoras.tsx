@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Search, History } from 'lucide-react';
+import { Plus, Edit, Search, History, ArrowRight } from 'lucide-react';
 import ReceptoraHistorico from './ReceptoraHistorico';
 
 export default function Receptoras() {
@@ -47,10 +47,13 @@ export default function Receptoras() {
   const [loadingReceptoras, setLoadingReceptoras] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showMoverFazendaDialog, setShowMoverFazendaDialog] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [selectedReceptoraId, setSelectedReceptoraId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submittingMover, setSubmittingMover] = useState(false);
   const [editingReceptora, setEditingReceptora] = useState<Receptora | null>(null);
+  const [novaFazendaId, setNovaFazendaId] = useState<string>('');
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -126,19 +129,60 @@ export default function Receptoras() {
     try {
       setLoadingReceptoras(true);
 
-      const { data, error } = await supabase
-        .from('receptoras')
-        .select('*')
-        .eq('fazenda_atual_id', selectedFazendaId)
-        .order('identificacao', { ascending: true });
+      // Usar view vw_receptoras_fazenda_atual para filtrar por fazenda atual
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', selectedFazendaId);
 
-      if (error) throw error;
+      if (viewError) throw viewError;
+
+      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
+
+      // Se não houver receptoras na view, usar fallback para receptoras.fazenda_atual_id (compatibilidade durante transição)
+      let receptorasData;
+      if (receptoraIds.length === 0) {
+        // Fallback: buscar diretamente da tabela receptoras (durante transição)
+        const { data, error } = await supabase
+          .from('receptoras')
+          .select('*')
+          .eq('fazenda_atual_id', selectedFazendaId)
+          .order('identificacao', { ascending: true });
+        
+        if (error) throw error;
+        receptorasData = data || [];
+      } else {
+        // Buscar dados completos das receptoras usando os IDs da view
+        const { data, error } = await supabase
+          .from('receptoras')
+          .select('*')
+          .in('id', receptoraIds)
+          .order('identificacao', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Buscar informações da fazenda atual da view para cada receptora
+        const { data: viewDataFull, error: viewErrorFull } = await supabase
+          .from('vw_receptoras_fazenda_atual')
+          .select('receptora_id, fazenda_nome_atual')
+          .in('receptora_id', receptoraIds);
+        
+        if (viewErrorFull) throw viewErrorFull;
+        
+        const fazendaMap = new Map(viewDataFull?.map(v => [v.receptora_id, v.fazenda_nome_atual]) || []);
+        
+        // Combinar dados
+        receptorasData = (data || []).map(r => ({
+          ...r,
+          fazenda_nome_atual: fazendaMap.get(r.id),
+        }));
+      }
 
       // Calculate status for all receptoras
-      const receptoraIds = data?.map(r => r.id) || [];
-      const statusMap = await calcularStatusReceptoras(receptoraIds);
+      const receptoraIdsForStatus = receptorasData.map(r => r.id);
+      const statusMap = await calcularStatusReceptoras(receptoraIdsForStatus);
 
-      const receptorasComStatus: ReceptoraComStatus[] = (data || []).map(r => ({
+      const receptorasComStatus: ReceptoraComStatus[] = receptorasData.map(r => ({
         ...r,
         status_calculado: statusMap.get(r.id) || 'VAZIA',
       }));
@@ -189,22 +233,39 @@ export default function Receptoras() {
 
       const insertData: Record<string, string> = {
         identificacao: formData.identificacao,
-        fazenda_atual_id: selectedFazendaId,
+        fazenda_atual_id: selectedFazendaId, // Mantido para compatibilidade durante transição
       };
 
       if (formData.nome.trim()) {
         insertData.nome = formData.nome;
       }
 
-      const { error } = await supabase
+      const { data: novaReceptora, error } = await supabase
         .from('receptoras')
-        .insert([insertData]);
+        .insert([insertData])
+        .select()
+        .single();
 
       if (error) {
         if (error.code === '23505') {
           throw new Error('Já existe uma receptora com esse brinco nesta fazenda.');
         }
         throw error;
+      }
+
+      // Inserir no histórico de fazendas (fonte oficial da fazenda atual)
+      const { error: historicoError } = await supabase
+        .from('receptora_fazenda_historico')
+        .insert([{
+          receptora_id: novaReceptora.id,
+          fazenda_id: selectedFazendaId,
+          data_inicio: new Date().toISOString().split('T')[0],
+          data_fim: null, // vínculo ativo
+        }]);
+
+      if (historicoError) {
+        console.error('Erro ao criar histórico de fazenda:', historicoError);
+        // Não falhar - a migration SQL também migra automaticamente
       }
 
       toast({
@@ -288,6 +349,80 @@ export default function Receptoras() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleMoverFazenda = async () => {
+    if (!editingReceptora || !novaFazendaId) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Selecione uma fazenda de destino',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setSubmittingMover(true);
+
+      // Chamar RPC mover_receptora_fazenda
+      const { data, error } = await supabase.rpc('mover_receptora_fazenda', {
+        p_receptora_id: editingReceptora.id,
+        p_nova_fazenda_id: novaFazendaId,
+        p_data_mudanca: new Date().toISOString().split('T')[0],
+        p_observacoes: null,
+      });
+
+      if (error) {
+        console.error('Erro ao mover receptora:', error);
+        console.error('Receptora ID:', editingReceptora.id);
+        console.error('Nova Fazenda ID:', novaFazendaId);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        
+        // Extrair mensagem de erro do PostgreSQL
+        // P0001 = exceção customizada (RAISE EXCEPTION)
+        let errorMessage = 'Erro ao mover receptora';
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.details) {
+          errorMessage = error.details;
+        }
+        
+        // Exibir toast imediatamente
+        toast({
+          title: 'Erro ao mover receptora',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        
+        setSubmittingMover(false);
+        return; // Retornar sem fazer mais nada
+      }
+
+      toast({
+        title: 'Receptora movida',
+        description: 'Receptora movida para a nova fazenda com sucesso. Protocolos e histórico não foram afetados.',
+      });
+
+      setShowMoverFazendaDialog(false);
+      setShowEditDialog(false);
+      setEditingReceptora(null);
+      setNovaFazendaId('');
+      
+      // Recarregar receptoras (a receptora pode ter saído da lista atual)
+      loadReceptoras();
+    } catch (error) {
+      console.error('Erro catch ao mover receptora:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao mover receptora';
+      toast({
+        title: 'Erro ao mover receptora',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmittingMover(false);
     }
   };
 
@@ -566,6 +701,81 @@ export default function Receptoras() {
               </Button>
             </div>
           </form>
+
+          {/* Separador e botão para mover fazenda */}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-500">Ou</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setShowMoverFazendaDialog(true);
+              setNovaFazendaId('');
+            }}
+            disabled={submitting}
+          >
+            <ArrowRight className="w-4 h-4 mr-2" />
+            Mover para outra fazenda
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Mover Fazenda */}
+      <Dialog open={showMoverFazendaDialog} onOpenChange={setShowMoverFazendaDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mover Receptora</DialogTitle>
+            <DialogDescription>
+              Mover {editingReceptora?.identificacao} para outra fazenda. 
+              Protocolos e histórico reprodutivo não serão afetados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nova_fazenda">Nova Fazenda *</Label>
+              <Select value={novaFazendaId} onValueChange={setNovaFazendaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a fazenda de destino" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fazendas
+                    .filter((f) => f.id !== selectedFazendaId) // Filtrar fazenda atual
+                    .map((fazenda) => (
+                      <SelectItem key={fazenda.id} value={fazenda.id}>
+                        {fazenda.nome}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={handleMoverFazenda}
+                disabled={submittingMover || !novaFazendaId}
+              >
+                {submittingMover ? 'Movendo...' : 'Confirmar Movimentação'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowMoverFazendaDialog(false)}
+                disabled={submittingMover}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

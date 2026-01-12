@@ -32,12 +32,16 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { ArrowLeft, CheckCircle, XCircle, Lock } from 'lucide-react';
+import CiclandoBadge from '@/components/shared/CiclandoBadge';
+import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 
 interface ReceptoraWithStatus extends Receptora {
   pr_id: string;
   pr_status: string;
   pr_motivo_inapta?: string;
   pr_observacoes?: string;
+  pr_ciclando_classificacao?: 'N' | 'CL' | null;
+  pr_qualidade_semaforo?: 1 | 2 | 3 | null;
 }
 
 export default function ProtocoloPasso2() {
@@ -82,7 +86,11 @@ export default function ProtocoloPasso2() {
 
       if (protocoloError) throw protocoloError;
 
-      if (protocoloData.status !== 'PASSO1_FECHADO' && protocoloData.status !== 'PRIMEIRO_PASSO_FECHADO') {
+      // Validar apenas se o status é inválido para esta página
+      // Permitir PASSO2_FECHADO pois pode ser visto após finalizar (antes de redirecionar)
+      if (protocoloData.status !== 'PASSO1_FECHADO' && 
+          protocoloData.status !== 'PRIMEIRO_PASSO_FECHADO' && 
+          protocoloData.status !== 'PASSO2_FECHADO') {
         toast({
           title: 'Erro',
           description: 'Este protocolo não está aguardando o 2º passo',
@@ -119,29 +127,80 @@ export default function ProtocoloPasso2() {
 
   const loadReceptoras = async () => {
     try {
-      const { data: prData, error: prError } = await supabase
+      if (!id) {
+        console.error('ID do protocolo não fornecido');
+        toast({
+          title: 'Erro',
+          description: 'ID do protocolo não encontrado',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Buscar receptoras do protocolo
+      const { data: finalPrData, error: prError } = await supabase
         .from('protocolo_receptoras')
         .select('*')
         .eq('protocolo_id', id);
 
-      if (prError) throw prError;
-
-      // CRITICAL: Validar que há pelo menos 1 receptora vinculada
-      if (!prData || prData.length === 0) {
-        console.error('Protocolo sem receptoras vinculadas - inconsistência detectada');
+      if (prError) {
+        console.error('Erro ao carregar receptoras do protocolo:', prError);
+        console.error('Protocolo ID:', id);
+        console.error('Código do erro:', prError.code);
+        console.error('Mensagem do erro:', prError.message);
+        console.error('Detalhes:', prError.details);
         toast({
-          title: 'Erro: Protocolo inconsistente',
-          description: 'Este protocolo não possui receptoras vinculadas. Não é possível prosseguir com o 2º passo.',
+          title: 'Erro ao carregar receptoras',
+          description: prError.message || 'Erro desconhecido ao carregar receptoras do protocolo',
           variant: 'destructive',
         });
-        // Bloquear a tela
+        setReceptoras([]);
+        return;
+      }
+
+      // Log para debug
+      console.log('=== DEBUG loadReceptoras ===');
+      console.log('Protocolo ID:', id);
+      console.log('Receptoras retornadas:', finalPrData?.length || 0);
+      if (finalPrData && finalPrData.length > 0) {
+        console.log('Primeira receptora:', {
+          id: finalPrData[0].id,
+          protocolo_id: finalPrData[0].protocolo_id,
+          receptora_id: finalPrData[0].receptora_id,
+          status: finalPrData[0].status,
+        });
+      } else {
+        console.warn('Nenhuma receptora retornada pela query');
+      }
+
+      // CRITICAL: Validar que há pelo menos 1 receptora vinculada
+      if (!finalPrData || finalPrData.length === 0) {
+        console.error('Protocolo sem receptoras vinculadas - inconsistência detectada');
+        console.error('Protocolo ID:', id);
+        
+        // Tentar contar diretamente para confirmar
+        const { count, error: countError } = await supabase
+          .from('protocolo_receptoras')
+          .select('*', { count: 'exact', head: true })
+          .eq('protocolo_id', id);
+        
+        console.error('Tentativa de count direto - resultado:', count);
+        if (countError) {
+          console.error('Erro ao fazer count:', countError);
+        }
+        
+        toast({
+          title: 'Erro: Protocolo inconsistente',
+          description: `Este protocolo não possui receptoras vinculadas (ID: ${id}). Verifique no banco de dados se há receptoras vinculadas a este protocolo.`,
+          variant: 'destructive',
+        });
         setReceptoras([]);
         return;
       }
 
       const receptorasWithStatus: ReceptoraWithStatus[] = [];
 
-      for (const pr of prData) {
+      for (const pr of finalPrData) {
         const { data: receptoraData, error: receptoraError } = await supabase
           .from('receptoras')
           .select('*')
@@ -159,6 +218,14 @@ export default function ProtocoloPasso2() {
           pr_status: pr.status,
           pr_motivo_inapta: pr.motivo_inapta,
           pr_observacoes: pr.observacoes,
+          // Tratar campos opcionalmente (podem não existir se migration não foi executada)
+          // Campos novos podem não existir ainda - tratar opcionalmente
+          pr_ciclando_classificacao: ('ciclando_classificacao' in pr && (pr.ciclando_classificacao === 'CL' || pr.ciclando_classificacao === 'N'))
+            ? pr.ciclando_classificacao as 'N' | 'CL'
+            : null,
+          pr_qualidade_semaforo: ('qualidade_semaforo' in pr && typeof pr.qualidade_semaforo === 'number' && pr.qualidade_semaforo >= 1 && pr.qualidade_semaforo <= 3)
+            ? pr.qualidade_semaforo as 1 | 2 | 3
+            : null,
         });
       }
 
@@ -311,8 +378,13 @@ export default function ProtocoloPasso2() {
         throw error;
       }
 
-      // Reload data
-      await loadData();
+      // Atualizar estado local (não precisa recarregar tudo)
+      setProtocolo({
+        ...protocolo!,
+        status: 'PASSO2_FECHADO',
+        data_retirada: dataRetirada,
+        responsavel_retirada: protocolo?.responsavel_inicio || null,
+      });
 
       // Show summary modal
       setShowResumoPasso2(true);
@@ -492,6 +564,8 @@ export default function ProtocoloPasso2() {
               <TableRow>
                 <TableHead>Brinco</TableHead>
                 <TableHead>Nome</TableHead>
+                <TableHead>Ciclando</TableHead>
+                <TableHead>Qualidade</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -500,7 +574,7 @@ export default function ProtocoloPasso2() {
             <TableBody>
               {receptoras.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500">
+                  <TableCell colSpan={7} className="text-center text-slate-500">
                     Nenhuma receptora no protocolo
                   </TableCell>
                 </TableRow>
@@ -509,6 +583,20 @@ export default function ProtocoloPasso2() {
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.identificacao}</TableCell>
                     <TableCell>{r.nome || '-'}</TableCell>
+                    <TableCell>
+                      <CiclandoBadge
+                        value={r.pr_ciclando_classificacao}
+                        variant="display"
+                        disabled={true}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <QualidadeSemaforo
+                        value={r.pr_qualidade_semaforo}
+                        variant="single"
+                        disabled={true}
+                      />
+                    </TableCell>
                     <TableCell>{getStatusBadge(r.pr_status)}</TableCell>
                     <TableCell>{r.pr_motivo_inapta || '-'}</TableCell>
                     <TableCell className="text-right">
