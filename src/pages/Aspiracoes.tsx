@@ -13,10 +13,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { Plus, Eye } from 'lucide-react';
+import { Plus, Eye, Filter, X } from 'lucide-react';
 
 interface PacoteComNomes extends PacoteAspiracao {
   fazenda_nome?: string;
@@ -28,11 +37,39 @@ export default function Aspiracoes() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [pacotes, setPacotes] = useState<PacoteComNomes[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pacotesFiltrados, setPacotesFiltrados] = useState<PacoteComNomes[]>([]);
+  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingFazendas, setLoadingFazendas] = useState(true);
+  const [dadosCarregados, setDadosCarregados] = useState(false);
+  const [filtroFazenda, setFiltroFazenda] = useState<string>('');
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
+  const [filtroDataFim, setFiltroDataFim] = useState<string>('');
 
   useEffect(() => {
-    loadData();
+    loadFazendas();
   }, []);
+
+  const loadFazendas = async () => {
+    try {
+      setLoadingFazendas(true);
+      const { data: fazendasData, error: fazendasError } = await supabase
+        .from('fazendas')
+        .select('id, nome')
+        .order('nome', { ascending: true });
+
+      if (fazendasError) throw fazendasError;
+      setFazendas(fazendasData || []);
+    } catch (error) {
+      toast({
+        title: 'Erro ao carregar fazendas',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingFazendas(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -47,15 +84,7 @@ export default function Aspiracoes() {
 
       if (pacotesError) throw pacotesError;
 
-      // Load fazendas
-      const { data: fazendasData, error: fazendasError } = await supabase
-        .from('fazendas')
-        .select('id, nome')
-        .order('nome', { ascending: true });
-
-      if (fazendasError) throw fazendasError;
-
-      const fazendasMap = new Map(fazendasData?.map((f) => [f.id, f.nome]) || []);
+      const fazendasMap = new Map(fazendas.map((f) => [f.id, f.nome]));
 
       // Load quantidade de doadoras por pacote
       const pacoteIds = pacotesData?.map((p) => p.id) || [];
@@ -115,6 +144,7 @@ export default function Aspiracoes() {
       });
 
       setPacotes(pacotesComNomes);
+      setDadosCarregados(true);
     } catch (error) {
       toast({
         title: 'Erro ao carregar dados',
@@ -126,7 +156,51 @@ export default function Aspiracoes() {
     }
   };
 
-  if (loading) {
+  useEffect(() => {
+    // A busca só é iniciada quando ambas as datas forem escolhidas
+    if (filtroDataInicio && filtroDataFim) {
+      // Validar que data início <= data fim
+      if (filtroDataInicio > filtroDataFim) {
+        // Limpar resultados se a validação falhar
+        setPacotesFiltrados([]);
+        setPacotes([]);
+        setDadosCarregados(false);
+        return;
+      }
+      // Se os dados ainda não foram carregados, carregar
+      if (!dadosCarregados && pacotes.length === 0) {
+        loadData();
+      }
+    } else {
+      // Se não houver ambas as datas, limpar resultados
+      setPacotesFiltrados([]);
+      setPacotes([]);
+      setDadosCarregados(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroDataInicio, filtroDataFim]);
+
+  // Aplicar filtros quando os pacotes forem carregados ou quando os filtros mudarem
+  useEffect(() => {
+    if (pacotes.length > 0 && filtroDataInicio && filtroDataFim) {
+      let pacotesFiltrados = [...pacotes];
+
+      // Filtrar por intervalo de data (obrigatório)
+      pacotesFiltrados = pacotesFiltrados.filter((p) => {
+        const dataPacote = p.data_aspiracao.split('T')[0];
+        return dataPacote >= filtroDataInicio && dataPacote <= filtroDataFim;
+      });
+
+      // Filtrar por fazenda (opcional, se escolhida)
+      if (filtroFazenda) {
+        pacotesFiltrados = pacotesFiltrados.filter((p) => p.fazenda_id === filtroFazenda);
+      }
+
+      setPacotesFiltrados(pacotesFiltrados);
+    }
+  }, [pacotes, filtroFazenda, filtroDataInicio, filtroDataFim]);
+
+  if (loadingFazendas) {
     return <LoadingSpinner />;
   }
 
@@ -134,23 +208,81 @@ export default function Aspiracoes() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Pacotes de Aspiração</h1>
-          <p className="text-slate-600 mt-1">Gerenciar pacotes de aspiração</p>
+          <h1 className="text-3xl font-bold text-slate-900">Aspirações</h1>
+          <p className="text-slate-600 mt-1">Gerenciar aspirações</p>
         </div>
         <Button
           onClick={() => navigate('/aspiracoes/novo')}
           className="bg-green-600 hover:bg-green-700"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Novo Pacote
+          Nova Aspiração
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Pacotes</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Lista de Aspirações</CardTitle>
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-500" />
+              <span className="text-sm text-slate-500">Filtros</span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex gap-4 items-end">
+            <div className="flex-1 space-y-2">
+              <Label>Filtrar por Fazenda</Label>
+              <Select value={filtroFazenda || undefined} onValueChange={(value) => setFiltroFazenda(value || '')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as fazendas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fazendas.map((fazenda) => (
+                    <SelectItem key={fazenda.id} value={fazenda.id}>
+                      {fazenda.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label>Data Inicial *</Label>
+              <Input
+                type="date"
+                value={filtroDataInicio}
+                onChange={(e) => setFiltroDataInicio(e.target.value)}
+                max={filtroDataFim || undefined}
+              />
+              {filtroDataInicio && filtroDataFim && filtroDataInicio > filtroDataFim && (
+                <p className="text-sm text-red-500">A data inicial deve ser anterior ou igual à data final</p>
+              )}
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label>Data Final *</Label>
+              <Input
+                type="date"
+                value={filtroDataFim}
+                onChange={(e) => setFiltroDataFim(e.target.value)}
+                min={filtroDataInicio || undefined}
+              />
+            </div>
+            {(filtroDataInicio || filtroDataFim) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFiltroFazenda('');
+                  setFiltroDataInicio('');
+                  setFiltroDataFim('');
+                }}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Limpar Filtros
+              </Button>
+            )}
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -162,18 +294,35 @@ export default function Aspiracoes() {
                 <TableHead>Total Oócitos</TableHead>
                 <TableHead>Veterinário</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Usado em Lote FIV</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pacotes.length === 0 ? (
+              {!filtroDataInicio || !filtroDataFim ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-slate-500">
-                    Nenhum pacote de aspiração cadastrado
+                  <TableCell colSpan={11} className="text-center text-slate-500 py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Filter className="w-8 h-8 text-slate-400" />
+                      <p className="text-lg font-medium">Aplique filtros para visualizar as aspirações</p>
+                      <p className="text-sm">Selecione um intervalo de datas (data inicial e data final) para buscar aspirações</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : loading ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center text-slate-500 py-12">
+                    <LoadingSpinner />
+                  </TableCell>
+                </TableRow>
+              ) : pacotesFiltrados.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center text-slate-500 py-12">
+                    Nenhuma aspiração encontrada com os filtros aplicados
                   </TableCell>
                 </TableRow>
               ) : (
-                pacotes.map((pacote) => (
+                pacotesFiltrados.map((pacote) => (
                   <TableRow
                     key={pacote.id}
                     className="cursor-pointer hover:bg-slate-50"
@@ -202,6 +351,13 @@ export default function Aspiracoes() {
                       <Badge variant={pacote.status === 'FINALIZADO' ? 'default' : 'secondary'}>
                         {pacote.status === 'FINALIZADO' ? 'FINALIZADO' : 'EM ANDAMENTO'}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {pacote.usado_em_lote_fiv ? (
+                        <Badge variant="destructive">Usado</Badge>
+                      ) : (
+                        <Badge variant="outline">Disponível</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button

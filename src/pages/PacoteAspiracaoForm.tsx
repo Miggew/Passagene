@@ -79,6 +79,24 @@ export default function PacoteAspiracaoForm() {
       return;
     }
 
+    if (!formData.veterinario_responsavel.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Veterinário responsável é obrigatório',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.tecnico_responsavel.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Técnico responsável é obrigatório',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
 
@@ -90,8 +108,8 @@ export default function PacoteAspiracaoForm() {
         fazenda_destino_id: primeiraFazendaDestino, // Mantido para compatibilidade
         data_aspiracao: formData.data_aspiracao,
         horario_inicio: formData.horario_inicio || null,
-        veterinario_responsavel: formData.veterinario_responsavel.trim() || null,
-        tecnico_responsavel: formData.tecnico_responsavel.trim() || null,
+        veterinario_responsavel: formData.veterinario_responsavel.trim(),
+        tecnico_responsavel: formData.tecnico_responsavel.trim(),
         observacoes: formData.observacoes.trim() || null,
         status: 'EM_ANDAMENTO' as const,
       };
@@ -117,15 +135,15 @@ export default function PacoteAspiracaoForm() {
       if (fazendasDestinoError) throw fazendasDestinoError;
 
       toast({
-        title: 'Pacote criado',
-        description: 'Pacote de aspiração criado com sucesso',
+        title: 'Aspiração criada',
+        description: 'Aspiração criada com sucesso',
       });
 
       // Navegar para a página de detalhes do pacote
       navigate(`/aspiracoes/${data.id}`);
     } catch (error) {
       toast({
-        title: 'Erro ao criar pacote',
+        title: 'Erro ao criar aspiração',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
@@ -145,14 +163,14 @@ export default function PacoteAspiracaoForm() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Novo Pacote de Aspiração</h1>
-          <p className="text-slate-600 mt-1">Criar novo pacote de aspiração</p>
+          <h1 className="text-3xl font-bold text-slate-900">Nova Aspiração</h1>
+          <p className="text-slate-600 mt-1">Criar nova aspiração</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Informações do Pacote</CardTitle>
+          <CardTitle>Informações da Aspiração</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -269,22 +287,24 @@ export default function PacoteAspiracaoForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="veterinario_responsavel">Veterinário Responsável</Label>
+                <Label htmlFor="veterinario_responsavel">Veterinário Responsável *</Label>
                 <Input
                   id="veterinario_responsavel"
                   value={formData.veterinario_responsavel}
                   onChange={(e) => setFormData({ ...formData, veterinario_responsavel: e.target.value })}
                   placeholder="Nome do veterinário"
+                  required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tecnico_responsavel">Técnico Responsável</Label>
+                <Label htmlFor="tecnico_responsavel">Técnico Responsável *</Label>
                 <Input
                   id="tecnico_responsavel"
                   value={formData.tecnico_responsavel}
                   onChange={(e) => setFormData({ ...formData, tecnico_responsavel: e.target.value })}
                   placeholder="Nome do técnico"
+                  required
                 />
               </div>
             </div>
@@ -295,7 +315,7 @@ export default function PacoteAspiracaoForm() {
                 id="observacoes"
                 value={formData.observacoes}
                 onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                placeholder="Observações sobre o pacote"
+                placeholder="Observações sobre a aspiração"
                 rows={3}
               />
             </div>
@@ -306,7 +326,7 @@ export default function PacoteAspiracaoForm() {
                 className="flex-1 bg-green-600 hover:bg-green-700"
                 disabled={submitting}
               >
-                {submitting ? 'Criando...' : 'Criar Pacote'}
+                {submitting ? 'Criando...' : 'Criar Aspiração'}
               </Button>
               <Button
                 type="button"

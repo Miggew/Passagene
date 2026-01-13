@@ -45,7 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { ArrowLeft, Plus, UserPlus, Lock } from 'lucide-react';
+import { ArrowLeft, Plus, UserPlus, Lock, Edit } from 'lucide-react';
 
 interface AspiracaoDoadoraComNome extends AspiracaoDoadora {
   doadora_nome?: string;
@@ -69,6 +69,15 @@ export default function PacoteAspiracaoDetail() {
   const [showAddDoadora, setShowAddDoadora] = useState(false);
   const [showCreateDoadora, setShowCreateDoadora] = useState(false);
   const [showFinalizarDialog, setShowFinalizarDialog] = useState(false);
+  const [showEditAspiracao, setShowEditAspiracao] = useState(false);
+  const [aspiracaoEditando, setAspiracaoEditando] = useState<AspiracaoDoadoraComNome | null>(null);
+  const [showConfirmZeroOocitos, setShowConfirmZeroOocitos] = useState(false);
+  const [pendingAddAction, setPendingAddAction] = useState<'add' | 'create' | null>(null);
+  const [showEditPacote, setShowEditPacote] = useState(false);
+  const [editPacoteForm, setEditPacoteForm] = useState({
+    veterinario_responsavel: '',
+    tecnico_responsavel: '',
+  });
 
   // Form states
   const [addDoadoraForm, setAddDoadoraForm] = useState({
@@ -88,6 +97,18 @@ export default function PacoteAspiracaoDetail() {
     registro: '',
     raca: '',
     racaCustom: '',
+  });
+
+  const [editAspiracaoForm, setEditAspiracaoForm] = useState({
+    horario_aspiracao: '',
+    hora_final: '',
+    atresicos: '',
+    degenerados: '',
+    expandidos: '',
+    desnudos: '',
+    viaveis: '',
+    recomendacao_touro: '',
+    observacoes: '',
   });
 
   const racasPredefinidas = ['Holandesa', 'Jersey', 'Gir', 'Girolando'];
@@ -112,6 +133,10 @@ export default function PacoteAspiracaoDetail() {
 
       if (pacoteError) throw pacoteError;
       setPacote(pacoteData);
+      setEditPacoteForm({
+        veterinario_responsavel: pacoteData.veterinario_responsavel || '',
+        tecnico_responsavel: pacoteData.tecnico_responsavel || '',
+      });
 
       // Load fazenda da aspiração
       const { data: fazendaData, error: fazendaError } = await supabase
@@ -221,6 +246,18 @@ export default function PacoteAspiracaoDetail() {
 
   const loadDoadorasDisponiveis = async (fazendaId: string) => {
     try {
+      // Buscar aspirações diretamente do banco para garantir dados atualizados
+      const { data: aspiracoesAtuais, error: aspiracoesError } = await supabase
+        .from('aspiracoes_doadoras')
+        .select('doadora_id')
+        .eq('pacote_aspiracao_id', id);
+
+      if (aspiracoesError) {
+        console.error('Error loading aspiracoes for filtering:', aspiracoesError);
+      }
+
+      const doadoraIdsJaAdicionadas = new Set(aspiracoesAtuais?.map(a => a.doadora_id) || []);
+
       const { data, error } = await supabase
         .from('doadoras')
         .select('id, registro, nome')
@@ -230,8 +267,7 @@ export default function PacoteAspiracaoDetail() {
       if (error) throw error;
 
       // Filtrar doadoras já adicionadas
-      const doadoraIdsJaAdicionadas = aspiracoes.map(a => a.doadora_id);
-      const disponiveis = (data || []).filter(d => !doadoraIdsJaAdicionadas.includes(d.id));
+      const disponiveis = (data || []).filter(d => !doadoraIdsJaAdicionadas.has(d.id));
 
       setDoadorasDisponiveis(disponiveis);
     } catch (error) {
@@ -239,7 +275,7 @@ export default function PacoteAspiracaoDetail() {
     }
   };
 
-  const calculateTotal = (data: typeof addDoadoraForm) => {
+  const calculateTotal = (data: { atresicos: string; degenerados: string; expandidos: string; desnudos: string; viaveis: string }) => {
     const atresicos = parseInt(data.atresicos) || 0;
     const degenerados = parseInt(data.degenerados) || 0;
     const expandidos = parseInt(data.expandidos) || 0;
@@ -260,9 +296,12 @@ export default function PacoteAspiracaoDetail() {
     return `${String(novaHora).padStart(2, '0')}:${String(novoMinuto).padStart(2, '0')}`;
   };
 
-  // Efeito para definir horário automático quando abrir dialog de adicionar doadora
+  // Efeito para recarregar doadoras disponíveis e definir horário automático quando abrir dialog de adicionar doadora
   useEffect(() => {
-    if (showAddDoadora) {
+    if (showAddDoadora && pacote) {
+      // Recarregar doadoras disponíveis sempre que abrir o dialog para garantir lista atualizada
+      loadDoadorasDisponiveis(pacote.fazenda_id);
+      
       if (aspiracoes.length > 0) {
         // Se já existem aspirações, usar horário final da última
         const ultimaAspiracao = aspiracoes[aspiracoes.length - 1];
@@ -284,7 +323,7 @@ export default function PacoteAspiracaoDetail() {
         }
       }
     }
-  }, [showAddDoadora, aspiracoes, pacote?.horario_inicio]);
+  }, [showAddDoadora, aspiracoes, pacote]);
 
   const handleAddDoadora = async () => {
     if (submitting || isAddingDoadoraRef.current) return;
@@ -307,16 +346,40 @@ export default function PacoteAspiracaoDetail() {
       return;
     }
 
+    // Verificar se o pacote tem veterinário e técnico preenchidos
+    if (!pacote?.veterinario_responsavel || !pacote?.tecnico_responsavel) {
+      toast({
+        title: 'Erro de validação',
+        description: 'A aspiração deve ter veterinário e técnico responsáveis preenchidos. Por favor, edite a aspiração primeiro.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Verificar se a doadora já está no pacote
     const doadoraJaNoPacote = aspiracoes.find((a) => a.doadora_id === addDoadoraForm.doadora_id);
     if (doadoraJaNoPacote) {
       toast({
         title: 'Erro',
-        description: 'Esta doadora já foi aspirada neste pacote',
+        description: 'Esta doadora já foi aspirada nesta aspiração',
         variant: 'destructive',
       });
       return;
     }
+
+    // Verificar se total de oócitos é zero
+    const total = calculateTotal(addDoadoraForm);
+    if (total === 0) {
+      setPendingAddAction('add');
+      setShowConfirmZeroOocitos(true);
+      return;
+    }
+
+    await executeAddDoadora();
+  };
+
+  const executeAddDoadora = async () => {
+    if (submitting || isAddingDoadoraRef.current) return;
 
     try {
       isAddingDoadoraRef.current = true;
@@ -337,8 +400,8 @@ export default function PacoteAspiracaoDetail() {
         desnudos: parseInt(addDoadoraForm.desnudos) || 0,
         viaveis: parseInt(addDoadoraForm.viaveis) || 0,
         total_oocitos: total,
-        veterinario_responsavel: pacote!.veterinario_responsavel || null,
-        tecnico_responsavel: pacote!.tecnico_responsavel || null,
+        veterinario_responsavel: pacote!.veterinario_responsavel!,
+        tecnico_responsavel: pacote!.tecnico_responsavel!,
         recomendacao_touro: addDoadoraForm.recomendacao_touro.trim() || null,
         observacoes: addDoadoraForm.observacoes.trim() || null,
       };
@@ -349,7 +412,7 @@ export default function PacoteAspiracaoDetail() {
         if (error.code === '23505') {
           toast({
             title: 'Erro',
-            description: 'Esta doadora já foi aspirada neste pacote',
+            description: 'Esta doadora já foi aspirada nesta aspiração',
             variant: 'destructive',
           });
           setSubmitting(false);
@@ -369,7 +432,7 @@ export default function PacoteAspiracaoDetail() {
 
       toast({
         title: 'Doadora adicionada',
-        description: 'Doadora adicionada ao pacote com sucesso',
+        description: 'Doadora adicionada à aspiração com sucesso',
       });
 
       setShowAddDoadora(false);
@@ -418,7 +481,7 @@ export default function PacoteAspiracaoDetail() {
       return;
     }
 
-    if (!addDoadoraForm.hora_final.trim()) {
+      if (!addDoadoraForm.hora_final.trim()) {
       toast({
         title: 'Erro de validação',
         description: 'Hora final é obrigatória',
@@ -427,8 +490,32 @@ export default function PacoteAspiracaoDetail() {
       return;
     }
 
+    // Verificar se o pacote tem veterinário e técnico preenchidos
+    if (!pacote?.veterinario_responsavel || !pacote?.tecnico_responsavel) {
+      toast({
+        title: 'Erro de validação',
+        description: 'A aspiração deve ter veterinário e técnico responsáveis preenchidos. Por favor, edite a aspiração primeiro.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Verificar se total de oócitos é zero
+    const total = calculateTotal(addDoadoraForm);
+    if (total === 0) {
+      setPendingAddAction('create');
+      setShowConfirmZeroOocitos(true);
+      return;
+    }
+
+    await executeCreateDoadora();
+  };
+
+  const executeCreateDoadora = async () => {
     try {
       setSubmitting(true);
+
+      const racaFinal = racaSelecionada === 'Outra' ? createDoadoraForm.racaCustom.trim() : createDoadoraForm.raca.trim();
 
       // Verificar se já existe uma doadora com o mesmo registro (case-insensitive) e mesma raça (globalmente)
       const registroNormalizado = createDoadoraForm.registro.trim().toUpperCase();
@@ -493,8 +580,8 @@ export default function PacoteAspiracaoDetail() {
         desnudos: parseInt(addDoadoraForm.desnudos) || 0,
         viaveis: parseInt(addDoadoraForm.viaveis) || 0,
         total_oocitos: total,
-        veterinario_responsavel: pacote!.veterinario_responsavel || null,
-        tecnico_responsavel: pacote!.tecnico_responsavel || null,
+        veterinario_responsavel: pacote!.veterinario_responsavel!,
+        tecnico_responsavel: pacote!.tecnico_responsavel!,
         recomendacao_touro: addDoadoraForm.recomendacao_touro.trim() || null,
         observacoes: addDoadoraForm.observacoes.trim() || null,
       };
@@ -505,7 +592,7 @@ export default function PacoteAspiracaoDetail() {
         if (aspiracaoError.code === '23505') {
           toast({
             title: 'Erro',
-            description: 'Esta doadora já foi aspirada neste pacote',
+            description: 'Esta doadora já foi aspirada nesta aspiração',
             variant: 'destructive',
           });
           setSubmitting(false);
@@ -524,7 +611,7 @@ export default function PacoteAspiracaoDetail() {
 
       toast({
         title: 'Doadora criada e adicionada',
-        description: 'Doadora criada e adicionada ao pacote com sucesso',
+        description: 'Doadora criada e adicionada à aspiração com sucesso',
       });
 
       setShowCreateDoadora(false);
@@ -546,6 +633,138 @@ export default function PacoteAspiracaoDetail() {
     }
   };
 
+  const handleEditAspiracao = (aspiracao: AspiracaoDoadoraComNome) => {
+    setAspiracaoEditando(aspiracao);
+    setEditAspiracaoForm({
+      horario_aspiracao: aspiracao.horario_aspiracao || '',
+      hora_final: aspiracao.hora_final || '',
+      atresicos: aspiracao.atresicos?.toString() || '',
+      degenerados: aspiracao.degenerados?.toString() || '',
+      expandidos: aspiracao.expandidos?.toString() || '',
+      desnudos: aspiracao.desnudos?.toString() || '',
+      viaveis: aspiracao.viaveis?.toString() || '',
+      recomendacao_touro: aspiracao.recomendacao_touro || '',
+      observacoes: aspiracao.observacoes || '',
+    });
+    setShowEditAspiracao(true);
+  };
+
+  const handleSaveEditAspiracao = async () => {
+    if (!aspiracaoEditando) return;
+
+    if (!editAspiracaoForm.hora_final.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Hora final é obrigatória',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const total = calculateTotal(editAspiracaoForm);
+      const totalAnterior = aspiracaoEditando.total_oocitos || 0;
+      const diferencaTotal = total - totalAnterior;
+
+      const updateData = {
+        horario_aspiracao: editAspiracaoForm.horario_aspiracao || null,
+        hora_final: editAspiracaoForm.hora_final,
+        atresicos: parseInt(editAspiracaoForm.atresicos) || 0,
+        degenerados: parseInt(editAspiracaoForm.degenerados) || 0,
+        expandidos: parseInt(editAspiracaoForm.expandidos) || 0,
+        desnudos: parseInt(editAspiracaoForm.desnudos) || 0,
+        viaveis: parseInt(editAspiracaoForm.viaveis) || 0,
+        total_oocitos: total,
+        recomendacao_touro: editAspiracaoForm.recomendacao_touro.trim() || null,
+        observacoes: editAspiracaoForm.observacoes.trim() || null,
+      };
+
+      const { error } = await supabase
+        .from('aspiracoes_doadoras')
+        .update(updateData)
+        .eq('id', aspiracaoEditando.id);
+
+      if (error) throw error;
+
+      // Atualizar total do pacote
+      const novoTotal = totalOocitos + diferencaTotal;
+      await supabase
+        .from('pacotes_aspiracao')
+        .update({ total_oocitos: novoTotal })
+        .eq('id', id);
+
+      toast({
+        title: 'Aspiração atualizada',
+        description: 'Aspiração da doadora atualizada com sucesso',
+      });
+
+      setShowEditAspiracao(false);
+      setAspiracaoEditando(null);
+      loadData();
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar aspiração',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSaveEditPacote = async () => {
+    if (!editPacoteForm.veterinario_responsavel.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Veterinário responsável é obrigatório',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!editPacoteForm.tecnico_responsavel.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Técnico responsável é obrigatório',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const { error } = await supabase
+        .from('pacotes_aspiracao')
+        .update({
+          veterinario_responsavel: editPacoteForm.veterinario_responsavel.trim(),
+          tecnico_responsavel: editPacoteForm.tecnico_responsavel.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Aspiração atualizada',
+        description: 'Informações da aspiração atualizadas com sucesso',
+      });
+
+      setShowEditPacote(false);
+      loadData();
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar aspiração',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleFinalizar = async () => {
     try {
       setSubmitting(true);
@@ -559,15 +778,15 @@ export default function PacoteAspiracaoDetail() {
       if (error) throw error;
 
       toast({
-        title: 'Pacote finalizado',
-        description: 'Pacote de aspiração finalizado com sucesso',
+        title: 'Aspiração finalizada',
+        description: 'Aspiração finalizada com sucesso',
       });
 
       setShowFinalizarDialog(false);
       navigate('/aspiracoes');
     } catch (error) {
       toast({
-        title: 'Erro ao finalizar pacote',
+        title: 'Erro ao finalizar aspiração',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
@@ -583,7 +802,7 @@ export default function PacoteAspiracaoDetail() {
   if (!pacote) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-600">Pacote não encontrado</p>
+        <p className="text-slate-600">Aspiração não encontrada</p>
         <Button onClick={() => navigate('/aspiracoes')} className="mt-4">
           Voltar para Aspirações
         </Button>
@@ -601,9 +820,9 @@ export default function PacoteAspiracaoDetail() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Pacote de Aspiração - {fazendaNome}</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Aspiração - {fazendaNome}</h1>
             <p className="text-slate-600 mt-1">
-              {isFinalizado ? 'Pacote finalizado' : 'Gerenciar doadoras do pacote'}
+              {isFinalizado ? 'Aspiração finalizada' : 'Gerenciar doadoras da aspiração'}
             </p>
           </div>
         </div>
@@ -619,10 +838,22 @@ export default function PacoteAspiracaoDetail() {
         )}
       </div>
 
-      {/* Informações do Pacote */}
+      {/* Informações da Aspiração */}
       <Card>
         <CardHeader>
-          <CardTitle>Informações do Pacote</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Informações da Aspiração</CardTitle>
+            {!isFinalizado && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditPacote(true)}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Editar
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
@@ -711,7 +942,7 @@ export default function PacoteAspiracaoDetail() {
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Adicionar Doadora ao Pacote</DialogTitle>
+                    <DialogTitle>Adicionar Doadora à Aspiração</DialogTitle>
                     <DialogDescription>
                       Selecione uma doadora existente ou cadastre uma nova
                     </DialogDescription>
@@ -1017,13 +1248,14 @@ export default function PacoteAspiracaoDetail() {
                 <TableHead>Total Oócitos</TableHead>
                 <TableHead>Recomendação Touro</TableHead>
                 <TableHead>Observações</TableHead>
+                {!isFinalizado && <TableHead className="text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {aspiracoes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-slate-500">
-                    Nenhuma doadora adicionada ao pacote
+                  <TableCell colSpan={isFinalizado ? 7 : 8} className="text-center text-slate-500">
+                    Nenhuma doadora adicionada à aspiração
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1042,6 +1274,17 @@ export default function PacoteAspiracaoDetail() {
                     <TableCell>{aspiracao.total_oocitos || 0}</TableCell>
                     <TableCell>{aspiracao.recomendacao_touro || '-'}</TableCell>
                     <TableCell>{aspiracao.observacoes || '-'}</TableCell>
+                    {!isFinalizado && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditAspiracao(aspiracao)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -1050,19 +1293,252 @@ export default function PacoteAspiracaoDetail() {
         </CardContent>
       </Card>
 
+      {/* Dialog de Edição de Aspiração */}
+      <Dialog
+        open={showEditAspiracao}
+        onOpenChange={(open) => {
+          setShowEditAspiracao(open);
+          if (!open) {
+            setAspiracaoEditando(null);
+            setEditAspiracaoForm({
+              horario_aspiracao: '',
+              hora_final: '',
+              atresicos: '',
+              degenerados: '',
+              expandidos: '',
+              desnudos: '',
+              viaveis: '',
+              recomendacao_touro: '',
+              observacoes: '',
+            });
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Editar Aspiração - {aspiracaoEditando?.doadora_nome || aspiracaoEditando?.doadora_registro || 'Doadora'}
+            </DialogTitle>
+            <DialogDescription>
+              Edite os dados da aspiração da doadora
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Horário de Aspiração</Label>
+                <Input
+                  type="time"
+                  value={editAspiracaoForm.horario_aspiracao}
+                  onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, horario_aspiracao: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora Final *</Label>
+                <Input
+                  type="time"
+                  value={editAspiracaoForm.hora_final}
+                  onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, hora_final: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="font-semibold mb-3">Contagem de Oócitos</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Atrésicos</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editAspiracaoForm.atresicos}
+                    onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, atresicos: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Degenerados</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editAspiracaoForm.degenerados}
+                    onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, degenerados: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Expandidos</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editAspiracaoForm.expandidos}
+                    onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, expandidos: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Desnudos</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editAspiracaoForm.desnudos}
+                    onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, desnudos: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Viáveis</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editAspiracaoForm.viaveis}
+                    onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, viaveis: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total</Label>
+                  <Input value={calculateTotal(editAspiracaoForm)} disabled />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Recomendação de Touro</Label>
+              <Input
+                value={editAspiracaoForm.recomendacao_touro}
+                onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, recomendacao_touro: e.target.value })}
+                placeholder="Recomendação de touro para esta doadora"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={editAspiracaoForm.observacoes}
+                onChange={(e) => setEditAspiracaoForm({ ...editAspiracaoForm, observacoes: e.target.value })}
+                placeholder="Observações sobre esta aspiração"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditAspiracao(false);
+                  setAspiracaoEditando(null);
+                }}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveEditAspiracao}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={submitting}
+              >
+                {submitting ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação para Zero Oócitos */}
+      <AlertDialog open={showConfirmZeroOocitos} onOpenChange={setShowConfirmZeroOocitos}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Adição de Doadora sem Oócitos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta doadora não possui nenhum oócito (total = 0). Deseja realmente adicioná-la à aspiração?
+              <br />
+              <br />
+              <strong>Atenção:</strong> Doadoras sem oócitos podem não ser úteis para o processo de FIV.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowConfirmZeroOocitos(false);
+                if (pendingAddAction === 'add') {
+                  await executeAddDoadora();
+                } else if (pendingAddAction === 'create') {
+                  await executeCreateDoadora();
+                }
+                setPendingAddAction(null);
+              }}
+              disabled={submitting}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {submitting ? 'Adicionando...' : 'Sim, Adicionar Mesmo Assim'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Edição da Aspiração */}
+      <Dialog open={showEditPacote} onOpenChange={setShowEditPacote}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Aspiração</DialogTitle>
+            <DialogDescription>
+              Atualize as informações da aspiração
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Veterinário Responsável *</Label>
+              <Input
+                value={editPacoteForm.veterinario_responsavel}
+                onChange={(e) =>
+                  setEditPacoteForm({ ...editPacoteForm, veterinario_responsavel: e.target.value })
+                }
+                placeholder="Nome do veterinário"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Técnico Responsável *</Label>
+              <Input
+                value={editPacoteForm.tecnico_responsavel}
+                onChange={(e) =>
+                  setEditPacoteForm({ ...editPacoteForm, tecnico_responsavel: e.target.value })
+                }
+                placeholder="Nome do técnico"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditPacote(false)}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveEditPacote}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={submitting}
+              >
+                {submitting ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de Finalização */}
       <AlertDialog open={showFinalizarDialog} onOpenChange={setShowFinalizarDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Finalizar Pacote de Aspiração</AlertDialogTitle>
+            <AlertDialogTitle>Finalizar Aspiração</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja finalizar este pacote de aspiração? Esta ação não pode ser desfeita.
+              Tem certeza que deseja finalizar esta aspiração? Esta ação não pode ser desfeita.
               <br />
               <br />
-              <strong>Atenção:</strong> Após finalizar, o pacote ficará apenas como histórico e não poderá ser editado.
+              <strong>Atenção:</strong> Após finalizar, a aspiração ficará apenas como histórico e não poderá ser editada.
               <br />
               <br />
-              Total de oócitos no pacote: <strong>{totalOocitos}</strong>
+              Total de oócitos na aspiração: <strong>{totalOocitos}</strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1072,7 +1548,7 @@ export default function PacoteAspiracaoDetail() {
               disabled={submitting}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {submitting ? 'Finalizando...' : 'Finalizar Pacote'}
+              {submitting ? 'Finalizando...' : 'Finalizar Aspiração'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

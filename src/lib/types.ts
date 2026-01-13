@@ -89,6 +89,7 @@ export interface PacoteAspiracao {
   tecnico_responsavel?: string;
   status: 'EM_ANDAMENTO' | 'FINALIZADO';
   total_oocitos?: number;
+  usado_em_lote_fiv?: boolean;
   observacoes?: string;
   created_at?: string;
   updated_at?: string;
@@ -131,6 +132,7 @@ export interface LoteFIV {
   data_abertura: string;
   status: 'ABERTO' | 'FECHADO';
   observacoes?: string;
+  doses_selecionadas?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -141,6 +143,7 @@ export interface LoteFIVAcasalamento {
   aspiracao_doadora_id: string;
   dose_semen_id: string;
   quantidade_fracionada: number;
+  quantidade_oocitos?: number;
   quantidade_embrioes?: number;
   observacoes?: string;
   created_at?: string;
