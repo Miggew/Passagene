@@ -63,21 +63,27 @@ export default function DosesSemen() {
   const [deletingDose, setDeletingDose] = useState<DoseSemen | null>(null);
   const { toast } = useToast();
 
+  const racasBovinas = ['Holandesa', 'Jersey', 'Gir', 'Girolando', 'Nelore', 'Angus', 'Brahman', 'Hereford', 'Simmental', 'Tabapuã', 'Sindi', 'Caracu', 'Canchim', 'Senepol', 'Brangus'];
+
   const [formData, setFormData] = useState({
     cliente_id: '',
     nome: '',
-    partida: '',
     raca: '',
     tipo_semen: '',
+    quantidade: '',
   });
 
   const [editFormData, setEditFormData] = useState({
     cliente_id: '',
     nome: '',
-    partida: '',
     raca: '',
     tipo_semen: '',
+    quantidade: '',
   });
+
+  const [filtroNome, setFiltroNome] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroRaca, setFiltroRaca] = useState('');
 
   useEffect(() => {
     loadData();
@@ -138,17 +144,21 @@ export default function DosesSemen() {
     try {
       setSubmitting(true);
 
-      const insertData: Record<string, string | null> = {
+      const insertData: Record<string, string | number | null> = {
         nome: formData.nome,
         cliente_id: formData.cliente_id || null,
-        partida: formData.partida.trim() || null,
-        raca: formData.raca.trim() || null,
+        raca: formData.raca || null,
         tipo_semen: formData.tipo_semen || null,
+        quantidade: parseInt(formData.quantidade) || 0,
       };
 
-      const { error } = await supabase.from('doses_semen').insert([insertData]);
+      console.log('Dados sendo inseridos:', insertData);
+      const { error, data } = await supabase.from('doses_semen').insert([insertData]).select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro detalhado:', error);
+        throw error;
+      }
 
       toast({
         title: 'Dose criada',
@@ -159,17 +169,25 @@ export default function DosesSemen() {
       setFormData({
         cliente_id: '',
         nome: '',
-        partida: '',
         raca: '',
         tipo_semen: '',
+        quantidade: '',
       });
       loadData();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('Erro completo:', error);
+      let errorMessage = 'Erro desconhecido';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        errorMessage = JSON.stringify(error, null, 2);
+      }
       toast({
         title: 'Erro ao criar dose',
         description: errorMessage.includes('RLS') || errorMessage.includes('policy')
           ? 'RLS está bloqueando escrita. Configure políticas anon no Supabase.'
+          : errorMessage.length > 200 
+          ? errorMessage.substring(0, 200) + '...'
           : errorMessage,
         variant: 'destructive',
       });
@@ -183,9 +201,9 @@ export default function DosesSemen() {
     setEditFormData({
       cliente_id: dose.cliente_id || '',
       nome: dose.nome,
-      partida: dose.partida || '',
       raca: dose.raca || '',
       tipo_semen: dose.tipo_semen || '',
+      quantidade: dose.quantidade?.toString() || '',
     });
     setShowEditDialog(true);
   };
@@ -207,12 +225,12 @@ export default function DosesSemen() {
     try {
       setSubmitting(true);
 
-      const updateData: Record<string, string | null> = {
+      const updateData: Record<string, string | number | null> = {
         nome: editFormData.nome,
         cliente_id: editFormData.cliente_id || null,
-        partida: editFormData.partida.trim() || null,
-        raca: editFormData.raca.trim() || null,
+        raca: editFormData.raca || null,
         tipo_semen: editFormData.tipo_semen || null,
+        quantidade: parseInt(editFormData.quantidade) || 0,
       };
 
       const { error } = await supabase
@@ -329,23 +347,22 @@ export default function DosesSemen() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="partida">Partida</Label>
-                <Input
-                  id="partida"
-                  value={formData.partida}
-                  onChange={(e) => setFormData({ ...formData, partida: e.target.value })}
-                  placeholder="Número da partida"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="raca">Raça</Label>
-                <Input
-                  id="raca"
+                <Select
                   value={formData.raca}
-                  onChange={(e) => setFormData({ ...formData, raca: e.target.value })}
-                  placeholder="Raça do reprodutor"
-                />
+                  onValueChange={(value) => setFormData({ ...formData, raca: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a raça" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {racasBovinas.map((raca) => (
+                      <SelectItem key={raca} value={raca}>
+                        {raca}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -362,6 +379,19 @@ export default function DosesSemen() {
                     <SelectItem value="SEXADO">SEXADO</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="quantidade">Quantidade</Label>
+                <Input
+                  id="quantidade"
+                  type="number"
+                  min="0"
+                  value={formData.quantidade}
+                  onChange={(e) => setFormData({ ...formData, quantidade: e.target.value })}
+                  placeholder="Quantidade a ser adicionada"
+                  required
+                />
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -388,36 +418,91 @@ export default function DosesSemen() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Doses</CardTitle>
+          <CardTitle>Lista de Doses de Sêmen</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Filtrar por Touro</Label>
+                <Input
+                  placeholder="Buscar por nome do touro..."
+                  value={filtroNome}
+                  onChange={(e) => setFiltroNome(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Filtrar por Tipo</Label>
+                <Select value={filtroTipo || 'all'} onValueChange={(value) => setFiltroTipo(value === 'all' ? '' : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os tipos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="CONVENCIONAL">CONVENCIONAL</SelectItem>
+                    <SelectItem value="SEXADO">SEXADO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Filtrar por Raça</Label>
+                <Select value={filtroRaca || 'all'} onValueChange={(value) => setFiltroRaca(value === 'all' ? '' : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as raças" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as raças</SelectItem>
+                    {racasBovinas.map((raca) => (
+                      <SelectItem key={raca} value={raca}>
+                        {raca}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
+                <TableHead>Nome (Touro)</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Partida</TableHead>
                 <TableHead>Raça</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Quantidade</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {doses.length === 0 ? (
+              {doses
+                .filter((dose) => {
+                  const nomeMatch = !filtroNome || dose.nome.toLowerCase().includes(filtroNome.toLowerCase());
+                  const tipoMatch = !filtroTipo || dose.tipo_semen === filtroTipo;
+                  const racaMatch = !filtroRaca || dose.raca === filtroRaca;
+                  return nomeMatch && tipoMatch && racaMatch;
+                })
+                .length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-slate-500">
                     Nenhuma dose cadastrada
                   </TableCell>
                 </TableRow>
               ) : (
-                doses.map((dose) => (
-                  <TableRow key={dose.id}>
-                    <TableCell className="font-medium">{dose.nome}</TableCell>
-                    <TableCell>{dose.cliente_nome || '-'}</TableCell>
-                    <TableCell>{dose.partida || '-'}</TableCell>
-                    <TableCell>{dose.raca || '-'}</TableCell>
-                    <TableCell>{dose.tipo_semen || '-'}</TableCell>
-                    <TableCell className="text-right">
+                doses
+                  .filter((dose) => {
+                    const nomeMatch = !filtroNome || dose.nome.toLowerCase().includes(filtroNome.toLowerCase());
+                    const tipoMatch = !filtroTipo || dose.tipo_semen === filtroTipo;
+                    const racaMatch = !filtroRaca || dose.raca === filtroRaca;
+                    return nomeMatch && tipoMatch && racaMatch;
+                  })
+                  .map((dose) => (
+                    <TableRow key={dose.id}>
+                      <TableCell className="font-medium">{dose.nome}</TableCell>
+                      <TableCell>{dose.cliente_nome || '-'}</TableCell>
+                      <TableCell>{dose.raca || '-'}</TableCell>
+                      <TableCell>{dose.tipo_semen || '-'}</TableCell>
+                      <TableCell>{dose.quantidade ?? '-'}</TableCell>
+                      <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(dose)}>
                           <Edit className="w-4 h-4" />
@@ -433,9 +518,9 @@ export default function DosesSemen() {
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                    </TableRow>
+                  ))
               )}
             </TableBody>
           </Table>
@@ -481,22 +566,34 @@ export default function DosesSemen() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit_partida">Partida</Label>
-              <Input
-                id="edit_partida"
-                value={editFormData.partida}
-                onChange={(e) => setEditFormData({ ...editFormData, partida: e.target.value })}
-                placeholder="Número da partida"
-              />
+              <Label htmlFor="edit_raca">Raça</Label>
+              <Select
+                value={editFormData.raca}
+                onValueChange={(value) => setEditFormData({ ...editFormData, raca: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a raça" />
+                </SelectTrigger>
+                <SelectContent>
+                  {racasBovinas.map((raca) => (
+                    <SelectItem key={raca} value={raca}>
+                      {raca}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit_raca">Raça</Label>
+              <Label htmlFor="edit_quantidade">Quantidade</Label>
               <Input
-                id="edit_raca"
-                value={editFormData.raca}
-                onChange={(e) => setEditFormData({ ...editFormData, raca: e.target.value })}
-                placeholder="Raça do reprodutor"
+                id="edit_quantidade"
+                type="number"
+                min="0"
+                value={editFormData.quantidade}
+                onChange={(e) => setEditFormData({ ...editFormData, quantidade: e.target.value })}
+                placeholder="Quantidade"
+                required
               />
             </div>
 

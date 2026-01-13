@@ -36,6 +36,8 @@ export interface Doadora {
   genealogia_texto?: string;
   link_abcz?: string;
   foto_url?: string;
+  disponivel_aspiracao?: boolean;
+  classificacao_genetica?: '1_estrela' | '2_estrelas' | '3_estrelas' | 'diamante' | null;
 }
 
 export interface Receptora {
@@ -77,12 +79,29 @@ export interface ProtocoloReceptora {
   created_at?: string;
 }
 
+export interface PacoteAspiracao {
+  id: string;
+  fazenda_id: string;
+  fazenda_destino_id: string;
+  data_aspiracao: string;
+  horario_inicio?: string;
+  veterinario_responsavel?: string;
+  tecnico_responsavel?: string;
+  status: 'EM_ANDAMENTO' | 'FINALIZADO';
+  total_oocitos?: number;
+  observacoes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface AspiracaoDoadora {
   id: string;
+  pacote_aspiracao_id?: string;
   doadora_id: string;
   fazenda_id: string;
   data_aspiracao: string;
   horario_aspiracao?: string;
+  hora_final?: string;
   atresicos?: number;
   degenerados?: number;
   expandidos?: number;
@@ -91,6 +110,7 @@ export interface AspiracaoDoadora {
   total_oocitos?: number;
   veterinario_responsavel?: string;
   tecnico_responsavel?: string;
+  recomendacao_touro?: string;
   observacoes?: string;
   created_at?: string;
 }
@@ -99,23 +119,32 @@ export interface DoseSemen {
   id: string;
   cliente_id?: string;
   nome: string;
-  partida?: string;
   raca?: string;
   tipo_semen?: string;
+  quantidade?: number;
   created_at?: string;
 }
 
 export interface LoteFIV {
   id: string;
-  aspiracao_id: string;
-  dose_semen_id: string;
-  fazenda_destino_id?: string;
-  data_fecundacao?: string;
-  data_avaliacao?: string;
-  oocitos_utilizados?: number;
+  pacote_aspiracao_id: string;
+  data_abertura: string;
+  status: 'ABERTO' | 'FECHADO';
   observacoes?: string;
-  pacote_producao_id?: string;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface LoteFIVAcasalamento {
+  id: string;
+  lote_fiv_id: string;
+  aspiracao_doadora_id: string;
+  dose_semen_id: string;
+  quantidade_fracionada: number;
+  quantidade_embrioes?: number;
+  observacoes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Embriao {

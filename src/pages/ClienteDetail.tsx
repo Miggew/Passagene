@@ -433,9 +433,9 @@ export default function ClienteDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome (Touro)</TableHead>
-                    <TableHead>Partida</TableHead>
                     <TableHead>Raça</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Quantidade</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -449,9 +449,9 @@ export default function ClienteDetail() {
                     doses.map((dose) => (
                       <TableRow key={dose.id}>
                         <TableCell className="font-medium">{dose.nome}</TableCell>
-                        <TableCell>{dose.partida || '-'}</TableCell>
                         <TableCell>{dose.raca || '-'}</TableCell>
                         <TableCell>{dose.tipo_semen || '-'}</TableCell>
+                        <TableCell>{dose.quantidade ?? '-'}</TableCell>
                       </TableRow>
                     ))
                   )}

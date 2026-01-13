@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { Doadora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -28,45 +29,40 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Dna, Search } from 'lucide-react';
-import GenealogiaTree, { type GenealogiaData } from '@/components/shared/GenealogiaTree';
+import { Plus, Pencil, Search, History, Star, Gem } from 'lucide-react';
+import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
+import { formatDate } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface Fazenda {
   id: string;
   nome: string;
 }
 
+interface DoadoraComAspiracao extends Doadora {
+  ultima_aspiracao_total_oocitos?: number;
+  ultima_aspiracao_data?: string;
+}
+
 export default function Doadoras() {
-  const [doadoras, setDoadoras] = useState<Doadora[]>([]);
-  const [filteredDoadoras, setFilteredDoadoras] = useState<Doadora[]>([]);
+  const navigate = useNavigate();
+  const [doadoras, setDoadoras] = useState<DoadoraComAspiracao[]>([]);
+  const [filteredDoadoras, setFilteredDoadoras] = useState<DoadoraComAspiracao[]>([]);
+  const [historicoDoadoraId, setHistoricoDoadoraId] = useState<string | null>(null);
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
   const [selectedFazendaId, setSelectedFazendaId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     registro: '',
-    nome: '',
     raca: '',
     racaCustom: '', // Para quando selecionar "Outra"
-    genealogia_texto: '',
-    foto_url: '',
-  });
-
-  const [genealogia, setGenealogia] = useState<GenealogiaData>({
-    pai: { nome: '', registro: '' },
-    mae: { nome: '', registro: '' },
-    pai_pai: { nome: '', registro: '' },
-    pai_mae: { nome: '', registro: '' },
-    mae_pai: { nome: '', registro: '' },
-    mae_mae: { nome: '', registro: '' },
   });
 
   // Preparação para campos específicos por raça (será implementado depois)
@@ -137,8 +133,37 @@ export default function Doadoras() {
         .order('created_at', { ascending: false });
 
       if (doadorasError) throw doadorasError;
-      setDoadoras(doadorasData || []);
-      setFilteredDoadoras(doadorasData || []);
+
+      // Buscar últimas aspirações para cada doadora
+      const doadorasComAspiracao: DoadoraComAspiracao[] = await Promise.all(
+        (doadorasData || []).map(async (doadora) => {
+          const { data: aspiracoesData, error } = await supabase
+            .from('aspiracoes_doadoras')
+            .select('total_oocitos, data_aspiracao')
+            .eq('doadora_id', doadora.id)
+            .order('data_aspiracao', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // Se houver erro ou não houver dados, usar null
+          if (error || !aspiracoesData) {
+            return {
+              ...doadora,
+              ultima_aspiracao_total_oocitos: undefined,
+              ultima_aspiracao_data: undefined,
+            };
+          }
+
+          return {
+            ...doadora,
+            ultima_aspiracao_total_oocitos: aspiracoesData.total_oocitos,
+            ultima_aspiracao_data: aspiracoesData.data_aspiracao,
+          };
+        })
+      );
+
+      setDoadoras(doadorasComAspiracao);
+      setFilteredDoadoras(doadorasComAspiracao);
     } catch (error) {
       toast({
         title: 'Erro ao carregar doadoras',
@@ -150,79 +175,61 @@ export default function Doadoras() {
     }
   };
 
+  const renderClassificacaoGenetica = (classificacao?: string | null) => {
+    if (!classificacao) return '-';
+    
+    switch (classificacao) {
+      case '1_estrela':
+        return (
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+          </div>
+        );
+      case '2_estrelas':
+        return (
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+          </div>
+        );
+      case '3_estrelas':
+        return (
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+          </div>
+        );
+      case 'diamante':
+        return (
+          <div className="flex items-center gap-1">
+            <Gem className="w-4 h-4 fill-blue-500 text-blue-500" />
+          </div>
+        );
+      default:
+        return '-';
+    }
+  };
+
+  const getCamposRaca = (doadora: DoadoraComAspiracao) => {
+    if (doadora.raca === 'Gir') {
+      const campos: string[] = [];
+      if (doadora.gpta) campos.push(`GPTA: ${doadora.gpta}`);
+      if (doadora.controle_leiteiro) campos.push(`Controle Leiteiro: ${doadora.controle_leiteiro}`);
+      if (doadora.beta_caseina) campos.push(`Beta Caseína: ${doadora.beta_caseina}`);
+      if (doadora.link_abcz) campos.push(`Link ABCZ`);
+      return campos.length > 0 ? campos.join(', ') : null;
+    }
+    return null;
+  };
+
   const resetForm = () => {
     setFormData({
       registro: '',
-      nome: '',
       raca: '',
       racaCustom: '',
-      genealogia_texto: '',
-      foto_url: '',
-    });
-    setGenealogia({
-      pai: { nome: '', registro: '' },
-      mae: { nome: '', registro: '' },
-      pai_pai: { nome: '', registro: '' },
-      pai_mae: { nome: '', registro: '' },
-      mae_pai: { nome: '', registro: '' },
-      mae_mae: { nome: '', registro: '' },
     });
     setRacaSelecionada('');
-    setEditingId(null);
-  };
-
-  const handleEdit = (doadora: Doadora) => {
-    const raca = doadora.raca || '';
-    const isRacaPredefinida = racasPredefinidas.includes(raca);
-    
-    setRacaSelecionada(isRacaPredefinida ? raca : 'Outra');
-    
-    // Extrair genealogia do campo genealogia_texto (pode estar em JSON)
-    let genealogiaExtraida: GenealogiaData = {
-      pai: { nome: doadora.pai_nome || '', registro: doadora.pai_registro || '' },
-      mae: { nome: doadora.mae_nome || '', registro: doadora.mae_registro || '' },
-      pai_pai: { nome: '', registro: '' },
-      pai_mae: { nome: '', registro: '' },
-      mae_pai: { nome: '', registro: '' },
-      mae_mae: { nome: '', registro: '' },
-    };
-    
-    let genealogiaTexto = doadora.genealogia_texto || '';
-    
-    // Tentar extrair JSON da genealogia se existir
-    if (genealogiaTexto.includes('[GENEALOGIA_JSON]')) {
-      try {
-        const match = genealogiaTexto.match(/\[GENEALOGIA_JSON\](.*?)\[\/GENEALOGIA_JSON\]/s);
-        if (match) {
-          const genealogiaJSON = JSON.parse(match[1]);
-          genealogiaExtraida = {
-            pai: genealogiaJSON.pai || genealogiaExtraida.pai,
-            mae: genealogiaJSON.mae || genealogiaExtraida.mae,
-            pai_pai: genealogiaJSON.pai_pai || genealogiaExtraida.pai_pai,
-            pai_mae: genealogiaJSON.pai_mae || genealogiaExtraida.pai_mae,
-            mae_pai: genealogiaJSON.mae_pai || genealogiaExtraida.mae_pai,
-            mae_mae: genealogiaJSON.mae_mae || genealogiaExtraida.mae_mae,
-          };
-          // Remover JSON do texto de observações
-          genealogiaTexto = genealogiaTexto.replace(/\[GENEALOGIA_JSON\].*?\[\/GENEALOGIA_JSON\]/s, '').trim();
-        }
-      } catch (e) {
-        console.warn('Erro ao parsear genealogia JSON:', e);
-      }
-    }
-    
-    setFormData({
-      registro: doadora.registro || '',
-      nome: doadora.nome || '',
-      raca: isRacaPredefinida ? raca : '',
-      racaCustom: isRacaPredefinida ? '' : raca,
-      genealogia_texto: genealogiaTexto,
-      foto_url: doadora.foto_url || '',
-    });
-    
-    setGenealogia(genealogiaExtraida);
-    setEditingId(doadora.id);
-    setShowDialog(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,75 +270,33 @@ export default function Doadoras() {
       // Determinar raça final (pré-definida ou customizada)
       const racaFinal = racaSelecionada === 'Outra' ? formData.racaCustom.trim() : formData.raca.trim();
       
-      // Converter genealogia para formato do banco (mantendo compatibilidade com campos antigos)
-      const doadoraData: Record<string, string | number | null> = {
+      const doadoraData: Record<string, string | null> = {
         fazenda_id: selectedFazendaId,
         registro: formData.registro.trim(),
-        nome: formData.nome.trim() || null,
         raca: racaFinal, // Obrigatório
-        // Manter campos antigos para compatibilidade
-        pai_registro: genealogia.pai.registro.trim() || null,
-        pai_nome: genealogia.pai.nome.trim() || null,
-        mae_registro: genealogia.mae.registro.trim() || null,
-        mae_nome: genealogia.mae.nome.trim() || null,
-        foto_url: formData.foto_url.trim() || null,
       };
 
-      // Adicionar genealogia completa como JSON no campo genealogia_texto
-      const genealogiaCompleta = {
-        pai: genealogia.pai,
-        mae: genealogia.mae,
-        pai_pai: genealogia.pai_pai,
-        pai_mae: genealogia.pai_mae,
-        mae_pai: genealogia.mae_pai,
-        mae_mae: genealogia.mae_mae,
-      };
-      
-      // Verificar se há pelo menos um campo preenchido na genealogia
-      const temGenealogia = Object.values(genealogiaCompleta).some(
-        (pessoa) => pessoa.nome.trim() || pessoa.registro.trim()
-      );
-      
-      if (temGenealogia) {
-        // Armazenar JSON da genealogia completa junto com o texto de observações
-        const genealogiaJSON = JSON.stringify(genealogiaCompleta);
-        doadoraData.genealogia_texto = formData.genealogia_texto.trim()
-          ? `${formData.genealogia_texto}\n\n[GENEALOGIA_JSON]${genealogiaJSON}[/GENEALOGIA_JSON]`
-          : `[GENEALOGIA_JSON]${genealogiaJSON}[/GENEALOGIA_JSON]`;
-      } else {
-        doadoraData.genealogia_texto = formData.genealogia_texto.trim() || null;
-      }
+      const { data, error } = await supabase.from('doadoras').insert([doadoraData]).select().single();
 
-      if (editingId) {
-        const { error } = await supabase
-          .from('doadoras')
-          .update(doadoraData)
-          .eq('id', editingId);
+      if (error) throw error;
 
-        if (error) throw error;
-
-        toast({
-          title: 'Doadora atualizada',
-          description: 'Doadora atualizada com sucesso',
-        });
-      } else {
-        const { error } = await supabase.from('doadoras').insert([doadoraData]);
-
-        if (error) throw error;
-
-        toast({
-          title: 'Doadora criada',
-          description: 'Doadora criada com sucesso',
-        });
-      }
+      toast({
+        title: 'Doadora criada',
+        description: 'Doadora criada com sucesso',
+      });
 
       setShowDialog(false);
       resetForm();
       loadDoadoras();
+      
+      // Navegar para a página de detalhes da doadora criada
+      if (data?.id) {
+        navigate(`/doadoras/${data.id}`);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: editingId ? 'Erro ao atualizar doadora' : 'Erro ao criar doadora',
+        title: 'Erro ao criar doadora',
         description: errorMessage.includes('RLS') || errorMessage.includes('policy')
           ? 'RLS está bloqueando escrita. Configure políticas anon no Supabase.'
           : errorMessage,
@@ -408,121 +373,60 @@ export default function Doadoras() {
                   Nova Doadora
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Dna className="w-5 h-5" />
-                    {editingId ? 'Editar Doadora' : 'Criar Nova Doadora'}
-                  </DialogTitle>
+                  <DialogTitle>Criar Nova Doadora</DialogTitle>
                   <DialogDescription>
-                    {editingId ? 'Atualize os dados da doadora' : 'Criar doadora na fazenda selecionada'}
+                    Preencha os campos básicos. As informações detalhadas podem ser preenchidas após a criação.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="registro">Registro *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="registro">Registro *</Label>
+                    <Input
+                      id="registro"
+                      value={formData.registro}
+                      onChange={(e) => setFormData({ ...formData, registro: e.target.value })}
+                      placeholder="Registro da doadora"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="raca">Raça *</Label>
+                    <Select
+                      value={racaSelecionada}
+                      onValueChange={(value) => {
+                        setRacaSelecionada(value);
+                        if (value === 'Outra') {
+                          setFormData({ ...formData, raca: '', racaCustom: '' });
+                        } else {
+                          setFormData({ ...formData, raca: value, racaCustom: '' });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a raça" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {racasPredefinidas.map((raca) => (
+                          <SelectItem key={raca} value={raca}>
+                            {raca}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="Outra">Outra</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {racaSelecionada === 'Outra' && (
                       <Input
-                        id="registro"
-                        value={formData.registro}
-                        onChange={(e) => setFormData({ ...formData, registro: e.target.value })}
-                        placeholder="Registro da doadora"
+                        id="raca_custom"
+                        value={formData.racaCustom}
+                        onChange={(e) => setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })}
+                        placeholder="Digite a raça"
+                        className="mt-2"
                         required
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="nome">Nome</Label>
-                      <Input
-                        id="nome"
-                        value={formData.nome}
-                        onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                        placeholder="Nome da doadora"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="raca">Raça *</Label>
-                      <Select
-                        value={racaSelecionada}
-                        onValueChange={(value) => {
-                          setRacaSelecionada(value);
-                          if (value === 'Outra') {
-                            setFormData({ ...formData, raca: '', racaCustom: '' });
-                          } else {
-                            setFormData({ ...formData, raca: value, racaCustom: '' });
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a raça" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {racasPredefinidas.map((raca) => (
-                            <SelectItem key={raca} value={raca}>
-                              {raca}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="Outra">Outra</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {racaSelecionada === 'Outra' && (
-                        <Input
-                          id="raca_custom"
-                          value={formData.racaCustom}
-                          onChange={(e) => setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })}
-                          placeholder="Digite a raça"
-                          className="mt-2"
-                          required
-                        />
-                      )}
-                      {/* Preparação para campos específicos por raça */}
-                      {racaSelecionada && racaSelecionada !== 'Outra' && (
-                        <div className="mt-2 text-xs text-slate-500">
-                          {/* Aqui serão adicionados campos específicos por raça no futuro */}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <GenealogiaTree
-                      value={genealogia}
-                      onChange={setGenealogia}
-                      doadoraNome={formData.nome || formData.registro}
-                      doadoraRegistro={formData.registro}
-                    />
-                    
-                    <div className="mt-4 space-y-2">
-                      <Label htmlFor="genealogia_texto">Observações sobre Genealogia</Label>
-                      <Textarea
-                        id="genealogia_texto"
-                        value={formData.genealogia_texto}
-                        onChange={(e) =>
-                          setFormData({ ...formData, genealogia_texto: e.target.value })
-                        }
-                        placeholder="Informações adicionais sobre genealogia (opcional)"
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-semibold mb-3">Foto</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="foto_url">Foto</Label>
-                      <Input
-                        id="foto_url"
-                        type="url"
-                        value={formData.foto_url}
-                        onChange={(e) => setFormData({ ...formData, foto_url: e.target.value })}
-                        placeholder="URL da foto (opcional)"
-                      />
-                      <p className="text-xs text-slate-500">
-                        Cole a URL da foto da doadora
-                      </p>
-                    </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2 pt-2">
@@ -531,7 +435,7 @@ export default function Doadoras() {
                       className="flex-1 bg-green-600 hover:bg-green-700"
                       disabled={submitting}
                     >
-                      {submitting ? 'Salvando...' : editingId ? 'Atualizar' : 'Criar Doadora'}
+                      {submitting ? 'Salvando...' : 'Criar Doadora'}
                     </Button>
                     <Button
                       type="button"
@@ -557,45 +461,109 @@ export default function Doadoras() {
                   <LoadingSpinner />
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Registro</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Raça</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredDoadoras.length === 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-slate-500">
-                          {searchTerm ? 'Nenhuma doadora encontrada' : 'Nenhuma doadora cadastrada nesta fazenda'}
-                        </TableCell>
+                        <TableHead>Registro</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Última Aspiração</TableHead>
+                        <TableHead>Oócitos</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Raça (Campos Especiais)</TableHead>
+                        <TableHead>Classificação</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
-                    ) : (
-                      filteredDoadoras.map((doadora) => (
-                        <TableRow key={doadora.id}>
-                          <TableCell className="font-medium">{doadora.registro}</TableCell>
-                          <TableCell>{doadora.nome || '-'}</TableCell>
-                          <TableCell>{doadora.raca || '-'}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(doadora)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredDoadoras.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center text-slate-500">
+                            {searchTerm ? 'Nenhuma doadora encontrada' : 'Nenhuma doadora cadastrada nesta fazenda'}
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        filteredDoadoras.map((doadora) => {
+                          const camposRaca = getCamposRaca(doadora);
+                          return (
+                            <TableRow 
+                              key={doadora.id}
+                              className="cursor-pointer hover:bg-slate-50"
+                              onClick={() => navigate(`/doadoras/${doadora.id}`)}
+                            >
+                              <TableCell className="font-medium">{doadora.registro}</TableCell>
+                              <TableCell>{doadora.nome || '-'}</TableCell>
+                              <TableCell>
+                                {doadora.ultima_aspiracao_data 
+                                  ? formatDate(doadora.ultima_aspiracao_data)
+                                  : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {doadora.ultima_aspiracao_total_oocitos ?? '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={doadora.disponivel_aspiracao ? 'default' : 'secondary'}>
+                                  {doadora.disponivel_aspiracao ? 'Disponível' : 'Indisponível'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <span>{doadora.raca || '-'}</span>
+                                  {camposRaca && (
+                                    <span className="text-xs text-slate-500">{camposRaca}</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {renderClassificacaoGenetica(doadora.classificacao_genetica)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setHistoricoDoadoraId(doadora.id);
+                                    }}
+                                    title="Ver histórico de aspirações"
+                                  >
+                                    <History className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/doadoras/${doadora.id}`);
+                                    }}
+                                    title="Editar doadora"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Modal de Histórico de Aspirações */}
+          {historicoDoadoraId && (
+            <DoadoraHistoricoAspiracoes
+              doadoraId={historicoDoadoraId}
+              doadoraNome={filteredDoadoras.find(d => d.id === historicoDoadoraId)?.nome || 
+                           filteredDoadoras.find(d => d.id === historicoDoadoraId)?.registro}
+              open={!!historicoDoadoraId}
+              onClose={() => setHistoricoDoadoraId(null)}
+            />
+          )}
         </>
       )}
     </div>

@@ -11,6 +11,7 @@ import ClienteDetail from './pages/ClienteDetail';
 import Fazendas from './pages/Fazendas';
 import FazendaDetail from './pages/FazendaDetail';
 import Doadoras from './pages/Doadoras';
+import DoadoraDetail from './pages/DoadoraDetail';
 import Receptoras from './pages/Receptoras';
 import ReceptoraHistorico from './pages/ReceptoraHistorico';
 import Protocolos from './pages/Protocolos';
@@ -19,6 +20,8 @@ import ProtocoloDetail from './pages/ProtocoloDetail';
 import ProtocoloPasso2 from './pages/ProtocoloPasso2';
 import ProtocoloRelatorioFechado from './pages/ProtocoloRelatorioFechado';
 import Aspiracoes from './pages/Aspiracoes';
+import PacoteAspiracaoForm from './pages/PacoteAspiracaoForm';
+import PacoteAspiracaoDetail from './pages/PacoteAspiracaoDetail';
 import DosesSemen from './pages/DosesSemen';
 import LotesFIV from './pages/LotesFIV';
 import Embrioes from './pages/Embrioes';
@@ -51,6 +54,7 @@ const App = () => (
 
             {/* Doadoras */}
             <Route path="/doadoras" element={<Doadoras />} />
+            <Route path="/doadoras/:id" element={<DoadoraDetail />} />
 
             {/* Receptoras */}
             <Route path="/receptoras" element={<Receptoras />} />
@@ -65,12 +69,15 @@ const App = () => (
 
             {/* Aspirações */}
             <Route path="/aspiracoes" element={<Aspiracoes />} />
+            <Route path="/aspiracoes/novo" element={<PacoteAspiracaoForm />} />
+            <Route path="/aspiracoes/:id" element={<PacoteAspiracaoDetail />} />
 
             {/* Doses de Sêmen */}
             <Route path="/doses-semen" element={<DosesSemen />} />
 
             {/* Lotes FIV */}
             <Route path="/lotes-fiv" element={<LotesFIV />} />
+            <Route path="/lotes-fiv/:id" element={<LotesFIV />} />
 
             {/* Embriões */}
             <Route path="/embrioes" element={<Embrioes />} />
