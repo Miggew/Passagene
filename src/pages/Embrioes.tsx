@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Embriao, Fazenda } from '@/lib/types';
+import { Embriao, Fazenda, HistoricoEmbriao } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -268,6 +268,9 @@ export default function Embrioes() {
     try {
       setSubmitting(true);
 
+      const statusAnterior = classificarEmbriao.status_atual;
+      const statusNovo = classificarEmbriao.status_atual; // Status não muda na classificação
+
       const { error } = await supabase
         .from('embrioes')
         .update({
@@ -277,6 +280,16 @@ export default function Embrioes() {
         .eq('id', classificarEmbriao.id);
 
       if (error) throw error;
+
+      // Registrar no histórico
+      await registrarHistorico(
+        classificarEmbriao.id,
+        statusAnterior,
+        statusNovo,
+        'CLASSIFICACAO',
+        null,
+        `Classificação: ${classificarData.classificacao}`
+      );
 
       toast({
         title: 'Embrião classificado',
@@ -324,6 +337,9 @@ export default function Embrioes() {
     try {
       setSubmitting(true);
 
+      const statusAnterior = destinarEmbriao.status_atual;
+      const statusNovo = destinarEmbriao.status_atual; // Status não muda na destinação
+
       const { error } = await supabase
         .from('embrioes')
         .update({
@@ -332,6 +348,16 @@ export default function Embrioes() {
         .eq('id', destinarEmbriao.id);
 
       if (error) throw error;
+
+      // Registrar no histórico
+      await registrarHistorico(
+        destinarEmbriao.id,
+        statusAnterior,
+        statusNovo,
+        'DESTINACAO',
+        destinarData.fazenda_destino_id,
+        null
+      );
 
       toast({
         title: 'Embrião destinado',
@@ -368,6 +394,9 @@ export default function Embrioes() {
     try {
       setSubmitting(true);
 
+      const statusAnterior = congelarEmbriao.status_atual;
+      const statusNovo = 'CONGELADO';
+
       const { error } = await supabase
         .from('embrioes')
         .update({
@@ -378,6 +407,16 @@ export default function Embrioes() {
         .eq('id', congelarEmbriao.id);
 
       if (error) throw error;
+
+      // Registrar no histórico
+      await registrarHistorico(
+        congelarEmbriao.id,
+        statusAnterior,
+        statusNovo,
+        'CONGELAMENTO',
+        null,
+        `Localização: ${congelarData.localizacao_atual}`
+      );
 
       toast({
         title: 'Embrião congelado',
@@ -400,6 +439,83 @@ export default function Embrioes() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDescartar = async () => {
+    if (!descartarEmbriao) return;
+
+    try {
+      setSubmitting(true);
+
+      const statusAnterior = descartarEmbriao.status_atual;
+      const statusNovo = 'DESCARTADO';
+
+      const { error } = await supabase
+        .from('embrioes')
+        .update({
+          status_atual: 'DESCARTADO',
+          data_descarte: descartarData.data_descarte,
+        })
+        .eq('id', descartarEmbriao.id);
+
+      if (error) throw error;
+
+      // Registrar no histórico
+      await registrarHistorico(
+        descartarEmbriao.id,
+        statusAnterior,
+        statusNovo,
+        'DESCARTE',
+        null,
+        descartarData.observacoes || null
+      );
+
+      toast({
+        title: 'Embrião descartado',
+        description: 'Embrião descartado com sucesso',
+      });
+
+      setShowDescartarDialog(false);
+      setDescartarEmbriao(null);
+      setDescartarData({
+        data_descarte: new Date().toISOString().split('T')[0],
+        observacoes: '',
+      });
+      loadData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({
+        title: 'Erro ao descartar embrião',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const loadHistorico = async (embriaoId: string) => {
+    try {
+      setLoadingHistorico(true);
+
+      const { data, error } = await supabase
+        .from('historico_embrioes')
+        .select('*')
+        .eq('embriao_id', embriaoId)
+        .order('data_mudanca', { ascending: false });
+
+      if (error) throw error;
+      setHistorico(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      toast({
+        title: 'Erro ao carregar histórico',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingHistorico(false);
     }
   };
 
@@ -523,6 +639,36 @@ export default function Embrioes() {
                             <ArrowRightLeft className="w-4 h-4 text-green-600" />
                           </Button>
                         )}
+                        {(embriao.status_atual === 'FRESCO' ||
+                          embriao.status_atual === 'CONGELADO') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setDescartarEmbriao(embriao);
+                              setDescartarData({
+                                data_descarte: new Date().toISOString().split('T')[0],
+                                observacoes: '',
+                              });
+                              setShowDescartarDialog(true);
+                            }}
+                            title="Descartar"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            setHistoricoEmbriao(embriao);
+                            setShowHistoricoDialog(true);
+                            await loadHistorico(embriao.id);
+                          }}
+                          title="Ver Histórico"
+                        >
+                          <History className="w-4 h-4 text-slate-600" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -687,6 +833,121 @@ export default function Embrioes() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Descartar Dialog */}
+      <Dialog open={showDescartarDialog} onOpenChange={setShowDescartarDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Descartar Embrião</DialogTitle>
+            <DialogDescription>
+              Descartar embrião {descartarEmbriao?.identificacao || 'selecionado'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="data_descarte">Data de Descarte *</Label>
+              <Input
+                id="data_descarte"
+                type="date"
+                value={descartarData.data_descarte}
+                onChange={(e) =>
+                  setDescartarData({ ...descartarData, data_descarte: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="observacoes">Observações / Motivo</Label>
+              <Textarea
+                id="observacoes"
+                value={descartarData.observacoes}
+                onChange={(e) =>
+                  setDescartarData({ ...descartarData, observacoes: e.target.value })
+                }
+                placeholder="Informe o motivo do descarte (opcional)"
+                rows={4}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={handleDescartar}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+                disabled={submitting}
+              >
+                {submitting ? 'Descartando...' : 'Descartar'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDescartarDialog(false)}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Histórico Dialog */}
+      <Sheet open={showHistoricoDialog} onOpenChange={setShowHistoricoDialog}>
+        <SheetContent className="w-full sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>Histórico do Embrião</SheetTitle>
+            <SheetDescription>
+              Histórico completo de eventos do embrião{' '}
+              {historicoEmbriao?.identificacao || historicoEmbriao?.id.slice(0, 8)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            {loadingHistorico ? (
+              <LoadingSpinner />
+            ) : historico.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">Nenhum histórico encontrado</p>
+            ) : (
+              <div className="space-y-4">
+                {historico.map((item) => {
+                  const tipoOperacaoMap: Record<string, string> = {
+                    CLASSIFICACAO: 'Classificação',
+                    DESTINACAO: 'Destinação',
+                    CONGELAMENTO: 'Congelamento',
+                    DESCARTE: 'Descarte',
+                    TRANSFERENCIA: 'Transferência',
+                  };
+
+                  const tipoOperacaoLabel = tipoOperacaoMap[item.tipo_operacao || ''] || item.tipo_operacao || 'Evento';
+
+                  return (
+                    <div key={item.id} className="border-l-2 border-slate-200 pl-4 pb-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-slate-900">{tipoOperacaoLabel}</span>
+                        <span className="text-sm text-slate-500">
+                          {item.data_mudanca
+                            ? new Date(item.data_mudanca).toLocaleDateString('pt-BR')
+                            : item.created_at
+                            ? new Date(item.created_at).toLocaleDateString('pt-BR')
+                            : '-'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        {item.status_anterior && item.status_novo && (
+                          <div>
+                            Status: {item.status_anterior} → {item.status_novo}
+                          </div>
+                        )}
+                        {item.observacoes && (
+                          <div className="mt-1">Observações: {item.observacoes}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
