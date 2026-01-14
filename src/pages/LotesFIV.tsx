@@ -33,13 +33,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, ArrowLeft, Eye, Lock, Calendar, X } from 'lucide-react';
+import { Plus, ArrowLeft, Eye, Lock, X, Users, FileText, Package } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import type { DateRange } from 'react-day-picker';
 
 interface LoteFIVComNomes extends LoteFIV {
   pacote_nome?: string;
@@ -84,6 +81,14 @@ export default function LotesFIV() {
   const [submitting, setSubmitting] = useState(false);
   const [editQuantidadeEmbrioes, setEditQuantidadeEmbrioes] = useState<{ [key: string]: string }>({});
   const [showAddAcasalamento, setShowAddAcasalamento] = useState(false);
+  const [fazendasDestinoIds, setFazendasDestinoIds] = useState<string[]>([]);
+  const [showRelatorioDialog, setShowRelatorioDialog] = useState(false);
+  const [historicoDespachos, setHistoricoDespachos] = useState<Array<{
+    id: string;
+    data_despacho: string;
+    acasalamentos: Array<{ acasalamento_id: string; quantidade: number; doadora?: string; dose?: string }>;
+    pacote_id?: string;
+  }>>([]);
   const [aspiracoesDisponiveis, setAspiracoesDisponiveis] = useState<AspiracaoComOocitosDisponiveis[]>([]);
   const [dosesDisponiveis, setDosesDisponiveis] = useState<DoseSemen[]>([]);
   const [fazendaOrigemNome, setFazendaOrigemNome] = useState<string>('');
@@ -91,7 +96,6 @@ export default function LotesFIV() {
   const [recomendacaoAspiracaoSelecionada, setRecomendacaoAspiracaoSelecionada] = useState<string>('');
   const [dosesDisponiveisNoLote, setDosesDisponiveisNoLote] = useState<DoseSemen[]>([]);
   const [dataAspiracao, setDataAspiracao] = useState<string>('');
-  const [filtroDataAspiracaoRange, setFiltroDataAspiracaoRange] = useState<DateRange | undefined>(undefined);
   const [filtroFazendaAspiracao, setFiltroFazendaAspiracao] = useState<string>('');
   const [filtroFazendaAspiracaoBusca, setFiltroFazendaAspiracaoBusca] = useState<string>('');
   const [filtroDiaCultivo, setFiltroDiaCultivo] = useState<string>('');
@@ -156,23 +160,6 @@ export default function LotesFIV() {
   useEffect(() => {
     let filtrados = [...lotes];
 
-    // Filtrar por intervalo de data de aspiração
-    if (filtroDataAspiracaoRange?.from && filtroDataAspiracaoRange?.to) {
-      const dataInicio = filtroDataAspiracaoRange.from.toISOString().split('T')[0];
-      const dataFim = filtroDataAspiracaoRange.to.toISOString().split('T')[0];
-      filtrados = filtrados.filter((l) => {
-        const dataAspiracaoLote = l.pacote_data?.split('T')[0] || '';
-        return dataAspiracaoLote >= dataInicio && dataAspiracaoLote <= dataFim;
-      });
-    } else if (filtroDataAspiracaoRange?.from) {
-      // Se só tem data inicial
-      const dataInicio = filtroDataAspiracaoRange.from.toISOString().split('T')[0];
-      filtrados = filtrados.filter((l) => {
-        const dataAspiracaoLote = l.pacote_data?.split('T')[0] || '';
-        return dataAspiracaoLote >= dataInicio;
-      });
-    }
-
     // Filtrar por fazenda da aspiração
     if (filtroFazendaAspiracao) {
       filtrados = filtrados.filter((l) => {
@@ -189,7 +176,7 @@ export default function LotesFIV() {
     }
 
     setLotesFiltrados(filtrados);
-  }, [lotes, filtroDataAspiracaoRange, filtroFazendaAspiracao, filtroDiaCultivo, pacotesParaFiltro]);
+  }, [lotes, filtroFazendaAspiracao, filtroDiaCultivo, pacotesParaFiltro]);
 
   // Filtrar fazendas para busca
   const fazendasFiltradas = fazendasAspiracaoUnicas.filter((f) =>
@@ -516,26 +503,37 @@ export default function LotesFIV() {
       }
 
       // Se não houver na tabela de relacionamento, usar a fazenda_destino_id legacy
-      let fazendaDestinoIds: string[] = [];
+      let fazendaDestinoIdsArray: string[] = [];
       if (!fazendasDestinoData || fazendasDestinoData.length === 0) {
         if (pacoteData.fazenda_destino_id) {
-          fazendaDestinoIds = [pacoteData.fazenda_destino_id];
+          fazendaDestinoIdsArray = [pacoteData.fazenda_destino_id];
         }
       } else {
-        fazendaDestinoIds = fazendasDestinoData.map((item) => item.fazenda_destino_id);
+        fazendaDestinoIdsArray = fazendasDestinoData.map((item) => item.fazenda_destino_id);
       }
+      setFazendasDestinoIds(fazendaDestinoIdsArray);
 
-      if (fazendaDestinoIds.length > 0) {
+      if (fazendaDestinoIdsArray.length > 0) {
         const { data: fazendasDestinoNomesData, error: fazendasDestinoNomesError } = await supabase
           .from('fazendas')
-          .select('nome')
-          .in('id', fazendaDestinoIds);
+          .select('id, nome')
+          .in('id', fazendaDestinoIdsArray);
 
         if (fazendasDestinoNomesError) {
           console.error('Erro ao carregar nomes das fazendas destino:', fazendasDestinoNomesError);
           setFazendasDestinoNomes([]);
         } else {
           setFazendasDestinoNomes(fazendasDestinoNomesData?.map((f) => f.nome) || []);
+          // Garantir que as fazendas destino estejam na lista de fazendas disponíveis
+          if (fazendasDestinoNomesData) {
+            const fazendasAtualizadas = [...fazendas];
+            fazendasDestinoNomesData.forEach(f => {
+              if (!fazendasAtualizadas.find(fa => fa.id === f.id)) {
+                fazendasAtualizadas.push(f);
+              }
+            });
+            setFazendas(fazendasAtualizadas);
+          }
         }
       } else {
         setFazendasDestinoNomes([]);
@@ -692,6 +690,10 @@ export default function LotesFIV() {
       } else {
         setClientes(clientesData || []);
       }
+
+      // Carregar histórico de despachos
+      await loadHistoricoDespachos(loteId);
+
     } catch (error) {
       toast({
         title: 'Erro ao carregar detalhes do lote',
@@ -700,6 +702,264 @@ export default function LotesFIV() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Carregar histórico de despachos do lote
+  const loadHistoricoDespachos = async (loteId: string) => {
+    try {
+      // Buscar pacotes fechados que foram criados a partir deste lote
+      // Identificamos pelo campo observacoes que contém o ID do lote
+      const { data: pacotesDespachados, error } = await supabase
+        .from('pacotes_aspiracao')
+        .select('id, data_aspiracao, observacoes')
+        .eq('status', 'FINALIZADO')
+        .like('observacoes', `%Lote FIV ${loteId.slice(0, 8)}%`)
+        .order('data_aspiracao', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao carregar histórico de despachos:', error);
+        setHistoricoDespachos([]);
+        return;
+      }
+
+      if (!pacotesDespachados || pacotesDespachados.length === 0) {
+        setHistoricoDespachos([]);
+        return;
+      }
+
+      // Os embriões estão no mesmo lote FIV, então vamos buscar todos os embriões do lote
+      // e agrupar por data de criação (assumindo que embriões criados na mesma data foram despachados juntos)
+      const { data: todosEmbrioes, error: embrioesError } = await supabase
+        .from('embrioes')
+        .select('id, lote_fiv_acasalamento_id, created_at')
+        .eq('lote_fiv_id', loteId)
+        .order('created_at', { ascending: false });
+
+      if (embrioesError) {
+        console.error('Erro ao carregar embriões:', embrioesError);
+        setHistoricoDespachos([]);
+        return;
+      }
+
+      // Agrupar embriões por data de criação (data do despacho)
+      const embrioesPorData = new Map<string, typeof todosEmbrioes>();
+      
+      todosEmbrioes?.forEach(embriao => {
+        if (embriao.created_at) {
+          const dataDespacho = embriao.created_at.split('T')[0];
+          const lista = embrioesPorData.get(dataDespacho) || [];
+          lista.push(embriao);
+          embrioesPorData.set(dataDespacho, lista);
+        }
+      });
+
+      // Criar histórico baseado nos pacotes despachados
+      const historico = pacotesDespachados.map((pacote) => {
+        const dataDespacho = pacote.data_aspiracao.split('T')[0];
+        const embrioesDesteDespacho = embrioesPorData.get(dataDespacho) || [];
+        
+        // Agrupar por acasalamento
+        const acasalamentosMap = new Map<string, number>();
+        
+        embrioesDesteDespacho.forEach(e => {
+          if (e.lote_fiv_acasalamento_id) {
+            acasalamentosMap.set(
+              e.lote_fiv_acasalamento_id,
+              (acasalamentosMap.get(e.lote_fiv_acasalamento_id) || 0) + 1
+            );
+          }
+        });
+
+        const acasalamentosDespacho = Array.from(acasalamentosMap.entries()).map(([acasalamentoId, quantidade]) => {
+          const acasalamento = acasalamentos.find(a => a.id === acasalamentoId);
+          return {
+            acasalamento_id: acasalamentoId,
+            quantidade,
+            doadora: acasalamento?.doadora_registro || acasalamento?.doadora_nome,
+            dose: acasalamento?.dose_nome,
+          };
+        });
+
+        return {
+          id: pacote.id,
+          data_despacho: dataDespacho,
+          acasalamentos: acasalamentosDespacho,
+          pacote_id: pacote.id,
+        };
+      });
+
+      setHistoricoDespachos(historico);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      setHistoricoDespachos([]);
+    }
+  };
+
+  // Gerar relatório de prévia no D6
+  const gerarRelatorioPrevia = () => {
+    setShowRelatorioDialog(true);
+  };
+
+  // Despachar embriões no D7
+  const despacharEmbrioes = async () => {
+    if (!selectedLote) return;
+
+    try {
+      setSubmitting(true);
+
+      // Validar que há quantidades preenchidas
+      const acasalamentosComQuantidade = acasalamentos.filter(ac => {
+        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || ac.quantidade_embrioes?.toString() || '0');
+        return quantidade > 0;
+      });
+
+      if (acasalamentosComQuantidade.length === 0) {
+        toast({
+          title: 'Nenhum embrião para despachar',
+          description: 'Preencha a quantidade de embriões em pelo menos um acasalamento antes de despachar.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Buscar fazenda origem do pacote original
+      const { data: pacoteOriginal } = await supabase
+        .from('pacotes_aspiracao')
+        .select('fazenda_id')
+        .eq('id', selectedLote.pacote_aspiracao_id)
+        .single();
+
+      // Criar nome do pacote: "Fazenda Origem - Fazendas Destino"
+      const nomePacote = `${fazendaOrigemNome} - ${fazendasDestinoNomes.join(', ')}`;
+      
+      // Criar pacote fechado para os embriões despachados
+      const dataDespacho = new Date().toISOString().split('T')[0];
+      
+      // Usar a primeira fazenda destino como fazenda_destino_id (campo obrigatório)
+      // As outras fazendas destino serão associadas na tabela de relacionamento
+      const primeiraFazendaDestinoId = fazendasDestinoIds.length > 0 ? fazendasDestinoIds[0] : null;
+      
+      if (!primeiraFazendaDestinoId) {
+        toast({
+          title: 'Erro ao despachar',
+          description: 'É necessário ter pelo menos uma fazenda destino configurada no lote.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { data: novoPacote, error: pacoteError } = await supabase
+        .from('pacotes_aspiracao')
+        .insert([{
+          data_aspiracao: dataDespacho,
+          fazenda_id: pacoteOriginal?.fazenda_id || null,
+          fazenda_destino_id: primeiraFazendaDestinoId,
+          status: 'FINALIZADO', // Usar FINALIZADO em vez de FECHADO
+          observacoes: `Despachado do Lote FIV ${selectedLote.id.slice(0, 8)}... em ${formatDate(dataDespacho)}. Pacote: ${nomePacote}`,
+        }])
+        .select()
+        .single();
+
+      if (pacoteError) {
+        console.error('Erro ao criar pacote:', pacoteError);
+        throw pacoteError;
+      }
+
+      // Associar fazendas destino ao novo pacote
+      if (fazendasDestinoIds.length > 0) {
+        const { error: fazendasDestinoError } = await supabase
+          .from('pacotes_aspiracao_fazendas_destino')
+          .insert(
+            fazendasDestinoIds.map(fazendaId => ({
+              pacote_aspiracao_id: novoPacote.id,
+              fazenda_destino_id: fazendaId,
+            }))
+          );
+
+        if (fazendasDestinoError) {
+          console.error('Erro ao associar fazendas destino:', fazendasDestinoError);
+          // Continuar mesmo com erro - pode ser que a tabela não exista
+        }
+      }
+
+      // Criar embriões no pacote
+      const embrioesParaCriar: any[] = [];
+      const acasalamentosDespachados: Array<{ acasalamento_id: string; quantidade: number; doadora?: string; dose?: string }> = [];
+
+      for (const acasalamento of acasalamentosComQuantidade) {
+        const quantidade = parseInt(editQuantidadeEmbrioes[acasalamento.id] || acasalamento.quantidade_embrioes?.toString() || '0');
+        
+        if (quantidade > 0) {
+          // Criar embriões
+          // Nota: pacote_aspiracao_id não existe diretamente na tabela embrioes
+          // O pacote é obtido através do lote_fiv_id -> pacote_aspiracao_id
+          for (let i = 0; i < quantidade; i++) {
+            embrioesParaCriar.push({
+              lote_fiv_id: selectedLote.id,
+              lote_fiv_acasalamento_id: acasalamento.id,
+              status_atual: 'FRESCO',
+            });
+          }
+
+          acasalamentosDespachados.push({
+            acasalamento_id: acasalamento.id,
+            quantidade,
+            doadora: acasalamento.doadora_registro || acasalamento.doadora_nome,
+            dose: acasalamento.dose_nome,
+          });
+        }
+      }
+
+      if (embrioesParaCriar.length > 0) {
+        const { error: embrioesError } = await supabase
+          .from('embrioes')
+          .insert(embrioesParaCriar);
+
+        if (embrioesError) {
+          console.error('Erro detalhado ao criar embriões:', embrioesError);
+          throw embrioesError;
+        }
+      }
+
+      // Registrar histórico de despacho (usar tabela ou campo JSON)
+      // Por enquanto, vamos criar um registro simples
+      const historicoDespacho = {
+        id: novoPacote.id,
+        data_despacho: dataDespacho,
+        acasalamentos: acasalamentosDespachados,
+        pacote_id: novoPacote.id,
+      };
+
+      setHistoricoDespachos([historicoDespacho, ...historicoDespachos]);
+
+      // Zerar quantidade_embrioes nos acasalamentos
+      const updates = acasalamentosComQuantidade.map(ac => 
+        supabase
+          .from('lote_fiv_acasalamentos')
+          .update({ quantidade_embrioes: null })
+          .eq('id', ac.id)
+      );
+
+      await Promise.all(updates);
+
+      // Limpar campos de edição
+      setEditQuantidadeEmbrioes({});
+
+      toast({
+        title: 'Embriões despachados',
+        description: `${embrioesParaCriar.length} embrião(ões) foram despachados para o pacote "${nomePacote}".`,
+      });
+
+      loadLoteDetail(selectedLote.id);
+    } catch (error) {
+      toast({
+        title: 'Erro ao despachar embriões',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1047,9 +1307,37 @@ export default function LotesFIV() {
   // Se estiver visualizando um lote específico
   if (selectedLote && showLoteDetail) {
     // Calcular dia atual baseado na data da aspiração (D0)
-    // D0 = dia da aspiração, D1 = aspiração + 1 dia, etc.
+    // D0 = aspiração (13/01), D1 = fecundação (14/01), D7 = 21/01 (D0 + 8 dias)
+    // diaAtual = diferença em dias desde D0
+    // Quando diaAtual = 8, estamos no D7 (21/01)
+    // Quando diaAtual = 9, estamos no D8 (22/01)
+    // Usar data local para evitar problemas de timezone
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hojeLocal = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    hojeLocal.setHours(0, 0, 0, 0);
+    
+    // Função auxiliar para mapear diaAtual para o dia do cultivo
+    // diaAtual já representa a diferença em dias desde D0
+    // diaAtual = 0 → D0, diaAtual = 1 → D1, ..., diaAtual = 8 → D8
+    const getDiaCultivo = (diaAtual: number): number => {
+      return diaAtual; // O diaAtual já é o dia correto do cultivo
+    };
+    
+    // Função auxiliar para obter nome do dia
+    const getNomeDia = (dia: number): string => {
+      const nomes: { [key: number]: string } = {
+        0: 'Oócito',
+        1: 'Zigoto',
+        2: '2 Células',
+        3: '4 Células',
+        4: '8 Células',
+        5: 'Mórula',
+        6: 'Blastocisto',
+        7: 'Blastocisto Expandido',
+        8: 'Blastocisto Expandido',
+      };
+      return nomes[dia] || `D${dia}`;
+    };
     
     // Sempre usar a data da aspiração como referência (D0)
     // Se não tiver dataAspiracao carregada, buscar do pacote
@@ -1070,16 +1358,28 @@ export default function LotesFIV() {
     dataAspiracaoDate.setHours(0, 0, 0, 0);
     
     // Calcular diferença em dias: hoje - data da aspiração
-    // Se hoje = 13/01 e aspiração = 13/01, então diaAtual = 0 (D0)
-    // Se hoje = 14/01 e aspiração = 13/01, então diaAtual = 1 (D1)
-    const diffTime = hoje.getTime() - dataAspiracaoDate.getTime();
+    // D0 = aspiração (06/01), D1 = fecundação (07/01), D7 = 14/01 (D0 + 8), D8 = 15/01 (D0 + 9)
+    // Se hoje = 06/01 e aspiração = 06/01, então diaAtual = 0 (D0)
+    // Se hoje = 07/01 e aspiração = 06/01, então diaAtual = 1 (D1)
+    // Se hoje = 14/01 e aspiração = 06/01, então diaAtual = 8 (D7)
+    // Se hoje = 15/01 e aspiração = 06/01, então diaAtual = 9 (D8)
+    const diffTime = hojeLocal.getTime() - dataAspiracaoDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     const diaAtual = Math.max(0, diffDays);
-    // Dias restantes até D7: calcular corretamente
-    // Se estamos em D0, faltam 7 dias para D7 (D0 -> D1 -> D2 -> D3 -> D4 -> D5 -> D6 -> D7)
-    // Se estamos em D1, faltam 6 dias para D7
-    // Se estamos em D7 ou depois, mostrar 0 ou mensagem apropriada
-    const diasRestantes = diaAtual < 7 ? (7 - diaAtual) : 0;
+    // Calcular data do D7: D0 + 7 dias
+    // D0 = aspiração (06/01), D1 = fecundação (07/01), D7 = 13/01 (D0 + 7), D8 = 14/01 (D0 + 8)
+    const dataD7 = new Date(dataAspiracaoDate);
+    dataD7.setDate(dataD7.getDate() + 7); // D7 = D0 + 7 dias
+    
+    // Formatar data do D7 e obter dia da semana
+    const dataD7Formatada = dataD7.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+    
+    const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const diaSemanaD7 = diasSemana[dataD7.getDay()];
 
     return (
       <div className="space-y-6">
@@ -1101,7 +1401,7 @@ export default function LotesFIV() {
               <span>
                 Data de fecundação (D1): {formatDate(selectedLote.data_abertura)} | 
                 {dataAspiracao && ` Data aspiração (D0): ${formatDate(dataAspiracao)} |`}
-                {diaAtual <= 8 && ` D${diaAtual} - ${getNomeDia(diaAtual)} |`}
+                {` D${getDiaCultivo(diaAtual)} - ${getNomeDia(getDiaCultivo(diaAtual))} |`}
                 {' '}Status:
               </span>
               <Badge variant={selectedLote.status === 'FECHADO' ? 'default' : 'secondary'}>
@@ -1120,17 +1420,46 @@ export default function LotesFIV() {
               <div>
                 <Label>Dia Atual</Label>
                 <p className="text-2xl font-bold">
-                  D{diaAtual} {diaAtual <= 8 && <span className="text-lg font-normal text-slate-600">- {getNomeDia(diaAtual)}</span>}
+                  D{getDiaCultivo(diaAtual)} <span className="text-lg font-normal text-slate-600">- {getNomeDia(getDiaCultivo(diaAtual))}</span>
                 </p>
               </div>
               <div>
-                <Label>Dias Restantes até D7</Label>
+                <Label>Data do D7</Label>
                 {diaAtual < 7 ? (
-                  <p className="text-2xl font-bold text-orange-600">{diasRestantes}</p>
-                ) : diaAtual === 7 || diaAtual === 8 ? (
-                  <p className="text-2xl font-bold text-green-600">Período de classificação</p>
+                  <div>
+                    <p className="text-2xl font-bold text-orange-600">{dataD7Formatada}</p>
+                    <p className="text-sm text-slate-600 mt-1">{diaSemanaD7}</p>
+                  </div>
+                ) : diaAtual === 7 ? (
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{dataD7Formatada}</p>
+                    <p className="text-sm text-slate-600 mt-1">{diaSemanaD7} - Período de classificação (hoje)</p>
+                  </div>
+                ) : diaAtual === 8 ? (
+                  <div>
+                    {/* Quando estamos em D8, mostrar a data de ontem (D7) */}
+                    {(() => {
+                      const dataOntem = new Date(hojeLocal);
+                      dataOntem.setDate(dataOntem.getDate() - 1);
+                      const dataOntemFormatada = dataOntem.toLocaleDateString('pt-BR', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric' 
+                      });
+                      const diaSemanaOntem = diasSemana[dataOntem.getDay()];
+                      return (
+                        <>
+                          <p className="text-2xl font-bold text-green-600">{dataOntemFormatada}</p>
+                          <p className="text-sm text-slate-600 mt-1">{diaSemanaOntem} - Período de classificação (D7 foi ontem, hoje é D8)</p>
+                        </>
+                      );
+                    })()}
+                  </div>
                 ) : (
-                  <p className="text-2xl font-bold text-red-600">Prazo encerrado</p>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600">{dataD7Formatada}</p>
+                    <p className="text-sm text-slate-600 mt-1">{diaSemanaD7} - Prazo encerrado</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -1156,17 +1485,48 @@ export default function LotesFIV() {
               </div>
             </div>
 
-            {selectedLote.status === 'ABERTO' && diaAtual >= 7 && diaAtual <= 8 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <p className="text-orange-800 font-medium">
-                  ⚠️ Este lote está no D{diaAtual} ({getNomeDia(diaAtual)}). Informe a quantidade de embriões para cada acasalamento.
-                </p>
+            {selectedLote.status === 'ABERTO' && diaAtual === 7 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-blue-800 font-medium">
+                    📊 Este lote está no D6 ({getNomeDia(6)}). Você pode preencher a quantidade de embriões (prévia) e gerar um relatório.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={gerarRelatorioPrevia}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Gerar Relatório de Prévia
+                  </Button>
+                </div>
               </div>
             )}
-            {selectedLote.status === 'ABERTO' && diaAtual > 8 && (
+            {selectedLote.status === 'ABERTO' && diaAtual >= 8 && diaAtual <= 9 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-orange-800 font-medium">
+                    ⚠️ Este lote está no D{getDiaCultivo(diaAtual)} ({getNomeDia(getDiaCultivo(diaAtual))}). Informe a quantidade de embriões para cada acasalamento.
+                  </p>
+                  {(diaAtual === 8 || diaAtual === 9) && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={despacharEmbrioes}
+                      disabled={submitting}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Package className="w-4 h-4 mr-2" />
+                      {submitting ? 'Despachando...' : 'Despachar Todos os Embriões'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            {selectedLote.status === 'ABERTO' && diaAtual > 9 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-red-800 font-medium">
-                  ⚠️ Este lote está no D{diaAtual}. O prazo para informar embriões (D7-D8) já passou.
+                  ⚠️ Este lote está no D{getDiaCultivo(diaAtual)}. O prazo para informar embriões (D7-D8) já passou.
                 </p>
               </div>
             )}
@@ -1186,17 +1546,15 @@ export default function LotesFIV() {
                   <TableHead>Quantidade Fracionada</TableHead>
                   <TableHead>Oócitos Viáveis (Total)</TableHead>
                   <TableHead>Oócitos Usados</TableHead>
-                  {selectedLote.status === 'ABERTO' && diaAtual >= 7 && diaAtual <= 8 && (
+                  {(selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9)) || selectedLote.status === 'FECHADO' ? (
                     <TableHead>Quantidade de Embriões</TableHead>
-                  )}
-                  {selectedLote.status === 'FECHADO' && <TableHead>Quantidade de Embriões</TableHead>}
-                  <TableHead className="text-right">Ações</TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {acasalamentos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={selectedLote.status === 'FECHADO' || (selectedLote.status === 'ABERTO' && diaAtual >= 7 && diaAtual <= 8) ? 7 : 6} className="text-center text-slate-500">
+                    <TableCell colSpan={selectedLote.status === 'FECHADO' || (selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9)) ? 6 : 5} className="text-center text-slate-500">
                       Nenhum acasalamento cadastrado
                     </TableCell>
                   </TableRow>
@@ -1238,9 +1596,9 @@ export default function LotesFIV() {
                             {index === 0 ? oocitosTotal : ''}
                           </TableCell>
                           <TableCell>{acasalamento.quantidade_oocitos ?? '-'}</TableCell>
-                          {(selectedLote.status === 'FECHADO' || (selectedLote.status === 'ABERTO' && diaAtual >= 7 && diaAtual <= 8)) && (
+                          {((selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9)) || selectedLote.status === 'FECHADO') && (
                             <TableCell>
-                              {selectedLote.status === 'ABERTO' && diaAtual >= 7 && diaAtual <= 8 ? (
+                              {selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9) ? (
                                 <Input
                                   type="number"
                                   min="0"
@@ -1259,84 +1617,6 @@ export default function LotesFIV() {
                               )}
                             </TableCell>
                           )}
-                          <TableCell className="text-right">
-                            {selectedLote.status === 'ABERTO' && diaAtual >= 7 && diaAtual <= 8 && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  const quantidade = parseInt(editQuantidadeEmbrioes[acasalamento.id] || '0');
-                                  if (isNaN(quantidade) || quantidade < 0) {
-                                    toast({
-                                      title: 'Erro',
-                                      description: 'Quantidade inválida',
-                                      variant: 'destructive',
-                                    });
-                                    return;
-                                  }
-
-                                  try {
-                                    // Atualizar quantidade_embrioes no acasalamento
-                                    const { error: updateError } = await supabase
-                                      .from('lote_fiv_acasalamentos')
-                                      .update({ quantidade_embrioes: quantidade })
-                                      .eq('id', acasalamento.id);
-
-                                    if (updateError) throw updateError;
-
-                                    // Verificar quantos embriões já existem para este acasalamento
-                                    const { count: quantidadeExistente, error: countError } = await supabase
-                                      .from('embrioes')
-                                      .select('*', { count: 'exact', head: true })
-                                      .eq('lote_fiv_acasalamento_id', acasalamento.id);
-
-                                    if (countError) throw countError;
-                                    const quantidadeACriar = quantidade - (quantidadeExistente || 0);
-
-                                    // Criar embriões automaticamente se necessário
-                                    if (quantidadeACriar > 0) {
-                                      const embrioesParaCriar = Array.from({ length: quantidadeACriar }, () => ({
-                                        lote_fiv_id: selectedLote.id,
-                                        lote_fiv_acasalamento_id: acasalamento.id,
-                                        status_atual: 'FRESCO',
-                                      }));
-
-                                      const { error: createError } = await supabase
-                                        .from('embrioes')
-                                        .insert(embrioesParaCriar);
-
-                                      if (createError) {
-                                        console.error('Erro ao criar embriões:', createError);
-                                        throw new Error(`Erro ao criar embriões: ${createError.message} (${createError.code || 'sem código'})`);
-                                      }
-                                    }
-
-                                    toast({
-                                      title: 'Quantidade atualizada',
-                                      description: quantidadeACriar > 0
-                                        ? `${quantidadeACriar} embrião(ões) criado(s) automaticamente`
-                                        : 'Quantidade de embriões atualizada com sucesso',
-                                    });
-
-                                    setEditQuantidadeEmbrioes({
-                                      ...editQuantidadeEmbrioes,
-                                      [acasalamento.id]: quantidade.toString(),
-                                    });
-
-                                    loadLoteDetail(selectedLote.id);
-                                  } catch (error) {
-                                    toast({
-                                      title: 'Erro ao atualizar',
-                                      description: error instanceof Error ? error.message : 'Erro desconhecido',
-                                      variant: 'destructive',
-                                    });
-                                  }
-                                }}
-                              >
-                                Salvar
-                              </Button>
-                            )}
-                          </TableCell>
                         </TableRow>
                       );
                     });
@@ -1346,7 +1626,9 @@ export default function LotesFIV() {
                 })()}
               </TableBody>
             </Table>
-            {selectedLote.status === 'ABERTO' && diaAtual < 7 && (
+            
+            
+            {selectedLote.status === 'ABERTO' && diaAtual < 8 && (
               <div className="mt-4 flex justify-end">
                 <Dialog
                   open={showAddAcasalamento}
@@ -1576,8 +1858,137 @@ export default function LotesFIV() {
                 </Dialog>
               </div>
             )}
+
+            {/* Histórico de Despachos */}
+            {historicoDespachos.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-4">Histórico de Despachos</h3>
+                <div className="space-y-4">
+                  {historicoDespachos.map((despacho) => (
+                    <Card key={despacho.id} className="border-l-4 border-green-500">
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          Despacho em {formatDate(despacho.data_despacho)}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Doadora</TableHead>
+                              <TableHead>Dose</TableHead>
+                              <TableHead>Quantidade de Embriões</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {despacho.acasalamentos.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={3} className="text-center text-slate-500">
+                                  Nenhum acasalamento registrado
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              despacho.acasalamentos.map((ac, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell>{ac.doadora || '-'}</TableCell>
+                                  <TableCell>{ac.dose || '-'}</TableCell>
+                                  <TableCell className="font-semibold">{ac.quantidade}</TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </CardContent>
         </Card>
+
+        {/* Dialog de Relatório de Prévia */}
+        <Dialog open={showRelatorioDialog} onOpenChange={setShowRelatorioDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Relatório de Prévia de Produção - D6</DialogTitle>
+              <DialogDescription>
+                Relatório somente leitura com as quantidades de embriões preenchidas (prévia)
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Lote FIV:</strong> {selectedLote.id.slice(0, 8)}...
+                </p>
+                <p className="text-sm text-blue-800 mt-1">
+                  <strong>Data da Aspiração:</strong> {formatDate(dataAspiracao)}
+                </p>
+                <p className="text-sm text-blue-800 mt-1">
+                  <strong>Fazenda Origem:</strong> {fazendaOrigemNome}
+                </p>
+                <p className="text-sm text-blue-800 mt-1">
+                  <strong>Fazendas Destino:</strong> {fazendasDestinoNomes.join(', ')}
+                </p>
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Doadora</TableHead>
+                    <TableHead>Dose de Sêmen</TableHead>
+                    <TableHead>Quantidade Fracionada</TableHead>
+                    <TableHead>Oócitos Viáveis</TableHead>
+                    <TableHead>Oócitos Usados</TableHead>
+                    <TableHead>Quantidade de Embriões (Prévia)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {acasalamentos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-slate-500">
+                        Nenhum acasalamento cadastrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    acasalamentos.map((acasalamento) => {
+                      const quantidade = parseInt(editQuantidadeEmbrioes[acasalamento.id] || acasalamento.quantidade_embrioes?.toString() || '0');
+                      return (
+                        <TableRow key={acasalamento.id}>
+                          <TableCell className="font-medium">
+                            {acasalamento.doadora_nome || acasalamento.doadora_registro || 'Doadora desconhecida'}
+                          </TableCell>
+                          <TableCell>{acasalamento.dose_nome}</TableCell>
+                          <TableCell>{acasalamento.quantidade_fracionada}</TableCell>
+                          <TableCell>{acasalamento.viaveis ?? '-'}</TableCell>
+                          <TableCell>{acasalamento.quantidade_oocitos ?? '-'}</TableCell>
+                          <TableCell className="font-semibold">{quantidade}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRelatorioDialog(false)}
+                >
+                  Fechar
+                </Button>
+                <Button
+                  onClick={() => {
+                    window.print();
+                  }}
+                >
+                  Imprimir
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1753,44 +2164,6 @@ export default function LotesFIV() {
         <CardContent>
           {/* Filtros */}
           <div className="flex gap-4 mb-6 flex-wrap">
-            <div className="flex-1 min-w-[250px]">
-              <Label htmlFor="filtro-data-aspiração">Filtrar por Dia de Aspiração</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="filtro-data-aspiração"
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !filtroDataAspiracaoRange && 'text-muted-foreground'
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {filtroDataAspiracaoRange?.from ? (
-                      filtroDataAspiracaoRange.to ? (
-                        <>
-                          {formatDate(filtroDataAspiracaoRange.from.toISOString())} -{' '}
-                          {formatDate(filtroDataAspiracaoRange.to.toISOString())}
-                        </>
-                      ) : (
-                        formatDate(filtroDataAspiracaoRange.from.toISOString())
-                      )
-                    ) : (
-                      <span>Selecione um intervalo</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="range"
-                    defaultMonth={filtroDataAspiracaoRange?.from}
-                    selected={filtroDataAspiracaoRange}
-                    onSelect={setFiltroDataAspiracaoRange}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
             <div className="flex-1 min-w-[250px] relative fazenda-busca-container">
               <Label htmlFor="filtro-fazenda-aspiração">Filtrar por Fazenda da Aspiração</Label>
               <div className="relative">
@@ -1863,12 +2236,11 @@ export default function LotesFIV() {
                 </SelectContent>
               </Select>
             </div>
-            {(filtroDataAspiracaoRange || filtroFazendaAspiracao || filtroDiaCultivo) && (
+            {(filtroFazendaAspiracao || filtroDiaCultivo) && (
               <div className="flex items-end">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setFiltroDataAspiracaoRange(undefined);
                     setFiltroFazendaAspiracao('');
                     setFiltroFazendaAspiracaoBusca('');
                     setFiltroDiaCultivo('');

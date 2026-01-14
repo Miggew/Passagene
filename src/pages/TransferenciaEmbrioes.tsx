@@ -34,12 +34,15 @@ interface EmbrioDisponivel {
   classificacao?: string;
   status_atual: string;
   localizacao_atual?: string;
+  lote_fiv_id?: string;
+  fazendas_destino_ids?: string[]; // IDs das fazendas destino do pacote
 }
 
 export default function TransferenciaEmbrioes() {
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
   const [receptoras, setReceptoras] = useState<ReceptoraSincronizada[]>([]);
   const [embrioes, setEmbrioes] = useState<EmbrioDisponivel[]>([]);
+  const [embrioesFiltrados, setEmbrioesFiltrados] = useState<EmbrioDisponivel[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
@@ -83,35 +86,120 @@ export default function TransferenciaEmbrioes() {
 
   const loadEmbrioes = async () => {
     try {
-      // Load from view v_embrioes_disponiveis_te
-      const { data, error } = await supabase.from('v_embrioes_disponiveis_te').select('*');
-
-      if (error) throw error;
-      setEmbrioes(data || []);
-    } catch (error) {
-      console.error('Error loading embrioes:', error);
-      // Fallback: load directly from embrioes table
-      const { data, error: fallbackError } = await supabase
+      // Carregar embriões disponíveis diretamente da tabela
+      const { data: embrioesData, error: embrioesError } = await supabase
         .from('embrioes')
-        .select('id, identificacao, classificacao, status_atual, localizacao_atual')
+        .select('id, identificacao, classificacao, status_atual, localizacao_atual, lote_fiv_id')
         .in('status_atual', ['FRESCO', 'CONGELADO']);
 
-      if (!fallbackError) {
-        setEmbrioes(
-          data?.map((e) => ({
-            embriao_id: e.id,
-            identificacao: e.identificacao,
-            classificacao: e.classificacao,
-            status_atual: e.status_atual,
-            localizacao_atual: e.localizacao_atual,
-          })) || []
-        );
+      if (embrioesError) throw embrioesError;
+
+      if (!embrioesData || embrioesData.length === 0) {
+        setEmbrioes([]);
+        return;
       }
+
+      // Buscar lotes FIV para obter pacotes de aspiração
+      const loteFivIds = [...new Set(embrioesData.filter(e => e.lote_fiv_id).map(e => e.lote_fiv_id))] as string[];
+      
+      let pacoteParaLoteMap = new Map<string, string>(); // lote_fiv_id -> pacote_aspiracao_id
+      let fazendasDestinoPorPacoteMap = new Map<string, string[]>(); // pacote_id -> fazenda_destino_ids[]
+
+      if (loteFivIds.length > 0) {
+        // Buscar pacotes de aspiração dos lotes
+        const { data: lotesFivData, error: lotesError } = await supabase
+          .from('lotes_fiv')
+          .select('id, pacote_aspiracao_id')
+          .in('id', loteFivIds);
+
+        if (!lotesError && lotesFivData) {
+          lotesFivData.forEach(lote => {
+            if (lote.pacote_aspiracao_id) {
+              pacoteParaLoteMap.set(lote.id, lote.pacote_aspiracao_id);
+            }
+          });
+
+          // Buscar fazendas destino dos pacotes
+          const pacoteIds = [...new Set(lotesFivData.map(l => l.pacote_aspiracao_id).filter(Boolean))] as string[];
+          
+          if (pacoteIds.length > 0) {
+            // Buscar da tabela de relacionamento
+            const { data: fazendasDestinoData, error: fazendasDestinoError } = await supabase
+              .from('pacotes_aspiracao_fazendas_destino')
+              .select('pacote_aspiracao_id, fazenda_destino_id')
+              .in('pacote_aspiracao_id', pacoteIds);
+
+            if (!fazendasDestinoError && fazendasDestinoData) {
+              fazendasDestinoData.forEach(item => {
+                const atual = fazendasDestinoPorPacoteMap.get(item.pacote_aspiracao_id) || [];
+                if (!atual.includes(item.fazenda_destino_id)) {
+                  atual.push(item.fazenda_destino_id);
+                }
+                fazendasDestinoPorPacoteMap.set(item.pacote_aspiracao_id, atual);
+              });
+            }
+
+            // Fallback: buscar fazenda_destino_id legacy dos pacotes
+            const { data: pacotesData } = await supabase
+              .from('pacotes_aspiracao')
+              .select('id, fazenda_destino_id')
+              .in('id', pacoteIds);
+
+            pacotesData?.forEach(pacote => {
+              if (pacote.fazenda_destino_id) {
+                const atual = fazendasDestinoPorPacoteMap.get(pacote.id) || [];
+                if (!atual.includes(pacote.fazenda_destino_id)) {
+                  atual.push(pacote.fazenda_destino_id);
+                }
+                fazendasDestinoPorPacoteMap.set(pacote.id, atual);
+              }
+            });
+          }
+        }
+      }
+
+      // Mapear embriões com suas fazendas destino do pacote
+      const embrioesComFazendasDestino: EmbrioDisponivel[] = embrioesData.map(embriao => {
+        const pacoteId = embriao.lote_fiv_id ? pacoteParaLoteMap.get(embriao.lote_fiv_id) : undefined;
+        const fazendasDestinoIds = pacoteId ? fazendasDestinoPorPacoteMap.get(pacoteId) : [];
+
+        return {
+          embriao_id: embriao.id,
+          identificacao: embriao.identificacao,
+          classificacao: embriao.classificacao,
+          status_atual: embriao.status_atual,
+          localizacao_atual: embriao.localizacao_atual,
+          lote_fiv_id: embriao.lote_fiv_id,
+          fazendas_destino_ids: fazendasDestinoIds || [],
+        };
+      });
+
+      setEmbrioes(embrioesComFazendasDestino);
+      setEmbrioesFiltrados([]); // Inicialmente vazio até selecionar uma fazenda
+    } catch (error) {
+      console.error('Error loading embrioes:', error);
+      toast({
+        title: 'Erro ao carregar embriões',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+      setEmbrioes([]);
     }
   };
 
   const handleFazendaChange = async (fazendaId: string) => {
-    setFormData({ ...formData, fazenda_id: fazendaId, receptora_id: '', protocolo_receptora_id: '' });
+    setFormData({ ...formData, fazenda_id: fazendaId, receptora_id: '', protocolo_receptora_id: '', embriao_id: '' });
+
+    // Filtrar embriões disponíveis para esta fazenda
+    // Um embrião está disponível se a fazenda selecionada está nas fazendas destino do pacote
+    if (fazendaId) {
+      const filtrados = embrioes.filter(embriao => 
+        embriao.fazendas_destino_ids && embriao.fazendas_destino_ids.includes(fazendaId)
+      );
+      setEmbrioesFiltrados(filtrados);
+    } else {
+      setEmbrioesFiltrados([]);
+    }
 
     try {
       // 1. Buscar receptoras da fazenda atual via vw_receptoras_fazenda_atual
@@ -342,17 +430,22 @@ export default function TransferenciaEmbrioes() {
                 <Select
                   value={formData.embriao_id}
                   onValueChange={(value) => setFormData({ ...formData, embriao_id: value })}
+                  disabled={!formData.fazenda_id}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o embrião" />
+                    <SelectValue placeholder={formData.fazenda_id ? "Selecione o embrião" : "Selecione primeiro a fazenda"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {embrioes.length === 0 ? (
+                    {!formData.fazenda_id ? (
                       <div className="p-2 text-sm text-slate-500">
-                        Nenhum embrião disponível
+                        Selecione primeiro uma fazenda para ver os embriões disponíveis
+                      </div>
+                    ) : embrioesFiltrados.length === 0 ? (
+                      <div className="p-2 text-sm text-slate-500">
+                        Nenhum embrião disponível para esta fazenda
                       </div>
                     ) : (
-                      embrioes.map((embriao) => (
+                      embrioesFiltrados.map((embriao) => (
                         <SelectItem key={embriao.embriao_id} value={embriao.embriao_id}>
                           {embriao.identificacao || embriao.embriao_id.slice(0, 8)} -{' '}
                           {embriao.classificacao} ({embriao.status_atual})
@@ -361,6 +454,11 @@ export default function TransferenciaEmbrioes() {
                     )}
                   </SelectContent>
                 </Select>
+                {formData.fazenda_id && embrioesFiltrados.length > 0 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {embrioesFiltrados.length} embrião(ões) disponível(is) para esta fazenda
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

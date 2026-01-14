@@ -156,6 +156,7 @@ export interface Embriao {
   lote_fiv_acasalamento_id?: string;
   acasalamento_media_id?: string;
   identificacao?: string;
+  numero_lote?: number; // Número sequencial do embrião dentro do lote (1, 2, 3, ...)
   classificacao?: string;
   tipo_embriao?: string;
   status_atual: 'FRESCO' | 'CONGELADO' | 'TRANSFERIDO' | 'DESCARTADO';
