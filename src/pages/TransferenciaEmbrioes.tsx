@@ -205,7 +205,6 @@ export default function TransferenciaEmbrioes() {
       const insertData: Record<string, string | null> = {
         embriao_id: formData.embriao_id,
         receptora_id: formData.receptora_id,
-        fazenda_id: formData.fazenda_id,
         protocolo_receptora_id: formData.protocolo_receptora_id || null,
         data_te: formData.data_te,
         tipo_te: formData.tipo_te,
@@ -217,7 +216,10 @@ export default function TransferenciaEmbrioes() {
 
       const { error: teError } = await supabase.from('transferencias_embrioes').insert([insertData]);
 
-      if (teError) throw teError;
+      if (teError) {
+        console.error('Erro ao inserir transferência:', teError);
+        throw new Error(`Erro ao registrar transferência: ${teError.message}${teError.code ? ` (código: ${teError.code})` : ''}${teError.details ? ` - ${teError.details}` : ''}`);
+      }
 
       // Update embriao status
       const { error: embriaoError } = await supabase
@@ -256,6 +258,7 @@ export default function TransferenciaEmbrioes() {
       setReceptoras([]);
       loadEmbrioes();
     } catch (error) {
+      console.error('Erro completo:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: 'Erro ao realizar transferência',

@@ -126,13 +126,24 @@ export default function FazendaDetail() {
       }
 
       // Load transferencias stats
+      // Primeiro, buscar receptoras da fazenda atual
+      const { data: viewDataFazenda, error: viewErrorFazenda } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', id);
+
+      if (viewErrorFazenda) throw viewErrorFazenda;
+
+      const receptoraIdsNaFazenda = viewDataFazenda?.map(v => v.receptora_id) || [];
+
       const dataLimite = new Date();
       dataLimite.setDate(dataLimite.getDate() - 60);
       
+      // Filtrar transferências por receptoras que estão na fazenda
       const { data: transferenciasData, error: transferenciasError } = await supabase
         .from('transferencias_embrioes')
         .select('id, receptora_id, data_te')
-        .eq('fazenda_id', id)
+        .in('receptora_id', receptoraIdsNaFazenda.length > 0 ? receptoraIdsNaFazenda : ['00000000-0000-0000-0000-000000000000'])
         .gte('data_te', dataLimite.toISOString().split('T')[0]);
 
       if (transferenciasError) throw transferenciasError;

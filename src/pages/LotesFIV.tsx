@@ -1276,16 +1276,46 @@ export default function LotesFIV() {
                                   }
 
                                   try {
-                                    const { error } = await supabase
+                                    // Atualizar quantidade_embrioes no acasalamento
+                                    const { error: updateError } = await supabase
                                       .from('lote_fiv_acasalamentos')
                                       .update({ quantidade_embrioes: quantidade })
                                       .eq('id', acasalamento.id);
 
-                                    if (error) throw error;
+                                    if (updateError) throw updateError;
+
+                                    // Verificar quantos embriões já existem para este acasalamento
+                                    const { count: quantidadeExistente, error: countError } = await supabase
+                                      .from('embrioes')
+                                      .select('*', { count: 'exact', head: true })
+                                      .eq('lote_fiv_acasalamento_id', acasalamento.id);
+
+                                    if (countError) throw countError;
+                                    const quantidadeACriar = quantidade - (quantidadeExistente || 0);
+
+                                    // Criar embriões automaticamente se necessário
+                                    if (quantidadeACriar > 0) {
+                                      const embrioesParaCriar = Array.from({ length: quantidadeACriar }, () => ({
+                                        lote_fiv_id: selectedLote.id,
+                                        lote_fiv_acasalamento_id: acasalamento.id,
+                                        status_atual: 'FRESCO',
+                                      }));
+
+                                      const { error: createError } = await supabase
+                                        .from('embrioes')
+                                        .insert(embrioesParaCriar);
+
+                                      if (createError) {
+                                        console.error('Erro ao criar embriões:', createError);
+                                        throw new Error(`Erro ao criar embriões: ${createError.message} (${createError.code || 'sem código'})`);
+                                      }
+                                    }
 
                                     toast({
                                       title: 'Quantidade atualizada',
-                                      description: 'Quantidade de embriões atualizada com sucesso',
+                                      description: quantidadeACriar > 0
+                                        ? `${quantidadeACriar} embrião(ões) criado(s) automaticamente`
+                                        : 'Quantidade de embriões atualizada com sucesso',
                                     });
 
                                     setEditQuantidadeEmbrioes({

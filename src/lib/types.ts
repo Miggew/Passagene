@@ -153,15 +153,52 @@ export interface LoteFIVAcasalamento {
 export interface Embriao {
   id: string;
   lote_fiv_id: string;
+  lote_fiv_acasalamento_id?: string;
+  acasalamento_media_id?: string;
   identificacao?: string;
   classificacao?: string;
   tipo_embriao?: string;
-  status_atual: string;
+  status_atual: 'FRESCO' | 'CONGELADO' | 'TRANSFERIDO' | 'DESCARTADO';
+  fazenda_destino_id?: string;
+  data_classificacao?: string;
   data_envase?: string;
   data_congelamento?: string;
   data_saida_laboratorio?: string;
   data_descarte?: string;
   localizacao_atual?: string;
+  observacoes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AcasalamentoEmbrioesMedia {
+  id: string;
+  lote_fiv_acasalamento_id: string;
+  tipo_media: 'VIDEO' | 'IMAGEM';
+  arquivo_url: string;
+  arquivo_path: string;
+  arquivo_nome: string;
+  arquivo_tamanho?: number;
+  mime_type?: string;
+  duracao_segundos?: number;
+  largura?: number;
+  altura?: number;
+  descricao?: string;
+  data_gravacao?: string;
+  observacoes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HistoricoEmbriao {
+  id: string;
+  embriao_id: string;
+  status_anterior?: string;
+  status_novo: string;
+  fazenda_id?: string;
+  data_mudanca?: string;
+  tipo_operacao?: 'CLASSIFICACAO' | 'DESTINACAO' | 'CONGELAMENTO' | 'DESCARTE' | 'TRANSFERENCIA';
+  observacoes?: string;
   created_at?: string;
 }
 
