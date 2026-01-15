@@ -57,6 +57,7 @@ interface AcasalamentoComNomes extends LoteFIVAcasalamento {
   doadora_registro?: string;
   dose_nome?: string;
   viaveis?: number;
+  total_embrioes_produzidos?: number;
 }
 
 interface AspiracaoComOocitosDisponiveis extends AspiracaoDoadora {
@@ -388,10 +389,17 @@ export default function LotesFIV() {
         }
         dataAspiracaoLote.setHours(0, 0, 0, 0);
         
-        // Calcular diferença em dias: hoje - data da aspiração
+        // Calcular diferença em dias: hoje - data da aspiração (D0)
+        // Lógica correta: D0 = dia da aspiração, D1 = D0 + 1 dia, D7 = D0 + 8 dias
+        // Exemplo: aspiração 05/01 (segunda) → D0=05/01, D1=06/01 (terça), D7=13/01 (terça)
+        // Contagem: 05/01(D0) → 06/01(D1) → 07/01(D2) → 08/01(D3) → 09/01(D4) → 10/01(D5) → 11/01(D6) → 12/01(D7) → 13/01(D8)
+        // Mas o usuário disse D7 = 13/01, então: D7 = D0 + 8 dias
         const diffTime = hoje.getTime() - dataAspiracaoLote.getTime();
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         const diaAtual = Math.max(0, diffDays);
+        // diaAtual = 0 → D0 (dia da aspiração)
+        // diaAtual = 1 → D1 (dia da fecundação)
+        // diaAtual = 8 → D7 (dia da saída dos embriões, pois D7 = D0 + 8)
 
         return {
           ...l,
@@ -403,8 +411,42 @@ export default function LotesFIV() {
         };
       });
 
+      // Fechar automaticamente lotes que passaram do D7 (dia_atual > 8)
+      // D7 = D0 + 8 dias é o último dia para criar embriões (saída dos embriões)
+      // Se dia_atual = 8, estamos no D7. Se dia_atual > 8, já passou do D7
+      const lotesParaFechar = lotesComNomes.filter(l => 
+        l.status === 'ABERTO' && l.dia_atual !== undefined && l.dia_atual > 8
+      );
+
+      if (lotesParaFechar.length > 0) {
+        const lotesIdsParaFechar = lotesParaFechar.map(l => l.id);
+        // Fechar lotes em background (não bloquear a UI)
+        supabase
+          .from('lotes_fiv')
+          .update({ status: 'FECHADO' })
+          .in('id', lotesIdsParaFechar)
+          .then(({ error }) => {
+            if (error) {
+              console.error('Erro ao fechar lotes automaticamente:', error);
+            } else {
+              console.log(`${lotesIdsParaFechar.length} lote(s) fechado(s) automaticamente após D7`);
+            }
+          });
+      }
+
+      // Filtrar lotes: mostrar apenas os que estão até D7 (dia_atual <= 8)
+      // D7 = D0 + 8 dias é o último dia permitido para operações
+      const lotesVisiveis = lotesComNomes.filter(l => {
+        // Se o lote está FECHADO, não mostrar (vira histórico)
+        if (l.status === 'FECHADO') {
+          return false;
+        }
+        // Se o lote está ABERTO, mostrar apenas se dia_atual <= 8 (até D7)
+        return l.dia_atual !== undefined && l.dia_atual <= 8;
+      });
+
       setLotes(lotesComNomes);
-      setLotesFiltrados(lotesComNomes);
+      setLotesFiltrados(lotesVisiveis);
       
       // Armazenar pacotes únicos para o filtro (usar todos os pacotes, não apenas os disponíveis)
       // Pegar apenas os pacotes que têm lotes associados
@@ -579,6 +621,25 @@ export default function LotesFIV() {
       const dosesMap = new Map(dosesData?.map((d) => [d.id, d]));
       const aspiracoesMap = new Map(aspiracoesData?.map((a) => [a.id, a]));
 
+      // Buscar embriões do lote para calcular a soma total por acasalamento
+      const { data: embrioesData, error: embrioesError } = await supabase
+        .from('embrioes')
+        .select('lote_fiv_acasalamento_id')
+        .eq('lote_fiv_id', loteId);
+
+      // Contar embriões por acasalamento
+      const quantidadeEmbrioesPorAcasalamento = new Map<string, number>();
+      if (!embrioesError && embrioesData) {
+        embrioesData.forEach(embriao => {
+          if (embriao.lote_fiv_acasalamento_id) {
+            quantidadeEmbrioesPorAcasalamento.set(
+              embriao.lote_fiv_acasalamento_id,
+              (quantidadeEmbrioesPorAcasalamento.get(embriao.lote_fiv_acasalamento_id) || 0) + 1
+            );
+          }
+        });
+      }
+
       const acasalamentosComNomes: AcasalamentoComNomes[] = (acasalamentosData || []).map((a) => {
         const aspiracao = aspiracoesMap.get(a.aspiracao_doadora_id);
         const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
@@ -590,6 +651,7 @@ export default function LotesFIV() {
           doadora_registro: doadora?.registro,
           dose_nome: dose?.nome,
           viaveis: aspiracao?.viaveis,
+          total_embrioes_produzidos: quantidadeEmbrioesPorAcasalamento.get(a.id) || 0,
         };
       });
 
@@ -754,37 +816,96 @@ export default function LotesFIV() {
         }
       });
 
-      // Criar histórico baseado nos pacotes despachados
+      // Buscar todos os acasalamentos do lote com dados de doadora e dose
+      const acasalamentoIdsUnicos = [...new Set(todosEmbrioes?.map(e => e.lote_fiv_acasalamento_id).filter(Boolean) || [])] as string[];
+      
+      if (acasalamentoIdsUnicos.length > 0) {
+        // Buscar acasalamentos
+        const { data: acasalamentosData, error: acasalamentosError } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select('id, aspiracao_doadora_id, dose_semen_id')
+          .in('id', acasalamentoIdsUnicos);
+
+        if (acasalamentosError) {
+          console.error('Erro ao carregar acasalamentos:', acasalamentosError);
+        } else if (acasalamentosData) {
+          // Buscar aspirações e doadoras
+          const aspiracaoIds = [...new Set(acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean))] as string[];
+          const { data: aspiracoesData } = await supabase
+            .from('aspiracoes_doadoras')
+            .select('id, doadora_id')
+            .in('id', aspiracaoIds);
+
+          const doadoraIds = [...new Set(aspiracoesData?.map(a => a.doadora_id).filter(Boolean) || [])] as string[];
+          const { data: doadorasData } = await supabase
+            .from('doadoras')
+            .select('id, registro, nome')
+            .in('id', doadoraIds);
+
+          // Buscar doses
+          const doseIds = [...new Set(acasalamentosData.map(a => a.dose_semen_id).filter(Boolean))] as string[];
+          const { data: dosesData } = await supabase
+            .from('doses_semen')
+            .select('id, nome')
+            .in('id', doseIds);
+
+          // Criar maps para busca rápida
+          const aspiracoesMap = new Map(aspiracoesData?.map(a => [a.id, a]) || []);
+          const doadorasMap = new Map(doadorasData?.map(d => [d.id, d]) || []);
+          const dosesMap = new Map(dosesData?.map(d => [d.id, d]) || []);
+          const acasalamentosMap = new Map(acasalamentosData.map(a => [a.id, a]));
+
+          // Criar histórico baseado nos pacotes despachados
+          const historico = pacotesDespachados.map((pacote) => {
+            const dataDespacho = pacote.data_aspiracao.split('T')[0];
+            const embrioesDesteDespacho = embrioesPorData.get(dataDespacho) || [];
+            
+            // Agrupar por acasalamento
+            const quantidadePorAcasalamento = new Map<string, number>();
+            
+            embrioesDesteDespacho.forEach(e => {
+              if (e.lote_fiv_acasalamento_id) {
+                quantidadePorAcasalamento.set(
+                  e.lote_fiv_acasalamento_id,
+                  (quantidadePorAcasalamento.get(e.lote_fiv_acasalamento_id) || 0) + 1
+                );
+              }
+            });
+
+            const acasalamentosDespacho = Array.from(quantidadePorAcasalamento.entries()).map(([acasalamentoId, quantidade]) => {
+              const acasalamento = acasalamentosMap.get(acasalamentoId);
+              const aspiracao = acasalamento ? aspiracoesMap.get(acasalamento.aspiracao_doadora_id) : undefined;
+              const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
+              const dose = acasalamento ? dosesMap.get(acasalamento.dose_semen_id) : undefined;
+
+              return {
+                acasalamento_id: acasalamentoId,
+                quantidade,
+                doadora: doadora?.registro || doadora?.nome || '-',
+                dose: dose?.nome || '-',
+              };
+            });
+
+            return {
+              id: pacote.id,
+              data_despacho: dataDespacho,
+              acasalamentos: acasalamentosDespacho,
+              pacote_id: pacote.id,
+            };
+          });
+
+          setHistoricoDespachos(historico);
+          return;
+        }
+      }
+
+      // Se não houver acasalamentos, criar histórico vazio
       const historico = pacotesDespachados.map((pacote) => {
         const dataDespacho = pacote.data_aspiracao.split('T')[0];
-        const embrioesDesteDespacho = embrioesPorData.get(dataDespacho) || [];
-        
-        // Agrupar por acasalamento
-        const acasalamentosMap = new Map<string, number>();
-        
-        embrioesDesteDespacho.forEach(e => {
-          if (e.lote_fiv_acasalamento_id) {
-            acasalamentosMap.set(
-              e.lote_fiv_acasalamento_id,
-              (acasalamentosMap.get(e.lote_fiv_acasalamento_id) || 0) + 1
-            );
-          }
-        });
-
-        const acasalamentosDespacho = Array.from(acasalamentosMap.entries()).map(([acasalamentoId, quantidade]) => {
-          const acasalamento = acasalamentos.find(a => a.id === acasalamentoId);
-          return {
-            acasalamento_id: acasalamentoId,
-            quantidade,
-            doadora: acasalamento?.doadora_registro || acasalamento?.doadora_nome,
-            dose: acasalamento?.dose_nome,
-          };
-        });
-
         return {
           id: pacote.id,
           data_despacho: dataDespacho,
-          acasalamentos: acasalamentosDespacho,
+          acasalamentos: [],
           pacote_id: pacote.id,
         };
       });
@@ -807,6 +928,39 @@ export default function LotesFIV() {
 
     try {
       setSubmitting(true);
+
+      // Calcular dia atual para validar se ainda está no período permitido (até D7)
+      // D7 = D0 + 8 dias é o último dia para criar embriões (saída dos embriões)
+      // Se dia_atual = 8, estamos no D7. Se dia_atual > 8, já passou do D7
+      const pacote = pacotes.find(p => p.id === selectedLote.pacote_aspiracao_id);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      
+      let dataAspiracaoLote: Date;
+      if (pacote?.data_aspiracao) {
+        const dataAspiracaoStr = pacote.data_aspiracao.split('T')[0] + 'T00:00:00';
+        dataAspiracaoLote = new Date(dataAspiracaoStr);
+      } else {
+        const dataAberturaDate = new Date(selectedLote.data_abertura);
+        dataAberturaDate.setDate(dataAberturaDate.getDate() - 1);
+        dataAspiracaoLote = dataAberturaDate;
+      }
+      dataAspiracaoLote.setHours(0, 0, 0, 0);
+      
+      const diffTime = hoje.getTime() - dataAspiracaoLote.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diaAtual = Math.max(0, diffDays);
+
+      // Validar que não passou do D7 (dia_atual > 8 significa que já passou o D7)
+      if (diaAtual > 8) {
+        toast({
+          title: 'Prazo expirado',
+          description: 'Não é possível criar embriões após o D7. O lote será fechado automaticamente.',
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
 
       // Validar que há quantidades preenchidas
       const acasalamentosComQuantidade = acasalamentos.filter(ac => {
@@ -1307,10 +1461,13 @@ export default function LotesFIV() {
   // Se estiver visualizando um lote específico
   if (selectedLote && showLoteDetail) {
     // Calcular dia atual baseado na data da aspiração (D0)
-    // D0 = aspiração (13/01), D1 = fecundação (14/01), D7 = 21/01 (D0 + 8 dias)
+    // Lógica correta: D0 = dia da aspiração, D1 = D0 + 1 dia, D7 = D0 + 8 dias (saída dos embriões)
+    // Exemplo: aspiração 05/01 (segunda) → D0=05/01, D1=06/01 (terça), D7=13/01 (terça)
+    // Contagem: 05/01(D0) → 06/01(D1) → 07/01(D2) → 08/01(D3) → 09/01(D4) → 10/01(D5) → 11/01(D6) → 12/01(D7) → 13/01(D8)
+    // Mas o usuário disse D7 = 13/01, então: D7 = D0 + 8 dias
     // diaAtual = diferença em dias desde D0
-    // Quando diaAtual = 8, estamos no D7 (21/01)
-    // Quando diaAtual = 9, estamos no D8 (22/01)
+    // Quando diaAtual = 0, estamos no D0
+    // Quando diaAtual = 8, estamos no D7 (saída dos embriões, pois D7 = D0 + 8)
     // Usar data local para evitar problemas de timezone
     const hoje = new Date();
     const hojeLocal = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -1357,19 +1514,21 @@ export default function LotesFIV() {
     const dataAspiracaoDate = new Date(dataAspiracaoParaCalculo.split('T')[0] + 'T00:00:00');
     dataAspiracaoDate.setHours(0, 0, 0, 0);
     
-    // Calcular diferença em dias: hoje - data da aspiração
-    // D0 = aspiração (06/01), D1 = fecundação (07/01), D7 = 14/01 (D0 + 8), D8 = 15/01 (D0 + 9)
-    // Se hoje = 06/01 e aspiração = 06/01, então diaAtual = 0 (D0)
-    // Se hoje = 07/01 e aspiração = 06/01, então diaAtual = 1 (D1)
-    // Se hoje = 14/01 e aspiração = 06/01, então diaAtual = 8 (D7)
-    // Se hoje = 15/01 e aspiração = 06/01, então diaAtual = 9 (D8)
+    // Calcular diferença em dias: hoje - data da aspiração (D0)
+    // Lógica correta: D0 = dia da aspiração, D1 = D0 + 1 dia, D7 = D0 + 8 dias
+    // Exemplo: aspiração 05/01 (segunda) → D0=05/01, D1=06/01 (terça), D7=13/01 (terça)
+    // Contagem: 05/01(D0) → 06/01(D1) → 07/01(D2) → 08/01(D3) → 09/01(D4) → 10/01(D5) → 11/01(D6) → 12/01(D7) → 13/01(D8)
+    // Mas o usuário disse D7 = 13/01, então: D7 = D0 + 8 dias
+    // Se hoje = 05/01 e aspiração = 05/01, então diaAtual = 0 (D0)
+    // Se hoje = 06/01 e aspiração = 05/01, então diaAtual = 1 (D1)
+    // Se hoje = 13/01 e aspiração = 05/01, então diaAtual = 8 (D7)
     const diffTime = hojeLocal.getTime() - dataAspiracaoDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     const diaAtual = Math.max(0, diffDays);
-    // Calcular data do D7: D0 + 7 dias
-    // D0 = aspiração (06/01), D1 = fecundação (07/01), D7 = 13/01 (D0 + 7), D8 = 14/01 (D0 + 8)
+    // Calcular data do D7: D0 + 8 dias (saída dos embriões)
+    // D0 = aspiração (05/01), D1 = fecundação (06/01), D7 = 13/01 (D0 + 8)
     const dataD7 = new Date(dataAspiracaoDate);
-    dataD7.setDate(dataD7.getDate() + 7); // D7 = D0 + 7 dias
+    dataD7.setDate(dataD7.getDate() + 8); // D7 = D0 + 8 dias
     
     // Formatar data do D7 e obter dia da semana
     const dataD7Formatada = dataD7.toLocaleDateString('pt-BR', { 
@@ -1485,7 +1644,7 @@ export default function LotesFIV() {
               </div>
             </div>
 
-            {selectedLote.status === 'ABERTO' && diaAtual === 7 && (
+            {selectedLote.status === 'ABERTO' && diaAtual === 6 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-blue-800 font-medium">
@@ -1502,31 +1661,29 @@ export default function LotesFIV() {
                 </div>
               </div>
             )}
-            {selectedLote.status === 'ABERTO' && diaAtual >= 8 && diaAtual <= 9 && (
+            {selectedLote.status === 'ABERTO' && diaAtual === 8 && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-orange-800 font-medium">
-                    ⚠️ Este lote está no D{getDiaCultivo(diaAtual)} ({getNomeDia(getDiaCultivo(diaAtual))}). Informe a quantidade de embriões para cada acasalamento.
+                    ⚠️ Este lote está no D7 ({getNomeDia(7)}). Informe a quantidade de embriões para cada acasalamento e despache os embriões.
                   </p>
-                  {(diaAtual === 8 || diaAtual === 9) && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={despacharEmbrioes}
-                      disabled={submitting}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Package className="w-4 h-4 mr-2" />
-                      {submitting ? 'Despachando...' : 'Despachar Todos os Embriões'}
-                    </Button>
-                  )}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={despacharEmbrioes}
+                    disabled={submitting}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    {submitting ? 'Despachando...' : 'Despachar Todos os Embriões'}
+                  </Button>
                 </div>
               </div>
             )}
-            {selectedLote.status === 'ABERTO' && diaAtual > 9 && (
+            {selectedLote.status === 'ABERTO' && diaAtual > 8 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-red-800 font-medium">
-                  ⚠️ Este lote está no D{getDiaCultivo(diaAtual)}. O prazo para informar embriões (D7-D8) já passou.
+                  ⚠️ Este lote está no D{getDiaCultivo(diaAtual)}. O prazo para informar e despachar embriões (D7) já passou. O lote será fechado automaticamente.
                 </p>
               </div>
             )}
@@ -1538,97 +1695,106 @@ export default function LotesFIV() {
             <CardTitle>Acasalamentos</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Doadora</TableHead>
-                  <TableHead>Dose de Sêmen</TableHead>
-                  <TableHead>Quantidade Fracionada</TableHead>
-                  <TableHead>Oócitos Viáveis (Total)</TableHead>
-                  <TableHead>Oócitos Usados</TableHead>
-                  {(selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9)) || selectedLote.status === 'FECHADO' ? (
-                    <TableHead>Quantidade de Embriões</TableHead>
-                  ) : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {acasalamentos.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={selectedLote.status === 'FECHADO' || (selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9)) ? 6 : 5} className="text-center text-slate-500">
-                      Nenhum acasalamento cadastrado
-                    </TableCell>
-                  </TableRow>
-                ) : (() => {
-                  // Agrupar acasalamentos por doadora
-                  const acasalamentosPorDoadora = new Map<string, AcasalamentoComNomes[]>();
-                  acasalamentos.forEach((acasalamento) => {
-                    const key = acasalamento.doadora_nome || acasalamento.doadora_registro || 'Desconhecida';
-                    if (!acasalamentosPorDoadora.has(key)) {
-                      acasalamentosPorDoadora.set(key, []);
-                    }
-                    acasalamentosPorDoadora.get(key)!.push(acasalamento);
-                  });
+            {acasalamentos.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">
+                Nenhum acasalamento cadastrado
+              </div>
+            ) : (() => {
+              // Agrupar acasalamentos por doadora
+              const acasalamentosPorDoadora = new Map<string, AcasalamentoComNomes[]>();
+              acasalamentos.forEach((acasalamento) => {
+                const key = acasalamento.doadora_nome || acasalamento.doadora_registro || 'Desconhecida';
+                if (!acasalamentosPorDoadora.has(key)) {
+                  acasalamentosPorDoadora.set(key, []);
+                }
+                acasalamentosPorDoadora.get(key)!.push(acasalamento);
+              });
 
-                  const rows: React.ReactElement[] = [];
-                  acasalamentosPorDoadora.forEach((acasalamentosGrupo) => {
+              const doadoras = Array.from(acasalamentosPorDoadora.entries());
+
+              return (
+                <div className="space-y-6">
+                  {doadoras.map(([doadoraKey, acasalamentosGrupo]) => {
                     const primeiroAcasalamento = acasalamentosGrupo[0];
                     const oocitosTotal = primeiroAcasalamento.viaveis ?? 0;
+                    const doadoraNome = primeiroAcasalamento.doadora_nome || primeiroAcasalamento.doadora_registro || 'Doadora desconhecida';
 
-                    // Renderizar cada acasalamento do grupo
-                    acasalamentosGrupo.forEach((acasalamento, index) => {
-                      rows.push(
-                        <TableRow key={acasalamento.id} className={index > 0 ? 'bg-slate-50/50' : ''}>
-                          <TableCell className="font-medium">
-                            {index === 0 && (
-                              <>
-                                {acasalamento.doadora_nome || acasalamento.doadora_registro || 'Doadora desconhecida'}
-                                {acasalamento.doadora_registro && acasalamento.doadora_nome && (
-                                  <span className="text-slate-500 text-sm ml-2">
-                                    ({acasalamento.doadora_registro})
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </TableCell>
-                          <TableCell>{acasalamento.dose_nome}</TableCell>
-                          <TableCell>{acasalamento.quantidade_fracionada}</TableCell>
-                          <TableCell>
-                            {index === 0 ? oocitosTotal : ''}
-                          </TableCell>
-                          <TableCell>{acasalamento.quantidade_oocitos ?? '-'}</TableCell>
-                          {((selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9)) || selectedLote.status === 'FECHADO') && (
-                            <TableCell>
-                              {selectedLote.status === 'ABERTO' && (diaAtual >= 7 && diaAtual <= 9) ? (
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={editQuantidadeEmbrioes[acasalamento.id] ?? acasalamento.quantidade_embrioes ?? ''}
-                                  onChange={(e) =>
-                                    setEditQuantidadeEmbrioes({
-                                      ...editQuantidadeEmbrioes,
-                                      [acasalamento.id]: e.target.value,
-                                    })
-                                  }
-                                  className="w-24"
-                                  placeholder="0"
-                                />
-                              ) : (
-                                acasalamento.quantidade_embrioes ?? '-'
+                    return (
+                      <div key={doadoraKey} className="space-y-2">
+                        {/* Cabeçalho da Doadora */}
+                        <div className="bg-green-100 border border-green-200 rounded-md px-4 py-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-900">{doadoraNome}</span>
+                            <span className="text-sm text-slate-700">Total de Óocitos: {oocitosTotal}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Tabela de Acasalamentos da Doadora */}
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>DOSE DE SÊMEN (TOURO)</TableHead>
+                              <TableHead className="text-center">QTD. FRACIONADA (DOSES)</TableHead>
+                              <TableHead className="text-center">ÓOCITOS USADOS</TableHead>
+                              {((selectedLote.status === 'ABERTO' && (diaAtual === 6 || diaAtual === 8)) || selectedLote.status === 'FECHADO') && (
+                                <>
+                                  <TableHead className="text-center">QTD. EMBRIÕES</TableHead>
+                                  <TableHead className="text-center">TOTAL PRODUZIDOS</TableHead>
+                                </>
                               )}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    });
-                  });
-
-                  return rows;
-                })()}
-              </TableBody>
-            </Table>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {acasalamentosGrupo.map((acasalamento) => (
+                              <TableRow key={acasalamento.id}>
+                                <TableCell>{acasalamento.dose_nome || '-'}</TableCell>
+                                <TableCell className="text-center">{acasalamento.quantidade_fracionada ?? '-'}</TableCell>
+                                <TableCell className="text-center">
+                                  {acasalamento.quantidade_oocitos !== undefined && acasalamento.quantidade_oocitos !== null
+                                    ? `${acasalamento.quantidade_oocitos} de ${oocitosTotal}`
+                                    : '-'}
+                                </TableCell>
+                                {((selectedLote.status === 'ABERTO' && (diaAtual === 6 || diaAtual === 8)) || selectedLote.status === 'FECHADO') && (
+                                  <>
+                                    <TableCell className="text-center">
+                                      {selectedLote.status === 'ABERTO' && (diaAtual === 6 || diaAtual === 8) ? (
+                                        <div className="flex justify-center">
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            value={editQuantidadeEmbrioes[acasalamento.id] ?? acasalamento.quantidade_embrioes ?? ''}
+                                            onChange={(e) =>
+                                              setEditQuantidadeEmbrioes({
+                                                ...editQuantidadeEmbrioes,
+                                                [acasalamento.id]: e.target.value,
+                                              })
+                                            }
+                                            className="w-20 text-center"
+                                            placeholder="0"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <span className="font-medium">{acasalamento.quantidade_embrioes ?? '-'}</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-center font-semibold text-green-600">
+                                      {acasalamento.total_embrioes_produzidos ?? 0}
+                                    </TableCell>
+                                  </>
+                                )}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             
             
-            {selectedLote.status === 'ABERTO' && diaAtual < 8 && (
+            {selectedLote.status === 'ABERTO' && diaAtual <= 8 && aspiracoesDisponiveis.length > 0 && (
               <div className="mt-4 flex justify-end">
                 <Dialog
                   open={showAddAcasalamento}
@@ -1877,7 +2043,7 @@ export default function LotesFIV() {
                             <TableRow>
                               <TableHead>Doadora</TableHead>
                               <TableHead>Dose</TableHead>
-                              <TableHead>Quantidade de Embriões</TableHead>
+                              <TableHead className="text-center">Quantidade de Embriões</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1892,7 +2058,7 @@ export default function LotesFIV() {
                                 <TableRow key={idx}>
                                   <TableCell>{ac.doadora || '-'}</TableCell>
                                   <TableCell>{ac.dose || '-'}</TableCell>
-                                  <TableCell className="font-semibold">{ac.quantidade}</TableCell>
+                                  <TableCell className="text-center font-semibold">{ac.quantidade}</TableCell>
                                 </TableRow>
                               ))
                             )}

@@ -63,10 +63,11 @@ interface PacoteAspiracaoInfo {
 }
 
 interface PacoteEmbrioes {
-  id: string; // ID único do pacote (fazenda_destino_id + pacote_aspiracao_id)
-  fazenda_destino_id: string;
-  fazenda_destino_nome: string;
-  pacote_aspiracao_id: string;
+  id: string; // ID único do pacote (lote_fiv_id + data de criação)
+  lote_fiv_id: string;
+  data_despacho: string; // Data de criação dos embriões (data do despacho)
+  fazendas_destino_ids: string[]; // Todas as fazendas destino do pacote
+  fazendas_destino_nomes: string[]; // Nomes de todas as fazendas destino
   pacote_info: PacoteAspiracaoInfo;
   embrioes: EmbrioCompleto[];
   total: number;
@@ -123,13 +124,7 @@ export default function Embrioes() {
   }, []);
 
   useEffect(() => {
-    if (selectedFazendaDestinoId) {
-      loadData();
-    } else {
-      setEmbrioes([]);
-      setPacotes([]);
-      setLoading(false);
-    }
+    loadData();
   }, [selectedFazendaDestinoId]);
 
   const loadFazendas = async () => {
@@ -221,7 +216,7 @@ export default function Embrioes() {
       ];
       const { data: aspiracoesData, error: aspiracoesError } = await supabase
         .from('aspiracoes_doadoras')
-        .select('id, doadora_id')
+        .select('id, doadora_id, pacote_aspiracao_id')
         .in('id', aspiracaoIds);
 
       if (aspiracoesError) throw aspiracoesError;
@@ -269,28 +264,41 @@ export default function Embrioes() {
           const pacoteIds = [...new Set(lotesFivData.map((l) => l.pacote_aspiracao_id).filter(Boolean))] as string[];
           
           if (pacoteIds.length > 0) {
-            // Buscar informações completas dos pacotes
+            // OTIMIZAÇÃO: Buscar informações completas dos pacotes (incluindo fazenda_destino_id legacy)
             const { data: pacotesData, error: pacotesError } = await supabase
               .from('pacotes_aspiracao')
-              .select('id, data_aspiracao, fazenda_id, horario_inicio, veterinario_responsavel, total_oocitos')
+              .select('id, data_aspiracao, fazenda_id, fazenda_destino_id, horario_inicio, veterinario_responsavel, total_oocitos')
               .in('id', pacoteIds);
 
             if (!pacotesError && pacotesData) {
-              // Buscar nomes das fazendas
-              const fazendaIds = [...new Set(pacotesData.map((p) => p.fazenda_id))];
-              const { data: fazendasData } = await supabase
-                .from('fazendas')
-                .select('id, nome')
-                .in('id', fazendaIds);
+              // OTIMIZAÇÃO: Buscar fazendas destino dos pacotes e nomes das fazendas em paralelo
+              const [fazendasDestinoResult, fazendasDataResult] = await Promise.all([
+                supabase
+                  .from('pacotes_aspiracao_fazendas_destino')
+                  .select('pacote_aspiracao_id, fazenda_destino_id')
+                  .in('pacote_aspiracao_id', pacoteIds),
+                // Buscar todas as fazendas necessárias (da fazenda_id e fazenda_destino_id)
+                (async () => {
+                  const fazendaIds = new Set<string>();
+                  pacotesData.forEach(p => {
+                    if (p.fazenda_id) fazendaIds.add(p.fazenda_id);
+                    if (p.fazenda_destino_id) fazendaIds.add(p.fazenda_destino_id);
+                  });
+                  if (fazendaIds.size > 0) {
+                    return supabase
+                      .from('fazendas')
+                      .select('id, nome')
+                      .in('id', Array.from(fazendaIds));
+                  }
+                  return { data: null, error: null };
+                })()
+              ]);
 
+              const fazendasDestinoData = fazendasDestinoResult.data;
+              const fazendasData = fazendasDataResult.data;
               const fazendasMap = new Map(fazendasData?.map((f) => [f.id, f.nome]) || []);
 
-              // Contar doadoras por pacote
-              const { data: aspiracoesData } = await supabase
-                .from('aspiracoes_doadoras')
-                .select('pacote_aspiracao_id')
-                .in('pacote_aspiracao_id', pacoteIds);
-
+              // OTIMIZAÇÃO: Contar doadoras por pacote usando aspiracoesData já carregado
               const quantidadePorPacote = new Map<string, number>();
               aspiracoesData?.forEach((a) => {
                 if (a.pacote_aspiracao_id) {
@@ -301,25 +309,8 @@ export default function Embrioes() {
                 }
               });
 
-              pacotesData.forEach((pacote) => {
-                pacotesAspiracaoMap.set(pacote.id, {
-                  id: pacote.id,
-                  data_aspiracao: pacote.data_aspiracao,
-                  fazenda_nome: fazendasMap.get(pacote.fazenda_id),
-                  quantidade_doadoras: quantidadePorPacote.get(pacote.id) || 0,
-                  horario_inicio: pacote.horario_inicio,
-                  veterinario_responsavel: pacote.veterinario_responsavel,
-                  total_oocitos: pacote.total_oocitos,
-                });
-              });
-
-              // Buscar fazendas destino dos pacotes
-              const { data: fazendasDestinoData, error: fazendasDestinoError } = await supabase
-                .from('pacotes_aspiracao_fazendas_destino')
-                .select('pacote_aspiracao_id, fazenda_destino_id')
-                .in('pacote_aspiracao_id', pacoteIds);
-
-              if (!fazendasDestinoError && fazendasDestinoData) {
+              // Processar fazendas destino da tabela de relacionamento
+              if (fazendasDestinoData) {
                 fazendasDestinoData.forEach(item => {
                   const atual = fazendasDestinoPorPacoteMap.get(item.pacote_aspiracao_id) || [];
                   if (!atual.includes(item.fazenda_destino_id)) {
@@ -329,13 +320,8 @@ export default function Embrioes() {
                 });
               }
 
-              // Fallback: buscar fazenda_destino_id legacy dos pacotes
-              const { data: pacotesDataLegacy } = await supabase
-                .from('pacotes_aspiracao')
-                .select('id, fazenda_destino_id')
-                .in('id', pacoteIds);
-
-              pacotesDataLegacy?.forEach(pacote => {
+              // Fallback: adicionar fazenda_destino_id legacy dos pacotes
+              pacotesData.forEach(pacote => {
                 if (pacote.fazenda_destino_id) {
                   const atual = fazendasDestinoPorPacoteMap.get(pacote.id) || [];
                   if (!atual.includes(pacote.fazenda_destino_id)) {
@@ -343,6 +329,17 @@ export default function Embrioes() {
                   }
                   fazendasDestinoPorPacoteMap.set(pacote.id, atual);
                 }
+
+                // Criar mapa de informações dos pacotes
+                pacotesAspiracaoMap.set(pacote.id, {
+                  id: pacote.id,
+                  data_aspiracao: pacote.data_aspiracao,
+                  fazenda_nome: fazendasMap.get(pacote.fazenda_id),
+                  quantidade_doadoras: quantidadePorPacote.get(pacote.id) || 0,
+                  horario_inicio: pacote.horario_inicio,
+                  veterinario_responsavel: pacote.veterinario_responsavel,
+                  total_oocitos: pacote.total_oocitos,
+                });
               });
             }
           }
@@ -406,64 +403,46 @@ export default function Embrioes() {
 
       setEmbrioes(embrioesCompletos);
 
-      // Filtrar embriões pela fazenda destino selecionada
-      // Um embrião está disponível para uma fazenda se:
-      // 1. O embrião tem fazenda_destino_id igual à selecionada, OU
-      // 2. O pacote de aspiração do embrião tem a fazenda selecionada em suas fazendas destino
-      const embrioesFiltrados = selectedFazendaDestinoId
-        ? embrioesCompletos.filter(embriao => {
-            // Verificar se o embrião tem fazenda_destino_id direto
-            if (embriao.fazenda_destino_id === selectedFazendaDestinoId) {
-              return true;
-            }
-            
-            // Verificar se o pacote de aspiração tem a fazenda como destino
-            const pacoteId = embriao.pacote_aspiracao_id;
-            if (pacoteId) {
-              const fazendasDestinoPacote = fazendasDestinoPorPacoteMap.get(pacoteId) || [];
-              return fazendasDestinoPacote.includes(selectedFazendaDestinoId);
-            }
-            
-            return false;
-          })
-        : embrioesCompletos;
-
-      // Agrupar embriões por pacote (fazenda_destino_id + pacote_aspiracao_id)
-      // Um pacote = conjunto de embriões de uma aspiração destinados a uma fazenda específica
+      // Agrupar embriões por lote_fiv_id + data de criação (created_at)
+      // Cada "despacho" cria embriões na mesma data do mesmo lote, então cada combinação
+      // lote_fiv_id + data de criação representa um pacote de embriões separado
       const pacotesMap = new Map<string, PacoteEmbrioes>();
       
-      embrioesFiltrados.forEach((embriao) => {
-        // Determinar a fazenda destino do pacote
-        // Prioridade: fazenda_destino_id do embrião, depois fazendas destino do pacote
-        let fazendaDestinoId = embriao.fazenda_destino_id;
-        if (!fazendaDestinoId && embriao.pacote_aspiracao_id) {
-          const fazendasDestinoPacote = fazendasDestinoPorPacoteMap.get(embriao.pacote_aspiracao_id) || [];
-          if (fazendasDestinoPacote.length > 0) {
-            // Se há múltiplas fazendas, usar a selecionada ou a primeira
-            fazendaDestinoId = selectedFazendaDestinoId && fazendasDestinoPacote.includes(selectedFazendaDestinoId)
-              ? selectedFazendaDestinoId
-              : fazendasDestinoPacote[0];
-          }
+      embrioesCompletos.forEach((embriao) => {
+        if (!embriao.lote_fiv_id || !embriao.created_at) {
+          // Embriões sem lote_fiv_id ou created_at não são agrupados
+          return;
         }
-        
-        const fazendaDestinoIdFinal = fazendaDestinoId || 'sem-destino';
-        const pacoteAspiracaoId = embriao.pacote_aspiracao_id || 'sem-pacote';
-        const chavePacote = `${fazendaDestinoIdFinal}-${pacoteAspiracaoId}`;
+
+        const dataDespacho = embriao.created_at.split('T')[0];
+        const chavePacote = `${embriao.lote_fiv_id}-${dataDespacho}`;
         
         let pacote = pacotesMap.get(chavePacote);
         if (!pacote) {
-          const pacoteInfo = pacoteAspiracaoId !== 'sem-pacote' 
-            ? pacotesAspiracaoMap.get(pacoteAspiracaoId)
+          // Obter informações do lote FIV e do pacote de aspiração original
+          const pacoteAspiracaoIdOriginal = pacoteParaLoteMap.get(embriao.lote_fiv_id);
+          const pacoteInfo = pacoteAspiracaoIdOriginal 
+            ? pacotesAspiracaoMap.get(pacoteAspiracaoIdOriginal)
             : undefined;
+          
+          // Obter todas as fazendas destino do lote (usar as fazendas destino do pacote de aspiração original)
+          const fazendasDestinoIds = pacoteAspiracaoIdOriginal
+            ? (fazendasDestinoPorPacoteMap.get(pacoteAspiracaoIdOriginal) || [])
+            : [];
+          
+          const fazendasDestinoNomes = fazendasDestinoIds
+            .map(id => fazendasDestinoMap.get(id))
+            .filter((nome): nome is string => !!nome);
           
           pacote = {
             id: chavePacote,
-            fazenda_destino_id: fazendaDestinoIdFinal,
-            fazenda_destino_nome: fazendasDestinoMap.get(fazendaDestinoIdFinal) || 'Sem destino',
-            pacote_aspiracao_id: pacoteAspiracaoId,
+            lote_fiv_id: embriao.lote_fiv_id,
+            data_despacho: dataDespacho,
+            fazendas_destino_ids: fazendasDestinoIds,
+            fazendas_destino_nomes: fazendasDestinoNomes,
             pacote_info: pacoteInfo || {
-              id: pacoteAspiracaoId,
-              data_aspiracao: embriao.data_aspiracao || '',
+              id: pacoteAspiracaoIdOriginal || '',
+              data_aspiracao: dataDespacho,
               quantidade_doadoras: 0,
             },
             embrioes: [],
@@ -500,16 +479,20 @@ export default function Embrioes() {
         }
       });
 
-      const pacotesArray = Array.from(pacotesMap.values())
-        .sort((a, b) => {
-          // Ordenar por data de aspiração (mais recente primeiro), depois por fazenda destino
-          const dataA = a.pacote_info.data_aspiracao || '';
-          const dataB = b.pacote_info.data_aspiracao || '';
-          if (dataA !== dataB) {
-            return dataB.localeCompare(dataA);
-          }
-          return a.fazenda_destino_nome.localeCompare(b.fazenda_destino_nome);
+      // Filtrar pacotes pela fazenda destino selecionada (depois do agrupamento)
+      let pacotesArray = Array.from(pacotesMap.values());
+      
+      if (selectedFazendaDestinoId) {
+        pacotesArray = pacotesArray.filter(pacote => {
+          // Um pacote é exibido se tiver a fazenda selecionada em suas fazendas destino
+          return pacote.fazendas_destino_ids.includes(selectedFazendaDestinoId);
         });
+      }
+
+      // Ordenar por data de despacho (mais recente primeiro)
+      pacotesArray.sort((a, b) => {
+        return b.data_despacho.localeCompare(a.data_despacho);
+      });
 
       setPacotes(pacotesArray);
     } catch (error) {
@@ -882,15 +865,7 @@ export default function Embrioes() {
             </Select>
           </div>
 
-          {!selectedFazendaDestinoId ? (
-            <div className="text-center text-slate-500 py-12">
-              <div className="flex flex-col items-center gap-2">
-                <MapPin className="w-8 h-8 text-slate-400" />
-                <p className="text-lg font-medium">Selecione uma fazenda destino</p>
-                <p className="text-sm">Escolha uma fazenda para visualizar os pacotes de embriões disponíveis</p>
-              </div>
-            </div>
-          ) : pacotes.length === 0 ? (
+          {pacotes.length === 0 ? (
             <div className="text-center text-slate-500 py-12">
               Nenhum pacote de embriões encontrado para esta fazenda destino
             </div>
@@ -920,11 +895,22 @@ export default function Embrioes() {
                               )}
                             </Button>
                             <CardTitle className="text-lg">
-                              {pacote.pacote_info.fazenda_nome || 'Fazenda não identificada'} → {pacote.fazenda_destino_nome}
+                              {pacote.pacote_info.fazenda_nome || 'Fazenda não identificada'} →{' '}
+                              {pacote.fazendas_destino_nomes && pacote.fazendas_destino_nomes.length > 0 ? (
+                                <span className="inline-flex flex-wrap gap-1 items-center">
+                                  {pacote.fazendas_destino_nomes.map((nome, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs">
+                                      {nome}
+                                    </Badge>
+                                  ))}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">Sem destino</span>
+                              )}
                             </CardTitle>
                           </div>
                           <div className="mt-2 ml-7 space-y-1 text-sm text-slate-600">
-                            <p><strong>Data Aspiração:</strong> {pacote.pacote_info.data_aspiracao ? formatDate(pacote.pacote_info.data_aspiracao) : '-'}</p>
+                            <p><strong>Data Despacho:</strong> {pacote.data_despacho ? formatDate(pacote.data_despacho) : '-'}</p>
                             {pacote.pacote_info.horario_inicio && (
                               <p><strong>Horário:</strong> {pacote.pacote_info.horario_inicio}</p>
                             )}
@@ -977,7 +963,7 @@ export default function Embrioes() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-12"></TableHead>
-                              <TableHead>Identificação</TableHead>
+                              <TableHead className="text-center w-16">Nº</TableHead>
                               <TableHead>Doadora</TableHead>
                               <TableHead>Touro</TableHead>
                               <TableHead>Classificação</TableHead>
@@ -987,127 +973,156 @@ export default function Embrioes() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {pacote.embrioes.map((embriao) => {
-                              const selecionado = embrioesSelecionados.has(embriao.id);
-                              return (
-                                <TableRow key={embriao.id}>
-                                  <TableCell>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="p-0 h-auto"
-                                      onClick={() => toggleSelecionarEmbriao(embriao.id)}
-                                    >
-                                      {selecionado ? (
-                                        <CheckSquare className="w-4 h-4 text-green-600" />
-                                      ) : (
-                                        <Square className="w-4 h-4 text-slate-400" />
-                                      )}
-                                    </Button>
-                                  </TableCell>
-                                  <TableCell className="font-medium">
-                                    {embriao.identificacao || embriao.id.slice(0, 8)}
-                                  </TableCell>
-                                  <TableCell>{embriao.doadora_registro || '-'}</TableCell>
-                                  <TableCell>{embriao.touro_nome || '-'}</TableCell>
-                                  <TableCell>
-                                    {embriao.classificacao ? (
-                                      <Badge variant="outline">{embriao.classificacao}</Badge>
-                                    ) : (
-                                      <span className="text-slate-400">-</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <StatusBadge status={embriao.status_atual} />
-                                  </TableCell>
-                                  <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex gap-1 justify-end">
-                                      {!embriao.classificacao && embriao.status_atual === 'FRESCO' && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setClassificarEmbriao(embriao);
-                                            setClassificarData({ classificacao: '' });
-                                            setShowClassificarDialog(true);
-                                          }}
-                                          title="Classificar"
-                                        >
-                                          <Tag className="w-4 h-4 text-purple-600" />
-                                        </Button>
-                                      )}
-                                      {embriao.classificacao && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setClassificarEmbriao(embriao);
-                                            setClassificarData({ classificacao: embriao.classificacao || '' });
-                                            setShowClassificarDialog(true);
-                                          }}
-                                          title="Editar Classificação"
-                                        >
-                                          <Tag className="w-4 h-4 text-purple-600" />
-                                        </Button>
-                                      )}
-                                      {embriao.status_atual === 'FRESCO' && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setShowCongelarDialog(true);
-                                            setEmbrioesSelecionados(new Set([embriao.id]));
-                                          }}
-                                          title="Congelar"
-                                        >
-                                          <Snowflake className="w-4 h-4 text-blue-600" />
-                                        </Button>
-                                      )}
-                                      {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => navigate('/transferencia')}
-                                          title="Transferir"
-                                        >
-                                          <ArrowRightLeft className="w-4 h-4 text-green-600" />
-                                        </Button>
-                                      )}
-                                      {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setDescartarEmbriao(embriao);
-                                            setDescartarData({
-                                              data_descarte: new Date().toISOString().split('T')[0],
-                                              observacoes: '',
-                                            });
-                                            setShowDescartarDialog(true);
-                                          }}
-                                          title="Descartar"
-                                        >
-                                          <Trash2 className="w-4 h-4 text-red-600" />
-                                        </Button>
-                                      )}
+                            {(() => {
+                              // Função para obter ordem de classificação (maior no topo)
+                              const getClassificacaoOrdem = (classificacao?: string): number => {
+                                if (!classificacao) return 999; // Sem classificação vai para o final
+                                const ordem: Record<string, number> = {
+                                  'BE': 1,
+                                  'BN': 2,
+                                  'BX': 3,
+                                  'BL': 4,
+                                  'BI': 5,
+                                };
+                                return ordem[classificacao.toUpperCase()] || 999;
+                              };
+
+                              // Ordenar embriões por doadora e depois por classificação
+                              const embrioesOrdenados = [...pacote.embrioes].sort((a, b) => {
+                                // Primeiro ordenar por doadora
+                                const doadoraA = a.doadora_registro || '';
+                                const doadoraB = b.doadora_registro || '';
+                                if (doadoraA !== doadoraB) {
+                                  return doadoraA.localeCompare(doadoraB);
+                                }
+                                // Se mesma doadora, ordenar por classificação (maior no topo)
+                                const ordemA = getClassificacaoOrdem(a.classificacao);
+                                const ordemB = getClassificacaoOrdem(b.classificacao);
+                                return ordemA - ordemB;
+                              });
+
+                              return embrioesOrdenados.map((embriao, index) => {
+                                const selecionado = embrioesSelecionados.has(embriao.id);
+                                return (
+                                  <TableRow key={embriao.id}>
+                                    <TableCell>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={async () => {
-                                          setHistoricoEmbriao(embriao);
-                                          setShowHistoricoDialog(true);
-                                          await loadHistorico(embriao.id);
-                                        }}
-                                        title="Ver Histórico"
+                                        className="p-0 h-auto"
+                                        onClick={() => toggleSelecionarEmbriao(embriao.id)}
                                       >
-                                        <History className="w-4 h-4 text-slate-600" />
+                                        {selecionado ? (
+                                          <CheckSquare className="w-4 h-4 text-green-600" />
+                                        ) : (
+                                          <Square className="w-4 h-4 text-slate-400" />
+                                        )}
                                       </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
+                                    </TableCell>
+                                    <TableCell className="text-center font-medium">
+                                      {index + 1}
+                                    </TableCell>
+                                    <TableCell>{embriao.doadora_registro || '-'}</TableCell>
+                                    <TableCell>{embriao.touro_nome || '-'}</TableCell>
+                                    <TableCell>
+                                      {embriao.classificacao ? (
+                                        <Badge variant="outline">{embriao.classificacao}</Badge>
+                                      ) : (
+                                        <span className="text-slate-400">-</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <StatusBadge status={embriao.status_atual} />
+                                    </TableCell>
+                                    <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex gap-1 justify-end">
+                                        {!embriao.classificacao && embriao.status_atual === 'FRESCO' && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setClassificarEmbriao(embriao);
+                                              setClassificarData({ classificacao: '' });
+                                              setShowClassificarDialog(true);
+                                            }}
+                                            title="Classificar"
+                                          >
+                                            <Tag className="w-4 h-4 text-purple-600" />
+                                          </Button>
+                                        )}
+                                        {embriao.classificacao && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setClassificarEmbriao(embriao);
+                                              setClassificarData({ classificacao: embriao.classificacao || '' });
+                                              setShowClassificarDialog(true);
+                                            }}
+                                            title="Editar Classificação"
+                                          >
+                                            <Tag className="w-4 h-4 text-purple-600" />
+                                          </Button>
+                                        )}
+                                        {embriao.status_atual === 'FRESCO' && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setShowCongelarDialog(true);
+                                              setEmbrioesSelecionados(new Set([embriao.id]));
+                                            }}
+                                            title="Congelar"
+                                          >
+                                            <Snowflake className="w-4 h-4 text-blue-600" />
+                                          </Button>
+                                        )}
+                                        {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => navigate('/transferencia')}
+                                            title="Transferir"
+                                          >
+                                            <ArrowRightLeft className="w-4 h-4 text-green-600" />
+                                          </Button>
+                                        )}
+                                        {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setDescartarEmbriao(embriao);
+                                              setDescartarData({
+                                                data_descarte: new Date().toISOString().split('T')[0],
+                                                observacoes: '',
+                                              });
+                                              setShowDescartarDialog(true);
+                                            }}
+                                            title="Descartar"
+                                          >
+                                            <Trash2 className="w-4 h-4 text-red-600" />
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={async () => {
+                                            setHistoricoEmbriao(embriao);
+                                            setShowHistoricoDialog(true);
+                                            await loadHistorico(embriao.id);
+                                          }}
+                                          title="Ver Histórico"
+                                        >
+                                          <History className="w-4 h-4 text-slate-600" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              });
+                            })()}
                           </TableBody>
                         </Table>
                       </CardContent>
