@@ -34,7 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, ArrowLeft, Eye, Lock, X, Users, FileText, Package } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, extractDateOnly, addDays, diffDays, getTodayDateString, formatDateString, getDayOfWeekName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
@@ -109,8 +109,9 @@ export default function LotesFIV() {
   // Função para obter o nome resumido do dia
   const getNomeDia = (dia: number): string => {
     const nomesDias: { [key: number]: string } = {
-      0: 'Recepção + Maturação',
-      1: 'Fecundação',
+      [-1]: 'Aspiração',
+      0: 'Fecundação',
+      1: 'Zigoto',
       2: 'Clivagem',
       3: 'Clivagem Avançada',
       4: 'Compactação',
@@ -124,11 +125,12 @@ export default function LotesFIV() {
 
   // Função para obter a cor do dia
   const getCorDia = (dia: number): string => {
-    if (dia === 0) return 'bg-blue-100 text-blue-800 border-blue-300';
-    if (dia === 1) return 'bg-green-100 text-green-800 border-green-300';
-    if (dia >= 2 && dia <= 4) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-    if (dia >= 5 && dia <= 6) return 'bg-orange-100 text-orange-800 border-orange-300';
-    if (dia === 7) return 'bg-purple-100 text-purple-800 border-purple-300';
+    if (dia === -1) return 'bg-blue-100 text-blue-800 border-blue-300'; // D-1 (Aspiração)
+    if (dia === 0) return 'bg-green-100 text-green-800 border-green-300'; // D0 (Fecundação)
+    if (dia >= 1 && dia <= 3) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (dia >= 4 && dia <= 5) return 'bg-orange-100 text-orange-800 border-orange-300';
+    if (dia === 6) return 'bg-orange-100 text-orange-800 border-orange-300';
+    if (dia === 7) return 'bg-purple-100 text-purple-800 border-purple-300'; // D7 (Transferência)
     if (dia === 8) return 'bg-red-100 text-red-800 border-red-300';
     return 'bg-slate-100 text-slate-800 border-slate-300';
   };
@@ -372,34 +374,36 @@ export default function LotesFIV() {
 
       const lotesComNomes: LoteFIVComNomes[] = (lotesDataCompleta || []).map((l) => {
         const pacote = pacotesMap.get(l.pacote_aspiracao_id);
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        // Calcular dia atual baseado na data da aspiração (D0)
+        // Calcular dia atual baseado na data da aspiração (D-1)
         // Sempre usar a data da aspiração do pacote, nunca a data_abertura diretamente
-        let dataAspiracaoLote: Date;
-        if (pacote?.data_aspiracao) {
-          // Garantir que estamos usando apenas a data (YYYY-MM-DD) sem hora
-          const dataAspiracaoStr = pacote.data_aspiracao.split('T')[0] + 'T00:00:00';
-          dataAspiracaoLote = new Date(dataAspiracaoStr);
-        } else {
-          // Se não tiver data da aspiração, calcular baseado na data_abertura (que é aspiração + 1)
-          const dataAberturaDate = new Date(l.data_abertura);
-          dataAberturaDate.setDate(dataAberturaDate.getDate() - 1); // Voltar 1 dia para obter data da aspiração
-          dataAspiracaoLote = dataAberturaDate;
-        }
-        dataAspiracaoLote.setHours(0, 0, 0, 0);
+        // Usar funções utilitárias que trabalham apenas com strings YYYY-MM-DD para evitar problemas de timezone
+        let dataAspiracaoStr = extractDateOnly(pacote?.data_aspiracao || null);
         
-        // Calcular diferença em dias: hoje - data da aspiração (D0)
-        // Lógica correta: D0 = dia da aspiração, D1 = D0 + 1 dia, D7 = D0 + 8 dias
-        // Exemplo: aspiração 05/01 (segunda) → D0=05/01, D1=06/01 (terça), D7=13/01 (terça)
-        // Contagem: 05/01(D0) → 06/01(D1) → 07/01(D2) → 08/01(D3) → 09/01(D4) → 10/01(D5) → 11/01(D6) → 12/01(D7) → 13/01(D8)
-        // Mas o usuário disse D7 = 13/01, então: D7 = D0 + 8 dias
-        const diffTime = hoje.getTime() - dataAspiracaoLote.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        const diaAtual = Math.max(0, diffDays);
-        // diaAtual = 0 → D0 (dia da aspiração)
-        // diaAtual = 1 → D1 (dia da fecundação)
-        // diaAtual = 8 → D7 (dia da saída dos embriões, pois D7 = D0 + 8)
+        if (!dataAspiracaoStr) {
+          // Se não tiver data da aspiração, calcular baseado na data_abertura (que é fecundação = aspiração + 1)
+          const dataAberturaStr = extractDateOnly(l.data_abertura);
+          if (dataAberturaStr) {
+            // Voltar 1 dia para obter data da aspiração
+            const [year, month, day] = dataAberturaStr.split('-').map(Number);
+            const dataAberturaDate = new Date(year, month - 1, day);
+            dataAberturaDate.setDate(dataAberturaDate.getDate() - 1);
+            const yearStr = dataAberturaDate.getFullYear();
+            const monthStr = String(dataAberturaDate.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(dataAberturaDate.getDate()).padStart(2, '0');
+            dataAspiracaoStr = `${yearStr}-${monthStr}-${dayStr}`;
+          }
+        }
+        
+        // Calcular diferença em dias: hoje - data da aspiração (D-1)
+        // Lógica correta: D-1 = dia da aspiração, D0 = D-1 + 1 dia (fecundação), D7 = D-1 + 8 dias (transferência)
+        // Exemplo: aspiração 05/01 (segunda) → D-1=05/01, D0=06/01 (terça, fecundação), D7=13/01 (terça, transferência)
+        const hojeStr = getTodayDateString();
+        const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(hojeStr, dataAspiracaoStr)) : 0;
+        // diaAtual = 0 → D-1 (dia da aspiração)
+        // diaAtual = 1 → D0 (dia da fecundação)
+        // diaAtual = 8 → D7 (dia da transferência, pois D7 = D-1 + 8 dias)
+        // diaAtual = 9 → D8 (emergência, último dia, pois D8 = D-1 + 9 dias)
+        // diaAtual > 9 → Passou do D8 (lote não existe mais, será fechado e sumirá)
 
         return {
           ...l,
@@ -411,11 +415,12 @@ export default function LotesFIV() {
         };
       });
 
-      // Fechar automaticamente lotes que passaram do D7 (dia_atual > 8)
-      // D7 = D0 + 8 dias é o último dia para criar embriões (saída dos embriões)
-      // Se dia_atual = 8, estamos no D7. Se dia_atual > 8, já passou do D7
+      // Fechar automaticamente lotes que passaram do D8 (dia_atual > 9)
+      // Lógica ABSOLUTA: D7 = D-1 + 8 dias (transferência), D8 = D-1 + 9 dias (emergência)
+      // D8 é o ÚLTIMO DIA. Acima de D8 não existe mais lote FIV (não existe D9, D10, D11, etc.)
+      // Se dia_atual = 8, estamos no D7. Se dia_atual = 9, estamos no D8. Se dia_atual > 9, passou do D8 (fechar e sumir)
       const lotesParaFechar = lotesComNomes.filter(l => 
-        l.status === 'ABERTO' && l.dia_atual !== undefined && l.dia_atual > 8
+        l.status === 'ABERTO' && l.dia_atual !== undefined && l.dia_atual > 9
       );
 
       if (lotesParaFechar.length > 0) {
@@ -429,20 +434,20 @@ export default function LotesFIV() {
             if (error) {
               console.error('Erro ao fechar lotes automaticamente:', error);
             } else {
-              console.log(`${lotesIdsParaFechar.length} lote(s) fechado(s) automaticamente após D7`);
+              console.log(`${lotesIdsParaFechar.length} lote(s) fechado(s) automaticamente após D8`);
             }
           });
       }
 
-      // Filtrar lotes: mostrar apenas os que estão até D7 (dia_atual <= 8)
-      // D7 = D0 + 8 dias é o último dia permitido para operações
+      // Filtrar lotes: mostrar apenas os que estão até D8 (dia_atual <= 9)
+      // D8 é o ÚLTIMO DIA. Lotes com dia_atual > 9 não existem mais (viram histórico e somem da lista)
       const lotesVisiveis = lotesComNomes.filter(l => {
-        // Se o lote está FECHADO, não mostrar (vira histórico)
+        // Se o lote está FECHADO, não mostrar (vira histórico e some)
         if (l.status === 'FECHADO') {
           return false;
         }
-        // Se o lote está ABERTO, mostrar apenas se dia_atual <= 8 (até D7)
-        return l.dia_atual !== undefined && l.dia_atual <= 8;
+        // Se o lote está ABERTO, mostrar apenas se dia_atual <= 9 (até D8, que é o último dia)
+        return l.dia_atual !== undefined && l.dia_atual <= 9;
       });
 
       setLotes(lotesComNomes);
@@ -517,7 +522,7 @@ export default function LotesFIV() {
 
       if (pacoteError) throw pacoteError;
 
-      // Armazenar data da aspiração para cálculo de dias (D0)
+      // Armazenar data da aspiração para cálculo de dias (D-1)
       setDataAspiracao(pacoteData.data_aspiracao);
 
       // Load fazenda origem
@@ -929,33 +934,36 @@ export default function LotesFIV() {
     try {
       setSubmitting(true);
 
-      // Calcular dia atual para validar se ainda está no período permitido (até D7)
-      // D7 = D0 + 8 dias é o último dia para criar embriões (saída dos embriões)
-      // Se dia_atual = 8, estamos no D7. Se dia_atual > 8, já passou do D7
+      // Calcular dia atual para validar se ainda está no período permitido (até D8)
+      // Lógica ABSOLUTA: D7 = D-1 + 8 dias (transferência), D8 = D-1 + 9 dias (emergência)
+      // D8 é o ÚLTIMO DIA. Acima de D8 não existe mais lote FIV
+      // Se dia_atual = 8, estamos no D7. Se dia_atual = 9, estamos no D8. Se dia_atual > 9, passou do D8 (não existe mais)
+      // Usar funções utilitárias que trabalham apenas com strings YYYY-MM-DD para evitar problemas de timezone
       const pacote = pacotes.find(p => p.id === selectedLote.pacote_aspiracao_id);
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
+      let dataAspiracaoStr = extractDateOnly(pacote?.data_aspiracao || null);
       
-      let dataAspiracaoLote: Date;
-      if (pacote?.data_aspiracao) {
-        const dataAspiracaoStr = pacote.data_aspiracao.split('T')[0] + 'T00:00:00';
-        dataAspiracaoLote = new Date(dataAspiracaoStr);
-      } else {
-        const dataAberturaDate = new Date(selectedLote.data_abertura);
-        dataAberturaDate.setDate(dataAberturaDate.getDate() - 1);
-        dataAspiracaoLote = dataAberturaDate;
+      if (!dataAspiracaoStr) {
+        const dataAberturaStr = extractDateOnly(selectedLote.data_abertura);
+        if (dataAberturaStr) {
+          // Voltar 1 dia para obter data da aspiração
+          const [year, month, day] = dataAberturaStr.split('-').map(Number);
+          const dataAberturaDate = new Date(year, month - 1, day);
+          dataAberturaDate.setDate(dataAberturaDate.getDate() - 1);
+          const yearStr = dataAberturaDate.getFullYear();
+          const monthStr = String(dataAberturaDate.getMonth() + 1).padStart(2, '0');
+          const dayStr = String(dataAberturaDate.getDate()).padStart(2, '0');
+          dataAspiracaoStr = `${yearStr}-${monthStr}-${dayStr}`;
+        }
       }
-      dataAspiracaoLote.setHours(0, 0, 0, 0);
       
-      const diffTime = hoje.getTime() - dataAspiracaoLote.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      const diaAtual = Math.max(0, diffDays);
+      const hojeStr = getTodayDateString();
+      const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(hojeStr, dataAspiracaoStr)) : 0;
 
-      // Validar que não passou do D7 (dia_atual > 8 significa que já passou o D7)
-      if (diaAtual > 8) {
+      // Validar que não passou do D8 (dia_atual > 9 significa que passou do D8, não existe mais lote FIV)
+      if (diaAtual > 9) {
         toast({
           title: 'Prazo expirado',
-          description: 'Não é possível criar embriões após o D7. O lote será fechado automaticamente.',
+          description: 'D8 é o último dia. Não é possível criar embriões após o D8. O lote será fechado e não aparecerá mais na lista.',
           variant: 'destructive',
         });
         setSubmitting(false);
@@ -1460,85 +1468,100 @@ export default function LotesFIV() {
 
   // Se estiver visualizando um lote específico
   if (selectedLote && showLoteDetail) {
-    // Calcular dia atual baseado na data da aspiração (D0)
-    // Lógica correta: D0 = dia da aspiração, D1 = D0 + 1 dia, D7 = D0 + 8 dias (saída dos embriões)
-    // Exemplo: aspiração 05/01 (segunda) → D0=05/01, D1=06/01 (terça), D7=13/01 (terça)
-    // Contagem: 05/01(D0) → 06/01(D1) → 07/01(D2) → 08/01(D3) → 09/01(D4) → 10/01(D5) → 11/01(D6) → 12/01(D7) → 13/01(D8)
-    // Mas o usuário disse D7 = 13/01, então: D7 = D0 + 8 dias
-    // diaAtual = diferença em dias desde D0
-    // Quando diaAtual = 0, estamos no D0
-    // Quando diaAtual = 8, estamos no D7 (saída dos embriões, pois D7 = D0 + 8)
-    // Usar data local para evitar problemas de timezone
-    const hoje = new Date();
-    const hojeLocal = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    hojeLocal.setHours(0, 0, 0, 0);
+    // Calcular dia atual baseado na data da aspiração (D-1)
+    // Lógica correta: D-1 = dia da aspiração, D0 = D-1 + 1 dia (fecundação), D7 = D-1 + 8 dias (transferência)
+    // Exemplo: aspiração 05/01 (segunda) → D-1=05/01, D0=06/01 (terça, fecundação), D7=13/01 (terça, transferência)
+    // Contagem: 05/01(D-1) → 06/01(D0) → 07/01(D1) → 08/01(D2) → 09/01(D3) → 10/01(D4) → 11/01(D5) → 12/01(D6) → 13/01(D7)
+    // diaAtual = diferença em dias desde D-1 (aspiração)
+    // Quando diaAtual = 0, estamos no D-1 (aspiração)
+    // Quando diaAtual = 1, estamos no D0 (fecundação)
+    // Quando diaAtual = 8, estamos no D7 (transferência, pois D7 = D-1 + 8 dias)
+    // Usar funções utilitárias que trabalham apenas com strings YYYY-MM-DD para evitar problemas de timezone
     
     // Função auxiliar para mapear diaAtual para o dia do cultivo
-    // diaAtual já representa a diferença em dias desde D0
-    // diaAtual = 0 → D0, diaAtual = 1 → D1, ..., diaAtual = 8 → D8
+    // Lógica ABSOLUTA: D-1 = aspiração, D0 = fecundação (D-1 + 1), D7 = transferência (D-1 + 8), D8 = emergência (D-1 + 9)
+    // D8 é o ÚLTIMO DIA. Acima de D8 não existe mais lote FIV (não existe D9, D10, D11, etc.)
+    // diaAtual = diferença em dias desde D-1 (aspiração)
+    // diaAtual = 0 → D-1 (aspiração)
+    // diaAtual = 1 → D0 (fecundação)
+    // diaAtual = 2 → D1
+    // diaAtual = 8 → D7 (transferência)
+    // diaAtual = 9 → D8 (emergência, último dia)
+    // diaAtual > 9 → Passou do D8 (lote não existe mais, será fechado e sumirá)
     const getDiaCultivo = (diaAtual: number): number => {
-      return diaAtual; // O diaAtual já é o dia correto do cultivo
+      if (diaAtual === 0) {
+        return -1; // D-1 (aspiração)
+      }
+      if (diaAtual > 9) {
+        return 8; // D8 (acima de D8 não existe, mas mostrar D8 até ser fechado)
+      }
+      return diaAtual - 1; // Converte: 1→0 (D0), 2→1 (D1), ..., 8→7 (D7), 9→8 (D8)
     };
     
     // Função auxiliar para obter nome do dia
+    // Lógica ABSOLUTA: D-1 = Aspiração, D0 = Fecundação, D7 = Transferência, D8 = Emergência
+    // D8 é o ÚLTIMO DIA. Acima de D8 não existe mais lote FIV
     const getNomeDia = (dia: number): string => {
       const nomes: { [key: number]: string } = {
-        0: 'Oócito',
+        [-1]: 'Aspiração',
+        0: 'Fecundação',
         1: 'Zigoto',
         2: '2 Células',
         3: '4 Células',
         4: '8 Células',
         5: 'Mórula',
         6: 'Blastocisto',
-        7: 'Blastocisto Expandido',
-        8: 'Blastocisto Expandido',
+        7: 'Blastocisto Expandido', // D7 = Transferência
+        8: 'Blastocisto Expandido', // D8 = Emergência
       };
       return nomes[dia] || `D${dia}`;
     };
     
-    // Sempre usar a data da aspiração como referência (D0)
+    // Sempre usar a data da aspiração como referência (D-1)
     // Se não tiver dataAspiracao carregada, buscar do pacote
-    let dataAspiracaoParaCalculo = dataAspiracao;
-    if (!dataAspiracaoParaCalculo && selectedLote.pacote_data) {
-      dataAspiracaoParaCalculo = selectedLote.pacote_data;
-    }
+    let dataAspiracaoStr = extractDateOnly(dataAspiracao || selectedLote.pacote_data || null);
     
     // Se ainda não tiver, calcular baseado na data_abertura (que é aspiração + 1)
-    if (!dataAspiracaoParaCalculo) {
-      const dataAberturaDate = new Date(selectedLote.data_abertura);
-      dataAberturaDate.setDate(dataAberturaDate.getDate() - 1); // Voltar 1 dia para obter data da aspiração
-      dataAspiracaoParaCalculo = dataAberturaDate.toISOString().split('T')[0];
+    if (!dataAspiracaoStr) {
+      const dataAberturaStr = extractDateOnly(selectedLote.data_abertura);
+      if (dataAberturaStr) {
+        // Voltar 1 dia para obter data da aspiração
+        const [year, month, day] = dataAberturaStr.split('-').map(Number);
+        const dataAberturaDate = new Date(year, month - 1, day);
+        dataAberturaDate.setDate(dataAberturaDate.getDate() - 1);
+        const yearStr = dataAberturaDate.getFullYear();
+        const monthStr = String(dataAberturaDate.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(dataAberturaDate.getDate()).padStart(2, '0');
+        dataAspiracaoStr = `${yearStr}-${monthStr}-${dayStr}`;
+      }
     }
     
-    // Garantir que estamos usando apenas a data (YYYY-MM-DD) sem hora
-    const dataAspiracaoDate = new Date(dataAspiracaoParaCalculo.split('T')[0] + 'T00:00:00');
-    dataAspiracaoDate.setHours(0, 0, 0, 0);
+    if (!dataAspiracaoStr) {
+      // Se ainda não tiver data, não podemos calcular
+      return <div>Erro: Data de aspiração não encontrada</div>;
+    }
     
-    // Calcular diferença em dias: hoje - data da aspiração (D0)
-    // Lógica correta: D0 = dia da aspiração, D1 = D0 + 1 dia, D7 = D0 + 8 dias
-    // Exemplo: aspiração 05/01 (segunda) → D0=05/01, D1=06/01 (terça), D7=13/01 (terça)
-    // Contagem: 05/01(D0) → 06/01(D1) → 07/01(D2) → 08/01(D3) → 09/01(D4) → 10/01(D5) → 11/01(D6) → 12/01(D7) → 13/01(D8)
-    // Mas o usuário disse D7 = 13/01, então: D7 = D0 + 8 dias
-    // Se hoje = 05/01 e aspiração = 05/01, então diaAtual = 0 (D0)
-    // Se hoje = 06/01 e aspiração = 05/01, então diaAtual = 1 (D1)
+    // Obter data de hoje no formato YYYY-MM-DD
+    const hojeStr = getTodayDateString();
+    
+    // Calcular diferença em dias: hoje - data da aspiração (D-1)
+    // Lógica ABSOLUTA: D-1 = aspiração, D0 = fecundação (D-1 + 1), D7 = transferência (D-1 + 8), D8 = emergência (D-1 + 9)
+    // D8 é o ÚLTIMO DIA. Acima de D8 não existe mais lote FIV (não existe D9, D10, D11, etc.)
+    // Exemplo: aspiração 05/01 (segunda) → D-1=05/01, D0=06/01 (terça, fecundação), D7=13/01 (terça, transferência), D8=14/01 (quarta, emergência)
+    // Se hoje = 05/01 e aspiração = 05/01, então diaAtual = 0 (D-1)
+    // Se hoje = 06/01 e aspiração = 05/01, então diaAtual = 1 (D0)
     // Se hoje = 13/01 e aspiração = 05/01, então diaAtual = 8 (D7)
-    const diffTime = hojeLocal.getTime() - dataAspiracaoDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const diaAtual = Math.max(0, diffDays);
-    // Calcular data do D7: D0 + 8 dias (saída dos embriões)
-    // D0 = aspiração (05/01), D1 = fecundação (06/01), D7 = 13/01 (D0 + 8)
-    const dataD7 = new Date(dataAspiracaoDate);
-    dataD7.setDate(dataD7.getDate() + 8); // D7 = D0 + 8 dias
+    // Se hoje = 14/01 e aspiração = 05/01, então diaAtual = 9 (D8 - último dia)
+    // Se hoje > 14/01 e aspiração = 05/01, então diaAtual > 9 (passou do D8, lote não existe mais)
+    const diaAtual = Math.max(0, diffDays(hojeStr, dataAspiracaoStr));
+    
+    // Calcular data do D7: D-1 + 8 dias (transferência)
+    // D-1 = aspiração (05/01), D0 = fecundação (06/01), D7 = 13/01 (D-1 + 8), D8 = 14/01 (D-1 + 9)
+    const dataD7Str = addDays(dataAspiracaoStr, 8);
     
     // Formatar data do D7 e obter dia da semana
-    const dataD7Formatada = dataD7.toLocaleDateString('pt-BR', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    });
-    
-    const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-    const diaSemanaD7 = diasSemana[dataD7.getDay()];
+    const dataD7Formatada = formatDateString(dataD7Str);
+    const diaSemanaD7 = getDayOfWeekName(dataD7Str);
 
     return (
       <div className="space-y-6">
@@ -1558,9 +1581,14 @@ export default function LotesFIV() {
             <h1 className="text-3xl font-bold text-slate-900">Detalhes do Lote FIV</h1>
             <div className="text-slate-600 mt-1 flex items-center gap-2">
               <span>
-                Data de fecundação (D1): {formatDate(selectedLote.data_abertura)} | 
-                {dataAspiracao && ` Data aspiração (D0): ${formatDate(dataAspiracao)} |`}
-                {` D${getDiaCultivo(diaAtual)} - ${getNomeDia(getDiaCultivo(diaAtual))} |`}
+                Data de fecundação (D0): {formatDate(selectedLote.data_abertura)} | 
+                {dataAspiracaoStr && ` Data aspiração (D-1): ${formatDateString(dataAspiracaoStr)} |`}
+                {(() => {
+                  const diaCultivo = getDiaCultivo(diaAtual);
+                  return diaCultivo === -1 
+                    ? ` D-1 - ${getNomeDia(diaCultivo)} |`
+                    : ` D${diaCultivo} - ${getNomeDia(diaCultivo)} |`;
+                })()}
                 {' '}Status:
               </span>
               <Badge variant={selectedLote.status === 'FECHADO' ? 'default' : 'secondary'}>
@@ -1579,11 +1607,16 @@ export default function LotesFIV() {
               <div>
                 <Label>Dia Atual</Label>
                 <p className="text-2xl font-bold">
-                  D{getDiaCultivo(diaAtual)} <span className="text-lg font-normal text-slate-600">- {getNomeDia(getDiaCultivo(diaAtual))}</span>
+                  {(() => {
+                    const diaCultivo = getDiaCultivo(diaAtual);
+                    return diaCultivo === -1 
+                      ? <>D-1 <span className="text-lg font-normal text-slate-600">- {getNomeDia(diaCultivo)}</span></>
+                      : <>D{diaCultivo} <span className="text-lg font-normal text-slate-600">- {getNomeDia(diaCultivo)}</span></>;
+                  })()}
                 </p>
               </div>
               <div>
-                <Label>Data do D7</Label>
+                <Label>Data da TE</Label>
                 {diaAtual < 7 ? (
                   <div>
                     <p className="text-2xl font-bold text-orange-600">{dataD7Formatada}</p>
@@ -1596,23 +1629,9 @@ export default function LotesFIV() {
                   </div>
                 ) : diaAtual === 8 ? (
                   <div>
-                    {/* Quando estamos em D8, mostrar a data de ontem (D7) */}
-                    {(() => {
-                      const dataOntem = new Date(hojeLocal);
-                      dataOntem.setDate(dataOntem.getDate() - 1);
-                      const dataOntemFormatada = dataOntem.toLocaleDateString('pt-BR', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric' 
-                      });
-                      const diaSemanaOntem = diasSemana[dataOntem.getDay()];
-                      return (
-                        <>
-                          <p className="text-2xl font-bold text-green-600">{dataOntemFormatada}</p>
-                          <p className="text-sm text-slate-600 mt-1">{diaSemanaOntem} - Período de classificação (D7 foi ontem, hoje é D8)</p>
-                        </>
-                      );
-                    })()}
+                    {/* Quando estamos em D8, mostrar a data correta do D7 (calculada) */}
+                    <p className="text-2xl font-bold text-green-600">{dataD7Formatada}</p>
+                    <p className="text-sm text-slate-600 mt-1">{diaSemanaD7} - Período de classificação (D7 foi ontem, hoje é D8)</p>
                   </div>
                 ) : (
                   <div>
@@ -1644,7 +1663,7 @@ export default function LotesFIV() {
               </div>
             </div>
 
-            {selectedLote.status === 'ABERTO' && diaAtual === 6 && (
+            {selectedLote.status === 'ABERTO' && diaAtual === 7 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-blue-800 font-medium">
@@ -1661,11 +1680,11 @@ export default function LotesFIV() {
                 </div>
               </div>
             )}
-            {selectedLote.status === 'ABERTO' && diaAtual === 8 && (
+            {((selectedLote.status === 'ABERTO' && (diaAtual === 8 || diaAtual === 9)) || (selectedLote.status === 'FECHADO' && diaAtual === 9)) && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-orange-800 font-medium">
-                    ⚠️ Este lote está no D7 ({getNomeDia(7)}). Informe a quantidade de embriões para cada acasalamento e despache os embriões.
+                    ⚠️ Este lote está no {diaAtual === 8 ? 'D7' : 'D8'} ({getNomeDia(diaAtual === 8 ? 7 : 8)}). {diaAtual === 8 ? 'Informe a quantidade de embriões para cada acasalamento e despache os embriões.' : 'Período de emergência (D8). Você pode adicionar novos acasalamentos e despachar os embriões imediatamente.'}
                   </p>
                   <Button
                     variant="default"
@@ -1680,10 +1699,10 @@ export default function LotesFIV() {
                 </div>
               </div>
             )}
-            {selectedLote.status === 'ABERTO' && diaAtual > 8 && (
+            {selectedLote.status === 'ABERTO' && diaAtual > 9 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-red-800 font-medium">
-                  ⚠️ Este lote está no D{getDiaCultivo(diaAtual)}. O prazo para informar e despachar embriões (D7) já passou. O lote será fechado automaticamente.
+                  ⚠️ Este lote passou do D8. D8 é o último dia. Acima de D8 não existe mais lote FIV. O lote será fechado automaticamente e não aparecerá mais na lista.
                 </p>
               </div>
             )}
@@ -1736,7 +1755,7 @@ export default function LotesFIV() {
                               <TableHead>DOSE DE SÊMEN (TOURO)</TableHead>
                               <TableHead className="text-center">QTD. FRACIONADA (DOSES)</TableHead>
                               <TableHead className="text-center">ÓOCITOS USADOS</TableHead>
-                              {((selectedLote.status === 'ABERTO' && (diaAtual === 6 || diaAtual === 8)) || selectedLote.status === 'FECHADO') && (
+                              {((selectedLote.status === 'ABERTO' && (diaAtual === 7 || diaAtual === 8 || diaAtual === 9)) || selectedLote.status === 'FECHADO') && (
                                 <>
                                   <TableHead className="text-center">QTD. EMBRIÕES</TableHead>
                                   <TableHead className="text-center">TOTAL PRODUZIDOS</TableHead>
@@ -1754,10 +1773,10 @@ export default function LotesFIV() {
                                     ? `${acasalamento.quantidade_oocitos} de ${oocitosTotal}`
                                     : '-'}
                                 </TableCell>
-                                {((selectedLote.status === 'ABERTO' && (diaAtual === 6 || diaAtual === 8)) || selectedLote.status === 'FECHADO') && (
+                                {((selectedLote.status === 'ABERTO' && (diaAtual === 7 || diaAtual === 8 || diaAtual === 9)) || selectedLote.status === 'FECHADO') && (
                                   <>
                                     <TableCell className="text-center">
-                                      {selectedLote.status === 'ABERTO' && (diaAtual === 6 || diaAtual === 8) ? (
+                                      {((selectedLote.status === 'ABERTO' && (diaAtual === 7 || diaAtual === 8 || diaAtual === 9)) || (selectedLote.status === 'FECHADO' && diaAtual === 9)) ? (
                                         <div className="flex justify-center">
                                           <Input
                                             type="number"
@@ -1794,7 +1813,7 @@ export default function LotesFIV() {
             })()}
             
             
-            {selectedLote.status === 'ABERTO' && diaAtual <= 8 && aspiracoesDisponiveis.length > 0 && (
+            {((selectedLote.status === 'ABERTO' && diaAtual <= 9) || (selectedLote.status === 'FECHADO' && diaAtual === 9)) && aspiracoesDisponiveis.length > 0 && (
               <div className="mt-4 flex justify-end">
                 <Dialog
                   open={showAddAcasalamento}
@@ -2459,9 +2478,14 @@ export default function LotesFIV() {
                       {lote.dia_atual !== undefined ? (
                         <Badge 
                           variant="outline" 
-                          className={`font-semibold ${getCorDia(lote.dia_atual)}`}
+                          className={`font-semibold ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
                         >
-                          D{lote.dia_atual} - {getNomeDia(lote.dia_atual)}
+                          {(() => {
+                            const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1);
+                            return diaCultivo === -1 
+                              ? `D-1 - ${getNomeDia(diaCultivo)}`
+                              : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`;
+                          })()}
                         </Badge>
                       ) : (
                         <span className="text-slate-400">-</span>
