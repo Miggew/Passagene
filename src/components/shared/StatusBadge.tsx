@@ -14,8 +14,17 @@ const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destruc
   NAO_UTILIZADA: { variant: 'outline', className: 'bg-gray-100 text-gray-800' },
   SINCRONIZANDO: { variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
   SINCRONIZADA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
-  PRENHE: { variant: 'default', className: 'bg-green-600 hover:bg-green-700' },
-  VAZIA: { variant: 'destructive', className: '' },
+  // Estados reprodutivos
+  VAZIA: { variant: 'outline', className: 'bg-gray-100 text-gray-800 border-gray-300' },
+  EM_SINCRONIZACAO: { variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
+  SERVIDA: { variant: 'secondary', className: 'bg-blue-500 hover:bg-blue-600 text-white' },
+  PRENHE: { variant: 'default', className: 'bg-green-600 hover:bg-green-700 text-white' },
+  PRENHE_RETOQUE: { variant: 'secondary', className: 'bg-orange-500 hover:bg-orange-600 text-white' },
+  PRENHE_FEMEA: { variant: 'default', className: 'bg-pink-600 hover:bg-pink-700 text-white' },
+  PRENHE_MACHO: { variant: 'default', className: 'bg-blue-700 hover:bg-blue-800 text-white' },
+  PRENHE_SEM_SEXO: { variant: 'default', className: 'bg-purple-600 hover:bg-purple-700 text-white' },
+  PRENHE_2_SEXOS: { variant: 'default', className: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
+  // Outros
   RETOQUE: { variant: 'secondary', className: 'bg-orange-500 hover:bg-orange-600 text-white' },
   TRANSFERIDO: { variant: 'outline', className: 'bg-blue-100 text-blue-800 border-blue-300' },
   CONGELADO: { variant: 'secondary', className: 'bg-cyan-500 hover:bg-cyan-600 text-white' },
@@ -25,9 +34,22 @@ const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destruc
 export default function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = statusConfig[status] || { variant: 'outline' as const, className: '' };
 
+  // Formatar texto do status para exibição
+  const formatStatus = (s: string): string => {
+    const statusMap: Record<string, string> = {
+      'EM_SINCRONIZACAO': 'EM SINCRONIZAÇÃO',
+      'PRENHE_RETOQUE': 'PRENHE (RETOQUE)',
+      'PRENHE_FEMEA': 'PRENHE (FÊMEA)',
+      'PRENHE_MACHO': 'PRENHE (MACHO)',
+      'PRENHE_SEM_SEXO': 'PRENHE (SEM SEXO)',
+      'PRENHE_2_SEXOS': 'PRENHE (2 SEXOS)',
+    };
+    return statusMap[s] || s;
+  };
+
   return (
     <Badge variant={config.variant} className={cn(config.className, className)}>
-      {status}
+      {formatStatus(status)}
     </Badge>
   );
 }

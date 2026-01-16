@@ -10,45 +10,50 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Syringe, Activity, Baby, MapPin, UserPlus, Tag } from 'lucide-react';
+import { Calendar, Syringe, Activity, Baby, MapPin, UserPlus, Tag, CheckCircle, XCircle } from 'lucide-react';
+import StatusBadge from '@/components/shared/StatusBadge';
 
-interface HistoryEvent {
-  tipo: 'PROTOCOLO' | 'TE' | 'DG' | 'SEXAGEM' | 'MUDANCA_FAZENDA' | 'CADASTRO' | 'RENOMEACAO';
+interface HistoricoItem {
   data: string;
-  descricao: string;
+  tipo: 'CADASTRO' | 'MUDANCA_FAZENDA' | 'PROTOCOLO' | 'TE' | 'DG' | 'SEXAGEM';
+  resumo: string;
   detalhes?: string;
 }
 
-// Função auxiliar para normalizar datas (evitar problemas de timezone)
-// Sempre extrai apenas a parte da data (YYYY-MM-DD) da string, sem parsear como Date
-// Isso garante que a data exibida seja exatamente a que está no banco de dados
+interface HistoricoAdmin {
+  data: string;
+  tipo: 'CADASTRO' | 'MUDANCA_FAZENDA';
+  resumo: string;
+}
+
 const normalizarData = (dataString: string): string => {
   if (!dataString) return dataString;
   
-  // Se já é apenas uma data (YYYY-MM-DD), retornar como está
   if (/^\d{4}-\d{2}-\d{2}$/.test(dataString)) {
     return dataString;
   }
   
-  // Tentar extrair a data diretamente da string (evita problemas de timezone)
-  // Formato esperado: "2026-01-12T00:00:00.000Z" ou "2026-01-12T10:30:00.000Z" ou "2026-01-12 00:00:00"
   const match = dataString.match(/^(\d{4}-\d{2}-\d{2})/);
   if (match) {
     return match[1];
   }
   
-  // Se não conseguiu extrair, tentar parsear como Date (último recurso)
-  // Neste caso, usar UTC para manter consistência
   try {
     const date = new Date(dataString);
-    // Verificar se a data é válida
     if (isNaN(date.getTime())) {
       return dataString;
     }
     
-    // Usar UTC para extrair a data (evita problemas de timezone)
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
     const day = String(date.getUTCDate()).padStart(2, '0');
@@ -58,17 +63,37 @@ const normalizarData = (dataString: string): string => {
   }
 };
 
+const formatarData = (data: string): string => {
+  try {
+    return new Date(data + 'T12:00:00').toLocaleDateString('pt-BR');
+  } catch {
+    return data;
+  }
+};
+
 interface ReceptoraHistoricoProps {
   receptoraId: string;
   open: boolean;
   onClose: () => void;
 }
 
+interface Estatisticas {
+  totalCiclos: number;
+  totalGestacoes: number;
+  ciclosDesdeUltimaGestacao: number;
+}
+
 export default function ReceptoraHistorico({ receptoraId, open, onClose }: ReceptoraHistoricoProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [receptora, setReceptora] = useState<Receptora | null>(null);
-  const [timeline, setTimeline] = useState<HistoryEvent[]>([]);
+  const [historico, setHistorico] = useState<HistoricoItem[]>([]);
+  const [historicoAdmin, setHistoricoAdmin] = useState<HistoricoAdmin[]>([]);
+  const [estatisticas, setEstatisticas] = useState<Estatisticas>({
+    totalCiclos: 0,
+    totalGestacoes: 0,
+    ciclosDesdeUltimaGestacao: 0,
+  });
 
   useEffect(() => {
     if (open && receptoraId) {
@@ -79,8 +104,10 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
   const loadData = async () => {
     try {
       setLoading(true);
+      const items: HistoricoItem[] = [];
+      const itemsAdmin: HistoricoAdmin[] = [];
 
-      // Load receptora
+      // Carregar receptora
       const { data: receptoraData, error: receptoraError } = await supabase
         .from('receptoras')
         .select('*')
@@ -90,367 +117,471 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
       if (receptoraError) throw receptoraError;
       setReceptora(receptoraData);
 
-      // Build timeline
-      const events: HistoryEvent[] = [];
-
-      // 1. Mudanças de fazenda via receptora_fazenda_historico
-      const { data: historicoFazendas, error: historicoError } = await supabase
+      // 1. CADASTRO e MUDANÇAS DE FAZENDA - separar em histórico administrativo
+      const { data: historicoFazendas } = await supabase
         .from('receptora_fazenda_historico')
-        .select(`
-          id,
-          fazenda_id,
-          data_inicio,
-          data_fim,
-          observacoes
-        `)
+        .select('id, fazenda_id, data_inicio')
         .eq('receptora_id', receptoraId)
-        .order('data_inicio', { ascending: false });
+        .order('data_inicio', { ascending: true });
 
-      if (!historicoError && historicoFazendas && historicoFazendas.length > 0) {
-        // Ordenar por data_inicio para identificar o primeiro registro (mais antigo)
-        const historicoOrdenado = [...historicoFazendas].sort((a, b) => 
-          new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
-        );
-        const primeiroRegistro = historicoOrdenado[0];
-        const primeiroRegistroId = primeiroRegistro.id;
+      if (historicoFazendas && historicoFazendas.length > 0) {
+        const primeiroRegistro = historicoFazendas[0];
+        const { data: fazendaData } = await supabase
+          .from('fazendas')
+          .select('nome')
+          .eq('id', primeiroRegistro.fazenda_id)
+          .single();
 
-        // Buscar nomes das fazendas separadamente para evitar problemas com relacionamentos
-        const fazendaIdsHistorico = new Set<string>();
-        for (const historico of historicoFazendas) {
-          if (historico.fazenda_id) {
-            fazendaIdsHistorico.add(historico.fazenda_id);
-          }
-        }
+        itemsAdmin.push({
+          data: normalizarData(primeiroRegistro.data_inicio),
+          tipo: 'CADASTRO',
+          resumo: `Cadastro na fazenda ${fazendaData?.nome || 'desconhecida'}`,
+        });
 
-        const fazendasMapHistorico = new Map<string, string>();
-        if (fazendaIdsHistorico.size > 0) {
-          const { data: fazendasDataHistorico } = await supabase
+        // Mudanças de fazenda
+        for (let i = 1; i < historicoFazendas.length; i++) {
+          const historicoAtual = historicoFazendas[i];
+          const historicoAnterior = historicoFazendas[i - 1];
+
+          const { data: fazendasData } = await supabase
             .from('fazendas')
             .select('id, nome')
-            .in('id', Array.from(fazendaIdsHistorico));
+            .in('id', [historicoAnterior.fazenda_id, historicoAtual.fazenda_id].filter(Boolean));
 
-          if (fazendasDataHistorico) {
-            for (const fazenda of fazendasDataHistorico) {
-              fazendasMapHistorico.set(fazenda.id, fazenda.nome);
-            }
-          }
-        }
+          const fazendasMap = new Map(fazendasData?.map(f => [f.id, f.nome]) || []);
+          const origemNome = fazendasMap.get(historicoAnterior.fazenda_id) || '?';
+          const destinoNome = fazendasMap.get(historicoAtual.fazenda_id) || '?';
 
-        // Processar histórico de forma mais clara:
-        // - Ordenar do mais antigo para o mais recente para processar na ordem cronológica
-        // - Cada registro com data_fim NULL representa uma chegada/mudança
-        // - O primeiro registro (mais antigo) é o cadastro
-        // - Os demais são mudanças de fazenda
-        for (let i = 0; i < historicoOrdenado.length; i++) {
-          const historico = historicoOrdenado[i];
-          
-          // Buscar nome da fazenda do mapa
-          const fazendaNome = fazendasMapHistorico.get(historico.fazenda_id) || 'Fazenda desconhecida';
-          const isPrimeiroRegistro = i === 0;
-          
-          if (isPrimeiroRegistro) {
-            // Primeira entrada: cadastro/criação da receptora no sistema
-            events.push({
-              tipo: 'CADASTRO',
-              data: normalizarData(historico.data_inicio),
-              descricao: `Cadastro da Receptora`,
-              detalhes: `Receptora cadastrada no sistema | Fazenda: ${fazendaNome}${historico.observacoes ? ` | Observações: ${historico.observacoes}` : ''}`,
-            });
-          } else {
-            // Mudança de fazenda: chegada na nova fazenda
-            // A fazenda de origem é o registro anterior (i-1)
-            const historicoOrigem = historicoOrdenado[i - 1];
-            const fazendaOrigemNome = fazendasMapHistorico.get(historicoOrigem.fazenda_id) || 'Fazenda desconhecida';
-            
-            events.push({
-              tipo: 'MUDANCA_FAZENDA',
-              data: normalizarData(historico.data_inicio),
-              descricao: `Mudança de Fazenda`,
-              detalhes: `De: ${fazendaOrigemNome} → Para: ${fazendaNome}${historico.observacoes ? ` | Observações: ${historico.observacoes}` : ''}`,
-            });
-          }
+          itemsAdmin.push({
+            data: normalizarData(historicoAtual.data_inicio),
+            tipo: 'MUDANCA_FAZENDA',
+            resumo: `${origemNome} → ${destinoNome}`,
+          });
         }
       }
 
-      // 2. Renomeações - buscar histórico de renomeações
-      try {
-        const { data: renomeacoes, error: renomeacoesError } = await supabase
-          .from('receptora_renomeacoes_historico')
-          .select('*')
-          .eq('receptora_id', receptoraId)
-          .order('data_renomeacao', { ascending: false });
-
-        // Se a tabela não existir (erro 42P01), apenas ignorar silenciosamente
-        if (renomeacoesError && renomeacoesError.code !== '42P01') {
-          console.error('Erro ao buscar renomeações:', renomeacoesError);
-        }
-
-        if (!renomeacoesError && renomeacoes && renomeacoes.length > 0) {
-          for (const renomeacao of renomeacoes) {
-            const motivoMap: Record<string, string> = {
-              'MUDANCA_FAZENDA': 'Mudança de Fazenda',
-              'EDICAO_MANUAL': 'Edição Manual',
-            };
-            const motivoDescricao = motivoMap[renomeacao.motivo] || renomeacao.motivo || 'Renomeação';
-            
-            events.push({
-              tipo: 'RENOMEACAO',
-              data: normalizarData(renomeacao.data_renomeacao),
-              descricao: `Renomeação de Brinco`,
-              detalhes: `De: "${renomeacao.brinco_anterior}" → Para: "${renomeacao.brinco_novo}" | Motivo: ${motivoDescricao}${renomeacao.observacoes ? ` | ${renomeacao.observacoes}` : ''}`,
-            });
-          }
-        }
-      } catch (error) {
-        // Ignorar erro se a tabela não existir
-        console.warn('Tabela receptora_renomeacoes_historico não encontrada. Execute criar_tabela_historico_renomeacoes.sql');
-      }
-
-      // 3. Protocolos - buscar informações completas
-      // Primeiro, buscar os protocolos_receptoras para esta receptora
-      const { data: protocoloReceptoras, error: prError } = await supabase
+      // 2. PROTOCOLOS - agrupar 1º e 2º passo
+      const { data: protocoloReceptoras } = await supabase
         .from('protocolo_receptoras')
         .select(`
           id,
-          protocolo_id,
-          evento_fazenda_id,
           data_inclusao,
           status,
           motivo_inapta,
-          ciclando_classificacao,
-          qualidade_semaforo,
           protocolos_sincronizacao (
             id,
             data_inicio,
-            responsavel_inicio,
-            passo2_data,
-            passo2_tecnico_responsavel,
-            fazenda_id
+            passo2_data
           )
         `)
         .eq('receptora_id', receptoraId)
         .order('data_inclusao', { ascending: false });
 
-      if (prError) {
-        console.error('Erro ao buscar protocolos:', prError);
-        throw prError;
-      }
+      // Buscar DGs para calcular estatísticas
+      const { data: diagnosticosData } = await supabase
+        .from('diagnosticos_gestacao')
+        .select('*')
+        .eq('receptora_id', receptoraId)
+        .eq('tipo_diagnostico', 'DG')
+        .order('data_diagnostico', { ascending: false });
 
-      if (protocoloReceptoras && protocoloReceptoras.length > 0) {
-        // Função para extrair veterinário e técnico do responsavel_inicio
-        const parseResponsavelInicio = (responsavelInicio: string | undefined) => {
-          if (!responsavelInicio) return { veterinario: null, tecnico: null };
-          
-          const vetMatch = responsavelInicio.match(/VET:\s*(.+?)(?:\s*\||$)/i);
-          const tecMatch = responsavelInicio.match(/TEC:\s*(.+?)(?:\s*\||$)/i);
-          
-          return {
-            veterinario: vetMatch ? vetMatch[1].trim() : null,
-            tecnico: tecMatch ? tecMatch[1].trim() : null,
-          };
-        };
-
-        // Coletar todos os IDs de fazendas únicos que precisamos buscar
-        const fazendaIds = new Set<string>();
+      if (protocoloReceptoras) {
         for (const pr of protocoloReceptoras) {
-          if (pr.evento_fazenda_id) {
-            fazendaIds.add(pr.evento_fazenda_id);
-          }
-          // Também coletar fazenda_id dos protocolos se existir
-          try {
-            const protocolo = Array.isArray(pr.protocolos_sincronizacao) 
-              ? pr.protocolos_sincronizacao[0] 
-              : pr.protocolos_sincronizacao;
-            if (protocolo && protocolo.fazenda_id) {
-              fazendaIds.add(protocolo.fazenda_id);
-            }
-          } catch (e) {
-            // Ignorar erros ao acessar protocolo
-            console.warn('Erro ao acessar protocolo:', e);
-          }
-        }
+          const protocolo: any = Array.isArray(pr.protocolos_sincronizacao) 
+            ? pr.protocolos_sincronizacao[0] 
+            : pr.protocolos_sincronizacao;
 
-        // Buscar todas as fazendas de uma vez
-        const fazendasMap = new Map<string, string>();
-        if (fazendaIds.size > 0) {
-          const { data: fazendasData, error: fazendasError } = await supabase
-            .from('fazendas')
-            .select('id, nome')
-            .in('id', Array.from(fazendaIds));
+          if (!protocolo || !protocolo.data_inicio) continue;
 
-          if (fazendasError) {
-            console.error('Erro ao buscar fazendas:', fazendasError);
-          } else if (fazendasData) {
-            for (const fazenda of fazendasData) {
-              fazendasMap.set(fazenda.id, fazenda.nome);
-            }
-          }
-        }
+          const dataInicio = normalizarData(protocolo.data_inicio);
+          let resumo = `1º Passo`;
 
-        // Processar cada protocolo
-        for (const pr of protocoloReceptoras) {
-          try {
-          // Verificar se protocolo existe e está no formato correto
-          let protocolo: any = null;
-          
-          // O Supabase pode retornar como objeto ou array dependendo da relação
-          if (Array.isArray(pr.protocolos_sincronizacao)) {
-            protocolo = pr.protocolos_sincronizacao[0];
-          } else {
-            protocolo = pr.protocolos_sincronizacao;
-          }
-          
-          if (!protocolo || !protocolo.id) {
-            console.warn('Protocolo não encontrado para protocolo_receptora:', pr.id);
-            continue;
-          }
-
-          // Verificar se a receptora estava em fazenda diferente durante o protocolo
-          let fazendaInfoPasso1 = '';
-          
-          if (pr.evento_fazenda_id && protocolo.fazenda_id && pr.evento_fazenda_id !== protocolo.fazenda_id) {
-            const eventoFazendaNome = fazendasMap.get(pr.evento_fazenda_id) || 'Fazenda desconhecida';
-            fazendaInfoPasso1 = ` (Fazenda: ${eventoFazendaNome})`;
-          }
-
-          // Extrair responsáveis do primeiro passo
-          const responsaveisPasso1 = parseResponsavelInicio(protocolo.responsavel_inicio);
-          
-          // Verificar se data_inicio existe antes de formatar
-          if (!protocolo.data_inicio) {
-            console.warn('Protocolo sem data_inicio:', protocolo.id);
-            continue;
-          }
-          
-          // Normalizar data do protocolo
-          const dataInicioNormalizada = normalizarData(protocolo.data_inicio);
-          
-          // Detalhes do primeiro passo
-          // Formatar data usando apenas a parte da data (sem hora)
-          const dataInicioFormatada = new Date(dataInicioNormalizada + 'T12:00:00').toLocaleDateString('pt-BR');
-          let detalhesPasso1 = `1º Passo realizado em ${dataInicioFormatada}`;
-          if (responsaveisPasso1.veterinario) {
-            detalhesPasso1 += ` | Veterinário: ${responsaveisPasso1.veterinario}`;
-          }
-          if (responsaveisPasso1.tecnico) {
-            detalhesPasso1 += ` | Técnico: ${responsaveisPasso1.tecnico}`;
-          }
-          detalhesPasso1 += fazendaInfoPasso1;
-
-          // Adicionar evento do primeiro passo
-          events.push({
-            tipo: 'PROTOCOLO',
-            data: dataInicioNormalizada,
-            descricao: `Protocolo de Sincronização - 1º Passo`,
-            detalhes: detalhesPasso1,
-          });
-
-          // Se houver segundo passo, adicionar evento do segundo passo
           if (protocolo.passo2_data) {
-            // Normalizar data do segundo passo
-            const passo2DataNormalizada = normalizarData(protocolo.passo2_data);
-            const passo2DataFormatada = new Date(passo2DataNormalizada + 'T12:00:00').toLocaleDateString('pt-BR');
-            let detalhesPasso2 = `2º Passo realizado em ${passo2DataFormatada}`;
-            if (protocolo.passo2_tecnico_responsavel) {
-              detalhesPasso2 += ` | Responsável: ${protocolo.passo2_tecnico_responsavel}`;
-            }
-            
-            // Verificar se estava em fazenda diferente no segundo passo
-            if (pr.evento_fazenda_id && protocolo.fazenda_id && pr.evento_fazenda_id !== protocolo.fazenda_id) {
-              const eventoFazendaNome = fazendasMap.get(pr.evento_fazenda_id) || 'Fazenda desconhecida';
-              detalhesPasso2 += ` (Fazenda: ${eventoFazendaNome})`;
-            }
-
-            // Adicionar classificações
-            const classificacoes: string[] = [];
-            if (pr.ciclando_classificacao) {
-              classificacoes.push(`Classificação: ${pr.ciclando_classificacao}`);
-            }
-            if (pr.qualidade_semaforo) {
-              classificacoes.push(`Nota: ${pr.qualidade_semaforo}`);
-            }
-            if (classificacoes.length > 0) {
-              detalhesPasso2 += ` | ${classificacoes.join(' | ')}`;
-            }
-
-            // Adicionar resultado final
-            if (pr.status) {
-              if (pr.status === 'APTA') {
-                detalhesPasso2 += ` | Resultado: APTA para transferência de embriões`;
-              } else if (pr.status === 'INAPTA') {
-                detalhesPasso2 += ` | Resultado: DESCARTADA`;
-                if (pr.motivo_inapta) {
-                  detalhesPasso2 += ` (Motivo: ${pr.motivo_inapta})`;
-                }
-              } else {
-                detalhesPasso2 += ` | Status: ${pr.status}`;
+            const dataPasso2 = normalizarData(protocolo.passo2_data);
+            if (pr.status === 'APTA') {
+              resumo = `1º Passo • 2º Passo: APTA`;
+            } else if (pr.status === 'INAPTA') {
+              resumo = `1º Passo • 2º Passo: DESCARTADA`;
+              if (pr.motivo_inapta) {
+                resumo += ` (${pr.motivo_inapta})`;
               }
+            } else {
+              resumo = `1º Passo • 2º Passo`;
             }
-            
-            events.push({
+            // Usar data do 2º passo como referência
+            items.push({
+              data: dataPasso2,
               tipo: 'PROTOCOLO',
-              data: passo2DataNormalizada,
-              descricao: `Protocolo de Sincronização - 2º Passo`,
-              detalhes: detalhesPasso2,
+              resumo,
+            });
+          } else {
+            items.push({
+              data: dataInicio,
+              tipo: 'PROTOCOLO',
+              resumo,
             });
           }
-          } catch (error) {
-            console.error('Erro ao processar protocolo_receptora:', pr.id, error);
-            // Continuar processando os outros protocolos mesmo se um falhar
-            continue;
-          }
         }
       }
 
-      // 3. Tentativas TE via v_tentativas_te_status
-      const { data: tentativas } = await supabase
-        .from('v_tentativas_te_status')
-        .select('*')
+      // 3. TEs - agrupar por data e resumir (com acasalamentos)
+      const { data: tesData } = await supabase
+        .from('transferencias_embrioes')
+        .select(`
+          id,
+          embriao_id,
+          data_te,
+          status_te,
+          embrioes (
+            id,
+            identificacao,
+            classificacao,
+            lote_fiv_acasalamento_id
+          )
+        `)
         .eq('receptora_id', receptoraId)
         .order('data_te', { ascending: false });
 
-      if (tentativas && tentativas.length > 0) {
-        for (const te of tentativas) {
-          const dataTENormalizada = normalizarData(te.data_te);
-          events.push({
-            tipo: 'TE',
-            data: dataTENormalizada,
-            descricao: `Transferência de Embrião`,
-            detalhes: `Status: ${te.status_tentativa}`,
-          });
-
-          if (te.data_dg) {
-            const dataDGNormalizada = normalizarData(te.data_dg);
-            events.push({
-              tipo: 'DG',
-              data: dataDGNormalizada,
-              descricao: `Diagnóstico de Gestação`,
-              detalhes: `Resultado: ${te.resultado_dg || 'N/A'}`,
-            });
+      // Buscar acasalamentos separadamente para evitar problemas com joins aninhados
+      const acasalamentoIds = new Set<string>();
+      if (tesData) {
+        tesData.forEach(te => {
+          const embriao: any = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
+          if (embriao?.lote_fiv_acasalamento_id) {
+            acasalamentoIds.add(embriao.lote_fiv_acasalamento_id);
           }
+        });
+      }
 
-          if (te.sexagem) {
-            // Usar data_dg se disponível, senão data_te
-            const dataSexagem = te.data_dg ? normalizarData(te.data_dg) : dataTENormalizada;
-            events.push({
-              tipo: 'SEXAGEM',
-              data: dataSexagem,
-              descricao: `Sexagem`,
-              detalhes: `Sexo: ${te.sexagem}`,
+      // Buscar acasalamentos com doadoras e touros
+      const acasalamentosMap = new Map<string, { doadora: string; touro: string }>();
+      if (acasalamentoIds.size > 0) {
+        const acasalamentoIdsArray = Array.from(acasalamentoIds).filter(Boolean);
+        if (acasalamentoIdsArray.length > 0) {
+          const { data: acasalamentosData, error: acasalamentosError } = await supabase
+            .from('lote_fiv_acasalamentos')
+            .select(`
+              id,
+              aspiracao_doadora_id,
+              dose_semen_id
+            `)
+            .in('id', acasalamentoIdsArray);
+
+          if (acasalamentosError) {
+            console.error('Erro ao buscar acasalamentos:', acasalamentosError);
+          } else if (acasalamentosData) {
+            const aspiracaoIds = acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean);
+            const doseIds = acasalamentosData.map(a => a.dose_semen_id).filter(Boolean);
+
+            // Buscar aspirações e doadoras
+            const doadorasMap = new Map<string, string>();
+            if (aspiracaoIds.length > 0) {
+              const { data: aspiracoesData } = await supabase
+                .from('aspiracoes_doadoras')
+                .select('id, doadora_id')
+                .in('id', aspiracaoIds);
+
+              if (aspiracoesData) {
+                const doadoraIds = aspiracoesData.map(a => a.doadora_id).filter(Boolean);
+                if (doadoraIds.length > 0) {
+                  const { data: doadorasData } = await supabase
+                    .from('doadoras')
+                    .select('id, registro')
+                    .in('id', doadoraIds);
+
+                  if (doadorasData) {
+                    // Criar mapa doadora_id -> registro
+                    const doadorasRegistroMap = new Map(doadorasData.map(d => [d.id, d.registro]));
+                    // Mapear aspiração -> doadora
+                    aspiracoesData.forEach(a => {
+                      const registro = doadorasRegistroMap.get(a.doadora_id);
+                      if (registro) {
+                        doadorasMap.set(a.id, registro);
+                      }
+                    });
+                  }
+                }
+              }
+            }
+
+            // Buscar doses e touros
+            const tourosMap = new Map<string, string>();
+            if (doseIds.length > 0) {
+              const { data: dosesData } = await supabase
+                .from('doses_semen')
+                .select('id, nome')
+                .in('id', doseIds);
+
+              if (dosesData) {
+                dosesData.forEach(d => {
+                  tourosMap.set(d.id, d.nome);
+                });
+              }
+            }
+
+            // Mapear acasalamentos
+            acasalamentosData.forEach(ac => {
+              const doadoraRegistro = doadorasMap.get(ac.aspiracao_doadora_id) || '?';
+              const touroNome = tourosMap.get(ac.dose_semen_id) || '?';
+              acasalamentosMap.set(ac.id, { doadora: doadoraRegistro, touro: touroNome });
             });
           }
         }
       }
 
-      // Sort timeline by date (most recent first)
-      // Usar comparação direta de strings YYYY-MM-DD para evitar problemas de timezone
-      events.sort((a, b) => {
-        // Comparar strings diretamente (YYYY-MM-DD permite comparação lexicográfica)
+      // Mapa para armazenar acasalamentos por data_te (para usar nos DGs)
+      const acasalamentosPorDataTe = new Map<string, string[]>();
+
+      if (tesData) {
+        const tesPorData = new Map<string, typeof tesData>();
+
+        tesData.forEach(te => {
+          const chave = te.data_te;
+          if (!tesPorData.has(chave)) {
+            tesPorData.set(chave, []);
+          }
+          tesPorData.get(chave)!.push(te);
+        });
+
+        tesPorData.forEach((tes, dataTe) => {
+          const tesRealizadas = tes.filter(t => t.status_te === 'REALIZADA');
+          const tesDescartadas = tes.filter(t => t.status_te === 'DESCARTADA');
+
+          if (tesRealizadas.length > 0) {
+            const embrioesInfo: string[] = [];
+            const acasalamentosInfo: string[] = [];
+
+            tesRealizadas.forEach(te => {
+              const embriao: any = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
+              const identificacao = embriao?.identificacao || 'Embrião';
+              embrioesInfo.push(identificacao);
+
+              // Buscar acasalamento do mapa
+              if (embriao?.lote_fiv_acasalamento_id) {
+                const acasalamento = acasalamentosMap.get(embriao.lote_fiv_acasalamento_id);
+                if (acasalamento) {
+                  const acasalamentoStr = `${acasalamento.doadora} × ${acasalamento.touro}`;
+                  if (!acasalamentosInfo.includes(acasalamentoStr)) {
+                    acasalamentosInfo.push(acasalamentoStr);
+                  }
+                }
+              }
+            });
+
+            let resumo = `${tesRealizadas.length} embrião(ões): ${embrioesInfo.join(', ')}`;
+            if (acasalamentosInfo.length > 0) {
+              resumo += ` | ${acasalamentosInfo.join('; ')}`;
+            }
+
+            items.push({
+              data: normalizarData(dataTe),
+              tipo: 'TE',
+              resumo,
+            });
+
+            // Armazenar acasalamentos para usar nos DGs
+            acasalamentosPorDataTe.set(dataTe, acasalamentosInfo);
+          } else if (tesDescartadas.length > 0) {
+            items.push({
+              data: normalizarData(dataTe),
+              tipo: 'TE',
+              resumo: 'Descartada para TE',
+            });
+          }
+        });
+      }
+
+      // 4. DGs (já carregado acima para calcular estatísticas)
+      if (diagnosticosData) {
+        for (const dg of diagnosticosData) {
+          let resumo = dg.resultado === 'PRENHE' ? 'PRENHE' : 
+                       dg.resultado === 'RETOQUE' ? 'PRENHE (RETOQUE)' : 
+                       'VAZIA';
+
+          if (dg.numero_gestacoes && dg.numero_gestacoes > 0 && dg.resultado !== 'VAZIA') {
+            resumo += ` (${dg.numero_gestacoes} gestação${dg.numero_gestacoes > 1 ? 'ões' : ''})`;
+          }
+
+          // Adicionar acasalamento(s) do(s) embrião(ões) que resultaram na gestação
+          if ((dg.resultado === 'PRENHE' || dg.resultado === 'RETOQUE') && dg.data_te) {
+            const acasalamentos = acasalamentosPorDataTe.get(dg.data_te);
+            if (acasalamentos && acasalamentos.length > 0) {
+              resumo += ` | ${acasalamentos.join('; ')}`;
+            }
+          }
+
+          items.push({
+            data: normalizarData(dg.data_diagnostico),
+            tipo: 'DG',
+            resumo,
+          });
+        }
+      }
+
+      // 5. SEXAGENS
+      const { data: sexagensData } = await supabase
+        .from('diagnosticos_gestacao')
+        .select('*')
+        .eq('receptora_id', receptoraId)
+        .eq('tipo_diagnostico', 'SEXAGEM')
+        .order('data_diagnostico', { ascending: false });
+
+      if (sexagensData) {
+        for (const sexagem of sexagensData) {
+          let resumo = 'Sexagem: ';
+          let sexagensDetalhadas: string[] = [];
+
+          // Parsear sexagens das observações (formato: SEXAGENS:FEMEA,MACHO|...)
+          if (sexagem.observacoes) {
+            const match = sexagem.observacoes.match(/SEXAGENS:([^|]+)/);
+            if (match) {
+              const sexagensArray = match[1].split(',').map(s => s.trim()).filter(s => s);
+              sexagensDetalhadas = sexagensArray.map(s => {
+                const map: Record<string, string> = { 
+                  'FEMEA': 'Fêmea', 
+                  'MACHO': 'Macho', 
+                  'SEM_SEXO': 'Sem Sexo', 
+                  'VAZIA': 'Vazia' 
+                };
+                return map[s] || s;
+              });
+            }
+          }
+
+          // Se não encontrou nas observações, usar o campo sexagem
+          if (sexagensDetalhadas.length === 0 && sexagem.sexagem) {
+            const map: Record<string, string> = { 'FEMEA': 'Fêmea', 'MACHO': 'Macho' };
+            sexagensDetalhadas.push(map[sexagem.sexagem] || sexagem.sexagem);
+          }
+
+          // Montar resumo com os resultados
+          if (sexagensDetalhadas.length > 0) {
+            // Formatar de forma mais legível
+            if (sexagensDetalhadas.length === 1) {
+              resumo += sexagensDetalhadas[0];
+            } else if (sexagensDetalhadas.length === 2) {
+              // Se são 2 e diferentes, mostrar ambos
+              if (sexagensDetalhadas[0] === sexagensDetalhadas[1]) {
+                resumo += `2 ${sexagensDetalhadas[0]}s`;
+              } else {
+                resumo += `${sexagensDetalhadas[0]} e ${sexagensDetalhadas[1]}`;
+              }
+            } else {
+              // Múltiplas gestações
+              resumo += sexagensDetalhadas.join(', ');
+            }
+
+            // Adicionar número de gestações se disponível
+            if (sexagem.numero_gestacoes && sexagem.numero_gestacoes > 1) {
+              resumo += ` (${sexagem.numero_gestacoes} gestações)`;
+            }
+          } else {
+            // Fallback: mostrar resultado básico
+            if (sexagem.resultado === 'PRENHE') {
+              resumo += 'PRENHE';
+            } else if (sexagem.resultado === 'VAZIA') {
+              resumo += 'VAZIA';
+            } else {
+              resumo += 'Resultado não disponível';
+            }
+          }
+
+          items.push({
+            data: normalizarData(sexagem.data_diagnostico),
+            tipo: 'SEXAGEM',
+            resumo,
+          });
+        }
+      }
+
+      // Calcular estatísticas
+      const stats: Estatisticas = {
+        totalCiclos: 0,
+        totalGestacoes: 0,
+        ciclosDesdeUltimaGestacao: 0,
+      };
+
+      // Contar ciclos (protocolos iniciados = cada protocolo_receptora é um ciclo)
+      if (protocoloReceptoras) {
+        stats.totalCiclos = protocoloReceptoras.length;
+
+        // Encontrar a data da última gestação (último DG com PRENHE ou RETOQUE)
+        let dataUltimaGestacao: string | null = null;
+        if (diagnosticosData && diagnosticosData.length > 0) {
+          // Ordenar por data (mais recente primeiro) e encontrar a última gestação
+          const dgsOrdenados = [...diagnosticosData].sort((a, b) => {
+            const dataA = normalizarData(a.data_diagnostico);
+            const dataB = normalizarData(b.data_diagnostico);
+            return dataB.localeCompare(dataA);
+          });
+
+          const ultimaGestacao = dgsOrdenados.find(dg => 
+            dg.resultado === 'PRENHE' || dg.resultado === 'RETOQUE'
+          );
+
+          if (ultimaGestacao) {
+            dataUltimaGestacao = normalizarData(ultimaGestacao.data_diagnostico);
+          }
+        }
+
+        // Contar ciclos desde a última gestação
+        if (dataUltimaGestacao) {
+          // Contar protocolos que ocorreram após a última gestação
+          for (const pr of protocoloReceptoras) {
+            const protocolo: any = Array.isArray(pr.protocolos_sincronizacao) 
+              ? pr.protocolos_sincronizacao[0] 
+              : pr.protocolos_sincronizacao;
+
+            if (!protocolo) continue;
+
+            // Data de referência: passo2_data se existir, senão data_inicio
+            const dataReferencia = protocolo.passo2_data || protocolo.data_inicio;
+            if (!dataReferencia) continue;
+
+            const dataRefNormalizada = normalizarData(dataReferencia);
+            
+            // Se o protocolo ocorreu após a última gestação, conta como ciclo desde última gestação
+            if (dataRefNormalizada > dataUltimaGestacao) {
+              stats.ciclosDesdeUltimaGestacao++;
+            }
+          }
+        } else {
+          // Se nunca teve gestação, todos os ciclos são desde a última gestação (que não existe)
+          stats.ciclosDesdeUltimaGestacao = stats.totalCiclos;
+        }
+      }
+
+      // Contar gestações (DGs únicos com PRENHE ou RETOQUE)
+      // Agrupar por data_te para contar gestações únicas (mesma TE = mesma gestação)
+      if (diagnosticosData) {
+        const gestacoesUnicas = new Set<string>();
+        diagnosticosData.forEach(dg => {
+          if (dg.resultado === 'PRENHE' || dg.resultado === 'RETOQUE') {
+            // Usar data_te como chave para agrupar gestações da mesma TE
+            const chave = dg.data_te || dg.data_diagnostico;
+            gestacoesUnicas.add(chave);
+          }
+        });
+        stats.totalGestacoes = gestacoesUnicas.size;
+      }
+
+      // Ordenar por data (mais recente primeiro)
+      items.sort((a, b) => {
         if (b.data > a.data) return 1;
         if (b.data < a.data) return -1;
         return 0;
       });
-      setTimeline(events);
+
+      // Ordenar histórico administrativo (mais recente primeiro)
+      itemsAdmin.sort((a, b) => {
+        if (b.data > a.data) return 1;
+        if (b.data < a.data) return -1;
+        return 0;
+      });
+
+      setHistorico(items);
+      setHistoricoAdmin(itemsAdmin);
+      setEstatisticas(stats);
     } catch (error) {
       toast({
         title: 'Erro ao carregar histórico',
@@ -462,35 +593,33 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
     }
   };
 
-  const getEventIcon = (tipo: string) => {
+  const getTipoIcon = (tipo: string) => {
     const icons = {
-      'PROTOCOLO': <Calendar className="w-5 h-5 text-blue-600" />,
-      'TE': <Syringe className="w-5 h-5 text-green-600" />,
-      'DG': <Activity className="w-5 h-5 text-purple-600" />,
-      'SEXAGEM': <Baby className="w-5 h-5 text-pink-600" />,
-      'MUDANCA_FAZENDA': <MapPin className="w-5 h-5 text-orange-600" />,
-      'CADASTRO': <UserPlus className="w-5 h-5 text-indigo-600" />,
-      'RENOMEACAO': <Tag className="w-5 h-5 text-amber-600" />,
+      'CADASTRO': <UserPlus className="w-4 h-4 text-indigo-600" />,
+      'MUDANCA_FAZENDA': <MapPin className="w-4 h-4 text-orange-600" />,
+      'PROTOCOLO': <Calendar className="w-4 h-4 text-blue-600" />,
+      'TE': <Syringe className="w-4 h-4 text-green-600" />,
+      'DG': <Activity className="w-4 h-4 text-purple-600" />,
+      'SEXAGEM': <Baby className="w-4 h-4 text-pink-600" />,
     };
-    return icons[tipo as keyof typeof icons];
+    return icons[tipo as keyof typeof icons] || <Calendar className="w-4 h-4" />;
   };
 
-  const getEventBadge = (tipo: string) => {
+  const getTipoBadge = (tipo: string) => {
     const badges = {
-      'PROTOCOLO': <Badge variant="default" className="bg-blue-600">Protocolo</Badge>,
-      'TE': <Badge variant="default" className="bg-green-600">TE</Badge>,
-      'DG': <Badge variant="default" className="bg-purple-600">DG</Badge>,
-      'SEXAGEM': <Badge variant="default" className="bg-pink-600">Sexagem</Badge>,
-      'MUDANCA_FAZENDA': <Badge variant="default" className="bg-orange-600">Mudança de Fazenda</Badge>,
-      'CADASTRO': <Badge variant="default" className="bg-indigo-600">Cadastro</Badge>,
-      'RENOMEACAO': <Badge variant="default" className="bg-amber-600">Renomeação</Badge>,
+      'CADASTRO': <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">Cadastro</Badge>,
+      'MUDANCA_FAZENDA': <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Fazenda</Badge>,
+      'PROTOCOLO': <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Protocolo</Badge>,
+      'TE': <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">TE</Badge>,
+      'DG': <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">DG</Badge>,
+      'SEXAGEM': <Badge variant="outline" className="bg-pink-50 text-pink-700 border-pink-200">Sexagem</Badge>,
     };
-    return badges[tipo as keyof typeof badges] || <Badge>{tipo}</Badge>;
+    return badges[tipo as keyof typeof badges] || <Badge variant="outline">{tipo}</Badge>;
   };
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Histórico da Receptora</SheetTitle>
           <SheetDescription>
@@ -503,20 +632,71 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
             <LoadingSpinner />
           </div>
         ) : (
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-4">
             {receptora && (
+              <>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-slate-500">Brinco</p>
+                        <p className="font-medium">{receptora.identificacao}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Nome</p>
+                        <p className="font-medium">{receptora.nome || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Status Atual</p>
+                        <StatusBadge status={receptora.status_reprodutivo || 'VAZIA'} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Estatísticas Reprodutivas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-2xl font-bold text-blue-700">{estatisticas.totalCiclos}</p>
+                        <p className="text-sm text-slate-600 mt-1">Ciclos Realizados</p>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                        <p className="text-2xl font-bold text-green-700">{estatisticas.totalGestacoes}</p>
+                        <p className="text-sm text-slate-600 mt-1">Gestações</p>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <p className="text-2xl font-bold text-orange-700">{estatisticas.ciclosDesdeUltimaGestacao}</p>
+                        <p className="text-sm text-slate-600 mt-1">Ciclos desde Última Gestação</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {historicoAdmin.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Dados da Receptora</CardTitle>
+                  <CardTitle className="text-base">Histórico Administrativo</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Brinco</p>
-                    <p className="text-base text-slate-900">{receptora.identificacao}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Nome</p>
-                    <p className="text-base text-slate-900">{receptora.nome || '-'}</p>
+                <CardContent>
+                  <div className="space-y-3">
+                    {historicoAdmin.map((item, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-2 min-w-[100px]">
+                          {getTipoIcon(item.tipo)}
+                          {getTipoBadge(item.tipo)}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-900">{item.resumo}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{formatarData(item.data)}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -524,41 +704,41 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Linha do Tempo ({timeline.length} eventos)</CardTitle>
+                <CardTitle className="text-base">Linha do Tempo Reprodutiva ({historico.length} eventos)</CardTitle>
               </CardHeader>
               <CardContent>
-                {timeline.length === 0 ? (
+                {historico.length === 0 ? (
                   <div className="text-center py-8 text-slate-500">
-                    Nenhum evento registrado para esta receptora
+                    Nenhum evento registrado
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {timeline.map((event, index) => (
-                      <div key={index} className="flex gap-4 pb-4 border-b last:border-b-0">
-                        <div className="flex-shrink-0 mt-1">
-                          {getEventIcon(event.tipo)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between mb-1">
-                            <div>
-                              <p className="font-medium text-slate-900">{event.descricao}</p>
-                              <p className="text-sm text-slate-600">
-                                {new Date(event.data + 'T12:00:00').toLocaleDateString('pt-BR', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                })}
-                              </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px]">Data</TableHead>
+                        <TableHead className="w-[120px]">Tipo</TableHead>
+                        <TableHead>Resumo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historico.map((item, index) => (
+                        <TableRow key={index} className="hover:bg-slate-50">
+                          <TableCell className="font-medium text-sm">
+                            {formatarData(item.data)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getTipoIcon(item.tipo)}
+                              {getTipoBadge(item.tipo)}
                             </div>
-                            {getEventBadge(event.tipo)}
-                          </div>
-                          {event.detalhes && (
-                            <p className="text-sm text-slate-600 mt-2">{event.detalhes}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{item.resumo}</span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>

@@ -404,9 +404,14 @@ export default function ProtocoloDetail() {
           'SINCRONIZADA': 'Já está sincronizada aguardando TE.',
           'SERVIDA': 'Já recebeu embrião e aguarda diagnóstico/sexagem.',
           'PRENHE': 'Está prenhe.',
-          'PRENHE (FÊMEA)': 'Está prenhe.',
-          'PRENHE (MACHO)': 'Está prenhe.',
-          'PRENHE (SEM SEXO)': 'Está prenhe.',
+          'PRENHE_RETOQUE': 'Está prenhe, mas precisa de retoque/confirmação.',
+          'PRENHE (RETOQUE)': 'Está prenhe, mas precisa de retoque/confirmação.',
+          'PRENHE_FEMEA': 'Está prenhe de fêmea.',
+          'PRENHE (FÊMEA)': 'Está prenhe de fêmea.',
+          'PRENHE_MACHO': 'Está prenhe de macho.',
+          'PRENHE (MACHO)': 'Está prenhe de macho.',
+          'PRENHE_SEM_SEXO': 'Está prenhe, sem sexo definido.',
+          'PRENHE (SEM SEXO)': 'Está prenhe, sem sexo definido.',
         };
         
         toast({
@@ -623,8 +628,14 @@ export default function ProtocoloDetail() {
               'SINCRONIZADA': 'Já está sincronizada aguardando TE.',
               'SERVIDA': 'Já recebeu embrião e aguarda diagnóstico/sexagem.',
               'PRENHE': 'Está prenhe.',
-              'PRENHE (FÊMEA)': 'Está prenhe.',
-              'PRENHE (MACHO)': 'Está prenhe.',
+              'PRENHE_RETOQUE': 'Está prenhe, mas precisa de retoque/confirmação.',
+              'PRENHE (RETOQUE)': 'Está prenhe, mas precisa de retoque/confirmação.',
+              'PRENHE_FEMEA': 'Está prenhe de fêmea.',
+              'PRENHE (FÊMEA)': 'Está prenhe de fêmea.',
+              'PRENHE_MACHO': 'Está prenhe de macho.',
+              'PRENHE (MACHO)': 'Está prenhe de macho.',
+              'PRENHE_SEM_SEXO': 'Está prenhe, sem sexo definido.',
+              'PRENHE (SEM SEXO)': 'Está prenhe, sem sexo definido.',
             };
             
             const motivo = motivoMap[status] || `Status: ${status}`;

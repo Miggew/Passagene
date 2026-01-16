@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { calcularStatusReceptora } from '@/lib/receptoraStatus';
+import { calcularStatusReceptora, atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
 import type { Fazenda, Receptora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -169,6 +169,7 @@ export default function ProtocoloFormWizard() {
           const rId = r.id ? String(r.id).trim() : '';
           if (!rId) return null;
           const status = await calcularStatusReceptora(rId);
+          // Aceitar apenas receptoras VAZIA (não mais "VAZIA" do legado)
           return status === 'VAZIA' ? r : null;
         });
 
@@ -224,7 +225,7 @@ export default function ProtocoloFormWizard() {
     setCurrentStep('receptoras');
   };
 
-  const handleAddReceptora = () => {
+  const handleAddReceptora = async () => {
     const receptoraIdNormalized = addReceptoraForm.receptora_id?.trim() || '';
     
     if (!receptoraIdNormalized) {
@@ -246,6 +247,19 @@ export default function ProtocoloFormWizard() {
       toast({
         title: 'Erro',
         description: 'Receptora não encontrada ou inválida',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar que a receptora está VAZIA antes de adicionar ao protocolo
+    const statusAtual = await calcularStatusReceptora(receptoraIdNormalized);
+    const validacao = validarTransicaoStatus(statusAtual, 'ENTRAR_PASSO1');
+    
+    if (!validacao.valido) {
+      toast({
+        title: 'Erro de validação',
+        description: validacao.mensagem || 'A receptora não pode entrar no protocolo no estado atual',
         variant: 'destructive',
       });
       return;
@@ -517,6 +531,26 @@ export default function ProtocoloFormWizard() {
         // Aguardar todos os updates (mas não falhar se algum der erro)
         await Promise.allSettled(updatePromises);
       }
+
+      // Atualizar status das receptoras para EM_SINCRONIZACAO após finalizar passo 1
+      const statusUpdatePromises = receptorasIds.map(async (receptoraId) => {
+        // Validar transição antes de atualizar
+        const statusAtual = await calcularStatusReceptora(receptoraId);
+        const validacao = validarTransicaoStatus(statusAtual, 'FINALIZAR_PASSO1');
+        
+        if (!validacao.valido) {
+          console.warn(`Não foi possível atualizar status da receptora ${receptoraId}: ${validacao.mensagem}`);
+          return;
+        }
+
+        const { error: statusError } = await atualizarStatusReceptora(receptoraId, 'EM_SINCRONIZACAO');
+        if (statusError) {
+          console.error(`Erro ao atualizar status da receptora ${receptoraId}:`, statusError);
+        }
+      });
+
+      // Aguardar todos os updates de status (mas não falhar se algum der erro)
+      await Promise.allSettled(statusUpdatePromises);
 
       toast({
         title: 'Protocolo criado com sucesso',

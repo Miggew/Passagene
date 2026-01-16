@@ -658,12 +658,18 @@ export default function Receptoras() {
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', className?: string }> = {
       'VAZIA': { variant: 'outline' },
+      'EM_SINCRONIZACAO': { variant: 'secondary' },
       'EM SINCRONIZAÇÃO': { variant: 'secondary' },
       'SINCRONIZADA': { variant: 'default' },
       'SERVIDA': { variant: 'default', className: 'bg-blue-600' },
       'PRENHE': { variant: 'default', className: 'bg-green-600' },
+      'PRENHE_RETOQUE': { variant: 'secondary', className: 'bg-orange-500' },
+      'PRENHE (RETOQUE)': { variant: 'secondary', className: 'bg-orange-500' },
+      'PRENHE_FEMEA': { variant: 'default', className: 'bg-pink-600' },
       'PRENHE (FÊMEA)': { variant: 'default', className: 'bg-pink-600' },
+      'PRENHE_MACHO': { variant: 'default', className: 'bg-blue-700' },
       'PRENHE (MACHO)': { variant: 'default', className: 'bg-blue-700' },
+      'PRENHE_SEM_SEXO': { variant: 'default', className: 'bg-purple-600' },
       'PRENHE (SEM SEXO)': { variant: 'default', className: 'bg-purple-600' },
     };
 

@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
+import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
 import { ArrowLeft, CheckCircle, XCircle, Lock } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
@@ -432,6 +433,40 @@ export default function ProtocoloPasso2() {
         data_retirada: dataRetirada,
         responsavel_retirada: protocolo?.responsavel_inicio || null,
       });
+
+      // Atualizar status das receptoras baseado no resultado do passo 2
+      // Receptoras APTA → SINCRONIZADA
+      // Receptoras INAPTA → VAZIA (descartadas)
+      const receptorasConfirmadas = receptoras.filter(r => r.pr_status === 'APTA');
+      const receptorasDescartadas = receptoras.filter(r => r.pr_status === 'INAPTA');
+
+      const statusUpdatePromises = [
+        // Atualizar receptoras confirmadas para SINCRONIZADA
+        ...receptorasConfirmadas.map(async (r) => {
+          const statusAtual = await calcularStatusReceptora(r.id);
+          const validacao = validarTransicaoStatus(statusAtual, 'FINALIZAR_PASSO2');
+          
+          if (!validacao.valido) {
+            console.warn(`Não foi possível atualizar status da receptora ${r.identificacao}: ${validacao.mensagem}`);
+            return;
+          }
+
+          const { error: statusError } = await atualizarStatusReceptora(r.id, 'SINCRONIZADA');
+          if (statusError) {
+            console.error(`Erro ao atualizar status da receptora ${r.identificacao}:`, statusError);
+          }
+        }),
+        // Atualizar receptoras descartadas para VAZIA
+        ...receptorasDescartadas.map(async (r) => {
+          const { error: statusError } = await atualizarStatusReceptora(r.id, 'VAZIA');
+          if (statusError) {
+            console.error(`Erro ao atualizar status da receptora ${r.identificacao}:`, statusError);
+          }
+        }),
+      ];
+
+      // Aguardar todos os updates de status (mas não falhar se algum der erro)
+      await Promise.allSettled(statusUpdatePromises);
 
       // Resetar mudanças pendentes
       setHasPendingChanges(false);

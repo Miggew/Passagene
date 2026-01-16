@@ -2,13 +2,51 @@ import { supabase } from './supabase';
 import type { VTentativaTeStatus, VProtocoloReceptoraStatus } from './types';
 
 /**
- * Calculate the real-world status of a receptora using views
- * Priority order:
- * 1. Check v_tentativas_te_status (most recent TE attempt)
- * 2. Check protocolo_receptoras for active protocols (not PASSO2_FECHADO)
- * 3. Default to VAZIA
+ * Tipos de status possíveis para receptoras
+ */
+export type StatusReceptora = 
+  | 'VAZIA'
+  | 'EM_SINCRONIZACAO'
+  | 'SINCRONIZADA'
+  | 'SERVIDA'
+  | 'PRENHE'
+  | 'PRENHE_RETOQUE'
+  | 'PRENHE_FEMEA'
+  | 'PRENHE_MACHO'
+  | 'PRENHE_SEM_SEXO'
+  | 'PRENHE_2_SEXOS';
+
+/**
+ * Calcula o status real de uma receptora baseado no status_reprodutivo armazenado
+ * Se o status não estiver definido, calcula usando a lógica legada das views
  */
 export async function calcularStatusReceptora(receptoraId: string): Promise<string> {
+  try {
+    // Primeiro, tentar buscar o status_reprodutivo diretamente da tabela
+    const { data: receptoraData, error: receptoraError } = await supabase
+      .from('receptoras')
+      .select('status_reprodutivo')
+      .eq('id', receptoraId)
+      .single();
+
+    if (!receptoraError && receptoraData?.status_reprodutivo) {
+      // Se há status definido, usar ele (mas pode ser null ou vazio)
+      return receptoraData.status_reprodutivo;
+    }
+
+    // Se não há status definido, usar lógica legada para calcular
+    // (mantido para compatibilidade com dados antigos)
+    return await calcularStatusReceptoraLegado(receptoraId);
+  } catch (error) {
+    console.error('Error calculating receptora status:', error);
+    return 'VAZIA';
+  }
+}
+
+/**
+ * Lógica legada para calcular status (usado quando status_reprodutivo não está definido)
+ */
+async function calcularStatusReceptoraLegado(receptoraId: string): Promise<string> {
   try {
     // 1) Check v_tentativas_te_status for most recent TE status
     const { data: tentativas, error: tentativasError } = await supabase
@@ -25,9 +63,10 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
     if (tentativas && tentativas.length > 0) {
       const tentativa = tentativas[0] as VTentativaTeStatus;
       const statusMap: Record<string, string> = {
-        'PRENHE_FEMEA': 'PRENHE (FÊMEA)',
-        'PRENHE_MACHO': 'PRENHE (MACHO)',
-        'PRENHE_SEM_SEXO': 'PRENHE (SEM SEXO)',
+        'PRENHE_FEMEA': 'PRENHE_FEMEA',
+        'PRENHE_MACHO': 'PRENHE_MACHO',
+        'PRENHE_SEM_SEXO': 'PRENHE_SEM_SEXO',
+        'PRENHE_2_SEXOS': 'PRENHE_2_SEXOS',
         'PRENHE': 'PRENHE',
         'VAZIA': 'VAZIA',
         'RETOQUE': 'SERVIDA',
@@ -40,7 +79,6 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
     }
 
     // 2) Check protocolo_receptoras for ACTIVE protocols (not PASSO2_FECHADO)
-    // Receptoras APTA/INICIADA em protocolos ativos não devem ser elegíveis
     const { data: protocoloReceptoras, error: protocoloError } = await supabase
       .from('protocolo_receptoras')
       .select('status, protocolo_id')
@@ -51,7 +89,6 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
     }
 
     if (protocoloReceptoras && protocoloReceptoras.length > 0) {
-      // Buscar status dos protocolos relacionados
       const protocoloIds = protocoloReceptoras.map(pr => pr.protocolo_id);
       const { data: protocolos, error: protocolosError } = await supabase
         .from('protocolos_sincronizacao')
@@ -62,7 +99,6 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
         console.error('Error fetching protocolos_sincronizacao:', protocolosError);
       }
 
-      // Criar mapa de status dos protocolos
       interface ProtocoloStatus {
         id: string;
         status: string;
@@ -71,17 +107,14 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
         (protocolos || []).map((p: ProtocoloStatus) => [p.id, p.status])
       );
 
-      // Verificar se há protocolo ATIVO (não fechado) com receptora APTA ou INICIADA
       const protocolosAtivos = protocoloReceptoras.filter((pr) => {
         const protocoloStatus = protocoloStatusMap.get(pr.protocolo_id);
         const receptoraStatus = pr.status;
         
-        // Protocolo fechado não bloqueia elegibilidade (pode entrar em novo protocolo)
         if (protocoloStatus === 'PASSO2_FECHADO') {
           return false;
         }
         
-        // Receptoras APTA ou INICIADA em protocolos ativos bloqueiam elegibilidade
         if ((receptoraStatus === 'APTA' || receptoraStatus === 'INICIADA') && 
             protocoloStatus !== 'PASSO2_FECHADO') {
           return true;
@@ -91,25 +124,19 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
       });
 
       if (protocolosAtivos.length > 0) {
-        // Receptoras APTA em protocolos ativos estão em sincronização
         const temApta = protocolosAtivos.some((pr) => pr.status === 'APTA');
         if (temApta) {
-          return 'SINCRONIZADA'; // Receptora aprovada aguardando TE
+          return 'SINCRONIZADA';
         }
-        return 'EM SINCRONIZAÇÃO'; // Receptora em protocolo ativo
+        return 'EM_SINCRONIZACAO';
       }
 
-      // Verificar se há protocolo fechado com receptora APTA (já foi aprovada mas protocolo fechou)
-      // Receptoras APTA em protocolos fechados não devem entrar em novo protocolo até terem TE
       const protocolosFechadosComApta = protocoloReceptoras.filter((pr) => {
         const protocoloStatus = protocoloStatusMap.get(pr.protocolo_id);
         return protocoloStatus === 'PASSO2_FECHADO' && pr.status === 'APTA';
       });
 
       if (protocolosFechadosComApta.length > 0) {
-        // Receptora foi aprovada em protocolo fechado - verificar se teve TE
-        // Se não teve TE ainda, ainda está "aguardando" mesmo com protocolo fechado
-        // Por segurança, vamos retornar SINCRONIZADA para não permitir novo protocolo
         return 'SINCRONIZADA';
       }
     }
@@ -117,18 +144,58 @@ export async function calcularStatusReceptora(receptoraId: string): Promise<stri
     // 3) Default - receptora disponível
     return 'VAZIA';
   } catch (error) {
-    console.error('Error calculating receptora status:', error);
+    console.error('Error calculating receptora status (legacy):', error);
     return 'VAZIA';
   }
 }
 
 /**
  * Calculate status for multiple receptoras in batch (optimized)
- * Uses batch queries instead of calling calcularStatusReceptora multiple times
+ * Primeiro tenta buscar status_reprodutivo da tabela, depois usa lógica legada
  */
 export async function calcularStatusReceptoras(receptoraIds: string[]): Promise<Map<string, string>> {
   if (receptoraIds.length === 0) return new Map();
 
+  const statusMap = new Map<string, string>();
+
+  try {
+    // 1. Buscar status_reprodutivo diretamente da tabela receptoras
+    const { data: receptorasData, error: receptorasError } = await supabase
+      .from('receptoras')
+      .select('id, status_reprodutivo')
+      .in('id', receptoraIds);
+
+    if (!receptorasError && receptorasData) {
+      receptorasData.forEach(r => {
+        if (r.status_reprodutivo) {
+          statusMap.set(r.id, r.status_reprodutivo);
+        }
+      });
+    }
+
+    // 2. Para receptoras sem status definido, usar lógica legada
+    const receptorasSemStatus = receptoraIds.filter(id => !statusMap.has(id));
+    
+    if (receptorasSemStatus.length > 0) {
+      const statusLegado = await calcularStatusReceptorasLegado(receptorasSemStatus);
+      statusLegado.forEach((status, id) => {
+        statusMap.set(id, status);
+      });
+    }
+
+  } catch (error) {
+    console.error('Error calculating receptoras status:', error);
+    // Em caso de erro, definir todos como VAZIA
+    receptoraIds.forEach(id => statusMap.set(id, 'VAZIA'));
+  }
+
+  return statusMap;
+}
+
+/**
+ * Lógica legada para calcular status em batch
+ */
+async function calcularStatusReceptorasLegado(receptoraIds: string[]): Promise<Map<string, string>> {
   const statusMap = new Map<string, string>();
 
   try {
@@ -185,9 +252,11 @@ export async function calcularStatusReceptoras(receptoraIds: string[]): Promise<
     });
 
     const statusMapLocal: Record<string, string> = {
-      'PRENHE_FEMEA': 'PRENHE (FÊMEA)',
-      'PRENHE_MACHO': 'PRENHE (MACHO)',
-      'PRENHE_SEM_SEXO': 'PRENHE (SEM SEXO)',
+      'PRENHE_FEMEA': 'PRENHE_FEMEA',
+      'PRENHE_MACHO': 'PRENHE_MACHO',
+      'PRENHE_SEM_SEXO': 'PRENHE_SEM_SEXO',
+      'PRENHE_2_SEXOS': 'PRENHE_2_SEXOS',
+      'PRENHE_RETOQUE': 'PRENHE_RETOQUE',
       'PRENHE': 'PRENHE',
       'VAZIA': 'VAZIA',
       'RETOQUE': 'SERVIDA',
@@ -222,7 +291,7 @@ export async function calcularStatusReceptoras(receptoraIds: string[]): Promise<
       if (protocolosAtivos.length > 0) {
         statusMap.set(id, protocolosAtivos.some(pr => pr.status === 'APTA') 
           ? 'SINCRONIZADA' 
-          : 'EM SINCRONIZAÇÃO');
+          : 'EM_SINCRONIZACAO');
         return;
       }
 
@@ -241,10 +310,103 @@ export async function calcularStatusReceptoras(receptoraIds: string[]): Promise<
     });
 
   } catch (error) {
-    console.error('Error calculating receptoras status:', error);
-    // Em caso de erro, definir todos como VAZIA
+    console.error('Error calculating receptoras status (legacy):', error);
     receptoraIds.forEach(id => statusMap.set(id, 'VAZIA'));
   }
 
   return statusMap;
+}
+
+/**
+ * Atualiza o status_reprodutivo de uma receptora
+ */
+export async function atualizarStatusReceptora(
+  receptoraId: string, 
+  novoStatus: StatusReceptora
+): Promise<{ error: Error | null }> {
+  try {
+    const { error } = await supabase
+      .from('receptoras')
+      .update({ status_reprodutivo: novoStatus })
+      .eq('id', receptoraId);
+
+    if (error) {
+      console.error('Error updating receptora status:', error);
+      return { error };
+    }
+
+    return { error: null };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error('Erro desconhecido');
+    console.error('Error updating receptora status:', err);
+    return { error: err };
+  }
+}
+
+/**
+ * Valida se uma receptora pode fazer uma transição de estado
+ */
+export function validarTransicaoStatus(
+  statusAtual: string,
+  acao: 'ENTRAR_PASSO1' | 'FINALIZAR_PASSO1' | 'FINALIZAR_PASSO2' | 'REALIZAR_TE' | 'REALIZAR_DG' | 'REALIZAR_SEXAGEM'
+): { valido: boolean; mensagem?: string } {
+  switch (acao) {
+    case 'ENTRAR_PASSO1':
+      if (statusAtual !== 'VAZIA') {
+        return { 
+          valido: false, 
+          mensagem: `A receptora precisa estar VAZIA para entrar no primeiro passo de um protocolo. Status atual: ${statusAtual}` 
+        };
+      }
+      return { valido: true };
+
+    case 'FINALIZAR_PASSO1':
+      // Pode finalizar passo 1 se estiver vazia (vai para EM_SINCRONIZACAO)
+      if (statusAtual !== 'VAZIA') {
+        return { 
+          valido: false, 
+          mensagem: `A receptora precisa estar VAZIA para finalizar o primeiro passo. Status atual: ${statusAtual}` 
+        };
+      }
+      return { valido: true };
+
+    case 'FINALIZAR_PASSO2':
+      if (statusAtual !== 'EM_SINCRONIZACAO') {
+        return { 
+          valido: false, 
+          mensagem: `A receptora precisa estar EM_SINCRONIZACAO para finalizar o segundo passo. Status atual: ${statusAtual}` 
+        };
+      }
+      return { valido: true };
+
+    case 'REALIZAR_TE':
+      if (statusAtual !== 'SINCRONIZADA') {
+        return { 
+          valido: false, 
+          mensagem: `A receptora precisa estar SINCRONIZADA para realizar transferência de embriões. Status atual: ${statusAtual}` 
+        };
+      }
+      return { valido: true };
+
+    case 'REALIZAR_DG':
+      if (statusAtual !== 'SERVIDA') {
+        return { 
+          valido: false, 
+          mensagem: `A receptora precisa estar SERVIDA para realizar diagnóstico de gestação. Status atual: ${statusAtual}` 
+        };
+      }
+      return { valido: true };
+
+    case 'REALIZAR_SEXAGEM':
+      if (statusAtual !== 'PRENHE' && statusAtual !== 'PRENHE_RETOQUE') {
+        return { 
+          valido: false, 
+          mensagem: `A receptora precisa estar PRENHE ou PRENHE_RETOQUE para realizar sexagem. Status atual: ${statusAtual}` 
+        };
+      }
+      return { valido: true };
+
+    default:
+      return { valido: false, mensagem: 'Ação desconhecida' };
+  }
 }

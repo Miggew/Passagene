@@ -228,6 +228,8 @@ export interface DiagnosticoGestacao {
   sexagem?: string;
   numero_gestacoes?: number;
   observacoes?: string;
+  veterinario_responsavel?: string; // Veterinário responsável pelo DG (diferente do da TE)
+  tecnico_responsavel?: string; // Técnico responsável pelo DG (diferente do da TE)
   created_at?: string;
 }
 

@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
+import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
 import { ArrowRightLeft, Package, AlertTriangle, FileText, X, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -824,6 +825,14 @@ export default function TransferenciaEmbrioes() {
 
       if (prError) throw prError;
 
+      // Atualizar status da receptora para VAZIA quando descartada na TE
+      if (formData.receptora_id) {
+        const { error: statusError } = await atualizarStatusReceptora(formData.receptora_id, 'VAZIA');
+        if (statusError) {
+          console.error('Erro ao atualizar status da receptora descartada:', statusError);
+        }
+      }
+
       toast({
         title: 'Receptora descartada',
         description: `${brincoReceptora} foi descartada e não receberá embrião neste protocolo.`,
@@ -888,6 +897,21 @@ export default function TransferenciaEmbrioes() {
       return;
     }
 
+    // Validar que a receptora está SINCRONIZADA antes de realizar a TE
+    if (formData.receptora_id) {
+      const statusAtual = await calcularStatusReceptora(formData.receptora_id);
+      const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_TE');
+      
+      if (!validacao.valido) {
+        toast({
+          title: 'Erro de validação',
+          description: validacao.mensagem || 'A receptora não pode receber embrião no estado atual',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
 
@@ -950,6 +974,21 @@ export default function TransferenciaEmbrioes() {
         .eq('id', formData.embriao_id);
 
       if (embriaoError) throw embriaoError;
+
+      // Validar e atualizar status da receptora para SERVIDA
+      const statusAtual = await calcularStatusReceptora(formData.receptora_id);
+      const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_TE');
+      
+      if (!validacao.valido) {
+        console.warn(`Não foi possível atualizar status da receptora: ${validacao.mensagem}`);
+        // Não falhar a operação, apenas logar o aviso
+      } else {
+        const { error: statusError } = await atualizarStatusReceptora(formData.receptora_id, 'SERVIDA');
+        if (statusError) {
+          console.error('Erro ao atualizar status da receptora:', statusError);
+          // Não falhar a operação, apenas logar o erro
+        }
+      }
 
       // NÃO marcar como UTILIZADA imediatamente - será feito ao encerrar a sessão
       // Apenas adicionar à lista de transferências da sessão
