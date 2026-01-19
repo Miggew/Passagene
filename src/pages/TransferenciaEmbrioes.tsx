@@ -505,6 +505,30 @@ export default function TransferenciaEmbrioes() {
         return;
       }
 
+      // IMPORTANTE: Filtrar receptoras descartadas (INAPTA) mesmo que a view as mostre como SINCRONIZADA
+      // Isso corrige inconsistências onde status_reprodutivo não foi atualizado corretamente
+      // Buscar status de protocolo_receptoras usando receptora_id + protocolo_id da view
+      const protocolosIdsParaFiltro = Array.from(new Set(statusData.map(r => r.protocolo_id).filter(Boolean)));
+      const receptoraIdsDaView = Array.from(new Set(statusData.map(r => r.receptora_id).filter(Boolean)));
+      
+      let receptorasDescartadasIds = new Set<string>();
+      if (protocolosIdsParaFiltro.length > 0 && receptoraIdsDaView.length > 0) {
+        const { data: prData } = await supabase
+          .from('protocolo_receptoras')
+          .select('receptora_id, status, protocolo_id')
+          .in('protocolo_id', protocolosIdsParaFiltro)
+          .in('receptora_id', receptoraIdsDaView);
+        
+        if (prData) {
+          prData
+            .filter(pr => pr.status === 'INAPTA')
+            .forEach(pr => receptorasDescartadasIds.add(pr.receptora_id));
+        }
+      }
+
+      // Remover receptoras descartadas da lista
+      const statusDataFiltrado = statusData.filter(r => !receptorasDescartadasIds.has(r.receptora_id));
+
       // Buscar transferências da SESSÃO ATUAL (não todas as históricas)
       // Contar apenas transferências que ainda não foram finalizadas (protocolo_receptora ainda não está UTILIZADA)
       // Ou seja, contar apenas transferências que estão na sessão atual (transferenciasIdsSessao)
@@ -528,17 +552,18 @@ export default function TransferenciaEmbrioes() {
       // Filtrar receptoras baseado no switch e na contagem da SESSÃO ATUAL
       // Receptoras que já receberam embriões em sessões anteriores (e foram finalizadas) não aparecem aqui
       // porque o status delas foi mudado para UTILIZADA e não aparecem mais como SINCRONIZADA
-      let receptorasFiltradas = statusData;
+      // IMPORTANTE: Usar statusDataFiltrado (sem receptoras descartadas) ao invés de statusData
+      let receptorasFiltradas = statusDataFiltrado;
       if (!permitirDuplas) {
         // Modo normal: excluir receptoras que já receberam embrião na SESSÃO ATUAL (quantidade >= 1)
-        receptorasFiltradas = statusData.filter(r => {
+        receptorasFiltradas = statusDataFiltrado.filter(r => {
           const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
           const passaFiltro = quantidade === 0;
           return passaFiltro;
         });
       } else {
         // Modo duplas: excluir apenas receptoras que já receberam 2 embriões na SESSÃO ATUAL (máximo permitido)
-        receptorasFiltradas = statusData.filter(r => {
+        receptorasFiltradas = statusDataFiltrado.filter(r => {
           const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
           const passaFiltro = quantidade < 2;
           return passaFiltro;
@@ -693,6 +718,29 @@ export default function TransferenciaEmbrioes() {
         return;
       }
 
+      // IMPORTANTE: Filtrar receptoras descartadas (INAPTA) mesmo que a view as mostre como SINCRONIZADA
+      // Isso corrige inconsistências onde status_reprodutivo não foi atualizado corretamente
+      const protocolosIds = Array.from(new Set(statusData.map(r => r.protocolo_id).filter(Boolean)));
+      const receptoraIdsDaView = Array.from(new Set(statusData.map(r => r.receptora_id).filter(Boolean)));
+      
+      let receptorasDescartadasIds = new Set<string>();
+      if (protocolosIds.length > 0 && receptoraIdsDaView.length > 0) {
+        const { data: prData } = await supabase
+          .from('protocolo_receptoras')
+          .select('receptora_id, status, protocolo_id')
+          .in('protocolo_id', protocolosIds)
+          .in('receptora_id', receptoraIdsDaView);
+        
+        if (prData) {
+          prData
+            .filter(pr => pr.status === 'INAPTA')
+            .forEach(pr => receptorasDescartadasIds.add(pr.receptora_id));
+        }
+      }
+
+      // Remover receptoras descartadas da lista
+      const statusDataFiltrado = statusData.filter(r => !receptorasDescartadasIds.has(r.receptora_id));
+
       // Buscar transferências já realizadas para contar quantos embriões cada receptora já recebeu
       const { data: transferenciasData } = await supabase
         .from('transferencias_embrioes')
@@ -709,17 +757,18 @@ export default function TransferenciaEmbrioes() {
 
 
       // Filtrar receptoras baseado no switch e na contagem
-      let receptorasFiltradas = statusData;
+      // IMPORTANTE: Usar statusDataFiltrado (sem receptoras descartadas) ao invés de statusData
+      let receptorasFiltradas = statusDataFiltrado;
       if (!permitirDuplas) {
         // Modo normal: excluir receptoras que já receberam embrião (quantidade >= 1)
-        receptorasFiltradas = statusData.filter(r => {
+        receptorasFiltradas = statusDataFiltrado.filter(r => {
           const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
           const passaFiltro = quantidade === 0;
           return passaFiltro;
         });
       } else {
         // Modo duplas: excluir apenas receptoras que já receberam 2 embriões (máximo permitido)
-        receptorasFiltradas = statusData.filter(r => {
+        receptorasFiltradas = statusDataFiltrado.filter(r => {
           const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
           const passaFiltro = quantidade < 2;
           return passaFiltro;
@@ -826,10 +875,19 @@ export default function TransferenciaEmbrioes() {
       if (prError) throw prError;
 
       // Atualizar status da receptora para VAZIA quando descartada na TE
+      // Atualizar diretamente sem validações para garantir que sempre atualiza
       if (formData.receptora_id) {
-        const { error: statusError } = await atualizarStatusReceptora(formData.receptora_id, 'VAZIA');
+        const { error: statusError } = await supabase
+          .from('receptoras')
+          .update({ status_reprodutivo: 'VAZIA' })
+          .eq('id', formData.receptora_id);
+        
         if (statusError) {
           console.error('Erro ao atualizar status da receptora descartada:', statusError);
+          // Não falhar se houver erro, mas logar para debug
+          // O importante é que o status em protocolo_receptoras foi atualizado
+        } else {
+          console.log(`Status da receptora ${formData.receptora_id} atualizado para VAZIA`);
         }
       }
 

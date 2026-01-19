@@ -294,12 +294,38 @@ export default function Sexagem() {
 
       const prenhesIds = receptorasData?.map(r => r.id) || [];
 
-      const { data: teData } = await supabase
-        .from('transferencias_embrioes')
-        .select('id, receptora_id, embriao_id, data_te')
-        .in('receptora_id', prenhesIds)
-        .eq('data_te', lote.data_te)
-        .eq('status_te', 'REALIZADA');
+      if (prenhesIds.length === 0) {
+        setReceptoras([]);
+        return;
+      }
+
+      // Executar queries independentes em paralelo
+      const [teResult, diagnosticosResult, sexagensResult] = await Promise.all([
+        supabase
+          .from('transferencias_embrioes')
+          .select('id, receptora_id, embriao_id, data_te')
+          .in('receptora_id', prenhesIds)
+          .eq('data_te', lote.data_te)
+          .eq('status_te', 'REALIZADA'),
+        supabase
+          .from('diagnosticos_gestacao')
+          .select('*')
+          .in('receptora_id', prenhesIds)
+          .eq('tipo_diagnostico', 'DG')
+          .eq('data_te', lote.data_te)
+          .order('data_diagnostico', { ascending: false }),
+        supabase
+          .from('diagnosticos_gestacao')
+          .select('*')
+          .in('receptora_id', prenhesIds)
+          .eq('tipo_diagnostico', 'SEXAGEM')
+          .eq('data_te', lote.data_te)
+          .order('data_diagnostico', { ascending: false }),
+      ]);
+
+      const teData = teResult.data;
+      const diagnosticosData = diagnosticosResult.data;
+      const sexagensData = sexagensResult.data;
 
       if (!teData || teData.length === 0) {
         setReceptoras([]);
@@ -321,104 +347,101 @@ export default function Sexagem() {
       }
 
       const loteIds = [...new Set(Array.from(embrioesMap.values()).map((e: any) => e.lote_fiv_id).filter(Boolean))];
-      let lotesMap = new Map();
-
-      if (loteIds.length > 0) {
-        const { data: lotesData } = await supabase
-          .from('lotes_fiv')
-          .select('id, data_abertura')
-          .in('id', loteIds);
-
-        if (lotesData) {
-          lotesMap = new Map(lotesData.map(l => [l.id, l]));
-        }
-      }
-
       const acasalamentoIds = [...new Set(
         Array.from(embrioesMap.values())
           .map((e: any) => e.lote_fiv_acasalamento_id)
           .filter(Boolean)
       )];
 
+      // Executar queries de lotes e acasalamentos em paralelo
+      const [lotesResult, acasalamentosResult] = await Promise.all([
+        loteIds.length > 0 
+          ? supabase
+              .from('lotes_fiv')
+              .select('id, data_abertura')
+              .in('id', loteIds)
+          : Promise.resolve({ data: null }),
+        acasalamentoIds.length > 0
+          ? supabase
+              .from('lote_fiv_acasalamentos')
+              .select('id, aspiracao_doadora_id, dose_semen_id')
+              .in('id', acasalamentoIds)
+          : Promise.resolve({ data: null }),
+      ]);
+
+      const lotesData = lotesResult.data || [];
+      const acasalamentosData = acasalamentosResult.data || [];
+
+      const lotesMap = new Map(lotesData.map((l: any) => [l.id, l]));
+
       let doadorasMap = new Map<string, string>();
       let tourosMap = new Map<string, string>();
 
-      if (acasalamentoIds.length > 0) {
-        const { data: acasalamentosData } = await supabase
-          .from('lote_fiv_acasalamentos')
-          .select('id, aspiracao_doadora_id, dose_semen_id')
-          .in('id', acasalamentoIds);
+      if (acasalamentosData.length > 0) {
+        const aspiracaoIds = [...new Set(acasalamentosData.map((a: any) => a.aspiracao_doadora_id).filter(Boolean))];
+        const doseIds = [...new Set(acasalamentosData.map((a: any) => a.dose_semen_id).filter(Boolean))];
 
-        if (acasalamentosData) {
-          const aspiracaoIds = [...new Set(acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean))];
-          const doseIds = [...new Set(acasalamentosData.map(a => a.dose_semen_id).filter(Boolean))];
+        // Executar queries de aspirações e doses em paralelo
+        const [aspiracoesResult, dosesResult] = await Promise.all([
+          aspiracaoIds.length > 0
+            ? supabase
+                .from('aspiracoes_doadoras')
+                .select('id, doadora_id')
+                .in('id', aspiracaoIds)
+            : Promise.resolve({ data: null }),
+          doseIds.length > 0
+            ? supabase
+                .from('doses_semen')
+                .select('id, nome')
+                .in('id', doseIds)
+            : Promise.resolve({ data: null }),
+        ]);
 
-          if (aspiracaoIds.length > 0) {
-            const { data: aspiracoesData } = await supabase
-              .from('aspiracoes_doadoras')
-              .select('id, doadora_id')
-              .in('id', aspiracaoIds);
+        const aspiracoesData = aspiracoesResult.data || [];
+        const dosesData = dosesResult.data || [];
 
-            if (aspiracoesData) {
-              const doadoraIds = [...new Set(aspiracoesData.map(a => a.doadora_id))];
-              if (doadoraIds.length > 0) {
-                const { data: doadorasData } = await supabase
-                  .from('doadoras')
-                  .select('id, registro')
-                  .in('id', doadoraIds);
+        if (aspiracoesData.length > 0) {
+          const doadoraIds = [...new Set(aspiracoesData.map((a: any) => a.doadora_id))];
+          if (doadoraIds.length > 0) {
+            const { data: doadorasData } = await supabase
+              .from('doadoras')
+              .select('id, registro')
+              .in('id', doadoraIds);
 
-                if (doadorasData) {
-                  const doadoraMap = new Map(doadorasData.map(d => [d.id, d.registro]));
-                  const aspiracaoDoadoraMap = new Map(aspiracoesData.map(a => [a.id, a.doadora_id]));
+            if (doadorasData) {
+              const doadoraMap = new Map(doadorasData.map(d => [d.id, d.registro]));
+              const aspiracaoDoadoraMap = new Map(aspiracoesData.map((a: any) => [a.id, a.doadora_id]));
 
-                  acasalamentosData.forEach(ac => {
-                    if (ac.aspiracao_doadora_id) {
-                      const doadoraId = aspiracaoDoadoraMap.get(ac.aspiracao_doadora_id);
-                      if (doadoraId) {
-                        const registro = doadoraMap.get(doadoraId);
-                        if (registro) {
-                          doadorasMap.set(ac.id, registro);
-                        }
-                      }
+              acasalamentosData.forEach((ac: any) => {
+                if (ac.aspiracao_doadora_id) {
+                  const doadoraId = aspiracaoDoadoraMap.get(ac.aspiracao_doadora_id);
+                  if (doadoraId) {
+                    const registro = doadoraMap.get(doadoraId);
+                    if (registro) {
+                      doadorasMap.set(ac.id, registro);
                     }
-                  });
-                }
-              }
-            }
-          }
-
-          if (doseIds.length > 0) {
-            const { data: dosesData } = await supabase
-              .from('doses_semen')
-              .select('id, nome')
-              .in('id', doseIds);
-
-            if (dosesData) {
-              dosesData.forEach(d => {
-                tourosMap.set(d.id, d.nome);
-              });
-
-              acasalamentosData.forEach(ac => {
-                if (ac.dose_semen_id) {
-                  const touroNome = tourosMap.get(ac.dose_semen_id);
-                  if (touroNome) {
-                    tourosMap.set(ac.id, touroNome);
                   }
                 }
               });
             }
           }
         }
-      }
 
-      // Buscar diagnósticos de gestação para obter número de gestações
-      const { data: diagnosticosData } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('*')
-        .in('receptora_id', prenhesIds)
-        .eq('tipo_diagnostico', 'DG')
-        .eq('data_te', lote.data_te)
-        .order('data_diagnostico', { ascending: false });
+        if (dosesData.length > 0) {
+          dosesData.forEach((d: any) => {
+            tourosMap.set(d.id, d.nome);
+          });
+
+          acasalamentosData.forEach((ac: any) => {
+            if (ac.dose_semen_id) {
+              const touroNome = tourosMap.get(ac.dose_semen_id);
+              if (touroNome) {
+                tourosMap.set(ac.id, touroNome);
+              }
+            }
+          });
+        }
+      }
 
       const diagnosticosPorReceptora = new Map<string, typeof diagnosticosData[0]>();
       diagnosticosData?.forEach(dg => {
@@ -426,15 +449,6 @@ export default function Sexagem() {
           diagnosticosPorReceptora.set(dg.receptora_id, dg);
         }
       });
-
-      // Buscar sexagens existentes
-      const { data: sexagensData } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('*')
-        .in('receptora_id', prenhesIds)
-        .eq('tipo_diagnostico', 'SEXAGEM')
-        .eq('data_te', lote.data_te)
-        .order('data_diagnostico', { ascending: false });
 
       const sexagensPorReceptora = new Map<string, typeof sexagensData[0]>();
       sexagensData?.forEach(s => {
@@ -1151,24 +1165,35 @@ export default function Sexagem() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              {Array.from({ length: receptora.numero_gestacoes }, (_, index) => (
-                                <Select
-                                  key={index}
-                                  value={dados.sexagens[index] || ''}
-                                  onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
-                                  disabled={loteSelecionado.status === 'FECHADO'}
-                                >
-                                  <SelectTrigger className="w-28">
-                                    <SelectValue placeholder={`G${index + 1}`} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="FEMEA">Fêmea</SelectItem>
-                                    <SelectItem value="MACHO">Macho</SelectItem>
-                                    <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
-                                    <SelectItem value="VAZIA">Vazia</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              ))}
+                              {Array.from({ length: receptora.numero_gestacoes }, (_, index) => {
+                                const valorAtual = dados.sexagens[index] || '';
+                                const temValor = valorAtual !== '';
+                                // Só mostrar número se houver mais de uma gestação
+                                const placeholder = temValor 
+                                  ? undefined 
+                                  : receptora.numero_gestacoes > 1 
+                                    ? `Gest. ${index + 1}` 
+                                    : 'Selecione';
+                                
+                                return (
+                                  <Select
+                                    key={index}
+                                    value={valorAtual}
+                                    onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
+                                    disabled={loteSelecionado.status === 'FECHADO'}
+                                  >
+                                    <SelectTrigger className="w-28">
+                                      <SelectValue placeholder={placeholder} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="FEMEA">Fêmea</SelectItem>
+                                      <SelectItem value="MACHO">Macho</SelectItem>
+                                      <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
+                                      <SelectItem value="VAZIA">Vazia</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                );
+                              })}
                             </div>
                           </TableCell>
                           <TableCell>

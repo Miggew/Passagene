@@ -19,28 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { Plus, Eye, PlayCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Plus, Eye, PlayCircle, Search, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 
 interface ProtocoloWithFazenda extends ProtocoloSincronizacao {
-  fazenda_nome: string;
-  receptoras_count: number;
-}
-
-interface ProtocoloFechadoComFazenda extends ProtocoloSincronizacao {
   fazenda_nome: string;
   receptoras_count: number;
 }
@@ -49,24 +36,16 @@ export default function Protocolos() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [protocolosPasso2, setProtocolosPasso2] = useState<ProtocoloWithFazenda[]>([]);
-  const [protocolosHistorico, setProtocolosHistorico] = useState<ProtocoloFechadoComFazenda[]>([]);
+  const [protocolos, setProtocolos] = useState<ProtocoloWithFazenda[]>([]);
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [fazendaFilterPasso2, setFazendaFilterPasso2] = useState('');
-  const [fazendaFilterHistorico, setFazendaFilterHistorico] = useState('');
+  const [fazendaFilter, setFazendaFilter] = useState('');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
-  const [loadingHistorico, setLoadingHistorico] = useState(false);
-  const [historicoPage, setHistoricoPage] = useState(1);
-  const [historicoTotalCount, setHistoricoTotalCount] = useState(0);
-  const HISTORICO_PAGE_SIZE = 50;
-  const [showPasso2Dialog, setShowPasso2Dialog] = useState(false);
-  const [selectedProtocoloId, setSelectedProtocoloId] = useState<string | null>(null);
-  const [passo2Form, setPasso2Form] = useState({
-    data: new Date().toISOString().split('T')[0],
-    tecnico: '',
-  });
-  const [submittingPasso2, setSubmittingPasso2] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState<string>('all'); // 'all', 'aguardando_2_passo', 'sincronizado', 'fechado'
+  const [loadingProtocolos, setLoadingProtocolos] = useState(false);
+  const [protocolosPage, setProtocolosPage] = useState(1);
+  const [protocolosTotalCount, setProtocolosTotalCount] = useState(0);
+  const PROTOCOLOS_PAGE_SIZE = 50;
 
   useEffect(() => {
     loadData();
@@ -75,10 +54,8 @@ export default function Protocolos() {
   const loadData = async () => {
     try {
       setLoading(true);
-      await Promise.all([
-        loadFazendas(),
-        loadProtocolosPasso2(),
-      ]);
+      await loadFazendas();
+      await loadProtocolos();
     } catch (error) {
       toast({
         title: 'Erro ao carregar dados',
@@ -87,97 +64,6 @@ export default function Protocolos() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadProtocolosHistorico = async (pageOverride?: number) => {
-    // Validar filtros obrigatórios
-    if (!fazendaFilterHistorico || fazendaFilterHistorico === 'all' || !filtroDataInicio || !filtroDataFim) {
-      toast({
-        title: 'Filtros obrigatórios',
-        description: 'Fazenda, data inicial e data final são obrigatórios para buscar no histórico',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setLoadingHistorico(true);
-
-      // Usar page override se fornecido (para quando mudar página), senão usar estado atual
-      const currentPage = pageOverride !== undefined ? pageOverride : historicoPage;
-      
-      // Query otimizada: buscar protocolos com paginação e filtro por fazenda + data
-      // Buscar um pouco mais para compensar filtros de zumbis (sem receptoras)
-      const from = (currentPage - 1) * HISTORICO_PAGE_SIZE;
-      const to = from + (HISTORICO_PAGE_SIZE * 2) - 1; // Buscar mais para compensar filtros
-
-      let query = supabase
-        .from('protocolos_sincronizacao')
-        .select('*', { count: 'exact' })
-        .eq('fazenda_id', fazendaFilterHistorico)
-        .gte('data_inicio', filtroDataInicio)
-        .lte('data_inicio', filtroDataFim)
-        .order('data_inicio', { ascending: false })
-        .range(from, to);
-
-      const { data: protocolos, error, count } = await query;
-
-      if (error) throw error;
-
-      // Buscar fazenda nome uma vez
-      const { data: fazendaData } = await supabase
-        .from('fazendas')
-        .select('nome')
-        .eq('id', fazendaFilterHistorico)
-        .single();
-
-      const fazendaNome = fazendaData?.nome || 'N/A';
-
-      // Processar protocolos: contar receptoras e filtrar zumbis
-      const protocolosComContagem = await Promise.all(
-        (protocolos || []).map(async (protocolo) => {
-          // Verificar se protocolo tem receptoras (filtrar zumbis)
-          const { count: receptorasCount, error: countError } = await supabase
-            .from('protocolo_receptoras')
-            .select('*', { count: 'exact', head: true })
-            .eq('protocolo_id', protocolo.id);
-
-          if (countError) {
-            console.error('Erro ao contar receptoras:', countError);
-            return null;
-          }
-
-          // Se não tem receptoras, pular (é zumbi)
-          if (!receptorasCount || receptorasCount === 0) {
-            return null;
-          }
-
-          return {
-            ...protocolo,
-            fazenda_nome: fazendaNome,
-            receptoras_count: receptorasCount,
-          };
-        })
-      );
-
-      // Filtrar nulos (protocolos sem receptoras) e limitar ao tamanho da página
-      const protocolosValidos = protocolosComContagem
-        .filter((p): p is ProtocoloFechadoComFazenda => p !== null)
-        .slice(0, HISTORICO_PAGE_SIZE);
-
-      setProtocolosHistorico(protocolosValidos);
-      setHistoricoTotalCount(count || 0);
-    } catch (error) {
-      console.error('Erro ao carregar histórico:', error);
-      toast({
-        title: 'Erro ao carregar histórico',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-      setProtocolosHistorico([]);
-    } finally {
-      setLoadingHistorico(false);
     }
   };
 
@@ -191,51 +77,132 @@ export default function Protocolos() {
     setFazendas(data || []);
   };
 
-
-  const loadProtocolosPasso2 = async () => {
+  const loadProtocolos = async (
+    pageOverride?: number,
+    filters?: {
+      fazenda?: string;
+      dataInicio?: string;
+      dataFim?: string;
+      status?: string;
+    }
+  ) => {
     try {
-      // Load protocols with status PASSO1_FECHADO or PRIMEIRO_PASSO_FECHADO (waiting for 2nd step)
-      const { data: protocolos, error: protocolosError } = await supabase
+      setLoadingProtocolos(true);
+
+      // Usar filtros passados como parâmetro ou os do estado
+      const fazenda = filters?.fazenda !== undefined ? filters.fazenda : fazendaFilter;
+      const dataInicio = filters?.dataInicio !== undefined ? filters.dataInicio : filtroDataInicio;
+      const dataFim = filters?.dataFim !== undefined ? filters.dataFim : filtroDataFim;
+      const status = filters?.status !== undefined ? filters.status : filtroStatus;
+
+      // Usar page override se fornecido, senão usar estado atual
+      const currentPage = pageOverride !== undefined ? pageOverride : protocolosPage;
+      
+      // Query base
+      const from = (currentPage - 1) * PROTOCOLOS_PAGE_SIZE;
+      const to = from + (PROTOCOLOS_PAGE_SIZE * 2) - 1; // Buscar mais para compensar filtros de zumbis
+
+      let query = supabase
         .from('protocolos_sincronizacao')
-        .select('*')
-        .in('status', ['PASSO1_FECHADO', 'PRIMEIRO_PASSO_FECHADO'])
-        .order('data_inicio', { ascending: false });
+        .select('*', { count: 'exact' });
 
-      if (protocolosError) throw protocolosError;
-
-      const protocolosWithDetails: ProtocoloWithFazenda[] = [];
-
-      for (const protocolo of protocolos || []) {
-        // Get fazenda name
-        const { data: fazendaData } = await supabase
-          .from('fazendas')
-          .select('nome')
-          .eq('id', protocolo.fazenda_id)
-          .single();
-
-        // Count receptoras with status INICIADA (EM SINCRONIZAÇÃO)
-        const { count } = await supabase
-          .from('protocolo_receptoras')
-          .select('*', { count: 'exact', head: true })
-          .eq('protocolo_id', protocolo.id)
-          .eq('status', 'INICIADA');
-
-        protocolosWithDetails.push({
-          ...protocolo,
-          fazenda_nome: fazendaData?.nome || 'N/A',
-          receptoras_count: count || 0,
-        });
+      // Aplicar filtros
+      if (fazenda && fazenda !== 'all') {
+        query = query.eq('fazenda_id', fazenda);
       }
 
-      setProtocolosPasso2(protocolosWithDetails);
+      if (dataInicio) {
+        query = query.gte('data_inicio', dataInicio);
+      }
+
+      if (dataFim) {
+        query = query.lte('data_inicio', dataFim);
+      }
+
+      // Filtro de status
+      if (status === 'aguardando_2_passo') {
+        query = query.in('status', ['PASSO1_FECHADO', 'PRIMEIRO_PASSO_FECHADO']);
+      } else if (status === 'sincronizado') {
+        query = query.in('status', ['SINCRONIZADO', 'PASSO2_FECHADO']); // PASSO2_FECHADO é status antigo, será migrado
+      } else if (status === 'fechado') {
+        query = query.in('status', ['FECHADO', 'EM_TE']); // EM_TE é status antigo, será migrado
+      }
+      // 'all' não aplica filtro de status
+      // Nota: Status 'ABERTO' e 'PASSO1_ABERTO' foram removidos - protocolos são criados já com PASSO1_FECHADO
+
+      query = query.order('data_inicio', { ascending: false }).range(from, to);
+
+      const { data: protocolosData, error, count } = await query;
+
+      if (error) throw error;
+
+      // Otimização: Buscar todos os dados de uma vez ao invés de queries individuais
+      const protocolosIds = (protocolosData || []).map(p => p.id);
+      const fazendaIds = [...new Set((protocolosData || []).map(p => p.fazenda_id))];
+
+      // Buscar contagens de receptoras para todos os protocolos de uma vez
+      const { data: receptorasCounts, error: countError } = await supabase
+        .from('protocolo_receptoras')
+        .select('protocolo_id')
+        .in('protocolo_id', protocolosIds);
+
+      if (countError) {
+        console.error('Erro ao contar receptoras:', countError);
+      }
+
+      // Agrupar contagens por protocolo_id
+      const contagemPorProtocolo = (receptorasCounts || []).reduce((acc, pr) => {
+        acc[pr.protocolo_id] = (acc[pr.protocolo_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Buscar nomes de todas as fazendas de uma vez
+      const { data: fazendasData } = await supabase
+        .from('fazendas')
+        .select('id, nome')
+        .in('id', fazendaIds);
+
+      // Criar mapa de fazenda_id -> nome
+      const fazendasMap = (fazendasData || []).reduce((acc, fazenda) => {
+        acc[fazenda.id] = fazenda.nome;
+        return acc;
+      }, {} as Record<string, string>);
+
+      // Processar protocolos: filtrar zumbis e adicionar dados
+      const protocolosComContagem = (protocolosData || [])
+        .map((protocolo) => {
+          const receptorasCount = contagemPorProtocolo[protocolo.id] || 0;
+
+          // Se não tem receptoras, pular (é zumbi)
+          if (receptorasCount === 0) {
+            return null;
+          }
+
+          return {
+            ...protocolo,
+            fazenda_nome: fazendasMap[protocolo.fazenda_id] || 'N/A',
+            receptoras_count: receptorasCount,
+          };
+        })
+        .filter((p): p is ProtocoloWithFazenda => p !== null);
+
+      // Limitar ao tamanho da página (já filtrado anteriormente)
+      const protocolosValidos = protocolosComContagem.slice(0, PROTOCOLOS_PAGE_SIZE);
+
+      setProtocolos(protocolosValidos);
+      setProtocolosTotalCount(count || 0);
     } catch (error) {
-      console.error('Error loading protocolos passo 2:', error);
+      console.error('Erro ao carregar protocolos:', error);
+      toast({
+        title: 'Erro ao carregar protocolos',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+      setProtocolos([]);
+    } finally {
+      setLoadingProtocolos(false);
     }
   };
-
-  const filteredProtocolosPasso2 = fazendaFilterPasso2 && fazendaFilterPasso2 !== 'all'
-    ? protocolosPasso2.filter((p) => p.fazenda_id === fazendaFilterPasso2)
-    : protocolosPasso2;
 
   if (loading) {
     return <LoadingSpinner />;
@@ -257,24 +224,43 @@ export default function Protocolos() {
         </Button>
       </div>
 
-      <Tabs defaultValue="aguardando" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="aguardando">
-            Aguardando 2º Passo - {protocolosPasso2.length}
-          </TabsTrigger>
-          <TabsTrigger value="historico">
-            Histórico
-          </TabsTrigger>
-        </TabsList>
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Filtro Rápido de Status */}
+            <div className="space-y-2">
+              <Label>Filtro Rápido</Label>
+              <Select 
+                value={filtroStatus} 
+                onValueChange={setFiltroStatus}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os protocolos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os protocolos</SelectItem>
+                  <SelectItem value="aguardando_2_passo">Aguardando 2º Passo</SelectItem>
+                  <SelectItem value="sincronizado">Sincronizados</SelectItem>
+                  <SelectItem value="fechado">Fechados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <TabsContent value="aguardando" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Filtrar por Fazenda</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select value={fazendaFilterPasso2 || 'all'} onValueChange={(value) => setFazendaFilterPasso2(value === 'all' ? '' : value)}>
-                <SelectTrigger className="w-full md:w-[300px]">
+            {/* Filtro de Fazenda */}
+            <div className="space-y-2">
+              <Label>Fazenda</Label>
+              <Select 
+                value={fazendaFilter || 'all'} 
+                onValueChange={(value) => {
+                  const fazendaValue = value === 'all' ? '' : value;
+                  setFazendaFilter(fazendaValue);
+                }}
+              >
+                <SelectTrigger>
                   <SelectValue placeholder="Todas as fazendas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -286,224 +272,141 @@ export default function Protocolos() {
                   ))}
                 </SelectContent>
               </Select>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Protocolos Aguardando 2º Passo</CardTitle>
-            </CardHeader>
-            <CardContent>
+            {/* Filtro de Data Início */}
+            <div className="space-y-2">
+              <Label>Data Início (de)</Label>
+              <Input
+                type="date"
+                value={filtroDataInicio}
+                onChange={(e) => setFiltroDataInicio(e.target.value)}
+                placeholder="Data inicial"
+              />
+            </div>
+
+            {/* Filtro de Data Fim */}
+            <div className="space-y-2">
+              <Label>Data Início (até)</Label>
+              <Input
+                type="date"
+                value={filtroDataFim}
+                onChange={(e) => setFiltroDataFim(e.target.value)}
+                placeholder="Data final"
+              />
+            </div>
+          </div>
+
+          {/* Botão de Buscar e Atalhos rápidos de data */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-wrap gap-2 flex-1">
+              <Label className="w-full text-sm font-medium text-slate-700">Atalhos rápidos:</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const hoje = new Date();
+                  const seteDiasAtras = new Date(hoje);
+                  seteDiasAtras.setDate(hoje.getDate() - 7);
+                  const dataInicio = seteDiasAtras.toISOString().split('T')[0];
+                  const dataFim = hoje.toISOString().split('T')[0];
+                  setFiltroDataInicio(dataInicio);
+                  setFiltroDataFim(dataFim);
+                }}
+              >
+                Últimos 7 dias
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const hoje = new Date();
+                  const trintaDiasAtras = new Date(hoje);
+                  trintaDiasAtras.setDate(hoje.getDate() - 30);
+                  const dataInicio = trintaDiasAtras.toISOString().split('T')[0];
+                  const dataFim = hoje.toISOString().split('T')[0];
+                  setFiltroDataInicio(dataInicio);
+                  setFiltroDataFim(dataFim);
+                }}
+              >
+                Últimos 30 dias
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const hoje = new Date();
+                  const noventaDiasAtras = new Date(hoje);
+                  noventaDiasAtras.setDate(hoje.getDate() - 90);
+                  const dataInicio = noventaDiasAtras.toISOString().split('T')[0];
+                  const dataFim = hoje.toISOString().split('T')[0];
+                  setFiltroDataInicio(dataInicio);
+                  setFiltroDataFim(dataFim);
+                }}
+              >
+                Últimos 90 dias
+              </Button>
+            </div>
+            {/* Botão de Buscar */}
+            <Button
+              type="button"
+              onClick={() => {
+                setProtocolosPage(1);
+                loadProtocolos(1, {
+                  fazenda: fazendaFilter,
+                  dataInicio: filtroDataInicio,
+                  dataFim: filtroDataFim,
+                  status: filtroStatus,
+                });
+              }}
+              disabled={loadingProtocolos}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Buscar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista de Protocolos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Protocolos de Sincronização ({protocolos.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingProtocolos ? (
+            <div className="py-8">
+              <LoadingSpinner />
+            </div>
+          ) : protocolos.length === 0 ? (
+            <div className="py-12 text-center text-slate-500">
+              <p className="text-lg">Nenhum protocolo encontrado</p>
+              <p className="text-sm mt-2">Ajuste os filtros ou adicione um novo protocolo</p>
+            </div>
+          ) : (
+            <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Fazenda</TableHead>
                     <TableHead>Data Início</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Receptoras Pendentes</TableHead>
+                    <TableHead>Data 2º Passo</TableHead>
+                    <TableHead>Técnico 2º Passo</TableHead>
+                    <TableHead>Receptoras</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProtocolosPasso2.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-slate-500">
-                        {fazendaFilterPasso2
-                          ? 'Nenhum protocolo aguardando 2º passo nesta fazenda'
-                          : 'Nenhum protocolo aguardando 2º passo'}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredProtocolosPasso2.map((protocolo) => (
-                      <TableRow key={protocolo.id}>
-                        <TableCell className="font-medium">{protocolo.fazenda_nome}</TableCell>
-                        <TableCell>
-                          {formatDate(protocolo.data_inicio)}
-                        </TableCell>
-                        <TableCell>{protocolo.responsavel_inicio}</TableCell>
-                        <TableCell>{protocolo.receptoras_count}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">Aguardando 2º Passo</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700"
-                            onClick={() => {
-                              setSelectedProtocoloId(protocolo.id);
-                              setPasso2Form({
-                                data: new Date().toISOString().split('T')[0],
-                                tecnico: '',
-                              });
-                              setShowPasso2Dialog(true);
-                            }}
-                          >
-                            <PlayCircle className="w-4 h-4 mr-2" />
-                            INICIAR 2º PASSO
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="historico" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Filtros de Busca (Obrigatórios)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Fazenda *</Label>
-                    <Select 
-                      value={fazendaFilterHistorico || 'all'} 
-                      onValueChange={(value) => {
-                        setFazendaFilterHistorico(value === 'all' ? '' : value);
-                        setHistoricoPage(1); // Reset page ao mudar filtro
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a fazenda" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Selecione...</SelectItem>
-                        {fazendas.map((fazenda) => (
-                          <SelectItem key={fazenda.id} value={fazenda.id}>
-                            {fazenda.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Data Início (de) *</Label>
-                    <Input
-                      type="date"
-                      value={filtroDataInicio}
-                      onChange={(e) => {
-                        setFiltroDataInicio(e.target.value);
-                        setHistoricoPage(1); // Reset page ao mudar filtro
-                      }}
-                      placeholder="Data inicial"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Data Início (até) *</Label>
-                    <Input
-                      type="date"
-                      value={filtroDataFim}
-                      onChange={(e) => {
-                        setFiltroDataFim(e.target.value);
-                        setHistoricoPage(1); // Reset page ao mudar filtro
-                      }}
-                      placeholder="Data final"
-                    />
-                  </div>
-                </div>
-
-                {/* Atalhos rápidos de data */}
-                <div className="flex flex-wrap gap-2">
-                  <Label className="w-full text-sm font-medium text-slate-700">Atalhos rápidos:</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const hoje = new Date();
-                      const seteDiasAtras = new Date(hoje);
-                      seteDiasAtras.setDate(hoje.getDate() - 7);
-                      setFiltroDataInicio(seteDiasAtras.toISOString().split('T')[0]);
-                      setFiltroDataFim(hoje.toISOString().split('T')[0]);
-                      setHistoricoPage(1);
-                    }}
-                  >
-                    Últimos 7 dias
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const hoje = new Date();
-                      const trintaDiasAtras = new Date(hoje);
-                      trintaDiasAtras.setDate(hoje.getDate() - 30);
-                      setFiltroDataInicio(trintaDiasAtras.toISOString().split('T')[0]);
-                      setFiltroDataFim(hoje.toISOString().split('T')[0]);
-                      setHistoricoPage(1);
-                    }}
-                  >
-                    Últimos 30 dias
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const hoje = new Date();
-                      const noventaDiasAtras = new Date(hoje);
-                      noventaDiasAtras.setDate(hoje.getDate() - 90);
-                      setFiltroDataInicio(noventaDiasAtras.toISOString().split('T')[0]);
-                      setFiltroDataFim(hoje.toISOString().split('T')[0]);
-                      setHistoricoPage(1);
-                    }}
-                  >
-                    Últimos 90 dias
-                  </Button>
-                </div>
-              </div>
-
-              <Button
-                onClick={() => {
-                  setHistoricoPage(1); // Resetar página ao buscar
-                  loadProtocolosHistorico();
-                }}
-                className="w-full md:w-auto"
-                disabled={loadingHistorico || !fazendaFilterHistorico || fazendaFilterHistorico === 'all' || !filtroDataInicio || !filtroDataFim}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                {loadingHistorico ? 'Buscando...' : 'Buscar Protocolos'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Protocolos ({protocolosHistorico.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingHistorico ? (
-                <div className="py-8">
-                  <LoadingSpinner />
-                </div>
-              ) : protocolosHistorico.length === 0 ? (
-                <div className="py-12 text-center text-slate-500">
-                  <p className="text-lg">Nenhum protocolo encontrado</p>
-                  <p className="text-sm mt-2">Preencha os filtros obrigatórios e clique em "Buscar Protocolos"</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fazenda</TableHead>
-                      <TableHead>Data Início</TableHead>
-                      <TableHead>Data 2º Passo</TableHead>
-                      <TableHead>Técnico 2º Passo</TableHead>
-                      <TableHead>Receptoras</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {protocolosHistorico.map((protocolo) => (
+                  {protocolos.map((protocolo) => {
+                    const isAguardando2Passo = protocolo.status === 'PASSO1_FECHADO' || protocolo.status === 'PRIMEIRO_PASSO_FECHADO';
+                    const isFechado = protocolo.status === 'FECHADO' || protocolo.status === 'EM_TE'; // EM_TE é status antigo, será migrado
+                    
+                    return (
                       <TableRow key={protocolo.id}>
                         <TableCell className="font-medium">{protocolo.fazenda_nome}</TableCell>
                         <TableCell>{formatDate(protocolo.data_inicio)}</TableCell>
@@ -511,66 +414,63 @@ export default function Protocolos() {
                         <TableCell>{protocolo.passo2_tecnico_responsavel || '-'}</TableCell>
                         <TableCell>{protocolo.receptoras_count}</TableCell>
                         <TableCell>
-                          <Badge variant={protocolo.status === 'PASSO2_FECHADO' ? 'secondary' : 'default'}>
-                            {protocolo.status === 'PASSO2_FECHADO' ? 'Fechado' : protocolo.status || 'N/A'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {protocolo.status === 'PASSO2_FECHADO' ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/protocolos/fechados/${protocolo.id}/relatorio`)}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              Ver Relatório
-                            </Button>
+                          {isFechado || protocolo.status === 'FECHADO' || protocolo.status === 'EM_TE' ? (
+                            <Badge variant="secondary" className="bg-slate-500 hover:bg-slate-600 text-white">Fechado</Badge>
+                          ) : protocolo.status === 'SINCRONIZADO' || protocolo.status === 'PASSO2_FECHADO' ? (
+                            <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white">Sincronizado</Badge>
+                          ) : isAguardando2Passo ? (
+                            <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600 text-white">Aguardando 2º Passo</Badge>
                           ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (protocolo.status === 'PASSO1_FECHADO' || protocolo.status === 'PRIMEIRO_PASSO_FECHADO') {
-                                  // Pode iniciar passo 2
-                                  setSelectedProtocoloId(protocolo.id);
-                                  setPasso2Form({
-                                    data: new Date().toISOString().split('T')[0],
-                                    tecnico: '',
-                                  });
-                                  setShowPasso2Dialog(true);
-                                } else {
-                                  navigate(`/protocolos/${protocolo.id}`);
-                                }
-                              }}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              Ver Detalhes
-                            </Button>
+                            <Badge variant="default">{protocolo.status || 'N/A'}</Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Botão Iniciar 2º Passo - apenas para protocolos aguardando 2º passo */}
+                            {isAguardando2Passo && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => navigate(`/protocolos/${protocolo.id}/passo2`)}
+                              >
+                                <PlayCircle className="w-4 h-4 mr-2" />
+                                Iniciar 2º Passo
+                              </Button>
+                            )}
+                            
+                            {/* Botão Ver Relatório - sempre visível */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/protocolos/${protocolo.id}/relatorio`)}
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Ver Relatório
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+                    );
+                  })}
+                </TableBody>
+              </Table>
 
               {/* Paginação */}
-              {protocolosHistorico.length > 0 && (
+              {protocolos.length > 0 && (
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="text-sm text-slate-600">
-                    Página {historicoPage} - Mostrando {protocolosHistorico.length} protocolos
+                    Página {protocolosPage} - Mostrando {protocolos.length} protocolos
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={async () => {
-                        const newPage = Math.max(1, historicoPage - 1);
-                        setHistoricoPage(newPage);
-                        // Passar a nova página diretamente para evitar problemas de sincronização
-                        await loadProtocolosHistorico(newPage);
+                        const newPage = Math.max(1, protocolosPage - 1);
+                        setProtocolosPage(newPage);
+                        await loadProtocolos(newPage);
                       }}
-                      disabled={historicoPage === 1 || loadingHistorico}
+                      disabled={protocolosPage === 1 || loadingProtocolos}
                     >
                       <ChevronLeft className="w-4 h-4" />
                       Anterior
@@ -579,12 +479,11 @@ export default function Protocolos() {
                       variant="outline"
                       size="sm"
                       onClick={async () => {
-                        const newPage = historicoPage + 1;
-                        setHistoricoPage(newPage);
-                        // Passar a nova página diretamente para evitar problemas de sincronização
-                        await loadProtocolosHistorico(newPage);
+                        const newPage = protocolosPage + 1;
+                        setProtocolosPage(newPage);
+                        await loadProtocolos(newPage);
                       }}
-                      disabled={protocolosHistorico.length < HISTORICO_PAGE_SIZE || loadingHistorico}
+                      disabled={protocolos.length < PROTOCOLOS_PAGE_SIZE || loadingProtocolos}
                     >
                       Próxima
                       <ChevronRight className="w-4 h-4" />
@@ -592,130 +491,11 @@ export default function Protocolos() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Dialog para iniciar 2º passo */}
-      <Dialog open={showPasso2Dialog} onOpenChange={setShowPasso2Dialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Iniciar 2º Passo</DialogTitle>
-            <DialogDescription>
-              Informe a data de realização do 2º passo e o técnico responsável
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="passo2_data">Data de Realização do 2º Passo *</Label>
-              <Input
-                id="passo2_data"
-                type="date"
-                value={passo2Form.data}
-                onChange={(e) => setPasso2Form({ ...passo2Form, data: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="passo2_tecnico">Técnico Responsável *</Label>
-              <Input
-                id="passo2_tecnico"
-                value={passo2Form.tecnico}
-                onChange={(e) => setPasso2Form({ ...passo2Form, tecnico: e.target.value })}
-                placeholder="Nome do técnico responsável"
-                required
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={async () => {
-                  if (!passo2Form.data || !passo2Form.tecnico.trim()) {
-                    toast({
-                      title: 'Erro de validação',
-                      description: 'Data e técnico são obrigatórios',
-                      variant: 'destructive',
-                    });
-                    return;
-                  }
-
-                  // Proteção contra multi-clique
-                  if (submittingPasso2) {
-                    return;
-                  }
-
-                  try {
-                    setSubmittingPasso2(true);
-
-                    // CRITICAL: Validar que o protocolo possui receptoras vinculadas
-                    const { count, error: countError } = await supabase
-                      .from('protocolo_receptoras')
-                      .select('*', { count: 'exact', head: true })
-                      .eq('protocolo_id', selectedProtocoloId);
-
-                    if (countError) {
-                      console.error('Erro ao verificar receptoras:', countError);
-                      throw new Error('Erro ao verificar receptoras vinculadas ao protocolo');
-                    }
-
-                    if (!count || count === 0) {
-                      toast({
-                        title: 'Erro: Protocolo sem receptoras',
-                        description: 'Este protocolo não possui receptoras vinculadas. Não é possível iniciar o 2º passo.',
-                        variant: 'destructive',
-                      });
-                      setSubmittingPasso2(false);
-                      return;
-                    }
-
-                    // Salvar dados do passo 2 no protocolo
-                    const { error } = await supabase
-                      .from('protocolos_sincronizacao')
-                      .update({
-                        passo2_data: passo2Form.data,
-                        passo2_tecnico_responsavel: passo2Form.tecnico.trim(),
-                      })
-                      .eq('id', selectedProtocoloId);
-
-                    if (error) throw error;
-
-                    toast({
-                      title: '2º passo iniciado',
-                      description: 'Dados do 2º passo registrados com sucesso',
-                    });
-
-                    setShowPasso2Dialog(false);
-                    // Navegar para a tela do passo 2
-                    navigate(`/protocolos/${selectedProtocoloId}/passo2`);
-                  } catch (error) {
-                    console.error('Erro ao iniciar 2º passo:', error);
-                    toast({
-                      title: 'Erro ao iniciar 2º passo',
-                      description: error instanceof Error ? error.message : 'Erro desconhecido',
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setSubmittingPasso2(false);
-                  }
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={submittingPasso2}
-              >
-                {submittingPasso2 ? 'Salvando...' : 'Confirmar e Iniciar'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowPasso2Dialog(false)}
-                disabled={submittingPasso2}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

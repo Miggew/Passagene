@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { calcularStatusReceptora, atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
+import { getTodayDateString } from '@/lib/utils';
 import type { Fazenda, Receptora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +58,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, UserPlus, Lock, X } from 'lucide-react';
+import { ArrowLeft, Plus, UserPlus, Lock, X, Search } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 import ClassificacoesCicloInline from '@/components/shared/ClassificacoesCicloInline';
@@ -67,16 +81,19 @@ export default function ProtocoloFormWizard() {
   const isFinalizingRef = useRef(false); // Proteção contra multi-clique
   const [currentStep, setCurrentStep] = useState<'form' | 'receptoras'>('form');
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [allReceptoras, setAllReceptoras] = useState<Receptora[]>([]); // Todas as receptoras VAZIAS da fazenda
+  const [allReceptoras, setAllReceptoras] = useState<Receptora[]>([]); // Todas as receptoras da fazenda
+  const [receptorasComStatus, setReceptorasComStatus] = useState<Array<Receptora & { status: string; motivoIndisponivel?: string }>>([]); // Receptoras com status calculado
   const [loadingReceptoras, setLoadingReceptoras] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
   const [showAddReceptora, setShowAddReceptora] = useState(false);
   const [showCreateReceptora, setShowCreateReceptora] = useState(false);
+  const [buscaReceptora, setBuscaReceptora] = useState('');
+  const [popoverAberto, setPopoverAberto] = useState(false);
   
   // Estado local do protocolo (não salvo no banco ainda)
   const [protocoloData, setProtocoloData] = useState({
     fazenda_id: '',
-    data_inicio: new Date().toISOString().split('T')[0],
+    data_inicio: getTodayDateString(),
     veterinario: '',
     tecnico: '',
     observacoes: '',
@@ -128,7 +145,7 @@ export default function ProtocoloFormWizard() {
     }
   };
 
-  // Carregar TODAS as receptoras VAZIAS da fazenda (fonte de verdade única)
+  // Carregar TODAS as receptoras da fazenda com seus status
   const loadAllReceptoras = async (fazendaId: string) => {
     try {
       setLoadingReceptoras(true);
@@ -145,6 +162,7 @@ export default function ProtocoloFormWizard() {
 
       if (receptoraIds.length === 0) {
         setAllReceptoras([]);
+        setReceptorasComStatus([]);
         return;
       }
 
@@ -159,8 +177,8 @@ export default function ProtocoloFormWizard() {
       
       const receptorasData = data || [];
 
-      // Filtrar apenas receptoras com status VAZIA
-      const receptorasVaziasPromises = (receptorasData || [])
+      // Calcular status de todas as receptoras
+      const receptorasComStatusPromises = (receptorasData || [])
         .filter(r => {
           const rId = r.id ? String(r.id).trim() : '';
           return rId !== '';
@@ -169,14 +187,23 @@ export default function ProtocoloFormWizard() {
           const rId = r.id ? String(r.id).trim() : '';
           if (!rId) return null;
           const status = await calcularStatusReceptora(rId);
-          // Aceitar apenas receptoras VAZIA (não mais "VAZIA" do legado)
-          return status === 'VAZIA' ? r : null;
+          const validacao = validarTransicaoStatus(status, 'ENTRAR_PASSO1');
+          
+          return {
+            ...r,
+            status,
+            motivoIndisponivel: validacao.valido ? undefined : validacao.mensagem,
+          };
         });
 
-      const receptorasVaziasResults = await Promise.all(receptorasVaziasPromises);
-      const receptorasVazias = receptorasVaziasResults.filter((r): r is Receptora => r !== null);
+      const receptorasComStatusResults = await Promise.all(receptorasComStatusPromises);
+      const receptorasComStatusFiltradas = receptorasComStatusResults.filter((r): r is Receptora & { status: string; motivoIndisponivel?: string } => r !== null);
+
+      // Separar receptoras VAZIAS (para availableReceptoras) e todas (para receptorasComStatus)
+      const receptorasVazias = receptorasComStatusFiltradas.filter(r => r.status === 'VAZIA');
 
       setAllReceptoras(receptorasVazias);
+      setReceptorasComStatus(receptorasComStatusFiltradas);
     } catch (error) {
       console.error('Error loading receptoras:', error);
       toast({
@@ -198,7 +225,7 @@ export default function ProtocoloFormWizard() {
     );
   }, [receptorasLocais]);
 
-  // Receptoras disponíveis = todas - selecionadas (CALCULADO, não state)
+  // Receptoras disponíveis = todas VAZIAS - selecionadas (CALCULADO, não state)
   const availableReceptoras = useMemo(() => {
     return allReceptoras.filter(r => {
       const receptoraId = r.id ? String(r.id).trim() : '';
@@ -206,11 +233,37 @@ export default function ProtocoloFormWizard() {
     });
   }, [allReceptoras, selectedIds]);
 
-  // Key estável para forçar re-render do SelectContent quando selecionadas mudarem
-  const selectContentKey = useMemo(() => {
-    const idsArray = Array.from(selectedIds).sort();
-    return idsArray.length > 0 ? idsArray.join('|') : 'empty';
-  }, [receptorasLocais]);
+  // Receptoras filtradas para a busca (adequadas + inadequadas quando pesquisadas)
+  const receptorasFiltradas = useMemo(() => {
+    if (!buscaReceptora.trim()) {
+      // Sem busca: mostrar apenas receptoras adequadas (VAZIA e não selecionadas)
+      return receptorasComStatus
+        .filter(r => {
+          const rId = r.id ? String(r.id).trim() : '';
+          return rId !== '' && 
+                 !selectedIds.has(rId) && 
+                 r.status === 'VAZIA';
+        })
+        .map(r => ({ ...r, disponivel: true }));
+    }
+
+    // Com busca: incluir todas que correspondem, mesmo inadequadas
+    const buscaLower = buscaReceptora.toLowerCase().trim();
+    return receptorasComStatus
+      .filter(r => {
+        const rId = r.id ? String(r.id).trim() : '';
+        if (rId === '' || selectedIds.has(rId)) return false;
+        
+        const identificacao = (r.identificacao || '').toLowerCase();
+        const nome = (r.nome || '').toLowerCase();
+        return identificacao.includes(buscaLower) || nome.includes(buscaLower);
+      })
+      .map(r => ({
+        ...r,
+        disponivel: r.status === 'VAZIA',
+      }));
+  }, [buscaReceptora, receptorasComStatus, selectedIds]);
+
 
   const handleContinueToReceptoras = () => {
     if (!protocoloData.fazenda_id || !protocoloData.data_inicio || 
@@ -300,13 +353,15 @@ export default function ProtocoloFormWizard() {
       ];
     });
 
-    // Limpar o formulário (resetar Select para placeholder) - IMPORTANTE: antes de fechar dialog
+    // Limpar o formulário - IMPORTANTE: antes de fechar dialog
     setAddReceptoraForm({ 
       receptora_id: '', 
       observacoes: '', 
       ciclando_classificacao: null,
       qualidade_semaforo: null,
     });
+    setBuscaReceptora('');
+    setPopoverAberto(false);
     setShowAddReceptora(false);
     
     // NÃO recarregar do banco - o cálculo derivado já remove da lista disponível
@@ -324,6 +379,61 @@ export default function ProtocoloFormWizard() {
 
     try {
       setSubmitting(true);
+
+      // Validar se já existe receptora com mesmo brinco na fazenda
+      // Usar view para obter receptoras da fazenda atual diretamente
+      const { data: receptorasView, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', protocoloData.fazenda_id);
+
+      if (viewError) {
+        console.error('Erro ao buscar receptoras da fazenda:', viewError);
+        throw viewError;
+      }
+
+      const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+      
+        // Verificar brinco duplicado - sempre verificar, mesmo se não houver receptoras ainda
+      if (receptoraIds.length > 0) {
+        const { data: receptorasComBrinco, error: brincoError } = await supabase
+          .from('receptoras')
+          .select('id, identificacao, nome')
+          .in('id', receptoraIds)
+          .ilike('identificacao', createReceptoraForm.identificacao.trim());
+
+        if (brincoError) {
+          console.error('Erro ao verificar brinco duplicado:', brincoError);
+          throw brincoError;
+        }
+
+        if (receptorasComBrinco && receptorasComBrinco.length > 0) {
+          const nomeReceptora = receptorasComBrinco[0].nome 
+            ? `"${receptorasComBrinco[0].nome}"` 
+            : 'sem nome';
+          const erroMsg = `Já existe uma receptora com o brinco "${createReceptoraForm.identificacao.trim()}" nesta fazenda (Nome: ${nomeReceptora}).`;
+          console.error('Brinco duplicado detectado:', erroMsg, receptorasComBrinco);
+          throw new Error(erroMsg);
+        }
+      }
+
+      // Validar se já existe receptora com mesmo nome na fazenda
+      if (createReceptoraForm.nome.trim() && receptoraIds.length > 0) {
+        const { data: receptorasComNome, error: nomeError } = await supabase
+          .from('receptoras')
+          .select('id, identificacao')
+          .in('id', receptoraIds)
+          .ilike('nome', createReceptoraForm.nome.trim());
+
+        if (nomeError) {
+          console.error('Erro ao verificar nome duplicado:', nomeError);
+          throw nomeError;
+        }
+
+        if (receptorasComNome && receptorasComNome.length > 0) {
+          throw new Error(`Já existe uma receptora com o nome "${createReceptoraForm.nome.trim()}" nesta fazenda (Brinco: ${receptorasComNome[0].identificacao}).`);
+        }
+      }
 
       const receptoraData: Record<string, string> = {
         identificacao: createReceptoraForm.identificacao,
@@ -352,7 +462,7 @@ export default function ProtocoloFormWizard() {
         .insert([{
           receptora_id: novaReceptora.id,
           fazenda_id: protocoloData.fazenda_id,
-          data_inicio: new Date().toISOString().split('T')[0],
+          data_inicio: getTodayDateString(),
           data_fim: null, // vínculo ativo
         }]);
 
@@ -778,7 +888,7 @@ export default function ProtocoloFormWizard() {
             <div className="flex gap-2">
               <Dialog 
                 open={showAddReceptora} 
-                onOpenChange={(open) => {
+                  onOpenChange={(open) => {
                   setShowAddReceptora(open);
                   // Limpar formulário quando dialog fecha
                   if (!open) {
@@ -788,6 +898,8 @@ export default function ProtocoloFormWizard() {
                       ciclando_classificacao: null,
                       qualidade_semaforo: null,
                     });
+                    setBuscaReceptora('');
+                    setPopoverAberto(false);
                   }
                 }}
               >
@@ -801,47 +913,109 @@ export default function ProtocoloFormWizard() {
                   <DialogHeader>
                     <DialogTitle>Adicionar Receptora ao Protocolo</DialogTitle>
                     <DialogDescription>
-                      Selecione uma receptora VAZIA da fazenda ou cadastre uma nova
+                      Busque por identificação ou nome. Receptoras adequadas aparecerão como disponíveis. Receptoras inadequadas mostrarão o motivo ao serem pesquisadas.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Receptora *</Label>
-                      <Select
-                        value={addReceptoraForm.receptora_id || ''}
-                        onValueChange={(value) => {
-                          // Normalizar value para string
-                          const normalizedValue = value?.trim() || '';
-                          setAddReceptoraForm({ ...addReceptoraForm, receptora_id: normalizedValue });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma receptora VAZIA" />
-                        </SelectTrigger>
-                        <SelectContent key={selectContentKey}>
-                          {loadingReceptoras ? (
-                            <div className="p-2 text-sm text-slate-500">
-                              Carregando receptoras...
-                            </div>
-                          ) : availableReceptoras.length === 0 ? (
-                            <div className="p-2 text-sm text-slate-500">
-                              Nenhuma receptora VAZIA disponível nesta fazenda
-                            </div>
-                          ) : (
-                            availableReceptoras.map((r) => {
-                              // Garantir que ID existe e é válido (nunca vazio)
-                              const receptoraId = r.id ? String(r.id).trim() : '';
-                              if (!receptoraId) return null;
-                              
-                              return (
-                                <SelectItem key={r.id} value={receptoraId}>
-                                  {r.identificacao} {r.nome ? `- ${r.nome}` : ''}
-                                </SelectItem>
-                              );
-                            }).filter(item => item !== null)
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={popoverAberto}
+                            className="w-full justify-between"
+                            onClick={() => setPopoverAberto(!popoverAberto)}
+                          >
+                            {addReceptoraForm.receptora_id
+                              ? (() => {
+                                  const selecionada = receptorasComStatus.find(
+                                    r => String(r.id).trim() === addReceptoraForm.receptora_id.trim()
+                                  );
+                                  return selecionada
+                                    ? `${selecionada.identificacao}${selecionada.nome ? ` - ${selecionada.nome}` : ''}`
+                                    : 'Selecione uma receptora';
+                                })()
+                              : 'Buscar receptora...'}
+                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                          <Command shouldFilter={false}>
+                            <CommandInput 
+                              placeholder="Buscar por identificação ou nome..."
+                              value={buscaReceptora}
+                              onValueChange={setBuscaReceptora}
+                            />
+                            <CommandList>
+                              {loadingReceptoras ? (
+                                <div className="p-4 text-sm text-center text-slate-500">
+                                  Carregando receptoras...
+                                </div>
+                              ) : receptorasFiltradas.length === 0 ? (
+                                <CommandEmpty>
+                                  {buscaReceptora.trim()
+                                    ? 'Nenhuma receptora encontrada'
+                                    : 'Nenhuma receptora disponível'}
+                                </CommandEmpty>
+                              ) : (
+                                <CommandGroup>
+                                  {receptorasFiltradas.map((r) => {
+                                    const rId = r.id ? String(r.id).trim() : '';
+                                    if (!rId) return null;
+                                    
+                                    // O value do CommandItem deve conter os termos de busca
+                                    // para que o Command possa filtrar automaticamente
+                                    const displayText = `${r.identificacao} ${r.nome || ''}`.trim();
+                                    
+                                    return (
+                                      <CommandItem
+                                        key={r.id}
+                                        value={`${displayText} ${rId}`}
+                                        onSelect={() => {
+                                          if (r.disponivel) {
+                                            setAddReceptoraForm({ ...addReceptoraForm, receptora_id: rId });
+                                            setBuscaReceptora('');
+                                            setPopoverAberto(false);
+                                          }
+                                        }}
+                                        disabled={!r.disponivel}
+                                        className={!r.disponivel ? 'opacity-60 cursor-not-allowed' : ''}
+                                      >
+                                        <div className="flex flex-col w-full">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="flex-1">
+                                              {r.identificacao}
+                                              {r.nome ? ` - ${r.nome}` : ''}
+                                            </span>
+                                            {r.disponivel ? (
+                                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shrink-0">
+                                                Disponível
+                                              </Badge>
+                                            ) : (
+                                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shrink-0">
+                                                Indisponível
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          {!r.disponivel && (
+                                            <span className="text-xs text-red-600 mt-1">
+                                              {r.motivoIndisponivel?.includes('Status atual:') 
+                                                ? r.motivoIndisponivel.split('Status atual:')[1]?.trim() || r.status
+                                                : r.status}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </CommandItem>
+                                    );
+                                  })}
+                                </CommandGroup>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-2">
                       <ClassificacoesCicloInline
@@ -870,7 +1044,7 @@ export default function ProtocoloFormWizard() {
                     <Button
                       onClick={handleAddReceptora}
                       className="w-full bg-green-600 hover:bg-green-700"
-                      disabled={availableReceptoras.length === 0 || loadingReceptoras || !addReceptoraForm.receptora_id}
+                      disabled={loadingReceptoras || !addReceptoraForm.receptora_id}
                     >
                       Adicionar
                     </Button>

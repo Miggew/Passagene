@@ -65,6 +65,7 @@ const App = () => (
             <Route path="/protocolos/novo" element={<ProtocoloFormWizard />} />
             <Route path="/protocolos/:id" element={<ProtocoloDetail />} />
             <Route path="/protocolos/:id/passo2" element={<ProtocoloPasso2 />} />
+            <Route path="/protocolos/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
             <Route path="/protocolos/fechados/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
 
             {/* Aspirações */}

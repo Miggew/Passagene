@@ -56,6 +56,7 @@ export default function Receptoras() {
   const [novaFazendaId, setNovaFazendaId] = useState<string>('');
   const [novoBrincoProposto, setNovoBrincoProposto] = useState<string>('');
   const [temConflitoBrinco, setTemConflitoBrinco] = useState(false);
+  const [temConflitoNome, setTemConflitoNome] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -218,6 +219,61 @@ export default function Receptoras() {
     try {
       setSubmitting(true);
 
+      // Validar se já existe receptora com mesmo brinco na fazenda
+      // Usar view para obter receptoras da fazenda atual diretamente
+      const { data: receptorasView, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', selectedFazendaId);
+
+      if (viewError) {
+        console.error('Erro ao buscar receptoras da fazenda:', viewError);
+        throw viewError;
+      }
+
+      const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+      
+      // Verificar brinco duplicado - sempre verificar, mesmo se não houver receptoras ainda
+      if (receptoraIds.length > 0) {
+        const { data: receptorasComBrinco, error: brincoError } = await supabase
+          .from('receptoras')
+          .select('id, identificacao, nome')
+          .in('id', receptoraIds)
+          .ilike('identificacao', formData.identificacao.trim());
+
+        if (brincoError) {
+          console.error('Erro ao verificar brinco duplicado:', brincoError);
+          throw brincoError;
+        }
+
+        if (receptorasComBrinco && receptorasComBrinco.length > 0) {
+          const nomeReceptora = receptorasComBrinco[0].nome 
+            ? `"${receptorasComBrinco[0].nome}"` 
+            : 'sem nome';
+          const erroMsg = `Já existe uma receptora com o brinco "${formData.identificacao.trim()}" nesta fazenda (Nome: ${nomeReceptora}).`;
+          console.error('Brinco duplicado detectado:', erroMsg, receptorasComBrinco);
+          throw new Error(erroMsg);
+        }
+      }
+
+      // Validar se já existe receptora com mesmo nome na fazenda
+      if (formData.nome.trim() && receptoraIds.length > 0) {
+        const { data: receptorasComNome, error: nomeError } = await supabase
+          .from('receptoras')
+          .select('id, identificacao')
+          .in('id', receptoraIds)
+          .ilike('nome', formData.nome.trim());
+
+        if (nomeError) {
+          console.error('Erro ao verificar nome duplicado:', nomeError);
+          throw nomeError;
+        }
+
+        if (receptorasComNome && receptorasComNome.length > 0) {
+          throw new Error(`Já existe uma receptora com o nome "${formData.nome.trim()}" nesta fazenda (Brinco: ${receptorasComNome[0].identificacao}).`);
+        }
+      }
+
       const insertData: Record<string, string> = {
         identificacao: formData.identificacao,
       };
@@ -373,12 +429,13 @@ export default function Receptoras() {
     }
   };
 
-  // Verificar conflito de brinco quando a fazenda destino é selecionada
+  // Verificar conflito de brinco e nome quando a fazenda destino é selecionada
   useEffect(() => {
-    const verificarConflitoBrinco = async () => {
+    const verificarConflitos = async () => {
       if (!editingReceptora || !novaFazendaId) {
         setTemConflitoBrinco(false);
         setNovoBrincoProposto('');
+        setTemConflitoNome(false);
         return;
       }
 
@@ -399,15 +456,36 @@ export default function Receptoras() {
         if (receptoraIdsNaFazendaDestino.length === 0) {
           setTemConflitoBrinco(false);
           setNovoBrincoProposto('');
+          setTemConflitoNome(false);
           return;
         }
 
-        // Buscar receptoras com o mesmo brinco
+        // Verificar conflito de NOME (se a receptora tem nome)
+        if (editingReceptora.nome && editingReceptora.nome.trim()) {
+          const { data: receptorasComNome, error: nomeError } = await supabase
+            .from('receptoras')
+            .select('id, nome, identificacao')
+            .in('id', receptoraIdsNaFazendaDestino)
+            .ilike('nome', editingReceptora.nome.trim());
+
+          if (nomeError) {
+            console.error('Erro ao verificar nome:', nomeError);
+          } else if (receptorasComNome && receptorasComNome.length > 0) {
+            // Há conflito de nome
+            setTemConflitoNome(true);
+          } else {
+            setTemConflitoNome(false);
+          }
+        } else {
+          setTemConflitoNome(false);
+        }
+
+        // Buscar receptoras com o mesmo brinco (case-insensitive)
         const { data: receptorasComBrinco, error: brincoError } = await supabase
           .from('receptoras')
           .select('id, identificacao')
           .in('id', receptoraIdsNaFazendaDestino)
-          .eq('identificacao', editingReceptora.identificacao);
+          .ilike('identificacao', editingReceptora.identificacao);
 
         if (brincoError) {
           console.error('Erro ao verificar brinco:', brincoError);
@@ -437,7 +515,7 @@ export default function Receptoras() {
               .from('receptoras')
               .select('id, identificacao')
               .in('id', receptoraIdsNaFazendaDestino)
-              .eq('identificacao', novoBrinco);
+              .ilike('identificacao', novoBrinco);
 
             if (novoBrincoError) {
               console.error('Erro ao verificar novo brinco:', novoBrincoError);
@@ -470,11 +548,11 @@ export default function Receptoras() {
           setNovoBrincoProposto('');
         }
       } catch (error) {
-        console.error('Erro ao verificar conflito de brinco:', error);
+        console.error('Erro ao verificar conflitos:', error);
       }
     };
 
-    verificarConflitoBrinco();
+    verificarConflitos();
   }, [editingReceptora, novaFazendaId]);
 
   const handleMoverFazenda = async () => {
@@ -487,8 +565,52 @@ export default function Receptoras() {
       return;
     }
 
+    // Validar conflito de nome antes de mover
+    if (temConflitoNome && editingReceptora.nome && editingReceptora.nome.trim()) {
+      toast({
+        title: 'Conflito de nome',
+        description: `Já existe uma receptora com o nome "${editingReceptora.nome.trim()}" na fazenda destino. Não é possível mover esta receptora.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSubmittingMover(true);
+
+      // Verificar conflito de brinco ANTES de mover (validação adicional de segurança)
+      const { data: viewDataValidacao, error: viewErrorValidacao } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id')
+        .eq('fazenda_id_atual', novaFazendaId);
+
+      if (!viewErrorValidacao && viewDataValidacao) {
+        const receptoraIdsValidacao = viewDataValidacao.map(v => v.receptora_id);
+        
+        if (receptoraIdsValidacao.length > 0) {
+          const { data: receptorasComBrincoValidacao, error: brincoErrorValidacao } = await supabase
+            .from('receptoras')
+            .select('id, identificacao')
+            .in('id', receptoraIdsValidacao)
+            .ilike('identificacao', editingReceptora.identificacao);
+
+          if (!brincoErrorValidacao && receptorasComBrincoValidacao && receptorasComBrincoValidacao.length > 0) {
+            // Há conflito de brinco - verificar se temos um novo brinco proposto
+            if (!temConflitoBrinco || !novoBrincoProposto) {
+              // Não temos um novo brinco proposto, bloquear movimentação
+              setSubmittingMover(false);
+              toast({
+                title: 'Conflito de brinco',
+                description: `Já existe uma receptora com o brinco "${editingReceptora.identificacao}" na fazenda destino. Aguarde enquanto o sistema gera um novo brinco...`,
+                variant: 'destructive',
+              });
+              // Forçar verificação novamente
+              setTemConflitoBrinco(true);
+              return;
+            }
+          }
+        }
+      }
 
       // Se há conflito de brinco, verificar novamente e atualizar o brinco da receptora
       const brincoAnterior = editingReceptora.identificacao;
@@ -509,7 +631,7 @@ export default function Receptoras() {
               .from('receptoras')
               .select('id, identificacao')
               .in('id', receptoraIdsNaFazendaDestinoFinal)
-              .eq('identificacao', novoBrincoProposto);
+              .ilike('identificacao', novoBrincoProposto);
 
             if (!brincoErrorFinal && receptorasComBrincoFinal && receptorasComBrincoFinal.length > 0) {
               // O brinco proposto também tem conflito - gerar um novo
@@ -527,7 +649,7 @@ export default function Receptoras() {
                   .from('receptoras')
                   .select('id')
                   .in('id', receptoraIdsNaFazendaDestinoFinal)
-                  .eq('identificacao', brincoDisponivel);
+                  .ilike('identificacao', brincoDisponivel);
 
                 if (!verificarError && (!verificarBrinco || verificarBrinco.length === 0)) {
                   // Brinco disponível encontrado
@@ -638,6 +760,7 @@ export default function Receptoras() {
       setNovaFazendaId('');
       setTemConflitoBrinco(false);
       setNovoBrincoProposto('');
+      setTemConflitoNome(false);
       
       // Recarregar receptoras (a receptora pode ter saído da lista atual)
       loadReceptoras();
@@ -998,6 +1121,22 @@ export default function Receptoras() {
               </Select>
             </div>
 
+            {temConflitoNome && editingReceptora?.nome && (
+              <div className="space-y-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <div className="text-red-800 text-sm font-medium">
+                    ❌ Conflito de Nome Detectado
+                  </div>
+                </div>
+                <div className="text-red-700 text-sm">
+                  Já existe uma receptora com o nome "{editingReceptora.nome.trim()}" na fazenda destino.
+                </div>
+                <div className="text-red-600 text-xs">
+                  Não é possível mover esta receptora. Edite o nome da receptora antes de movê-la.
+                </div>
+              </div>
+            )}
+
             {temConflitoBrinco && novoBrincoProposto && (
               <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                 <div className="flex items-start gap-2">
@@ -1027,7 +1166,7 @@ export default function Receptoras() {
                 type="button"
                 className="flex-1 bg-green-600 hover:bg-green-700"
                 onClick={handleMoverFazenda}
-                disabled={submittingMover || !novaFazendaId}
+                disabled={submittingMover || !novaFazendaId || temConflitoNome || (temConflitoBrinco && !novoBrincoProposto)}
               >
                 {submittingMover ? 'Movendo...' : 'Confirmar Movimentação'}
               </Button>
@@ -1038,6 +1177,7 @@ export default function Receptoras() {
                   setShowMoverFazendaDialog(false);
                   setTemConflitoBrinco(false);
                   setNovoBrincoProposto('');
+                  setTemConflitoNome(false);
                 }}
                 disabled={submittingMover}
               >

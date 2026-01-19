@@ -92,11 +92,17 @@ export default function FazendaDetail() {
       setClienteNome(clienteData.nome);
 
       // Load protocolos em andamento
+      // Buscar protocolos aguardando 2º passo (PASSO1_FECHADO) ou sincronizados (SINCRONIZADO) ou fechados (FECHADO)
+      // Nota: Status 'ABERTO' foi removido - protocolos são criados já com PASSO1_FECHADO
+      // Nota: SINCRONIZADO = 2º passo finalizado (pronto para TE)
+      // Nota: FECHADO = TE(s) realizada(s) (atualizado automaticamente pelo trigger)
+      // Nota: Após unificação do Passo 2, não existe mais estado intermediário no banco.
+      // O passo 2 só salva tudo quando finalizado (status = SINCRONIZADO).
       const { data: protocolosData, error: protocolosError } = await supabase
         .from('protocolos_sincronizacao')
         .select('id, data_inicio, data_retirada, status')
         .eq('fazenda_id', id)
-        .eq('status', 'ABERTO')
+        .in('status', ['PASSO1_FECHADO', 'PRIMEIRO_PASSO_FECHADO', 'SINCRONIZADO', 'FECHADO'])
         .order('data_inicio', { ascending: false });
 
       if (protocolosError) throw protocolosError;
@@ -364,7 +370,7 @@ export default function FazendaDetail() {
                           : '-'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="default">{protocolo.status || 'ABERTO'}</Badge>
+                        <Badge variant="default">{protocolo.status || 'N/A'}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}

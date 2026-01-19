@@ -78,7 +78,7 @@ async function calcularStatusReceptoraLegado(receptoraId: string): Promise<strin
       }
     }
 
-    // 2) Check protocolo_receptoras for ACTIVE protocols (not PASSO2_FECHADO)
+    // 2) Check protocolo_receptoras for ACTIVE protocols (not SINCRONIZADO or FECHADO)
     const { data: protocoloReceptoras, error: protocoloError } = await supabase
       .from('protocolo_receptoras')
       .select('status, protocolo_id')
@@ -111,12 +111,14 @@ async function calcularStatusReceptoraLegado(receptoraId: string): Promise<strin
         const protocoloStatus = protocoloStatusMap.get(pr.protocolo_id);
         const receptoraStatus = pr.status;
         
-        if (protocoloStatus === 'PASSO2_FECHADO') {
+        // Protocolos SINCRONIZADO ou FECHADO não são ativos (já finalizados)
+        if (protocoloStatus === 'SINCRONIZADO' || protocoloStatus === 'FECHADO') {
           return false;
         }
         
+        // Se está APTA ou INICIADA e o protocolo não está sincronizado/fechado, é ativo
         if ((receptoraStatus === 'APTA' || receptoraStatus === 'INICIADA') && 
-            protocoloStatus !== 'PASSO2_FECHADO') {
+            protocoloStatus !== 'SINCRONIZADO' && protocoloStatus !== 'FECHADO') {
           return true;
         }
         

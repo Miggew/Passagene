@@ -36,6 +36,11 @@ export default function ProtocoloRelatorioFechado() {
   const [protocolo, setProtocolo] = useState<ProtocoloSincronizacao | null>(null);
   const [fazendaNome, setFazendaNome] = useState('');
   const [receptorasFinal, setReceptorasFinal] = useState<ReceptoraComStatusFinal[]>([]);
+  const [teInfo, setTeInfo] = useState<{
+    data_te?: string;
+    veterinario_responsavel?: string;
+    tecnico_responsavel?: string;
+  } | null>(null);
   const [resumo, setResumo] = useState({
     totalIniciaram: 0,
     totalConcluiram: 0,
@@ -184,11 +189,8 @@ export default function ProtocoloRelatorioFechado() {
 
       if (protocoloError) throw protocoloError;
 
-      // Verificar se protocolo está fechado
-      if (protocoloData.status !== 'PASSO2_FECHADO') {
-        navigate('/protocolos');
-        return;
-      }
+      // Permitir visualização de protocolos em qualquer status
+      // Removida restrição que só permitia protocolos fechados
 
       // Se a observação indica que foi criado automaticamente, buscar informações da mudança
       let observacoesEnriquecidas = protocoloData.observacoes;
@@ -211,6 +213,9 @@ export default function ProtocoloRelatorioFechado() {
       if (fazendaError) throw fazendaError;
       setFazendaNome(fazendaData.nome);
 
+      // Load informações da TE que resultou no fechamento do protocolo
+      await loadTeInfo(protocoloData.id);
+
       // Load receptoras do protocolo
       await loadReceptoras({
         ...protocoloData,
@@ -220,6 +225,56 @@ export default function ProtocoloRelatorioFechado() {
       console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTeInfo = async (protocoloId: string) => {
+    try {
+      // Buscar todas as receptoras do protocolo
+      const { data: prData, error: prError } = await supabase
+        .from('protocolo_receptoras')
+        .select('id')
+        .eq('protocolo_id', protocoloId);
+
+      if (prError) {
+        console.error('Erro ao buscar protocolo_receptoras:', prError);
+        return;
+      }
+
+      if (!prData || prData.length === 0) {
+        return;
+      }
+
+      const protocoloReceptoraIds = prData.map(pr => pr.id);
+
+      // Buscar a TE mais recente realizada no protocolo
+      const { data: teData, error: teError } = await supabase
+        .from('transferencias_embrioes')
+        .select('data_te, veterinario_responsavel, tecnico_responsavel')
+        .in('protocolo_receptora_id', protocoloReceptoraIds)
+        .eq('status_te', 'REALIZADA')
+        .order('data_te', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (teError) {
+        // Se não encontrou TE, não é erro - apenas não há TE ainda
+        if (teError.code !== 'PGRST116') {
+          console.error('Erro ao buscar TE:', teError);
+        }
+        return;
+      }
+
+      if (teData) {
+        setTeInfo({
+          data_te: teData.data_te,
+          veterinario_responsavel: teData.veterinario_responsavel || undefined,
+          tecnico_responsavel: teData.tecnico_responsavel || undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar informações da TE:', error);
     }
   };
 
@@ -341,54 +396,118 @@ export default function ProtocoloRelatorioFechado() {
         </Button>
       </div>
 
-      {/* Informações do Protocolo - Ordem Fixa */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações do Protocolo</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* 1) Fazenda */}
-          <div>
-            <p className="text-sm font-medium text-slate-500">Fazenda</p>
-            <p className="text-base text-slate-900 mt-1">{fazendaNome || '—'}</p>
-          </div>
-          {/* 2) Data início */}
-          <div>
-            <p className="text-sm font-medium text-slate-500">Data início</p>
-            <p className="text-base text-slate-900 mt-1">
-              {protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}
-            </p>
-          </div>
-          {/* 3) Vet responsável pelo início */}
-          <div>
-            <p className="text-sm font-medium text-slate-500">Vet responsável pelo início</p>
-            <p className="text-base text-slate-900 mt-1">
-              {parseResponsavelInicio(protocolo.responsavel_inicio).veterinario || '—'}
-            </p>
-          </div>
-          {/* 4) Tec responsável pelo início */}
-          <div>
-            <p className="text-sm font-medium text-slate-500">Tec responsável pelo início</p>
-            <p className="text-base text-slate-900 mt-1">
-              {parseResponsavelInicio(protocolo.responsavel_inicio).tecnico || '—'}
-            </p>
-          </div>
-          {/* 5) Data segundo passo */}
-          <div>
-            <p className="text-sm font-medium text-slate-500">Data segundo passo</p>
-            <p className="text-base text-slate-900 mt-1">
-              {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '—'}
-            </p>
-          </div>
-          {/* 6) Responsável pelo segundo passo */}
-          <div>
-            <p className="text-sm font-medium text-slate-500">Responsável pelo segundo passo</p>
-            <p className="text-base text-slate-900 mt-1">
-              {protocolo.passo2_tecnico_responsavel || '—'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Informações do Protocolo - Reorganizado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Coluna 1: Informações Gerais */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Gerais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Fazenda</p>
+              <p className="text-base text-slate-900 mt-1">{fazendaNome || '—'}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Data de Início</p>
+              <p className="text-base text-slate-900 mt-1">
+                {protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Status</p>
+              <p className="text-base text-slate-900 mt-1">
+                {protocolo.status === 'SINCRONIZADO' && (
+                  <Badge variant="default" className="bg-green-600">Sincronizado</Badge>
+                )}
+                {protocolo.status === 'FECHADO' && (
+                  <Badge variant="default" className="bg-slate-600">Fechado</Badge>
+                )}
+                {protocolo.status === 'PASSO1_FECHADO' && (
+                  <Badge variant="default" className="bg-yellow-600">Aguardando 2º Passo</Badge>
+                )}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Coluna 2: 1º Passo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>1º Passo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Veterinário Responsável</p>
+              <p className="text-base text-slate-900 mt-1">
+                {parseResponsavelInicio(protocolo.responsavel_inicio).veterinario || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Técnico Responsável</p>
+              <p className="text-base text-slate-900 mt-1">
+                {parseResponsavelInicio(protocolo.responsavel_inicio).tecnico || '—'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Coluna 3: 2º Passo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>2º Passo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Data de Realização</p>
+              <p className="text-base text-slate-900 mt-1">
+                {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Técnico Responsável</p>
+              <p className="text-base text-slate-900 mt-1">
+                {protocolo.passo2_tecnico_responsavel || '—'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Coluna 4: Transferência de Embriões (TE) */}
+        {teInfo && (teInfo.data_te || teInfo.veterinario_responsavel || teInfo.tecnico_responsavel) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transferência de Embriões</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {teInfo.data_te && (
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Data da TE</p>
+                  <p className="text-base text-slate-900 mt-1">
+                    {formatDate(teInfo.data_te)}
+                  </p>
+                </div>
+              )}
+              {teInfo.veterinario_responsavel && (
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Veterinário Responsável</p>
+                  <p className="text-base text-slate-900 mt-1">
+                    {teInfo.veterinario_responsavel}
+                  </p>
+                </div>
+              )}
+              {teInfo.tecnico_responsavel && (
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Técnico Responsável</p>
+                  <p className="text-base text-slate-900 mt-1">
+                    {teInfo.tecnico_responsavel}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

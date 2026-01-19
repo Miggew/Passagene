@@ -332,7 +332,7 @@ export default function ProtocoloDetail() {
           )
         `)
         .eq('receptora_id', addReceptoraForm.receptora_id)
-        .neq('protocolos_sincronizacao.status', 'PASSO2_FECHADO');
+        .neq('protocolos_sincronizacao.status', 'SINCRONIZADO');
 
       if (protocolosAtivosError) {
         console.error('Erro ao verificar protocolos ativos:', protocolosAtivosError);
@@ -368,9 +368,9 @@ export default function ProtocoloDetail() {
             return false;
           }
           
-          // Se está APTA ou INICIADA e o protocolo não está fechado, bloqueia
+          // Se está APTA ou INICIADA e o protocolo não está sincronizado/fechado, bloqueia
           if ((receptoraStatus === 'APTA' || receptoraStatus === 'INICIADA') && 
-              protocoloStatus !== 'PASSO2_FECHADO') {
+              protocoloStatus !== 'SINCRONIZADO' && protocoloStatus !== 'FECHADO') {
             return true;
           }
           
@@ -550,7 +550,7 @@ export default function ProtocoloDetail() {
       const { data: receptorasComBrinco, error: brincoCheckError } = await supabase
         .from('receptoras')
         .select('id, identificacao')
-        .eq('identificacao', createReceptoraForm.identificacao.trim());
+        .ilike('identificacao', createReceptoraForm.identificacao.trim());
 
       if (brincoCheckError) {
         console.error('Erro ao verificar receptoras com brinco:', brincoCheckError);
@@ -1037,7 +1037,9 @@ export default function ProtocoloDetail() {
     );
   }
 
-  const isPasso1Aberto = protocolo.status === 'PASSO1_ABERTO' || protocolo.status === 'ABERTO';
+  // Nota: Status 'ABERTO' e 'PASSO1_ABERTO' foram removidos - protocolos são criados já com PASSO1_FECHADO
+  // Portanto, protocolos não podem mais ser editados após criação (sempre false)
+  const isPasso1Aberto = false;
 
   return (
     <div className="space-y-6">

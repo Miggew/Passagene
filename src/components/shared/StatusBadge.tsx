@@ -14,6 +14,12 @@ const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destruc
   NAO_UTILIZADA: { variant: 'outline', className: 'bg-gray-100 text-gray-800' },
   SINCRONIZANDO: { variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
   SINCRONIZADA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
+  // Status de protocolos
+  SINCRONIZADO: { variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 text-white' },
+  FECHADO: { variant: 'secondary', className: 'bg-slate-500 hover:bg-slate-600 text-white' },
+  PASSO1_FECHADO: { variant: 'secondary', className: 'bg-blue-400 hover:bg-blue-500 text-white' },
+  PASSO2_FECHADO: { variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 text-white' }, // Status antigo, será migrado
+  EM_TE: { variant: 'secondary', className: 'bg-slate-500 hover:bg-slate-600 text-white' }, // Status antigo, será migrado
   // Estados reprodutivos
   VAZIA: { variant: 'outline', className: 'bg-gray-100 text-gray-800 border-gray-300' },
   EM_SINCRONIZACAO: { variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },

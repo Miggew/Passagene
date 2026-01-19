@@ -19,20 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
-import { ArrowLeft, CheckCircle, XCircle, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Lock } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 
@@ -56,19 +51,18 @@ export default function ProtocoloPasso2() {
   const [receptoras, setReceptoras] = useState<ReceptoraWithStatus[]>([]);
   
   // Dialog states
-  const [showConfirmarDialog, setShowConfirmarDialog] = useState(false);
-  const [showDescartarDialog, setShowDescartarDialog] = useState(false);
   const [showResumoPasso2, setShowResumoPasso2] = useState(false);
   const [showCancelarDialog, setShowCancelarDialog] = useState(false);
-  const [selectedReceptoraId, setSelectedReceptoraId] = useState('');
-  const [selectedReceptoraBrinco, setSelectedReceptoraBrinco] = useState('');
-  const [isSavingConfirmar, setIsSavingConfirmar] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
-  
-  // Form states (apenas para descartar)
-  const [descartarForm, setDescartarForm] = useState({
-    motivo_inapta: '',
+
+  // Form states para passo2 (unificado)
+  const [passo2Form, setPasso2Form] = useState({
+    data: '',
+    tecnico: '',
   });
+
+  // Estado para armazenar motivo_inapta em memória (não salva até finalizar)
+  const [motivosInapta, setMotivosInapta] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (id) {
@@ -76,11 +70,13 @@ export default function ProtocoloPasso2() {
     }
   }, [id]);
 
-  // Verificar se há mudanças pendentes
+  // Verificar se há mudanças pendentes (receptoras não avaliadas ou campos passo2 não preenchidos)
   useEffect(() => {
     const pendentes = receptoras.filter(r => r.pr_status === 'INICIADA');
-    setHasPendingChanges(pendentes.length > 0 && protocolo?.status !== 'PASSO2_FECHADO');
-  }, [receptoras, protocolo]);
+    const camposPreenchidos = passo2Form.data && passo2Form.tecnico.trim();
+    const temMudancas = pendentes.length > 0 || !camposPreenchidos;
+    setHasPendingChanges(temMudancas && protocolo?.status !== 'SINCRONIZADO');
+  }, [receptoras, protocolo, passo2Form]);
 
   // Ref para controlar navegação bloqueada
   const navigationBlockedRef = useRef(false);
@@ -135,10 +131,10 @@ export default function ProtocoloPasso2() {
       if (protocoloError) throw protocoloError;
 
       // Validar apenas se o status é inválido para esta página
-      // Permitir PASSO2_FECHADO pois pode ser visto após finalizar (antes de redirecionar)
+      // Permitir SINCRONIZADO pois pode ser visto após finalizar (antes de redirecionar)
       if (protocoloData.status !== 'PASSO1_FECHADO' && 
           protocoloData.status !== 'PRIMEIRO_PASSO_FECHADO' && 
-          protocoloData.status !== 'PASSO2_FECHADO') {
+          protocoloData.status !== 'SINCRONIZADO') {
         toast({
           title: 'Erro',
           description: 'Este protocolo não está aguardando o 2º passo',
@@ -149,6 +145,20 @@ export default function ProtocoloPasso2() {
       }
 
       setProtocolo(protocoloData);
+
+      // Preencher campos do passo2 se já existirem (protocolos antigos ou em andamento)
+      if (protocoloData.passo2_data || protocoloData.passo2_tecnico_responsavel) {
+        setPasso2Form({
+          data: protocoloData.passo2_data || new Date().toISOString().split('T')[0],
+          tecnico: protocoloData.passo2_tecnico_responsavel || '',
+        });
+      } else {
+        // Se não tem, inicializar com data atual
+        setPasso2Form({
+          data: new Date().toISOString().split('T')[0],
+          tecnico: '',
+        });
+      }
 
       // Load fazenda nome
       const { data: fazendaData, error: fazendaError } = await supabase
@@ -278,6 +288,15 @@ export default function ProtocoloPasso2() {
       }
 
       setReceptoras(receptorasWithStatus);
+
+      // Carregar motivos_inapta em memória se houver receptoras INAPTA
+      const motivosInaptaLocal: Record<string, string> = {};
+      receptorasWithStatus
+        .filter(r => r.pr_status === 'INAPTA' && r.pr_motivo_inapta)
+        .forEach(r => {
+          motivosInaptaLocal[r.id] = r.pr_motivo_inapta || '';
+        });
+      setMotivosInapta(motivosInaptaLocal);
     } catch (error) {
       console.error('Error loading receptoras:', error);
       toast({
@@ -288,98 +307,92 @@ export default function ProtocoloPasso2() {
     }
   };
 
-  const handleConfirmarReceptora = async () => {
-    // Proteção contra multi-clique
-    if (isSavingConfirmar || submitting) {
-      return;
-    }
-
-    try {
-      setIsSavingConfirmar(true);
-
-      const { error } = await supabase
-        .from('protocolo_receptoras')
-        .update({
-          status: 'APTA',
-          motivo_inapta: null,
-        })
-        .eq('protocolo_id', id)
-        .eq('receptora_id', selectedReceptoraId);
-
-      if (error) {
-        console.error('Erro ao confirmar receptora:', error);
-        throw error;
-      }
-
-      toast({
-        title: 'Receptora confirmada',
-        description: `${selectedReceptoraBrinco} foi confirmada e segue para TE`,
+  const handleAptaChange = (receptoraId: string, checked: boolean) => {
+    // Atualizar apenas o estado local (não salva no banco ainda)
+    if (checked) {
+      // Se marcou APTA, remover motivo_inapta e garantir que INAPTA está desmarcado
+      setMotivosInapta(prev => {
+        const updated = { ...prev };
+        delete updated[receptoraId];
+        return updated;
       });
-
-      setShowConfirmarDialog(false);
-      setSelectedReceptoraId('');
-      setSelectedReceptoraBrinco('');
-      loadData();
-    } catch (error) {
-      console.error('Erro ao confirmar receptora:', error);
-      toast({
-        title: 'Erro ao confirmar receptora',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSavingConfirmar(false);
+      setReceptoras(prevReceptoras =>
+        prevReceptoras.map(r =>
+          r.id === receptoraId
+            ? { ...r, pr_status: 'APTA', pr_motivo_inapta: undefined }
+            : r
+        )
+      );
+    } else {
+      // Se desmarcou APTA, voltar para INICIADA
+      setReceptoras(prevReceptoras =>
+        prevReceptoras.map(r =>
+          r.id === receptoraId
+            ? { ...r, pr_status: 'INICIADA', pr_motivo_inapta: undefined }
+            : r
+        )
+      );
     }
   };
 
-  const handleDescartarReceptora = async () => {
-    // Proteção contra multi-clique
-    if (submitting) {
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      const { error } = await supabase
-        .from('protocolo_receptoras')
-        .update({
-          status: 'INAPTA',
-          motivo_inapta: descartarForm.motivo_inapta.trim() || null,
-        })
-        .eq('protocolo_id', id)
-        .eq('receptora_id', selectedReceptoraId);
-
-      if (error) {
-        console.error('Erro ao descartar receptora:', error);
-        throw error;
-      }
-
-      toast({
-        title: 'Receptora descartada',
-        description: `${selectedReceptoraBrinco} foi descartada do protocolo`,
+  const handleInaptaChange = (receptoraId: string, checked: boolean) => {
+    // Atualizar apenas o estado local (não salva no banco ainda)
+    if (checked) {
+      // Se marcou INAPTA, garantir que APTA está desmarcado
+      setReceptoras(prevReceptoras =>
+        prevReceptoras.map(r =>
+          r.id === receptoraId
+            ? { ...r, pr_status: 'INAPTA' }
+            : r
+        )
+      );
+    } else {
+      // Se desmarcou INAPTA, voltar para INICIADA e limpar motivo
+      setMotivosInapta(prev => {
+        const updated = { ...prev };
+        delete updated[receptoraId];
+        return updated;
       });
-
-      setShowDescartarDialog(false);
-      setSelectedReceptoraId('');
-      setSelectedReceptoraBrinco('');
-      setDescartarForm({ motivo_inapta: '' });
-      loadData();
-    } catch (error) {
-      console.error('Erro ao descartar receptora:', error);
-      toast({
-        title: 'Erro ao descartar receptora',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
+      setReceptoras(prevReceptoras =>
+        prevReceptoras.map(r =>
+          r.id === receptoraId
+            ? { ...r, pr_status: 'INICIADA', pr_motivo_inapta: undefined }
+            : r
+        )
+      );
     }
+  };
+
+  const handleMotivoInaptaChange = (receptoraId: string, motivo: string) => {
+    // Armazenar motivo_inapta em memória
+    setMotivosInapta(prev => ({
+      ...prev,
+      [receptoraId]: motivo.trim(),
+    }));
+
+    // Atualizar também no estado das receptoras para exibição
+    setReceptoras(prevReceptoras =>
+      prevReceptoras.map(r =>
+        r.id === receptoraId
+          ? { ...r, pr_motivo_inapta: motivo.trim() || undefined }
+          : r
+      )
+    );
   };
 
   const handleFinalizarPasso2 = async () => {
     // Proteção contra multi-clique
     if (submitting) {
+      return;
+    }
+
+    // Validação: campos passo2_data e passo2_tecnico_responsavel obrigatórios
+    if (!passo2Form.data || !passo2Form.tecnico.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Data de realização do 2º passo e técnico responsável são obrigatórios',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -407,60 +420,115 @@ export default function ProtocoloPasso2() {
     try {
       setSubmitting(true);
 
-      // Update protocol status to PASSO2_FECHADO
       // Usar data atual como string YYYY-MM-DD (sem conversão de timezone)
       const hoje = new Date();
       const dataRetirada = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
-      
-      const { error } = await supabase
+
+      // Atualizar status das receptoras no protocolo_receptoras (salvar tudo de uma vez)
+      const receptorasConfirmadas = receptoras.filter(r => r.pr_status === 'APTA');
+      const receptorasDescartadas = receptoras.filter(r => r.pr_status === 'INAPTA');
+
+      // IMPORTANTE: Se não houver receptoras APTA, o protocolo deve ser FECHADO ao invés de SINCRONIZADO
+      const temReceptorasAptas = receptorasConfirmadas.length > 0;
+      const novoStatusProtocolo = temReceptorasAptas ? 'SINCRONIZADO' : 'FECHADO';
+
+      // Primeiro: Atualizar receptoras no banco de dados (protocolo_receptoras)
+      const protocoloReceptorasPromises = [
+        // Atualizar receptoras confirmadas (APTA)
+        ...receptorasConfirmadas.map(async (r) => {
+          const { error } = await supabase
+            .from('protocolo_receptoras')
+            .update({
+              status: 'APTA',
+              motivo_inapta: null,
+            })
+            .eq('protocolo_id', id)
+            .eq('receptora_id', r.id);
+
+          if (error) {
+            console.error(`Erro ao atualizar status da receptora ${r.identificacao} no protocolo:`, error);
+            throw error;
+          }
+        }),
+        // Atualizar receptoras descartadas (INAPTA)
+        ...receptorasDescartadas.map(async (r) => {
+          const motivoInapta = motivosInapta[r.id] || r.pr_motivo_inapta || null;
+          const { error } = await supabase
+            .from('protocolo_receptoras')
+            .update({
+              status: 'INAPTA',
+              motivo_inapta: motivoInapta || null,
+            })
+            .eq('protocolo_id', id)
+            .eq('receptora_id', r.id);
+
+          if (error) {
+            console.error(`Erro ao atualizar status da receptora ${r.identificacao} no protocolo:`, error);
+            throw error;
+          }
+        }),
+      ];
+
+      // Aguardar todas as atualizações de protocolo_receptoras
+      await Promise.allSettled(protocoloReceptorasPromises);
+
+      // Atualizar status do protocolo (SINCRONIZADO se tem receptoras APTA, FECHADO se não tem)
+      const { error: protocoloError } = await supabase
         .from('protocolos_sincronizacao')
         .update({ 
-          status: 'PASSO2_FECHADO',
+          status: novoStatusProtocolo,
+          passo2_data: passo2Form.data,
+          passo2_tecnico_responsavel: passo2Form.tecnico.trim(),
           data_retirada: dataRetirada,
           responsavel_retirada: protocolo?.responsavel_inicio || null,
         })
         .eq('id', id);
 
-      if (error) {
-        console.error('Erro ao finalizar 2º passo:', error);
-        throw error;
+      if (protocoloError) {
+        console.error('Erro ao atualizar status do protocolo:', protocoloError);
+        throw protocoloError;
       }
 
-      // Atualizar estado local (não precisa recarregar tudo)
+      // Atualizar estado local
       setProtocolo({
         ...protocolo!,
-        status: 'PASSO2_FECHADO',
+        status: novoStatusProtocolo as 'SINCRONIZADO' | 'FECHADO',
+        passo2_data: passo2Form.data,
+        passo2_tecnico_responsavel: passo2Form.tecnico.trim(),
         data_retirada: dataRetirada,
         responsavel_retirada: protocolo?.responsavel_inicio || null,
       });
 
-      // Atualizar status das receptoras baseado no resultado do passo 2
+      // Segundo: Atualizar status_reprodutivo das receptoras
       // Receptoras APTA → SINCRONIZADA
       // Receptoras INAPTA → VAZIA (descartadas)
-      const receptorasConfirmadas = receptoras.filter(r => r.pr_status === 'APTA');
-      const receptorasDescartadas = receptoras.filter(r => r.pr_status === 'INAPTA');
-
       const statusUpdatePromises = [
         // Atualizar receptoras confirmadas para SINCRONIZADA
+        // Atualizar diretamente sem validação para garantir que sempre atualiza
         ...receptorasConfirmadas.map(async (r) => {
-          const statusAtual = await calcularStatusReceptora(r.id);
-          const validacao = validarTransicaoStatus(statusAtual, 'FINALIZAR_PASSO2');
+          const { error: statusError } = await supabase
+            .from('receptoras')
+            .update({ status_reprodutivo: 'SINCRONIZADA' })
+            .eq('id', r.id);
           
-          if (!validacao.valido) {
-            console.warn(`Não foi possível atualizar status da receptora ${r.identificacao}: ${validacao.mensagem}`);
-            return;
-          }
-
-          const { error: statusError } = await atualizarStatusReceptora(r.id, 'SINCRONIZADA');
           if (statusError) {
-            console.error(`Erro ao atualizar status da receptora ${r.identificacao}:`, statusError);
+            console.error(`Erro ao atualizar status da receptora ${r.identificacao} para SINCRONIZADA:`, statusError);
+          } else {
+            console.log(`Status da receptora ${r.identificacao} atualizado para SINCRONIZADA`);
           }
         }),
         // Atualizar receptoras descartadas para VAZIA
         ...receptorasDescartadas.map(async (r) => {
-          const { error: statusError } = await atualizarStatusReceptora(r.id, 'VAZIA');
+          // Atualizar diretamente sem validação para garantir que sempre atualiza
+          const { error: statusError } = await supabase
+            .from('receptoras')
+            .update({ status_reprodutivo: 'VAZIA' })
+            .eq('id', r.id);
+          
           if (statusError) {
-            console.error(`Erro ao atualizar status da receptora ${r.identificacao}:`, statusError);
+            console.error(`Erro ao atualizar status da receptora ${r.identificacao} para VAZIA:`, statusError);
+          } else {
+            console.log(`Status da receptora ${r.identificacao} atualizado para VAZIA`);
           }
         }),
       ];
@@ -495,42 +563,13 @@ export default function ProtocoloPasso2() {
     navigate('/protocolos');
   };
 
-  const handleCancelarPasso2 = async () => {
-    try {
-      setSubmitting(true);
-
-      // Reverter passo2_data e passo2_tecnico_responsavel
-      const { error } = await supabase
-        .from('protocolos_sincronizacao')
-        .update({
-          passo2_data: null,
-          passo2_tecnico_responsavel: null,
-          status: 'PASSO1_FECHADO', // Voltar para o status anterior
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: '2º passo cancelado',
-        description: 'O protocolo voltou para o status de aguardando 2º passo',
-      });
-
-      setShowCancelarDialog(false);
-      setHasPendingChanges(false);
-      navigationBlockedRef.current = false;
-      
-      navigate('/protocolos');
-    } catch (error) {
-      console.error('Erro ao cancelar 2º passo:', error);
-      toast({
-        title: 'Erro ao cancelar 2º passo',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleCancelarPasso2 = () => {
+    // Com a unificação, não precisamos salvar nada no banco ao cancelar
+    // Os dados ficam em memória e não são salvos até finalizar
+    setShowCancelarDialog(false);
+    setHasPendingChanges(false);
+    navigationBlockedRef.current = false;
+    navigate('/protocolos');
   };
 
   const handleVoltarClick = () => {
@@ -622,15 +661,57 @@ export default function ProtocoloPasso2() {
             <p className="text-slate-600 mt-1">Revisar e confirmar receptoras</p>
           </div>
         </div>
-        <Button 
-          onClick={handleFinalizarPasso2}
-          disabled={receptorasPendentes.length > 0 || submitting}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Lock className="w-4 h-4 mr-2" />
-          {submitting ? 'Finalizando...' : 'Finalizar 2º Passo'}
-        </Button>
+        <div className="flex flex-col items-end gap-2">
+          <Button 
+            onClick={handleFinalizarPasso2}
+            disabled={receptorasPendentes.length > 0 || !passo2Form.data || !passo2Form.tecnico.trim() || submitting}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Lock className="w-4 h-4 mr-2" />
+            {submitting ? 'Finalizando...' : 'Finalizar 2º Passo'}
+          </Button>
+          {(receptorasPendentes.length > 0 || !passo2Form.data || !passo2Form.tecnico.trim()) && (
+            <p className="text-xs text-slate-500 text-right">
+              {!passo2Form.data || !passo2Form.tecnico.trim()
+                ? 'Preencha a data e o técnico responsável'
+                : receptorasPendentes.length > 0
+                ? `${receptorasPendentes.length} receptora(s) aguardando avaliação`
+                : ''}
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* Campos para preencher passo2_data e passo2_tecnico_responsavel (unificado) */}
+      {protocolo && protocolo.status !== 'SINCRONIZADO' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Dados do 2º Passo</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="passo2_data">Data de Realização do 2º Passo *</Label>
+              <Input
+                id="passo2_data"
+                type="date"
+                value={passo2Form.data}
+                onChange={(e) => setPasso2Form({ ...passo2Form, data: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="passo2_tecnico">Técnico Responsável *</Label>
+              <Input
+                id="passo2_tecnico"
+                value={passo2Form.tecnico}
+                onChange={(e) => setPasso2Form({ ...passo2Form, tecnico: e.target.value })}
+                placeholder="Nome do técnico responsável"
+                required
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -650,13 +731,13 @@ export default function ProtocoloPasso2() {
           <div>
             <p className="text-sm font-medium text-slate-500">Data do 2º Passo</p>
             <p className="text-base text-slate-900">
-              {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '-'}
+              {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : (passo2Form.data ? formatDate(passo2Form.data) : '-')}
             </p>
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Técnico 2º Passo</p>
             <p className="text-base text-slate-900">
-              {protocolo.passo2_tecnico_responsavel || '-'}
+              {protocolo.passo2_tecnico_responsavel || passo2Form.tecnico || '-'}
             </p>
           </div>
         </CardContent>
@@ -701,15 +782,14 @@ export default function ProtocoloPasso2() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Ciclando</TableHead>
                 <TableHead>Qualidade</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead>Avaliação</TableHead>
+                <TableHead>Motivo (se INAPTA)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {receptoras.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-slate-500">
+                  <TableCell colSpan={6} className="text-center text-slate-500">
                     Nenhuma receptora no protocolo
                   </TableCell>
                 </TableRow>
@@ -732,40 +812,105 @@ export default function ProtocoloPasso2() {
                         disabled={true}
                       />
                     </TableCell>
-                    <TableCell>{getStatusBadge(r.pr_status)}</TableCell>
-                    <TableCell>{r.pr_motivo_inapta || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      {r.pr_status === 'INICIADA' && (
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => {
-                              setSelectedReceptoraId(r.id);
-                              setSelectedReceptoraBrinco(r.identificacao);
-                              setShowConfirmarDialog(true);
-                            }}
-                            disabled={isSavingConfirmar || submitting}
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Confirmar
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedReceptoraId(r.id);
-                              setSelectedReceptoraBrinco(r.identificacao);
-                              setDescartarForm({ motivo_inapta: '' });
-                              setShowDescartarDialog(true);
-                            }}
-                            disabled={isSavingConfirmar || submitting}
-                          >
-                            <XCircle className="w-4 h-4 mr-1" />
-                            Descartar
-                          </Button>
+                    <TableCell>
+                      {protocolo && protocolo.status !== 'SINCRONIZADO' ? (
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`apta-${r.id}`}
+                              checked={r.pr_status === 'APTA'}
+                              onCheckedChange={(checked) => {
+                                const newChecked = checked === true;
+                                if (newChecked) {
+                                  // Se marcou APTA, desmarcar INAPTA e limpar motivo
+                                  setMotivosInapta(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[r.id];
+                                    return updated;
+                                  });
+                                  setReceptoras(prevReceptoras =>
+                                    prevReceptoras.map(recept =>
+                                      recept.id === r.id
+                                        ? { ...recept, pr_status: 'APTA', pr_motivo_inapta: undefined }
+                                        : recept
+                                    )
+                                  );
+                                } else {
+                                  // Se desmarcou APTA, voltar para INICIADA
+                                  setReceptoras(prevReceptoras =>
+                                    prevReceptoras.map(recept =>
+                                      recept.id === r.id
+                                        ? { ...recept, pr_status: 'INICIADA', pr_motivo_inapta: undefined }
+                                        : recept
+                                    )
+                                  );
+                                }
+                              }}
+                              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 data-[state=checked]:text-white"
+                            />
+                            <Label
+                              htmlFor={`apta-${r.id}`}
+                              className="text-sm font-medium cursor-pointer text-green-700"
+                            >
+                              APTA
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`inapta-${r.id}`}
+                              checked={r.pr_status === 'INAPTA'}
+                              onCheckedChange={(checked) => {
+                                const newChecked = checked === true;
+                                if (newChecked) {
+                                  // Se marcou INAPTA, desmarcar APTA
+                                  setReceptoras(prevReceptoras =>
+                                    prevReceptoras.map(recept =>
+                                      recept.id === r.id
+                                        ? { ...recept, pr_status: 'INAPTA' }
+                                        : recept
+                                    )
+                                  );
+                                } else {
+                                  // Se desmarcou INAPTA, voltar para INICIADA e limpar motivo
+                                  setMotivosInapta(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[r.id];
+                                    return updated;
+                                  });
+                                  setReceptoras(prevReceptoras =>
+                                    prevReceptoras.map(recept =>
+                                      recept.id === r.id
+                                        ? { ...recept, pr_status: 'INICIADA', pr_motivo_inapta: undefined }
+                                        : recept
+                                    )
+                                  );
+                                }
+                              }}
+                              className="data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 data-[state=checked]:text-white"
+                            />
+                            <Label
+                              htmlFor={`inapta-${r.id}`}
+                              className="text-sm font-medium cursor-pointer text-red-700"
+                            >
+                              INAPTA
+                            </Label>
+                          </div>
                         </div>
+                      ) : (
+                        getStatusBadge(r.pr_status)
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {r.pr_status === 'INAPTA' && protocolo && protocolo.status !== 'SINCRONIZADO' ? (
+                        <Input
+                          type="text"
+                          placeholder="Justificativa (opcional)"
+                          value={motivosInapta[r.id] || r.pr_motivo_inapta || ''}
+                          onChange={(e) => handleMotivoInaptaChange(r.id, e.target.value)}
+                          className="w-full"
+                        />
+                      ) : (
+                        <span className="text-slate-500">{r.pr_motivo_inapta || '-'}</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -775,117 +920,6 @@ export default function ProtocoloPasso2() {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Dialog de Confirmação Simples */}
-      <Dialog 
-        open={showConfirmarDialog} 
-        onOpenChange={(open) => {
-          if (!open && !isSavingConfirmar) {
-            setShowConfirmarDialog(false);
-            setSelectedReceptoraId('');
-            setSelectedReceptoraBrinco('');
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Receptora</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja confirmar a receptora <strong>{selectedReceptoraBrinco}</strong>?
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-slate-600">
-            A receptora será marcada como <strong>APTA</strong> e seguirá para Transferência de Embriões.
-          </p>
-          <div className="flex gap-2 justify-end pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowConfirmarDialog(false);
-                setSelectedReceptoraId('');
-                setSelectedReceptoraBrinco('');
-              }}
-              disabled={isSavingConfirmar}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleConfirmarReceptora}
-              className="bg-green-600 hover:bg-green-700 text-white"
-              disabled={isSavingConfirmar}
-            >
-              {isSavingConfirmar ? 'Confirmando...' : 'Confirmar'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de Descartar (com motivo opcional) */}
-      <Dialog 
-        open={showDescartarDialog} 
-        onOpenChange={(open) => {
-          if (!open && !submitting) {
-            setShowDescartarDialog(false);
-            setSelectedReceptoraId('');
-            setSelectedReceptoraBrinco('');
-            setDescartarForm({ motivo_inapta: '' });
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Descartar Receptora</DialogTitle>
-            <DialogDescription>
-              Descartar a receptora <strong>{selectedReceptoraBrinco}</strong> do protocolo?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Motivo do descarte (opcional)</Label>
-              <Select
-                value={descartarForm.motivo_inapta || 'none'}
-                onValueChange={(value) =>
-                  setDescartarForm({ motivo_inapta: value === 'none' ? '' : value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o motivo (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem motivo</SelectItem>
-                  <SelectItem value="Descartada no 2º passo: Morreu">Morreu</SelectItem>
-                  <SelectItem value="Descartada no 2º passo: Doente">Doente</SelectItem>
-                  <SelectItem value="Descartada no 2º passo: Sumiu">Sumiu</SelectItem>
-                  <SelectItem value="Descartada no 2º passo: Perdeu P4">Perdeu P4</SelectItem>
-                  <SelectItem value="Descartada no 2º passo: Não respondeu">Não respondeu</SelectItem>
-                  <SelectItem value="Descartada no 2º passo: Outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDescartarDialog(false);
-                  setSelectedReceptoraId('');
-                  setSelectedReceptoraBrinco('');
-                  setDescartarForm({ motivo_inapta: '' });
-                }}
-                disabled={submitting}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleDescartarReceptora}
-                variant="destructive"
-                disabled={submitting}
-              >
-                {submitting ? 'Descartando...' : 'Descartar'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Resumo do 2º Passo Modal */}
       <Dialog open={showResumoPasso2} onOpenChange={setShowResumoPasso2}>
@@ -959,10 +993,10 @@ export default function ProtocoloPasso2() {
           <DialogHeader>
             <DialogTitle>Cancelar 2º Passo?</DialogTitle>
             <DialogDescription>
-              Você tem {receptorasPendentes.length} receptora(s) pendente(s) de revisão.
+              Você tem mudanças pendentes (campos não preenchidos ou receptoras não avaliadas).
               <br />
               <br />
-              Ao cancelar, o protocolo voltará para o status de "Aguardando 2º Passo" e você precisará iniciar o 2º passo novamente.
+              Ao sair, as alterações não serão salvas e você precisará iniciar o 2º passo novamente.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end mt-4">
@@ -979,9 +1013,8 @@ export default function ProtocoloPasso2() {
             <Button
               variant="destructive"
               onClick={handleCancelarPasso2}
-              disabled={submitting}
             >
-              {submitting ? 'Cancelando...' : 'Sim, cancelar 2º passo'}
+              Sim, sair sem salvar
             </Button>
           </div>
         </DialogContent>
