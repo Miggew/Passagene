@@ -33,10 +33,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, ArrowLeft, Eye, Lock, X, Users, FileText, Package } from 'lucide-react';
+import { Plus, ArrowLeft, Eye, Lock, X, Users, FileText, Package, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDate, extractDateOnly, addDays, diffDays, getTodayDateString, formatDateString, getDayOfWeekName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface LoteFIVComNomes extends LoteFIV {
   pacote_nome?: string;
@@ -62,6 +63,90 @@ interface AcasalamentoComNomes extends LoteFIVAcasalamento {
 
 interface AspiracaoComOocitosDisponiveis extends AspiracaoDoadora {
   oocitos_disponiveis?: number;
+}
+
+interface LoteHistorico {
+  id: string;
+  data_abertura: string;
+  data_fechamento?: string;
+  status: string;
+  observacoes?: string;
+  pacote_aspiracao_id: string;
+  pacote_data?: string;
+  pacote_nome?: string;
+  fazenda_origem_nome?: string;
+  fazendas_destino_nomes?: string[];
+  quantidade_acasalamentos: number;
+  total_embrioes_produzidos: number;
+  total_embrioes_transferidos?: number;
+  total_embrioes_congelados?: number;
+  total_embrioes_descartados?: number;
+  embrioes_por_classificacao: {
+    BE?: number;
+    BN?: number;
+    BX?: number;
+    BL?: number;
+    BI?: number;
+    sem_classificacao?: number;
+  };
+  total_oocitos?: number;
+  total_viaveis?: number;
+}
+
+interface DetalhesLoteHistorico {
+  lote: LoteHistorico;
+  pacote?: {
+    id: string;
+    data_aspiracao: string;
+    horario_inicio?: string;
+    horario_final?: string;
+    veterinario_responsavel?: string;
+    tecnico_responsavel?: string;
+    total_oocitos?: number;
+    observacoes?: string;
+  };
+  acasalamentos: Array<{
+    id: string;
+    aspiracao_id?: string; // ID da aspiração para comparação
+    doadora?: {
+      registro?: string;
+      nome?: string;
+    };
+    aspiracao?: {
+      data_aspiracao?: string;
+      horario_aspiracao?: string;
+      viaveis?: number;
+      expandidos?: number;
+      total_oocitos?: number;
+      atresicos?: number;
+      degenerados?: number;
+      desnudos?: number;
+      veterinario_responsavel?: string;
+    };
+    dose_semen?: {
+      nome?: string;
+      raca?: string;
+      tipo_semen?: string;
+      cliente?: string;
+    };
+    quantidade_fracionada: number;
+    quantidade_oocitos?: number;
+    quantidade_embrioes?: number;
+    observacoes?: string;
+    resumo_embrioes?: {
+      total: number;
+      porStatus: { [status: string]: number };
+      porClassificacao: { [classificacao: string]: number };
+    };
+  }>;
+  embrioes: Array<{
+    id: string;
+    identificacao?: string;
+    classificacao?: string;
+    tipo_embriao?: string;
+    status_atual?: string;
+    acasalamento_id?: string;
+  }>;
 }
 
 export default function LotesFIV() {
@@ -105,6 +190,17 @@ export default function LotesFIV() {
   const [datasAspiracaoUnicas, setDatasAspiracaoUnicas] = useState<string[]>([]);
   const [fazendasAspiracaoUnicas, setFazendasAspiracaoUnicas] = useState<{ id: string; nome: string }[]>([]);
   const [showFazendaBusca, setShowFazendaBusca] = useState(false);
+  const [lotesHistoricos, setLotesHistoricos] = useState<LoteHistorico[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState<'ativos' | 'historico'>('ativos');
+  const [loteExpandido, setLoteExpandido] = useState<string | null>(null);
+  const [detalhesLoteExpandido, setDetalhesLoteExpandido] = useState<DetalhesLoteHistorico | null>(null);
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false);
+  const [filtroHistoricoDataInicio, setFiltroHistoricoDataInicio] = useState<string>('');
+  const [filtroHistoricoDataFim, setFiltroHistoricoDataFim] = useState<string>('');
+  const [filtroHistoricoFazenda, setFiltroHistoricoFazenda] = useState<string>('');
+  const [filtroHistoricoFazendaBusca, setFiltroHistoricoFazendaBusca] = useState<string>('');
+  const [showFazendaBuscaHistorico, setShowFazendaBuscaHistorico] = useState(false);
 
   // Função para obter o nome resumido do dia
   const getNomeDia = (dia: number): string => {
@@ -159,9 +255,26 @@ export default function LotesFIV() {
     }
   }, [id]);
 
+  // Não carregar histórico automaticamente - apenas quando o botão Buscar for clicado
+  // useEffect removido - histórico só carrega quando o usuário clicar em "Buscar"
+
   // Aplicar filtros quando lotes ou filtros mudarem
   useEffect(() => {
     let filtrados = [...lotes];
+
+    // Primeiro, aplicar filtro de D8: excluir lotes que passaram do D8 ou estão fechados
+    filtrados = filtrados.filter(l => {
+      // Se o lote está FECHADO, não mostrar (vira histórico e some)
+      if (l.status === 'FECHADO') {
+        return false;
+      }
+      // Se o lote passou do D8 (dia_atual > 9), não mostrar (vira histórico e some)
+      if (l.dia_atual !== undefined && l.dia_atual > 9) {
+        return false;
+      }
+      // Mostrar apenas lotes ABERTOS com dia_atual <= 9 (até D8)
+      return l.dia_atual !== undefined && l.dia_atual <= 9;
+    });
 
     // Filtrar por fazenda da aspiração
     if (filtroFazendaAspiracao) {
@@ -439,11 +552,17 @@ export default function LotesFIV() {
           });
       }
 
+
       // Filtrar lotes: mostrar apenas os que estão até D8 (dia_atual <= 9)
       // D8 é o ÚLTIMO DIA. Lotes com dia_atual > 9 não existem mais (viram histórico e somem da lista)
       const lotesVisiveis = lotesComNomes.filter(l => {
         // Se o lote está FECHADO, não mostrar (vira histórico e some)
         if (l.status === 'FECHADO') {
+          return false;
+        }
+        // Se o lote passou do D8 (dia_atual > 9), não mostrar (vira histórico e some)
+        // Isso garante que mesmo se o fechamento automático falhar, o lote não aparecerá
+        if (l.dia_atual !== undefined && l.dia_atual > 9) {
           return false;
         }
         // Se o lote está ABERTO, mostrar apenas se dia_atual <= 9 (até D8, que é o último dia)
@@ -497,6 +616,422 @@ export default function LotesFIV() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLotesHistoricos = async () => {
+    try {
+      setLoadingHistorico(true);
+
+      // Construir query com filtros
+      let query = supabase
+        .from('lotes_fiv')
+        .select('*')
+        .eq('status', 'FECHADO');
+
+      // Aplicar filtro de data se fornecido
+      if (filtroHistoricoDataInicio) {
+        query = query.gte('data_abertura', filtroHistoricoDataInicio);
+      }
+      if (filtroHistoricoDataFim) {
+        query = query.lte('data_abertura', filtroHistoricoDataFim);
+      }
+
+      const { data: lotesData, error: lotesError } = await query.order('data_abertura', { ascending: false });
+
+      if (lotesError) throw lotesError;
+
+      if (!lotesData || lotesData.length === 0) {
+        setLotesHistoricos([]);
+        setLoadingHistorico(false);
+        return;
+      }
+
+      const loteIds = lotesData.map(l => l.id);
+      
+      console.log('📋 Lotes históricos encontrados:', loteIds.length);
+      console.log('IDs dos lotes:', loteIds.slice(0, 5));
+      
+      const pacoteIds = [...new Set(lotesData.map(l => l.pacote_aspiracao_id).filter(Boolean))];
+
+      // Buscar pacotes de aspiração
+      const { data: pacotesData } = await supabase
+        .from('pacotes_aspiracao')
+        .select('id, data_aspiracao, fazenda_id, total_oocitos')
+        .in('id', pacoteIds);
+
+      // Buscar fazendas
+      const { data: fazendasData } = await supabase
+        .from('fazendas')
+        .select('id, nome')
+        .order('nome', { ascending: true });
+
+      const fazendasMap = new Map(fazendasData?.map(f => [f.id, f.nome]) || []);
+      
+      // Criar lista de fazendas únicas para o filtro (se não existir)
+      const fazendasUnicasParaFiltro = fazendasData?.map(f => ({ id: f.id, nome: f.nome })) || [];
+
+      // Buscar acasalamentos
+      const { data: acasalamentosData } = await supabase
+        .from('lote_fiv_acasalamentos')
+        .select('id, lote_fiv_id, quantidade_embrioes, aspiracao_doadora_id')
+        .in('lote_fiv_id', loteIds);
+
+      // Buscar embriões (incluindo status_atual para calcular transferidos, congelados, descartados)
+      // IMPORTANTE: Buscar TODOS os embriões, não filtrar por status, para contar corretamente
+      const { data: embrioesData, error: embrioesError } = await supabase
+        .from('embrioes')
+        .select('id, lote_fiv_id, lote_fiv_acasalamento_id, classificacao, status_atual')
+        .in('lote_fiv_id', loteIds);
+
+      if (embrioesError) {
+        console.error('❌ Erro ao buscar embriões históricos:', embrioesError);
+        toast({
+          title: 'Erro ao buscar embriões',
+          description: embrioesError.message,
+          variant: 'destructive',
+        });
+      }
+
+      console.log('🔍 Debug histórico:');
+      console.log('Lote IDs buscados:', loteIds.length, loteIds.slice(0, 3));
+      console.log('Total de embriões encontrados:', embrioesData?.length || 0);
+      if (embrioesData && embrioesData.length > 0) {
+        console.log('Primeiros 3 embriões:', embrioesData.slice(0, 3).map(e => ({
+          id: e.id.slice(0, 8),
+          lote_fiv_id: e.lote_fiv_id?.slice(0, 8),
+          status: e.status_atual,
+          classificacao: e.classificacao
+        })));
+      }
+
+      // Buscar fazendas destino dos lotes
+      const { data: fazendasDestinoData } = await supabase
+        .from('lote_fiv_fazendas_destino')
+        .select('lote_fiv_id, fazenda_id')
+        .in('lote_fiv_id', loteIds);
+
+      // Buscar aspirações para calcular oocitos viáveis
+      const aspiracaoIds = [...new Set(acasalamentosData?.map(a => a.aspiracao_doadora_id).filter(Boolean) || [])];
+      const { data: aspiracoesData } = await supabase
+        .from('aspiracoes_doadoras')
+        .select('id, viaveis')
+        .in('id', aspiracaoIds);
+
+      // Criar mapas auxiliares
+      const pacotesMap = new Map(pacotesData?.map(p => [p.id, p]) || []);
+      const acasalamentosPorLote = new Map<string, typeof acasalamentosData>();
+      const embrioesPorLote = new Map<string, typeof embrioesData>();
+      const fazendasDestinoPorLote = new Map<string, string[]>();
+      const aspiracoesMap = new Map(aspiracoesData?.map(a => [a.id, a]) || []);
+
+      acasalamentosData?.forEach(a => {
+        if (!acasalamentosPorLote.has(a.lote_fiv_id)) {
+          acasalamentosPorLote.set(a.lote_fiv_id, []);
+        }
+        acasalamentosPorLote.get(a.lote_fiv_id)!.push(a);
+      });
+
+      if (!embrioesData || embrioesData.length === 0) {
+        console.warn('⚠️ Nenhum embrião encontrado para os lotes históricos!');
+        console.log('IDs dos lotes buscados:', loteIds);
+      } else {
+        embrioesData.forEach(e => {
+          if (!e.lote_fiv_id) {
+            console.warn('⚠️ Embrião sem lote_fiv_id:', e.id);
+            return;
+          }
+          if (!embrioesPorLote.has(e.lote_fiv_id)) {
+            embrioesPorLote.set(e.lote_fiv_id, []);
+          }
+          embrioesPorLote.get(e.lote_fiv_id)!.push(e);
+        });
+
+        // Debug: verificar quantos embriões foram encontrados por lote
+        console.log('📊 Embriões históricos encontrados:');
+        console.log('Total de embriões:', embrioesData.length);
+        console.log('Lotes com embriões:', embrioesPorLote.size, 'de', loteIds.length);
+        embrioesPorLote.forEach((embrioes, loteId) => {
+          console.log(`  Lote ${loteId.slice(0, 8)}...: ${embrioes.length} embriões`);
+        });
+      }
+
+      fazendasDestinoData?.forEach(fd => {
+        if (!fazendasDestinoPorLote.has(fd.lote_fiv_id)) {
+          fazendasDestinoPorLote.set(fd.lote_fiv_id, []);
+        }
+        const nome = fazendasMap.get(fd.fazenda_id);
+        if (nome) {
+          fazendasDestinoPorLote.get(fd.lote_fiv_id)!.push(nome);
+        }
+      });
+
+      // Montar resumo dos lotes históricos
+      let historicos: LoteHistorico[] = lotesData.map(lote => {
+        const pacote = pacotesMap.get(lote.pacote_aspiracao_id);
+        const acasalamentos = acasalamentosPorLote.get(lote.id) || [];
+        const embrioes = embrioesPorLote.get(lote.id) || [];
+        const fazendasDestino = fazendasDestinoPorLote.get(lote.id) || [];
+
+        // Debug para este lote específico
+        if (embrioes.length === 0) {
+          console.warn(`⚠️ Lote ${lote.id.slice(0, 8)}... não tem embriões no mapa. Total embriõesData: ${embrioesData?.length || 0}`);
+        }
+
+        // Calcular total de embriões (contagem real dos embriões, não da quantidade dos acasalamentos)
+        const totalEmbrioes = embrioes.length;
+
+        // Calcular embriões por status
+        const totalTransferidos = embrioes.filter(e => e.status_atual === 'TRANSFERIDO').length;
+        const totalCongelados = embrioes.filter(e => e.status_atual === 'CONGELADO').length;
+        const totalDescartados = embrioes.filter(e => e.status_atual === 'DESCARTADO').length;
+
+        // Debug: mostrar estatísticas calculadas
+        if (totalEmbrioes > 0) {
+          console.log(`✅ Lote ${lote.id.slice(0, 8)}...: ${totalEmbrioes} embriões, ${totalTransferidos} transf, ${totalCongelados} cong, ${totalDescartados} desc`);
+        }
+
+        // Calcular embriões por classificação
+        const embrioesPorClassificacao: Record<string, number> = {};
+        embrioes.forEach(e => {
+          if (e.classificacao) {
+            embrioesPorClassificacao[e.classificacao] = (embrioesPorClassificacao[e.classificacao] || 0) + 1;
+          } else {
+            embrioesPorClassificacao['sem_classificacao'] = (embrioesPorClassificacao['sem_classificacao'] || 0) + 1;
+          }
+        });
+
+        // Calcular total de oócitos viáveis
+        let totalViaveis = 0;
+        acasalamentos.forEach(a => {
+          if (a.aspiracao_doadora_id) {
+            const aspiracao = aspiracoesMap.get(a.aspiracao_doadora_id);
+            if (aspiracao?.viaveis) {
+              totalViaveis += aspiracao.viaveis;
+            }
+          }
+        });
+
+        return {
+          id: lote.id,
+          data_abertura: lote.data_abertura,
+          status: lote.status,
+          observacoes: lote.observacoes,
+          pacote_aspiracao_id: lote.pacote_aspiracao_id,
+          pacote_data: pacote?.data_aspiracao,
+          pacote_nome: fazendasMap.get(pacote?.fazenda_id || ''),
+          fazenda_origem_nome: fazendasMap.get(pacote?.fazenda_id || ''),
+          fazendas_destino_nomes: fazendasDestino,
+          quantidade_acasalamentos: acasalamentos.length,
+          total_embrioes_produzidos: totalEmbrioes,
+          total_embrioes_transferidos: totalTransferidos,
+          total_embrioes_congelados: totalCongelados,
+          total_embrioes_descartados: totalDescartados,
+          embrioes_por_classificacao: {
+            BE: embrioesPorClassificacao['BE'],
+            BN: embrioesPorClassificacao['BN'],
+            BX: embrioesPorClassificacao['BX'],
+            BL: embrioesPorClassificacao['BL'],
+            BI: embrioesPorClassificacao['BI'],
+            sem_classificacao: embrioesPorClassificacao['sem_classificacao'],
+          },
+          total_oocitos: pacote?.total_oocitos,
+          total_viaveis: totalViaveis > 0 ? totalViaveis : undefined,
+        };
+      });
+
+      // Aplicar filtro de fazenda de origem se fornecido
+      if (filtroHistoricoFazenda) {
+        // Buscar o nome da fazenda selecionada
+        const fazendaSelecionada = fazendasUnicasParaFiltro.find(f => f.id === filtroHistoricoFazenda);
+        if (fazendaSelecionada) {
+          historicos = historicos.filter(lote => 
+            lote.fazenda_origem_nome === fazendaSelecionada.nome
+          );
+        }
+      }
+
+      setLotesHistoricos(historicos);
+    } catch (error) {
+      console.error('Erro ao carregar lotes históricos:', error);
+      toast({
+        title: 'Erro ao carregar histórico',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingHistorico(false);
+    }
+  };
+
+  const loadDetalhesLoteHistorico = async (loteId: string) => {
+    try {
+      setLoadingDetalhes(true);
+
+      // Buscar o lote histórico
+      const lote = lotesHistoricos.find(l => l.id === loteId);
+      if (!lote) {
+        toast({
+          title: 'Erro',
+          description: 'Lote não encontrado',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Buscar pacote de aspiração completo
+      const { data: pacoteData } = await supabase
+        .from('pacotes_aspiracao')
+        .select('*')
+        .eq('id', lote.pacote_aspiracao_id)
+        .single();
+
+      // Buscar acasalamentos completos
+      const { data: acasalamentosData } = await supabase
+        .from('lote_fiv_acasalamentos')
+        .select('*')
+        .eq('lote_fiv_id', loteId)
+        .order('created_at', { ascending: true });
+
+      // Buscar embriões completos
+      const { data: embrioesData } = await supabase
+        .from('embrioes')
+        .select('*')
+        .eq('lote_fiv_id', loteId)
+        .order('created_at', { ascending: true });
+
+      // Buscar informações das doadoras e aspirações
+      const aspiracaoIds = [...new Set(acasalamentosData?.map(a => a.aspiracao_doadora_id).filter(Boolean) || [])];
+      const { data: aspiracoesData } = await supabase
+        .from('aspiracoes_doadoras')
+        .select('*, doadora:doadoras(id, registro, nome)')
+        .in('id', aspiracaoIds);
+
+      // Buscar informações das doses de sêmen
+      const doseIds = [...new Set(acasalamentosData?.map(a => a.dose_semen_id).filter(Boolean) || [])];
+      const { data: dosesData } = await supabase
+        .from('doses_semen')
+        .select('*, cliente:clientes(nome)')
+        .in('id', doseIds);
+
+      // Criar mapas auxiliares
+      const aspiracoesMap = new Map(aspiracoesData?.map(a => [a.id, a]) || []);
+      const dosesMap = new Map(dosesData?.map(d => [d.id, d]) || []);
+
+      // Agrupar embriões por acasalamento e calcular estatísticas
+      const embrioesPorAcasalamento = new Map<string, {
+        total: number;
+        porStatus: { [status: string]: number };
+        porClassificacao: { [classificacao: string]: number };
+      }>();
+
+      (embrioesData || []).forEach(embriao => {
+        const acasalamentoId = embriao.lote_fiv_acasalamento_id || 'sem_acasalamento';
+        if (!embrioesPorAcasalamento.has(acasalamentoId)) {
+          embrioesPorAcasalamento.set(acasalamentoId, {
+            total: 0,
+            porStatus: {},
+            porClassificacao: {},
+          });
+        }
+        const stats = embrioesPorAcasalamento.get(acasalamentoId)!;
+        stats.total++;
+        
+        // Contar por status
+        const status = embriao.status_atual || 'sem_status';
+        stats.porStatus[status] = (stats.porStatus[status] || 0) + 1;
+        
+        // Contar por classificação
+        const classificacao = embriao.classificacao || 'sem_classificacao';
+        stats.porClassificacao[classificacao] = (stats.porClassificacao[classificacao] || 0) + 1;
+      });
+
+      // Montar detalhes completos
+      const detalhes: DetalhesLoteHistorico = {
+        lote,
+        pacote: pacoteData ? {
+          id: pacoteData.id,
+          data_aspiracao: pacoteData.data_aspiracao,
+          horario_inicio: pacoteData.horario_inicio,
+          horario_final: pacoteData.horario_final,
+          veterinario_responsavel: pacoteData.veterinario_responsavel,
+          tecnico_responsavel: pacoteData.tecnico_responsavel,
+          total_oocitos: pacoteData.total_oocitos,
+          observacoes: pacoteData.observacoes,
+        } : undefined,
+        acasalamentos: (acasalamentosData || []).map(acasalamento => {
+          const aspiracao = acasalamento.aspiracao_doadora_id ? aspiracoesMap.get(acasalamento.aspiracao_doadora_id) : null;
+          const dose = acasalamento.dose_semen_id ? dosesMap.get(acasalamento.dose_semen_id) : null;
+          const doadora = aspiracao?.doadora as any;
+          const statsEmbrioes = embrioesPorAcasalamento.get(acasalamento.id) || {
+            total: 0,
+            porStatus: {},
+            porClassificacao: {},
+          };
+
+          return {
+            id: acasalamento.id,
+            aspiracao_id: acasalamento.aspiracao_doadora_id, // Adicionar ID da aspiração para comparação
+            doadora: doadora ? {
+              registro: doadora.registro,
+              nome: doadora.nome,
+            } : undefined,
+            aspiracao: aspiracao ? {
+              data_aspiracao: aspiracao.data_aspiracao,
+              horario_aspiracao: aspiracao.horario_aspiracao,
+              viaveis: aspiracao.viaveis,
+              expandidos: aspiracao.expandidos,
+              total_oocitos: aspiracao.total_oocitos,
+              atresicos: aspiracao.atresicos,
+              degenerados: aspiracao.degenerados,
+              desnudos: aspiracao.desnudos,
+              veterinario_responsavel: aspiracao.veterinario_responsavel,
+            } : undefined,
+            dose_semen: dose ? {
+              nome: dose.nome,
+              raca: dose.raca,
+              tipo_semen: dose.tipo_semen,
+              cliente: (dose.cliente as any)?.nome,
+            } : undefined,
+            quantidade_fracionada: acasalamento.quantidade_fracionada,
+            quantidade_oocitos: acasalamento.quantidade_oocitos,
+            quantidade_embrioes: acasalamento.quantidade_embrioes,
+            observacoes: acasalamento.observacoes,
+            resumo_embrioes: statsEmbrioes,
+          };
+        }),
+        embrioes: (embrioesData || []).map(embriao => ({
+          id: embriao.id,
+          identificacao: embriao.identificacao,
+          classificacao: embriao.classificacao,
+          tipo_embriao: embriao.tipo_embriao,
+          status_atual: embriao.status_atual,
+          acasalamento_id: embriao.lote_fiv_acasalamento_id,
+        })),
+      };
+
+      setDetalhesLoteExpandido(detalhes);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do lote:', error);
+      toast({
+        title: 'Erro ao carregar detalhes',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDetalhes(false);
+    }
+  };
+
+  const handleExpandirLote = async (loteId: string) => {
+    if (loteExpandido === loteId) {
+      // Recolher
+      setLoteExpandido(null);
+      setDetalhesLoteExpandido(null);
+    } else {
+      // Expandir
+      setLoteExpandido(loteId);
+      await loadDetalhesLoteHistorico(loteId);
     }
   };
 
@@ -2347,6 +2882,13 @@ export default function LotesFIV() {
           <CardTitle>Lista de Lotes FIV</CardTitle>
         </CardHeader>
         <CardContent>
+          <Tabs value={abaAtiva} onValueChange={(value) => setAbaAtiva(value as 'ativos' | 'historico')}>
+            <TabsList className="mb-6">
+              <TabsTrigger value="ativos">Lotes Ativos</TabsTrigger>
+              <TabsTrigger value="historico">Histórico</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="ativos" className="mt-0">
           {/* Filtros */}
           <div className="flex gap-4 mb-6 flex-wrap">
             <div className="flex-1 min-w-[250px] relative fazenda-busca-container">
@@ -2506,6 +3048,506 @@ export default function LotesFIV() {
               )}
             </TableBody>
           </Table>
+          </TabsContent>
+
+          <TabsContent value="historico" className="mt-0">
+              {/* Filtros do Histórico */}
+              <div className="flex gap-4 mb-6 flex-wrap items-end">
+                <div className="flex-1 min-w-[200px]">
+                  <Label htmlFor="filtro-historico-data-inicio">Data Início</Label>
+                  <DatePickerBR
+                    value={filtroHistoricoDataInicio}
+                    onChange={(date) => setFiltroHistoricoDataInicio(date || '')}
+                    placeholder="Data inicial"
+                  />
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <Label htmlFor="filtro-historico-data-fim">Data Fim</Label>
+                  <DatePickerBR
+                    value={filtroHistoricoDataFim}
+                    onChange={(date) => setFiltroHistoricoDataFim(date || '')}
+                    placeholder="Data final"
+                  />
+                </div>
+                <div className="flex-1 min-w-[250px] relative fazenda-busca-container">
+                  <Label htmlFor="filtro-historico-fazenda">Fazenda de Origem</Label>
+                  <div className="relative">
+                    <Input
+                      id="filtro-historico-fazenda"
+                      placeholder="Digite para buscar fazenda..."
+                      value={filtroHistoricoFazendaBusca}
+                      onChange={(e) => {
+                        setFiltroHistoricoFazendaBusca(e.target.value);
+                        setShowFazendaBuscaHistorico(true);
+                        if (!e.target.value) {
+                          setFiltroHistoricoFazenda('');
+                        }
+                      }}
+                      onFocus={() => setShowFazendaBuscaHistorico(true)}
+                    />
+                    {filtroHistoricoFazenda && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-7 w-7 p-0"
+                        onClick={() => {
+                          setFiltroHistoricoFazenda('');
+                          setFiltroHistoricoFazendaBusca('');
+                          setShowFazendaBuscaHistorico(false);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {showFazendaBuscaHistorico && fazendas.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                        {fazendas
+                          .filter((f) => f.nome.toLowerCase().includes(filtroHistoricoFazendaBusca.toLowerCase()))
+                          .map((fazenda) => (
+                            <div
+                              key={fazenda.id}
+                              className="px-4 py-2 hover:bg-slate-100 cursor-pointer"
+                              onClick={() => {
+                                setFiltroHistoricoFazenda(fazenda.id);
+                                setFiltroHistoricoFazendaBusca(fazenda.nome);
+                                setShowFazendaBuscaHistorico(false);
+                              }}
+                            >
+                              {fazenda.nome}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                    {showFazendaBuscaHistorico && filtroHistoricoFazendaBusca && fazendas.filter((f) => f.nome.toLowerCase().includes(filtroHistoricoFazendaBusca.toLowerCase())).length === 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-sm text-slate-500">
+                        Nenhuma fazenda encontrada
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={loadLotesHistoricos}
+                    disabled={loadingHistorico}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Buscar
+                  </Button>
+                  {(filtroHistoricoDataInicio || filtroHistoricoDataFim || filtroHistoricoFazenda) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setFiltroHistoricoDataInicio('');
+                        setFiltroHistoricoDataFim('');
+                        setFiltroHistoricoFazenda('');
+                        setFiltroHistoricoFazendaBusca('');
+                        setShowFazendaBuscaHistorico(false);
+                        loadLotesHistoricos();
+                      }}
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {loadingHistorico ? (
+                <div className="py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : lotesHistoricos.length === 0 ? (
+                <div className="text-center text-slate-500 py-8">
+                  Nenhum lote histórico encontrado
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {lotesHistoricos.map((lote) => (
+                    <Card key={lote.id} className="border-l-4 border-l-slate-400">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">
+                            Lote FIV - {formatDate(lote.data_abertura)}
+                          </CardTitle>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleExpandirLote(lote.id)}
+                            disabled={loadingDetalhes && loteExpandido === lote.id}
+                          >
+                            {loteExpandido === lote.id ? (
+                              <>
+                                <ChevronUp className="w-4 h-4 mr-2" />
+                                Recolher
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4 mr-2" />
+                                Ver Detalhes Completos
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Informações Básicas */}
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-lg">Informações Básicas</h3>
+                            <div className="space-y-1 text-sm">
+                              <p><span className="font-medium">Data da Aspiração:</span> {lote.pacote_data ? formatDate(lote.pacote_data) : '-'}</p>
+                              <p><span className="font-medium">Fazenda Origem:</span> {lote.fazenda_origem_nome || '-'}</p>
+                              <p><span className="font-medium">Data de Abertura:</span> {formatDate(lote.data_abertura)}</p>
+                              <p><span className="font-medium">Status:</span> <Badge variant="outline">{lote.status}</Badge></p>
+                            </div>
+                          </div>
+
+                          {/* Fazendas Destino */}
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-lg">Fazendas Destino</h3>
+                            <div className="flex flex-wrap gap-1">
+                              {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0 ? (
+                                lote.fazendas_destino_nomes.map((nome, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {nome}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-slate-400 text-sm">-</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Estatísticas de Produção */}
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-lg">Estatísticas</h3>
+                            <div className="space-y-1 text-sm">
+                              <p><span className="font-medium">Acasalamentos:</span> {lote.quantidade_acasalamentos || 0}</p>
+                              <p><span className="font-medium">Total de Embriões:</span> {lote.total_embrioes_produzidos || 0}</p>
+                              <p><span className="font-medium">Total Transferidos:</span> <span className="text-green-700 font-semibold">{lote.total_embrioes_transferidos || 0}</span></p>
+                              <p><span className="font-medium">Total Congelados:</span> <span className="text-blue-700 font-semibold">{lote.total_embrioes_congelados || 0}</span></p>
+                              <p><span className="font-medium">Total Descartados:</span> <span className="text-red-700 font-semibold">{lote.total_embrioes_descartados || 0}</span></p>
+                              {lote.total_oocitos && (
+                                <p className="mt-2 pt-2 border-t border-slate-200"><span className="font-medium">Total de Oócitos:</span> {lote.total_oocitos}</p>
+                              )}
+                              {lote.total_viaveis && (
+                                <p><span className="font-medium">Oócitos Viáveis:</span> {lote.total_viaveis}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Classificação dos Embriões */}
+                          <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                            <h3 className="font-semibold text-lg">Embriões por Classificação</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                              {lote.embrioes_por_classificacao.BE && (
+                                <div className="bg-green-50 p-2 rounded border">
+                                  <p className="text-xs font-medium text-green-800">BE</p>
+                                  <p className="text-lg font-bold text-green-900">{lote.embrioes_por_classificacao.BE}</p>
+                                </div>
+                              )}
+                              {lote.embrioes_por_classificacao.BN && (
+                                <div className="bg-blue-50 p-2 rounded border">
+                                  <p className="text-xs font-medium text-blue-800">BN</p>
+                                  <p className="text-lg font-bold text-blue-900">{lote.embrioes_por_classificacao.BN}</p>
+                                </div>
+                              )}
+                              {lote.embrioes_por_classificacao.BX && (
+                                <div className="bg-yellow-50 p-2 rounded border">
+                                  <p className="text-xs font-medium text-yellow-800">BX</p>
+                                  <p className="text-lg font-bold text-yellow-900">{lote.embrioes_por_classificacao.BX}</p>
+                                </div>
+                              )}
+                              {lote.embrioes_por_classificacao.BL && (
+                                <div className="bg-orange-50 p-2 rounded border">
+                                  <p className="text-xs font-medium text-orange-800">BL</p>
+                                  <p className="text-lg font-bold text-orange-900">{lote.embrioes_por_classificacao.BL}</p>
+                                </div>
+                              )}
+                              {lote.embrioes_por_classificacao.BI && (
+                                <div className="bg-red-50 p-2 rounded border">
+                                  <p className="text-xs font-medium text-red-800">BI</p>
+                                  <p className="text-lg font-bold text-red-900">{lote.embrioes_por_classificacao.BI}</p>
+                                </div>
+                              )}
+                              {lote.embrioes_por_classificacao.sem_classificacao && (
+                                <div className="bg-slate-50 p-2 rounded border">
+                                  <p className="text-xs font-medium text-slate-800">Sem Classificação</p>
+                                  <p className="text-lg font-bold text-slate-900">{lote.embrioes_por_classificacao.sem_classificacao}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Observações */}
+                          {lote.observacoes && (
+                            <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                              <h3 className="font-semibold text-lg">Observações</h3>
+                              <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded border">{lote.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Seção Expandida - Detalhes Completos */}
+                        {loteExpandido === lote.id && (
+                          <div className="mt-4 pt-4 border-t border-slate-200">
+                            {loadingDetalhes ? (
+                              <div className="py-4">
+                                <LoadingSpinner />
+                              </div>
+                            ) : detalhesLoteExpandido ? (
+                              <div className="space-y-4">
+                                {/* Informações do Pacote de Aspiração - Compacto */}
+                                {detalhesLoteExpandido.pacote && (
+                                  <div className="bg-slate-50 p-3 rounded border text-sm">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Package className="w-4 h-4 text-slate-600" />
+                                      <span className="font-semibold">Pacote de Aspiração</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-1">
+                                      {detalhesLoteExpandido.pacote.data_aspiracao && (
+                                        <div><span className="text-slate-600">Data:</span> <span className="font-medium">{formatDate(detalhesLoteExpandido.pacote.data_aspiracao)}</span></div>
+                                      )}
+                                      {detalhesLoteExpandido.pacote.horario_inicio && (
+                                        <div><span className="text-slate-600">Hora Início:</span> <span className="font-medium">{detalhesLoteExpandido.pacote.horario_inicio}</span></div>
+                                      )}
+                                      {detalhesLoteExpandido.pacote.horario_final && (
+                                        <div><span className="text-slate-600">Hora Fim Aspiração:</span> <span className="font-medium">{detalhesLoteExpandido.pacote.horario_final}</span></div>
+                                      )}
+                                      {detalhesLoteExpandido.pacote.veterinario_responsavel && (
+                                        <div><span className="text-slate-600">Vet:</span> <span className="font-medium">{detalhesLoteExpandido.pacote.veterinario_responsavel}</span></div>
+                                      )}
+                                      {detalhesLoteExpandido.pacote.tecnico_responsavel && (
+                                        <div><span className="text-slate-600">Técnico:</span> <span className="font-medium">{detalhesLoteExpandido.pacote.tecnico_responsavel}</span></div>
+                                      )}
+                                      {detalhesLoteExpandido.pacote.total_oocitos && (
+                                        <div><span className="text-slate-600">Oócitos Totais:</span> <span className="font-medium">{detalhesLoteExpandido.pacote.total_oocitos}</span></div>
+                                      )}
+                                      {detalhesLoteExpandido.pacote.observacoes && (
+                                        <div className="col-span-full mt-1 pt-1 border-t border-slate-200">
+                                          <span className="text-slate-600">Obs:</span> <span className="text-slate-700">{detalhesLoteExpandido.pacote.observacoes}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Tabela Unificada de Acasalamentos e Embriões */}
+                                {detalhesLoteExpandido.acasalamentos.length > 0 && (
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Users className="w-4 h-4 text-slate-600" />
+                                      <span className="font-semibold text-sm">Acasalamentos e Embriões ({detalhesLoteExpandido.acasalamentos.length})</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow className="bg-slate-50">
+                                            <TableHead className="h-8 text-xs font-semibold">#</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Doadora</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Aspiração</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Oócitos</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Viáveis</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Sêmen</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Dose</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Embriões Prod.</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Total Emb.</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Transf.</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Cong.</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Desc.</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Outros</TableHead>
+                                            <TableHead className="h-8 text-xs font-semibold">Classificação</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {detalhesLoteExpandido.acasalamentos.map((acasalamento, index) => {
+                                            const resumo = acasalamento.resumo_embrioes;
+                                            const transferidos = resumo?.porStatus['TRANSFERIDO'] || 0;
+                                            const congelados = resumo?.porStatus['CONGELADO'] || 0;
+                                            const descartados = resumo?.porStatus['DESCARTADO'] || 0;
+                                            const outros = resumo ? resumo.total - transferidos - congelados - descartados : 0;
+                                            
+                                            const classificacoes = resumo ? Object.entries(resumo.porClassificacao)
+                                              .filter(([classif]) => classif !== 'sem_classificacao')
+                                              .sort((a, b) => b[1] - a[1])
+                                              .map(([classif, qty]) => `${classif}(${qty})`)
+                                              .join(', ') || '-' : '-';
+
+                                            // Verificar se é a mesma aspiração do acasalamento anterior
+                                            // Comparar pelo ID da aspiração (mais confiável)
+                                            const acasalamentoAnterior = index > 0 ? detalhesLoteExpandido.acasalamentos[index - 1] : null;
+                                            const mesmaAspiracao = acasalamentoAnterior && 
+                                              acasalamento.aspiracao_id && 
+                                              acasalamento.aspiracao_id === acasalamentoAnterior.aspiracao_id;
+
+                                            return (
+                                              <TableRow key={acasalamento.id} className={`text-xs ${mesmaAspiracao ? 'bg-slate-50/50' : ''}`}>
+                                                <TableCell className="py-2 font-medium">{index + 1}</TableCell>
+                                                <TableCell className="py-2">
+                                                  {mesmaAspiracao ? (
+                                                    <div className="text-slate-400 italic text-[10px]">↳</div>
+                                                  ) : (
+                                                    <>
+                                                      <div className="font-medium">{acasalamento.doadora?.registro || '-'}</div>
+                                                      {acasalamento.doadora?.nome && (
+                                                        <div className="text-slate-500 text-[11px]">{acasalamento.doadora.nome}</div>
+                                                      )}
+                                                    </>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                  {mesmaAspiracao ? (
+                                                    <div className="text-slate-400 italic text-[10px]">↳</div>
+                                                  ) : (
+                                                    <>
+                                                      {acasalamento.aspiracao?.data_aspiracao && (
+                                                        <div>{formatDate(acasalamento.aspiracao.data_aspiracao)}</div>
+                                                      )}
+                                                      {acasalamento.aspiracao?.horario_aspiracao && (
+                                                        <div className="text-slate-500 text-[11px]">{acasalamento.aspiracao.horario_aspiracao}</div>
+                                                      )}
+                                                    </>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                  {mesmaAspiracao ? (
+                                                    <div className="text-slate-400 italic text-[10px]">↳ (mesma aspiração)</div>
+                                                  ) : (
+                                                    <>
+                                                      <div className="font-medium">{acasalamento.aspiracao?.total_oocitos ?? '-'}</div>
+                                                      {acasalamento.aspiracao && (
+                                                        <div className="text-[10px] text-slate-500 space-x-1">
+                                                          {acasalamento.aspiracao.expandidos !== undefined && <span>Exp:{acasalamento.aspiracao.expandidos}</span>}
+                                                          {acasalamento.aspiracao.atresicos !== undefined && <span>At:{acasalamento.aspiracao.atresicos}</span>}
+                                                          {acasalamento.aspiracao.degenerados !== undefined && <span>Deg:{acasalamento.aspiracao.degenerados}</span>}
+                                                          {acasalamento.aspiracao.desnudos !== undefined && <span>Des:{acasalamento.aspiracao.desnudos}</span>}
+                                                        </div>
+                                                      )}
+                                                    </>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                  {mesmaAspiracao ? (
+                                                    <div className="text-slate-400 italic text-[10px]">↳</div>
+                                                  ) : (
+                                                    <span className="font-medium text-green-700">{acasalamento.aspiracao?.viaveis ?? '-'}</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                  <div className="font-medium">{acasalamento.dose_semen?.nome || '-'}</div>
+                                                  <div className="text-[10px] text-slate-500 space-x-1">
+                                                    {acasalamento.dose_semen?.raca && <span>{acasalamento.dose_semen.raca}</span>}
+                                                    {acasalamento.dose_semen?.tipo_semen && <span>• {acasalamento.dose_semen.tipo_semen}</span>}
+                                                  </div>
+                                                  {acasalamento.dose_semen?.cliente && (
+                                                    <div className="text-[10px] text-slate-500">{acasalamento.dose_semen.cliente}</div>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                  <span className="font-medium">{acasalamento.quantidade_fracionada}</span>
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                  <span className="font-medium text-blue-700">{acasalamento.quantidade_embrioes ?? '-'}</span>
+                                                  {acasalamento.quantidade_oocitos !== undefined && (
+                                                    <div className="text-[10px] text-slate-500">Usados: {acasalamento.quantidade_oocitos}</div>
+                                                  )}
+                                                </TableCell>
+                                                {/* Resumo de Embriões */}
+                                                <TableCell className="py-2 text-center">
+                                                  {resumo && resumo.total > 0 ? (
+                                                    <span className="font-semibold">{resumo.total}</span>
+                                                  ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                  {transferidos > 0 ? (
+                                                    <span className="text-green-700 font-medium">{transferidos}</span>
+                                                  ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                  {congelados > 0 ? (
+                                                    <span className="text-blue-700 font-medium">{congelados}</span>
+                                                  ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                  {descartados > 0 ? (
+                                                    <span className="text-red-700 font-medium">{descartados}</span>
+                                                  ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                  {outros > 0 ? (
+                                                    <span className="text-slate-600 font-medium">{outros}</span>
+                                                  ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-[11px] text-slate-700">
+                                                  {resumo && classificacoes !== '-' ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {classificacoes.split(', ').map((item, i) => (
+                                                        <Badge
+                                                          key={i}
+                                                          variant="outline"
+                                                          className="text-[10px] px-1 py-0 border-slate-300"
+                                                        >
+                                                          {item}
+                                                        </Badge>
+                                                      ))}
+                                                      {resumo.porClassificacao['sem_classificacao'] && (
+                                                        <Badge
+                                                          variant="outline"
+                                                          className="text-[10px] px-1 py-0 border-slate-300 text-slate-500"
+                                                        >
+                                                          Sem class.({resumo.porClassificacao['sem_classificacao']})
+                                                        </Badge>
+                                                      )}
+                                                    </div>
+                                                  ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                  )}
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          })}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Observações dos Acasalamentos (se houver) */}
+                                {detalhesLoteExpandido.acasalamentos.some(a => a.observacoes) && (
+                                  <div className="bg-amber-50 p-2 rounded border border-amber-200 text-xs">
+                                    <div className="font-semibold mb-1 text-amber-900">Observações dos Acasalamentos:</div>
+                                    {detalhesLoteExpandido.acasalamentos.filter(a => a.observacoes).map((acasalamento, index) => (
+                                      <div key={acasalamento.id} className="mb-1">
+                                        <span className="font-medium">#{index + 1} ({acasalamento.doadora?.registro || 'N/A'}):</span> {acasalamento.observacoes}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-center text-slate-500 py-4 text-sm">
+                                Erro ao carregar detalhes
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+          </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

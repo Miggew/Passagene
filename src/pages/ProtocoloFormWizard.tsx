@@ -62,6 +62,7 @@ import { ArrowLeft, Plus, UserPlus, Lock, X, Search } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 import ClassificacoesCicloInline from '@/components/shared/ClassificacoesCicloInline';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface ReceptoraLocal {
   id?: string; // undefined se for nova (ainda não criada)
@@ -751,11 +752,10 @@ export default function ProtocoloFormWizard() {
 
               <div className="space-y-2">
                 <Label htmlFor="data_inicio">Data de Início *</Label>
-                <Input
+                <DatePickerBR
                   id="data_inicio"
-                  type="date"
                   value={protocoloData.data_inicio}
-                  onChange={(e) => setProtocoloData({ ...protocoloData, data_inicio: e.target.value })}
+                  onChange={(value) => setProtocoloData({ ...protocoloData, data_inicio: value || '' })}
                   required
                 />
               </div>

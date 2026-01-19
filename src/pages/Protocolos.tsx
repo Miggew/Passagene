@@ -26,6 +26,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { Plus, Eye, PlayCircle, Search, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface ProtocoloWithFazenda extends ProtocoloSincronizacao {
   fazenda_nome: string;
@@ -277,23 +278,13 @@ export default function Protocolos() {
             {/* Filtro de Data Início */}
             <div className="space-y-2">
               <Label>Data Início (de)</Label>
-              <Input
-                type="date"
-                value={filtroDataInicio}
-                onChange={(e) => setFiltroDataInicio(e.target.value)}
-                placeholder="Data inicial"
-              />
+              <DatePickerBR value={filtroDataInicio} onChange={setFiltroDataInicio} />
             </div>
 
             {/* Filtro de Data Fim */}
             <div className="space-y-2">
               <Label>Data Início (até)</Label>
-              <Input
-                type="date"
-                value={filtroDataFim}
-                onChange={(e) => setFiltroDataFim(e.target.value)}
-                placeholder="Data final"
-              />
+              <DatePickerBR value={filtroDataFim} onChange={setFiltroDataFim} />
             </div>
           </div>
 

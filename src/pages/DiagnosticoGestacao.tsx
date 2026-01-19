@@ -26,6 +26,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Stethoscope, Save, Lock, CheckCircle } from 'lucide-react';
 import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface LoteTE {
   id: string; // chave: fazenda_id-data_te
@@ -744,13 +745,13 @@ export default function DiagnosticoGestacao() {
           novoStatus = 'PRENHE';
           const d0 = new Date(receptora.data_abertura_lote);
           const dataPartoDate = new Date(d0);
-          dataPartoDate.setDate(dataPartoDate.getDate() + 290);
+          dataPartoDate.setDate(dataPartoDate.getDate() + 275);
           dataParto = dataPartoDate.toISOString().split('T')[0];
         } else if (dados.resultado === 'RETOQUE') {
           novoStatus = 'PRENHE_RETOQUE';
           const d0 = new Date(receptora.data_abertura_lote);
           const dataPartoDate = new Date(d0);
-          dataPartoDate.setDate(dataPartoDate.getDate() + 290);
+          dataPartoDate.setDate(dataPartoDate.getDate() + 275);
           dataParto = dataPartoDate.toISOString().split('T')[0];
         } else {
           novoStatus = 'VAZIA';
@@ -1216,10 +1217,9 @@ export default function DiagnosticoGestacao() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="date"
+                            <DatePickerBR
                               value={dados.data_diagnostico}
-                              onChange={(e) => handleFieldChange(receptora.receptora_id, 'data_diagnostico', e.target.value)}
+                              onChange={(value) => handleFieldChange(receptora.receptora_id, 'data_diagnostico', value || '')}
                               className="w-36"
                               disabled={loteSelecionado.status === 'FECHADO'}
                             />

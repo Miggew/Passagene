@@ -22,6 +22,7 @@ import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 import { formatDate } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 import {
   Table,
   TableBody,
@@ -460,8 +461,24 @@ export default function TransferenciaEmbrioes() {
         if (embriao.status_atual === 'CONGELADO') pacote.congelados++;
       });
 
-      const pacotesArray = Array.from(pacotesMap.values());
-      pacotesArray.sort((a, b) => b.data_despacho.localeCompare(a.data_despacho));
+      // Buscar informações de disponibilidade dos lotes FIV
+      const loteFivIdsParaPacotes = [...new Set(pacotesMap.values().map(p => p.lote_fiv_id))];
+      const { data: lotesFivDisponibilidade } = await supabase
+        .from('lotes_fiv')
+        .select('id, disponivel_para_transferencia')
+        .in('id', loteFivIdsParaPacotes);
+
+      const lotesDisponiveisMap = new Map(
+        lotesFivDisponibilidade?.map(l => [l.id, l.disponivel_para_transferencia === true]) || []
+      );
+
+      // Filtrar pacotes: só mostrar aqueles onde o lote está marcado como disponível para transferência
+      const pacotesArray = Array.from(pacotesMap.values())
+        .filter(pacote => {
+          const disponivel = lotesDisponiveisMap.get(pacote.lote_fiv_id);
+          return disponivel === true && pacote.total > 0; // Só pacotes disponíveis e com embriões
+        })
+        .sort((a, b) => b.data_despacho.localeCompare(a.data_despacho));
 
       setPacotes(pacotesArray);
     } catch (error) {
@@ -487,6 +504,18 @@ export default function TransferenciaEmbrioes() {
 
       const receptoraIdsNaFazenda = viewData?.map(v => v.receptora_id) || [];
 
+      // DEBUG: Verificar se a receptora "teste duplo" está na fazenda
+      if (receptoraIdsNaFazenda.length > 0) {
+        const { data: receptorasDebug } = await supabase
+          .from('receptoras')
+          .select('id, identificacao, nome')
+          .in('id', receptoraIdsNaFazenda)
+          .or('identificacao.ilike.%teste duplo%,nome.ilike.%teste duplo%');
+        if (receptorasDebug && receptorasDebug.length > 0) {
+          console.log('🔍 DEBUG: Receptora "teste duplo" encontrada na fazenda:', receptorasDebug);
+        }
+      }
+
       if (receptoraIdsNaFazenda.length === 0) {
         setReceptoras([]);
         return;
@@ -499,6 +528,45 @@ export default function TransferenciaEmbrioes() {
         .in('receptora_id', receptoraIdsNaFazenda);
 
       if (statusError) throw statusError;
+
+      // DEBUG: Verificar se a receptora aparece na view com fase_ciclo SINCRONIZADA
+      if (statusData && statusData.length > 0) {
+        const receptoraTesteDuplo = statusData.find(r => {
+          // Buscar pelo ID se já temos
+          return receptoraIdsNaFazenda.some(id => {
+            // Verificar se há alguma receptora com nome/identificacao "teste duplo"
+            // Precisamos buscar os dados da receptora para comparar
+            return id === r.receptora_id;
+          });
+        });
+        
+        // Buscar dados da receptora para verificar nome
+        if (receptoraIdsNaFazenda.length > 0) {
+          const { data: receptorasParaDebug } = await supabase
+            .from('receptoras')
+            .select('id, identificacao, nome')
+            .in('id', receptoraIdsNaFazenda)
+            .or('identificacao.ilike.%teste duplo%,nome.ilike.%teste duplo%');
+          
+          if (receptorasParaDebug && receptorasParaDebug.length > 0) {
+            const receptoraIdTesteDuplo = receptorasParaDebug[0].id;
+            const naView = statusData.find(r => r.receptora_id === receptoraIdTesteDuplo);
+            if (naView) {
+              console.log('✅ DEBUG: Receptora "teste duplo" encontrada na view v_protocolo_receptoras_status:', naView);
+            } else {
+              console.log('❌ DEBUG: Receptora "teste duplo" NÃO encontrada na view v_protocolo_receptoras_status com fase_ciclo=SINCRONIZADA');
+              // Verificar sem filtro de fase_ciclo
+              const { data: statusDataSemFiltro } = await supabase
+                .from('v_protocolo_receptoras_status')
+                .select('*')
+                .eq('receptora_id', receptoraIdTesteDuplo);
+              if (statusDataSemFiltro && statusDataSemFiltro.length > 0) {
+                console.log('🔍 DEBUG: Receptora na view sem filtro de fase_ciclo:', statusDataSemFiltro);
+              }
+            }
+          }
+        }
+      }
 
       if (!statusData || statusData.length === 0) {
         setReceptoras([]);
@@ -520,6 +588,24 @@ export default function TransferenciaEmbrioes() {
           .in('receptora_id', receptoraIdsDaView);
         
         if (prData) {
+          // DEBUG: Verificar status da receptora "teste duplo" em protocolo_receptoras
+          const { data: receptorasParaDebug } = await supabase
+            .from('receptoras')
+            .select('id, identificacao, nome')
+            .in('id', receptoraIdsDaView)
+            .or('identificacao.ilike.%teste duplo%,nome.ilike.%teste duplo%');
+          
+          if (receptorasParaDebug && receptorasParaDebug.length > 0) {
+            const receptoraIdTesteDuplo = receptorasParaDebug[0].id;
+            const prTesteDuplo = prData.find(pr => pr.receptora_id === receptoraIdTesteDuplo);
+            if (prTesteDuplo) {
+              console.log('🔍 DEBUG: Status da receptora "teste duplo" em protocolo_receptoras:', prTesteDuplo);
+              if (prTesteDuplo.status === 'INAPTA') {
+                console.log('❌ DEBUG: Receptora "teste duplo" está como INAPTA e será filtrada!');
+              }
+            }
+          }
+          
           prData
             .filter(pr => pr.status === 'INAPTA')
             .forEach(pr => receptorasDescartadasIds.add(pr.receptora_id));
@@ -554,20 +640,74 @@ export default function TransferenciaEmbrioes() {
       // porque o status delas foi mudado para UTILIZADA e não aparecem mais como SINCRONIZADA
       // IMPORTANTE: Usar statusDataFiltrado (sem receptoras descartadas) ao invés de statusData
       let receptorasFiltradas = statusDataFiltrado;
+
+      // DEBUG (somente em DEV): localizar a receptora "teste duplo" uma vez (sem await dentro de filter)
+      let receptoraTesteDuploId: string | null = null;
+      if (import.meta.env.DEV && statusDataFiltrado.length > 0) {
+        const ids = Array.from(new Set(statusDataFiltrado.map(r => r.receptora_id).filter(Boolean)));
+        if (ids.length > 0) {
+          const { data: receptoraTesteDuploData } = await supabase
+            .from('receptoras')
+            .select('id')
+            .in('id', ids)
+            .or('identificacao.ilike.%teste duplo%,nome.ilike.%teste duplo%')
+            .limit(1);
+          receptoraTesteDuploId = receptoraTesteDuploData?.[0]?.id ?? null;
+        }
+      }
+
+      if (import.meta.env.DEV && receptoraTesteDuploId) {
+        const naListaFiltrada = statusDataFiltrado.find(r => r.receptora_id === receptoraTesteDuploId);
+        if (naListaFiltrada) {
+          const quantidade = contagemEmbrioesPorReceptora.get(receptoraTesteDuploId) || 0;
+          console.log('🔍 DEBUG: Receptora "teste duplo" após filtro INAPTA:', {
+            receptora: naListaFiltrada,
+            quantidade_embrioes_sessao: quantidade,
+            permitir_duplas: permitirDuplas,
+          });
+        }
+      }
+      
       if (!permitirDuplas) {
         // Modo normal: excluir receptoras que já receberam embrião na SESSÃO ATUAL (quantidade >= 1)
-        receptorasFiltradas = statusDataFiltrado.filter(r => {
+        receptorasFiltradas = statusDataFiltrado.filter((r) => {
           const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
           const passaFiltro = quantidade === 0;
+
+          if (import.meta.env.DEV && receptoraTesteDuploId && r.receptora_id === receptoraTesteDuploId && !passaFiltro) {
+            console.log(
+              '❌ DEBUG: Receptora "teste duplo" filtrada por já ter recebido embrião na sessão. Quantidade:',
+              quantidade
+            );
+          }
+
           return passaFiltro;
         });
       } else {
         // Modo duplas: excluir apenas receptoras que já receberam 2 embriões na SESSÃO ATUAL (máximo permitido)
-        receptorasFiltradas = statusDataFiltrado.filter(r => {
+        receptorasFiltradas = statusDataFiltrado.filter((r) => {
           const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
           const passaFiltro = quantidade < 2;
+
+          if (import.meta.env.DEV && receptoraTesteDuploId && r.receptora_id === receptoraTesteDuploId && !passaFiltro) {
+            console.log(
+              '❌ DEBUG: Receptora "teste duplo" filtrada por já ter recebido 2 embriões na sessão. Quantidade:',
+              quantidade
+            );
+          }
+
           return passaFiltro;
         });
+      }
+      
+      // DEBUG: Verificar se a receptora "teste duplo" passou por todos os filtros
+      if (import.meta.env.DEV && receptoraTesteDuploId) {
+        const naListaFinal = receptorasFiltradas.find(r => r.receptora_id === receptoraTesteDuploId);
+        if (naListaFinal) {
+          console.log('✅ DEBUG: Receptora "teste duplo" passou por todos os filtros e aparecerá no menu TE!');
+        } else {
+          console.log('❌ DEBUG: Receptora "teste duplo" foi filtrada e NÃO aparecerá no menu TE');
+        }
       }
 
 
@@ -1770,12 +1910,11 @@ export default function TransferenciaEmbrioes() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="data_te">Data da TE *</Label>
-                    <Input
+                    <DatePickerBR
                       id="data_te"
-                      type="date"
                       value={formData.data_te}
-                      onChange={(e) => {
-                        const newDataTe = e.target.value;
+                      onChange={(value) => {
+                        const newDataTe = value || '';
                         setFormData({ ...formData, data_te: newDataTe });
                         setCamposPacote(prev => ({ ...prev, data_te: newDataTe }));
                       }}

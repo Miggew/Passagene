@@ -46,6 +46,7 @@ export interface Receptora {
   nome?: string;
   status_reprodutivo?: string;
   fazenda_atual_id?: string;
+  data_provavel_parto?: string;
   created_at?: string;
 }
 
@@ -133,6 +134,7 @@ export interface LoteFIV {
   status: 'ABERTO' | 'FECHADO';
   observacoes?: string;
   doses_selecionadas?: string[];
+  disponivel_para_transferencia?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -297,6 +299,8 @@ export interface ReceptoraComStatus extends Receptora {
   // Fazenda atual (quando carregada via view)
   fazenda_atual_id?: string;
   fazenda_nome_atual?: string;
+  // Número de gestações (quando prenhe)
+  numero_gestacoes?: number;
 }
 
 // Timeline event for receptora history

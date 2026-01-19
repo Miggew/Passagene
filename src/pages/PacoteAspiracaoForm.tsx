@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, X } from 'lucide-react';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface FazendaSelect {
   id: string;
@@ -267,11 +268,10 @@ export default function PacoteAspiracaoForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="data_aspiracao">Data da Aspiração *</Label>
-                <Input
+                <DatePickerBR
                   id="data_aspiracao"
-                  type="date"
                   value={formData.data_aspiracao}
-                  onChange={(e) => setFormData({ ...formData, data_aspiracao: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, data_aspiracao: value || '' })}
                   required
                 />
               </div>

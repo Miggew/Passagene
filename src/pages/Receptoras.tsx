@@ -29,11 +29,14 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Search, History, ArrowRight } from 'lucide-react';
 import ReceptoraHistorico from './ReceptoraHistorico';
+import { formatStatusLabel } from '@/lib/statusLabels';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function Receptoras() {
   const [receptoras, setReceptoras] = useState<ReceptoraComStatus[]>([]);
@@ -107,6 +110,18 @@ export default function Receptoras() {
     setFilteredReceptoras(filtered);
   };
 
+  const formatarDataBR = (iso?: string | null) => {
+    if (!iso) return '';
+    try {
+      // data_provavel_parto normalmente vem como YYYY-MM-DD
+      const d = parseISO(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return format(d, 'dd/MM/yyyy', { locale: ptBR });
+    } catch {
+      return '';
+    }
+  };
+
   const loadFazendas = async () => {
     try {
       setLoadingFazendas(true);
@@ -174,6 +189,113 @@ export default function Receptoras() {
         ...r,
         status_calculado: statusMap.get(r.id) || 'VAZIA',
       }));
+
+      // Buscar número de gestações e recalcular data de parto para receptoras prenhes
+      const statusPrenhes = ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS'];
+      const receptorasPrenhes = receptorasComStatus.filter(r => 
+        statusPrenhes.includes(r.status_calculado) || 
+        r.status_calculado.includes('PRENHE')
+      );
+
+      if (receptorasPrenhes.length > 0) {
+        const prenhesIds = receptorasPrenhes.map(r => r.id);
+        
+        // Buscar diagnósticos de gestação com número de gestações
+        const { data: diagnosticosData, error: diagnosticosError } = await supabase
+          .from('diagnosticos_gestacao')
+          .select('receptora_id, numero_gestacoes')
+          .in('receptora_id', prenhesIds)
+          .in('resultado', ['PRENHE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS'])
+          .not('numero_gestacoes', 'is', null);
+
+        if (!diagnosticosError && diagnosticosData) {
+          // Criar mapa de número de gestações por receptora
+          const gestacoesMap = new Map<string, number>();
+          
+          diagnosticosData.forEach(dg => {
+            if (dg.numero_gestacoes && dg.numero_gestacoes > 1) {
+              // Se já existe um valor, usar o maior
+              const atual = gestacoesMap.get(dg.receptora_id) || 0;
+              if (dg.numero_gestacoes > atual) {
+                gestacoesMap.set(dg.receptora_id, dg.numero_gestacoes);
+              }
+            }
+          });
+
+          // Adicionar número de gestações às receptoras
+          receptorasComStatus.forEach(r => {
+            const numGestacoes = gestacoesMap.get(r.id);
+            if (numGestacoes && numGestacoes > 1) {
+              r.numero_gestacoes = numGestacoes;
+            }
+          });
+        }
+
+        // Recalcular data de parto baseado no D0 do embrião + 275 dias
+        const { data: teData, error: teError } = await supabase
+          .from('transferencias_embrioes')
+          .select('receptora_id, embriao_id, data_te')
+          .in('receptora_id', prenhesIds)
+          .eq('status_te', 'REALIZADA')
+          .order('data_te', { ascending: false });
+
+        if (!teError && teData) {
+          // Buscar embriões e lotes FIV para obter D0
+          const embriaoIds = [...new Set(teData.map(te => te.embriao_id))];
+          
+          if (embriaoIds.length > 0) {
+            const { data: embrioesData, error: embrioesError } = await supabase
+              .from('embrioes')
+              .select('id, lote_fiv_id')
+              .in('id', embriaoIds);
+
+            if (!embrioesError && embrioesData) {
+              const loteFivIds = [...new Set(embrioesData.map(e => e.lote_fiv_id))];
+              
+              if (loteFivIds.length > 0) {
+                const { data: lotesData, error: lotesError } = await supabase
+                  .from('lotes_fiv')
+                  .select('id, data_abertura')
+                  .in('id', loteFivIds);
+
+                if (!lotesError && lotesData) {
+                  // Criar mapas para facilitar busca
+                  const embriaoToLoteMap = new Map(embrioesData.map(e => [e.id, e.lote_fiv_id]));
+                  const loteToD0Map = new Map(lotesData.map(l => [l.id, l.data_abertura]));
+                  const receptoraToTeMap = new Map<string, typeof teData[0]>();
+                  
+                  // Pegar a TE mais recente de cada receptora
+                  teData.forEach(te => {
+                    if (!receptoraToTeMap.has(te.receptora_id)) {
+                      receptoraToTeMap.set(te.receptora_id, te);
+                    }
+                  });
+
+                  // Recalcular data de parto para cada receptora prenhe
+                  receptorasComStatus.forEach(r => {
+                    if (statusPrenhes.includes(r.status_calculado) || r.status_calculado.includes('PRENHE')) {
+                      const te = receptoraToTeMap.get(r.id);
+                      if (te) {
+                        const loteFivId = embriaoToLoteMap.get(te.embriao_id);
+                        if (loteFivId) {
+                          const d0 = loteToD0Map.get(loteFivId);
+                          if (d0) {
+                            // Calcular data de parto: D0 + 275 dias
+                            const d0Date = new Date(d0);
+                            const dataPartoDate = new Date(d0Date);
+                            dataPartoDate.setDate(dataPartoDate.getDate() + 275);
+                            r.data_provavel_parto = dataPartoDate.toISOString().split('T')[0];
+                          }
+                        }
+                      }
+                    }
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
 
       // Extrair status únicos para o filtro
       const statusUnicos = Array.from(new Set(receptorasComStatus.map(r => r.status_calculado)))
@@ -778,27 +900,7 @@ export default function Receptoras() {
   };
 
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', className?: string }> = {
-      'VAZIA': { variant: 'outline' },
-      'EM_SINCRONIZACAO': { variant: 'secondary' },
-      'EM SINCRONIZAÇÃO': { variant: 'secondary' },
-      'SINCRONIZADA': { variant: 'default' },
-      'SERVIDA': { variant: 'default', className: 'bg-blue-600' },
-      'PRENHE': { variant: 'default', className: 'bg-green-600' },
-      'PRENHE_RETOQUE': { variant: 'secondary', className: 'bg-orange-500' },
-      'PRENHE (RETOQUE)': { variant: 'secondary', className: 'bg-orange-500' },
-      'PRENHE_FEMEA': { variant: 'default', className: 'bg-pink-600' },
-      'PRENHE (FÊMEA)': { variant: 'default', className: 'bg-pink-600' },
-      'PRENHE_MACHO': { variant: 'default', className: 'bg-blue-700' },
-      'PRENHE (MACHO)': { variant: 'default', className: 'bg-blue-700' },
-      'PRENHE_SEM_SEXO': { variant: 'default', className: 'bg-purple-600' },
-      'PRENHE (SEM SEXO)': { variant: 'default', className: 'bg-purple-600' },
-    };
-
-    const config = statusConfig[status] || { variant: 'outline' };
-    return <Badge variant={config.variant} className={config.className}>{status}</Badge>;
-  };
+  // StatusBadge + formatStatusLabel deixam a UI consistente com o resto do app.
 
   if (loadingFazendas) {
     return <LoadingSpinner />;
@@ -861,7 +963,7 @@ export default function Receptoras() {
                       <SelectItem value="all">Todas</SelectItem>
                       {statusDisponiveis.map((status) => (
                         <SelectItem key={status} value={status}>
-                          {status}
+                          {formatStatusLabel(status)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -959,13 +1061,14 @@ export default function Receptoras() {
                       <TableHead>Brinco</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Status Atual</TableHead>
+                      <TableHead>Data de parto</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredReceptoras.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-slate-500">
+                        <TableCell colSpan={5} className="text-center text-slate-500">
                           {searchTerm ? 'Nenhuma receptora encontrada' : 'Nenhuma receptora cadastrada nesta fazenda'}
                         </TableCell>
                       </TableRow>
@@ -974,7 +1077,14 @@ export default function Receptoras() {
                         <TableRow key={receptora.id}>
                           <TableCell className="font-medium">{receptora.identificacao}</TableCell>
                           <TableCell>{receptora.nome || '-'}</TableCell>
-                          <TableCell>{getStatusBadge(receptora.status_calculado)}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={receptora.status_calculado} count={receptora.numero_gestacoes} />
+                          </TableCell>
+                          <TableCell>
+                            {receptora.status_calculado.includes('PRENHE') && receptora.data_provavel_parto
+                              ? formatarDataBR(receptora.data_provavel_parto)
+                              : '—'}
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
                               <Button

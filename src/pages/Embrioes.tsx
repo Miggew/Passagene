@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/sheet';
 import { HistoricoEmbriao } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface EmbrioCompleto extends Embriao {
   doadora_registro?: string;
@@ -81,6 +82,8 @@ interface PacoteEmbrioes {
     BL: number;
     BI: number;
   };
+  todos_classificados?: boolean;
+  disponivel_para_transferencia?: boolean;
 }
 
 export default function Embrioes() {
@@ -489,12 +492,30 @@ export default function Embrioes() {
         });
       }
 
+      // Buscar status de disponibilidade dos lotes FIV
+      const loteFivIdsUnicos = [...new Set(pacotesArray.map(p => p.lote_fiv_id))];
+      const { data: lotesDisponibilidade } = await supabase
+        .from('lotes_fiv')
+        .select('id, disponivel_para_transferencia')
+        .in('id', loteFivIdsUnicos);
+
+      const lotesDisponiveisMap = new Map(
+        lotesDisponibilidade?.map(l => [l.id, l.disponivel_para_transferencia === true]) || []
+      );
+
+      // Adicionar informação de disponibilidade e status de classificação aos pacotes
+      const pacotesComStatus = pacotesArray.map(pacote => ({
+        ...pacote,
+        todos_classificados: pacote.total > 0 && pacote.sem_classificacao === 0,
+        disponivel_para_transferencia: lotesDisponiveisMap.get(pacote.lote_fiv_id) || false,
+      }));
+
       // Ordenar por data de despacho (mais recente primeiro)
-      pacotesArray.sort((a, b) => {
+      pacotesComStatus.sort((a, b) => {
         return b.data_despacho.localeCompare(a.data_despacho);
       });
 
-      setPacotes(pacotesArray);
+      setPacotes(pacotesComStatus);
     } catch (error) {
       toast({
         title: 'Erro ao carregar dados',
@@ -541,6 +562,32 @@ export default function Embrioes() {
     
     setEmbrioesSelecionados(novoSet);
     setShowAcoesEmMassa(novoSet.size > 0);
+  };
+
+  const disponibilizarLoteParaTransferencia = async (loteFivId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lotes_fiv')
+        .update({ disponivel_para_transferencia: true })
+        .eq('id', loteFivId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Lote disponibilizado',
+        description: 'O lote agora está disponível para transferência de embriões.',
+      });
+
+      // Recarregar dados
+      loadData();
+    } catch (error) {
+      console.error('Erro ao disponibilizar lote:', error);
+      toast({
+        title: 'Erro ao disponibilizar lote',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleClassificar = async (embriaoId?: string) => {
@@ -919,7 +966,7 @@ export default function Embrioes() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-start gap-4">
                           <div className="text-right">
                             <div className="text-2xl font-bold text-green-600">{pacote.total}</div>
                             <div className="text-sm text-slate-600">embriões</div>
@@ -933,6 +980,33 @@ export default function Embrioes() {
                               <div className="text-xs text-slate-500 mt-1">
                                 BE: {pacote.classificados.BE} | BN: {pacote.classificados.BN} | BX: {pacote.classificados.BX} | BL: {pacote.classificados.BL} | BI: {pacote.classificados.BI}
                               </div>
+                            ) : null}
+                          </div>
+                          {/* Status de classificação e disponibilidade */}
+                          <div className="flex flex-col items-end gap-2 min-w-[280px]">
+                            {pacote.todos_classificados ? (
+                              <>
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                  ✓ Todos classificados ({pacote.total}/{pacote.total})
+                                </Badge>
+                                {pacote.disponivel_para_transferencia ? (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                                    Disponível para Transferência
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => disponibilizarLoteParaTransferencia(pacote.lote_fiv_id)}
+                                    className="bg-green-600 hover:bg-green-700 text-white w-full"
+                                  >
+                                    Disponibilizar para Transferência
+                                  </Button>
+                                )}
+                              </>
+                            ) : pacote.total > 0 ? (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                                Pendente: {pacote.total - pacote.sem_classificacao}/{pacote.total} classificados
+                              </Badge>
                             ) : null}
                           </div>
                         </div>
@@ -1322,12 +1396,11 @@ export default function Embrioes() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="data_congelamento">Data de Congelamento *</Label>
-              <Input
+              <DatePickerBR
                 id="data_congelamento"
-                type="date"
                 value={congelarData.data_congelamento}
-                onChange={(e) =>
-                  setCongelarData({ ...congelarData, data_congelamento: e.target.value })
+                onChange={(value) =>
+                  setCongelarData({ ...congelarData, data_congelamento: value || '' })
                 }
                 required
               />
@@ -1378,12 +1451,11 @@ export default function Embrioes() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="data_descarte">Data de Descarte *</Label>
-              <Input
+              <DatePickerBR
                 id="data_descarte"
-                type="date"
                 value={descartarData.data_descarte}
-                onChange={(e) =>
-                  setDescartarData({ ...descartarData, data_descarte: e.target.value })
+                onChange={(value) =>
+                  setDescartarData({ ...descartarData, data_descarte: value || '' })
                 }
                 required
               />

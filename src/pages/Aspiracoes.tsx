@@ -25,7 +25,8 @@ import {
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { Plus, Eye, Filter, X } from 'lucide-react';
+import { Plus, Eye, Filter, X, Search } from 'lucide-react';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface PacoteComNomes extends PacoteAspiracao {
   fazenda_nome?: string;
@@ -156,49 +157,71 @@ export default function Aspiracoes() {
     }
   };
 
-  useEffect(() => {
-    // A busca só é iniciada quando ambas as datas forem escolhidas
-    if (filtroDataInicio && filtroDataFim) {
-      // Validar que data início <= data fim
-      if (filtroDataInicio > filtroDataFim) {
-        // Limpar resultados se a validação falhar
-        setPacotesFiltrados([]);
-        setPacotes([]);
-        setDadosCarregados(false);
-        return;
-      }
-      // Se os dados ainda não foram carregados, carregar
-      if (!dadosCarregados && pacotes.length === 0) {
-        loadData();
-      }
+  const handleBuscar = () => {
+    // Validar que ambas as datas foram preenchidas
+    if (!filtroDataInicio || !filtroDataFim) {
+      toast({
+        title: 'Campos obrigatórios',
+        description: 'Por favor, preencha a data inicial e a data final para realizar a busca',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar que data início <= data fim
+    if (filtroDataInicio > filtroDataFim) {
+      toast({
+        title: 'Data inválida',
+        description: 'A data inicial deve ser anterior ou igual à data final',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Carregar dados se ainda não foram carregados
+    if (!dadosCarregados || pacotes.length === 0) {
+      loadData();
     } else {
-      // Se não houver ambas as datas, limpar resultados
-      setPacotesFiltrados([]);
-      setPacotes([]);
-      setDadosCarregados(false);
+      // Se os dados já foram carregados, apenas aplicar os filtros
+      aplicarFiltros();
+    }
+  };
+
+  const aplicarFiltros = () => {
+    if (pacotes.length === 0) return;
+
+    let pacotesFiltrados = [...pacotes];
+
+    // Filtrar por intervalo de data (obrigatório)
+    pacotesFiltrados = pacotesFiltrados.filter((p) => {
+      const dataPacote = p.data_aspiracao.split('T')[0];
+      return dataPacote >= filtroDataInicio && dataPacote <= filtroDataFim;
+    });
+
+    // Filtrar por fazenda (opcional, se escolhida)
+    if (filtroFazenda) {
+      pacotesFiltrados = pacotesFiltrados.filter((p) => p.fazenda_id === filtroFazenda);
+    }
+
+    setPacotesFiltrados(pacotesFiltrados);
+  };
+
+  const handleLimparFiltros = () => {
+    setFiltroFazenda('');
+    setFiltroDataInicio('');
+    setFiltroDataFim('');
+    setPacotesFiltrados([]);
+    setPacotes([]);
+    setDadosCarregados(false);
+  };
+
+  // Aplicar filtros quando os pacotes forem carregados (apenas se já houver filtros aplicados)
+  useEffect(() => {
+    if (pacotes.length > 0 && filtroDataInicio && filtroDataFim && dadosCarregados) {
+      aplicarFiltros();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroDataInicio, filtroDataFim]);
-
-  // Aplicar filtros quando os pacotes forem carregados ou quando os filtros mudarem
-  useEffect(() => {
-    if (pacotes.length > 0 && filtroDataInicio && filtroDataFim) {
-      let pacotesFiltrados = [...pacotes];
-
-      // Filtrar por intervalo de data (obrigatório)
-      pacotesFiltrados = pacotesFiltrados.filter((p) => {
-        const dataPacote = p.data_aspiracao.split('T')[0];
-        return dataPacote >= filtroDataInicio && dataPacote <= filtroDataFim;
-      });
-
-      // Filtrar por fazenda (opcional, se escolhida)
-      if (filtroFazenda) {
-        pacotesFiltrados = pacotesFiltrados.filter((p) => p.fazenda_id === filtroFazenda);
-      }
-
-      setPacotesFiltrados(pacotesFiltrados);
-    }
-  }, [pacotes, filtroFazenda, filtroDataInicio, filtroDataFim]);
+  }, [pacotes]);
 
   if (loadingFazendas) {
     return <LoadingSpinner />;
@@ -222,23 +245,25 @@ export default function Aspiracoes() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Aspirações</CardTitle>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-slate-500" />
-              <span className="text-sm text-slate-500">Filtros</span>
-            </div>
-          </div>
+          <CardTitle>Filtros</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <Label>Filtrar por Fazenda</Label>
-              <Select value={filtroFazenda || undefined} onValueChange={(value) => setFiltroFazenda(value || '')}>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Filtro de Fazenda */}
+            <div className="space-y-2">
+              <Label>Fazenda</Label>
+              <Select 
+                value={filtroFazenda || 'all'} 
+                onValueChange={(value) => {
+                  const fazendaValue = value === 'all' ? '' : value;
+                  setFiltroFazenda(fazendaValue);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as fazendas" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Todas as fazendas</SelectItem>
                   {fazendas.map((fazenda) => (
                     <SelectItem key={fazenda.id} value={fazenda.id}>
                       {fazenda.nome}
@@ -247,42 +272,103 @@ export default function Aspiracoes() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 space-y-2">
+
+            {/* Filtro de Data Inicial */}
+            <div className="space-y-2">
               <Label>Data Inicial *</Label>
-              <Input
-                type="date"
+              <DatePickerBR
                 value={filtroDataInicio}
-                onChange={(e) => setFiltroDataInicio(e.target.value)}
-                max={filtroDataFim || undefined}
+                onChange={setFiltroDataInicio}
+                max={filtroDataFim || ''}
               />
               {filtroDataInicio && filtroDataFim && filtroDataInicio > filtroDataFim && (
                 <p className="text-sm text-red-500">A data inicial deve ser anterior ou igual à data final</p>
               )}
             </div>
-            <div className="flex-1 space-y-2">
+
+            {/* Filtro de Data Final */}
+            <div className="space-y-2">
               <Label>Data Final *</Label>
-              <Input
-                type="date"
+              <DatePickerBR
                 value={filtroDataFim}
-                onChange={(e) => setFiltroDataFim(e.target.value)}
-                min={filtroDataInicio || undefined}
+                onChange={setFiltroDataFim}
+                min={filtroDataInicio || ''}
               />
             </div>
-            {(filtroDataInicio || filtroDataFim) && (
+          </div>
+
+          {/* Botão de Buscar e Atalhos rápidos de data */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-wrap gap-2 flex-1">
+              <Label className="w-full text-sm font-medium text-slate-700">Atalhos rápidos:</Label>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setFiltroFazenda('');
-                  setFiltroDataInicio('');
-                  setFiltroDataFim('');
+                  const hoje = new Date();
+                  const seteDiasAtras = new Date(hoje);
+                  seteDiasAtras.setDate(hoje.getDate() - 7);
+                  const dataInicio = seteDiasAtras.toISOString().split('T')[0];
+                  const dataFim = hoje.toISOString().split('T')[0];
+                  setFiltroDataInicio(dataInicio);
+                  setFiltroDataFim(dataFim);
                 }}
               >
-                <X className="w-4 h-4 mr-1" />
-                Limpar Filtros
+                Últimos 7 dias
               </Button>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const hoje = new Date();
+                  const trintaDiasAtras = new Date(hoje);
+                  trintaDiasAtras.setDate(hoje.getDate() - 30);
+                  const dataInicio = trintaDiasAtras.toISOString().split('T')[0];
+                  const dataFim = hoje.toISOString().split('T')[0];
+                  setFiltroDataInicio(dataInicio);
+                  setFiltroDataFim(dataFim);
+                }}
+              >
+                Últimos 30 dias
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const hoje = new Date();
+                  const noventaDiasAtras = new Date(hoje);
+                  noventaDiasAtras.setDate(hoje.getDate() - 90);
+                  const dataInicio = noventaDiasAtras.toISOString().split('T')[0];
+                  const dataFim = hoje.toISOString().split('T')[0];
+                  setFiltroDataInicio(dataInicio);
+                  setFiltroDataFim(dataFim);
+                }}
+              >
+                Últimos 90 dias
+              </Button>
+            </div>
+            {/* Botão de Buscar */}
+            <Button
+              type="button"
+              onClick={handleBuscar}
+              disabled={!filtroDataInicio || !filtroDataFim || loading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Buscar
+            </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Aspirações</CardTitle>
+        </CardHeader>
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
@@ -299,13 +385,13 @@ export default function Aspiracoes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!filtroDataInicio || !filtroDataFim ? (
+              {!dadosCarregados && pacotesFiltrados.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center text-slate-500 py-12">
                     <div className="flex flex-col items-center gap-2">
                       <Filter className="w-8 h-8 text-slate-400" />
                       <p className="text-lg font-medium">Aplique filtros para visualizar as aspirações</p>
-                      <p className="text-sm">Selecione um intervalo de datas (data inicial e data final) para buscar aspirações</p>
+                      <p className="text-sm">Preencha a data inicial e data final, depois clique em "Buscar"</p>
                     </div>
                   </TableCell>
                 </TableRow>

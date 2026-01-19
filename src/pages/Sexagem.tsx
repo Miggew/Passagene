@@ -26,6 +26,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Baby, Lock, CheckCircle } from 'lucide-react';
 import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface LoteTE {
   id: string;
@@ -1155,10 +1156,9 @@ export default function Sexagem() {
                             {receptora.numero_gestacoes}
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="date"
+                            <DatePickerBR
                               value={dados.data_sexagem}
-                              onChange={(e) => handleFieldChange(receptora.receptora_id, 'data_sexagem', e.target.value)}
+                              onChange={(value) => handleFieldChange(receptora.receptora_id, 'data_sexagem', value || '')}
                               className="w-36"
                               disabled={loteSelecionado.status === 'FECHADO'}
                             />

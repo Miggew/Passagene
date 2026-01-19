@@ -30,6 +30,7 @@ import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusRecepto
 import { ArrowLeft, CheckCircle, Lock } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface ReceptoraWithStatus extends Receptora {
   pr_id: string;
@@ -691,11 +692,10 @@ export default function ProtocoloPasso2() {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="passo2_data">Data de Realização do 2º Passo *</Label>
-              <Input
+              <DatePickerBR
                 id="passo2_data"
-                type="date"
                 value={passo2Form.data}
-                onChange={(e) => setPasso2Form({ ...passo2Form, data: e.target.value })}
+                onChange={(value) => setPasso2Form({ ...passo2Form, data: value || '' })}
                 required
               />
             </div>

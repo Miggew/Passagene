@@ -29,7 +29,7 @@ BEGIN
         ADD COLUMN data_provavel_parto DATE;
         
         COMMENT ON COLUMN receptoras.data_provavel_parto IS 
-        'Data provável de parto calculada como d0 do embrião + 290 dias';
+        'Data provável de parto calculada como d0 do embrião + 275 dias';
     END IF;
 END $$;
 
@@ -45,7 +45,7 @@ SET status_reprodutivo = CASE
     ELSE 'PRENHE'
 END,
 data_provavel_parto = (
-    SELECT (l.data_abertura + INTERVAL '290 days')::DATE
+    SELECT (l.data_abertura + INTERVAL '275 days')::DATE
     FROM transferencias_embrioes te
     JOIN embrioes e ON e.id = te.embriao_id
     JOIN lotes_fiv l ON l.id = e.lote_fiv_id
@@ -78,7 +78,7 @@ SET status_reprodutivo = CASE
 END,
 data_provavel_parto = CASE
     WHEN dg.resultado IN ('PRENHE', 'RETOQUE') THEN (
-        SELECT (l.data_abertura + INTERVAL '290 days')::DATE
+        SELECT (l.data_abertura + INTERVAL '275 days')::DATE
         FROM transferencias_embrioes te
         JOIN embrioes e ON e.id = te.embriao_id
         JOIN lotes_fiv l ON l.id = e.lote_fiv_id

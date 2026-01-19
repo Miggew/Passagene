@@ -1,8 +1,10 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { formatStatusLabel } from '@/lib/statusLabels';
 
 interface StatusBadgeProps {
   status: string;
+  count?: number;
   className?: string;
 }
 
@@ -37,25 +39,14 @@ const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destruc
   REALIZADA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
 };
 
-export default function StatusBadge({ status, className }: StatusBadgeProps) {
+export default function StatusBadge({ status, count, className }: StatusBadgeProps) {
   const config = statusConfig[status] || { variant: 'outline' as const, className: '' };
-
-  // Formatar texto do status para exibição
-  const formatStatus = (s: string): string => {
-    const statusMap: Record<string, string> = {
-      'EM_SINCRONIZACAO': 'EM SINCRONIZAÇÃO',
-      'PRENHE_RETOQUE': 'PRENHE (RETOQUE)',
-      'PRENHE_FEMEA': 'PRENHE (FÊMEA)',
-      'PRENHE_MACHO': 'PRENHE (MACHO)',
-      'PRENHE_SEM_SEXO': 'PRENHE (SEM SEXO)',
-      'PRENHE_2_SEXOS': 'PRENHE (2 SEXOS)',
-    };
-    return statusMap[s] || s;
-  };
+  const label = formatStatusLabel(status);
+  const display = count && count > 1 ? `${label} (${count})` : label;
 
   return (
     <Badge variant={config.variant} className={cn(config.className, className)}>
-      {formatStatus(status)}
+      {display}
     </Badge>
   );
 }
