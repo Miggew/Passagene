@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { Cliente, Fazenda, DoseSemen } from '@/lib/types';
+import type { Cliente, Fazenda, DoseSemen, Embriao } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Edit, Home, Dna, Plus, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, Edit, Home, Dna, Plus, MapPin, Navigation, Snowflake } from 'lucide-react';
 
 export default function ClienteDetail() {
   const { id } = useParams();
@@ -35,6 +35,7 @@ export default function ClienteDetail() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
   const [doses, setDoses] = useState<DoseSemen[]>([]);
+  const [embrioesCongelados, setEmbrioesCongelados] = useState<Embriao[]>([]);
   const [showFazendaDialog, setShowFazendaDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,15 +78,43 @@ export default function ClienteDetail() {
       if (fazendasError) throw fazendasError;
       setFazendas(fazendasData || []);
 
-      // Load doses de sêmen
+      // Load doses de sêmen (com informações do touro)
       const { data: dosesData, error: dosesError } = await supabase
         .from('doses_semen')
-        .select('*')
+        .select(`
+          *,
+          touro:touros(id, nome, registro, raca)
+        `)
         .eq('cliente_id', id)
-        .order('nome', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (dosesError) throw dosesError;
       setDoses(dosesData || []);
+
+      // Load embriões congelados do cliente
+      const { data: embrioesData, error: embrioesError } = await supabase
+        .from('embrioes')
+        .select(`
+          *,
+          lote_fiv:lotes_fiv(id, data_abertura),
+          acasalamento:lote_fiv_acasalamentos(
+            id,
+            dose_semen:doses_semen(
+              id,
+              touro:touros(id, nome, registro, raca)
+            ),
+            aspiracao:aspiracoes_doadoras(
+              id,
+              doadora:doadoras(id, registro, nome)
+            )
+          )
+        `)
+        .eq('cliente_id', id)
+        .eq('status_atual', 'CONGELADO')
+        .order('data_congelamento', { ascending: false });
+
+      if (embrioesError) throw embrioesError;
+      setEmbrioesCongelados(embrioesData || []);
     } catch (error) {
       toast({
         title: 'Erro ao carregar dados',
@@ -246,6 +275,10 @@ export default function ClienteDetail() {
           <TabsTrigger value="doses">
             <Dna className="w-4 h-4 mr-2" />
             Doses de Sêmen ({doses.length})
+          </TabsTrigger>
+          <TabsTrigger value="embrioes">
+            <Snowflake className="w-4 h-4 mr-2" />
+            Embriões Congelados ({embrioesCongelados.length})
           </TabsTrigger>
         </TabsList>
 
@@ -446,14 +479,89 @@ export default function ClienteDetail() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    doses.map((dose) => (
-                      <TableRow key={dose.id}>
-                        <TableCell className="font-medium">{dose.nome}</TableCell>
-                        <TableCell>{dose.raca || '-'}</TableCell>
-                        <TableCell>{dose.tipo_semen || '-'}</TableCell>
-                        <TableCell>{dose.quantidade ?? '-'}</TableCell>
-                      </TableRow>
-                    ))
+                    doses.map((dose) => {
+                      const touro = (dose as any).touro;
+                      return (
+                        <TableRow key={dose.id}>
+                          <TableCell className="font-medium">
+                            {touro?.nome || 'Touro desconhecido'}
+                            {touro?.registro && <span className="text-slate-500 ml-2">({touro.registro})</span>}
+                          </TableCell>
+                          <TableCell>{touro?.raca || dose.raca || '-'}</TableCell>
+                          <TableCell>{dose.tipo_semen || '-'}</TableCell>
+                          <TableCell>{dose.quantidade ?? '-'}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="embrioes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Embriões Congelados no Estoque</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Identificação</TableHead>
+                    <TableHead>Classificação</TableHead>
+                    <TableHead>Doadora</TableHead>
+                    <TableHead>Touro</TableHead>
+                    <TableHead>Data Congelamento</TableHead>
+                    <TableHead>Localização</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {embrioesCongelados.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-slate-500">
+                        Nenhum embrião congelado no estoque
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    embrioesCongelados.map((embriao) => {
+                      const acasalamento = (embriao as any).acasalamento;
+                      const dose = acasalamento?.dose_semen;
+                      const touro = dose?.touro;
+                      const aspiracao = acasalamento?.aspiracao;
+                      const doadora = aspiracao?.doadora;
+
+                      return (
+                        <TableRow key={embriao.id}>
+                          <TableCell className="font-medium">
+                            {embriao.identificacao || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {embriao.classificacao ? (
+                              <span className="px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-800">
+                                {embriao.classificacao}
+                              </span>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell>{doadora?.registro || doadora?.nome || '-'}</TableCell>
+                          <TableCell>
+                            {touro?.nome || '-'}
+                            {touro?.registro && (
+                              <span className="text-slate-500 ml-2">({touro.registro})</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {embriao.data_congelamento
+                              ? new Date(embriao.data_congelamento).toLocaleDateString('pt-BR')
+                              : '-'}
+                          </TableCell>
+                          <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

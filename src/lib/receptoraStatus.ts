@@ -111,14 +111,18 @@ async function calcularStatusReceptoraLegado(receptoraId: string): Promise<strin
         const protocoloStatus = protocoloStatusMap.get(pr.protocolo_id);
         const receptoraStatus = pr.status;
         
-        // Protocolos SINCRONIZADO ou FECHADO não são ativos (já finalizados)
-        if (protocoloStatus === 'SINCRONIZADO' || protocoloStatus === 'FECHADO') {
+        // Protocolos SINCRONIZADO, FECHADO ou PASSO1_FECHADO não são "ativos" para validação
+        // PASSO1_FECHADO significa que o passo 1 foi finalizado, mas receptoras ainda estão INICIADA
+        // (só passam para APTA/INAPTA no passo 2)
+        if (protocoloStatus === 'SINCRONIZADO' || protocoloStatus === 'FECHADO' || protocoloStatus === 'PASSO1_FECHADO') {
           return false;
         }
         
-        // Se está APTA ou INICIADA e o protocolo não está sincronizado/fechado, é ativo
+        // Se está APTA ou INICIADA e o protocolo não está sincronizado/fechado/passo1_fechado, é ativo
         if ((receptoraStatus === 'APTA' || receptoraStatus === 'INICIADA') && 
-            protocoloStatus !== 'SINCRONIZADO' && protocoloStatus !== 'FECHADO') {
+            protocoloStatus !== 'SINCRONIZADO' && 
+            protocoloStatus !== 'FECHADO' && 
+            protocoloStatus !== 'PASSO1_FECHADO') {
           return true;
         }
         

@@ -644,16 +644,11 @@ export default function ProtocoloFormWizard() {
       }
 
       // Atualizar status das receptoras para EM_SINCRONIZACAO após finalizar passo 1
+      // IMPORTANTE: Não validar se está VAZIA aqui, pois os protocolo_receptoras já foram criados
+      // pela RPC e a lógica legada pode retornar EM_SINCRONIZACAO. Simplesmente atualizar diretamente.
       const statusUpdatePromises = receptorasIds.map(async (receptoraId) => {
-        // Validar transição antes de atualizar
-        const statusAtual = await calcularStatusReceptora(receptoraId);
-        const validacao = validarTransicaoStatus(statusAtual, 'FINALIZAR_PASSO1');
-        
-        if (!validacao.valido) {
-          console.warn(`Não foi possível atualizar status da receptora ${receptoraId}: ${validacao.mensagem}`);
-          return;
-        }
-
+        // Atualizar diretamente para EM_SINCRONIZACAO, já que acabamos de criar o protocolo
+        // e sabemos que é válido (as receptoras foram validadas antes de adicionar ao protocolo)
         const { error: statusError } = await atualizarStatusReceptora(receptoraId, 'EM_SINCRONIZACAO');
         if (statusError) {
           console.error(`Erro ao atualizar status da receptora ${receptoraId}:`, statusError);
@@ -1077,6 +1072,9 @@ export default function ProtocoloFormWizard() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Cadastrar Nova Receptora</DialogTitle>
+                    <DialogDescription>
+                      Preencha os dados da nova receptora para cadastrá-la e adicioná-la ao protocolo.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">

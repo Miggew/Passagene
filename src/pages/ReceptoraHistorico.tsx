@@ -307,14 +307,21 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
             // Buscar doses e touros
             const tourosMap = new Map<string, string>();
             if (doseIds.length > 0) {
+              // Buscar doses com informações do touro relacionado
               const { data: dosesData } = await supabase
                 .from('doses_semen')
-                .select('id, nome')
+                .select(`
+                  id,
+                  touro_id,
+                  touro:touros(id, nome, registro, raca)
+                `)
                 .in('id', doseIds);
 
               if (dosesData) {
-                dosesData.forEach(d => {
-                  tourosMap.set(d.id, d.nome);
+                // Extrair nome do touro relacionado
+                dosesData.forEach((d: any) => {
+                  const touro = d.touro;
+                  tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
                 });
               }
             }

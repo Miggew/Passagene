@@ -907,11 +907,15 @@ export default function LotesFIV() {
         .select('*, doadora:doadoras(id, registro, nome)')
         .in('id', aspiracaoIds);
 
-      // Buscar informações das doses de sêmen
+      // Buscar informações das doses de sêmen (com informações do touro)
       const doseIds = [...new Set(acasalamentosData?.map(a => a.dose_semen_id).filter(Boolean) || [])];
       const { data: dosesData } = await supabase
         .from('doses_semen')
-        .select('*, cliente:clientes(nome)')
+        .select(`
+          *,
+          cliente:clientes(nome),
+          touro:touros(id, nome, registro, raca)
+        `)
         .in('id', doseIds);
 
       // Criar mapas auxiliares
@@ -988,8 +992,9 @@ export default function LotesFIV() {
               veterinario_responsavel: aspiracao.veterinario_responsavel,
             } : undefined,
             dose_semen: dose ? {
-              nome: dose.nome,
-              raca: dose.raca,
+              nome: (dose.touro as any)?.nome || 'Touro desconhecido',
+              registro: (dose.touro as any)?.registro,
+              raca: (dose.touro as any)?.raca || dose.raca,
               tipo_semen: dose.tipo_semen,
               cliente: (dose.cliente as any)?.nome,
             } : undefined,
@@ -1148,11 +1153,15 @@ export default function LotesFIV() {
 
       if (doadorasError) throw doadorasError;
 
-      // Load doses
+      // Load doses (com informações do touro)
       const doseIds = [...new Set(acasalamentosData?.map((a) => a.dose_semen_id) || [])];
       const { data: dosesData, error: dosesError } = await supabase
         .from('doses_semen')
-        .select('id, nome')
+        .select(`
+          id,
+          touro_id,
+          touro:touros(id, nome, registro, raca)
+        `)
         .in('id', doseIds);
 
       if (dosesError) throw dosesError;
@@ -1184,12 +1193,13 @@ export default function LotesFIV() {
         const aspiracao = aspiracoesMap.get(a.aspiracao_doadora_id);
         const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
         const dose = dosesMap.get(a.dose_semen_id);
+        const touro = dose ? (dose.touro as any) : null;
 
         return {
           ...a,
           doadora_nome: doadora?.nome || doadora?.registro,
           doadora_registro: doadora?.registro,
-          dose_nome: dose?.nome,
+          dose_nome: touro?.nome || 'Touro desconhecido',
           viaveis: aspiracao?.viaveis,
           total_embrioes_produzidos: quantidadeEmbrioesPorAcasalamento.get(a.id) || 0,
         };
@@ -1253,11 +1263,18 @@ export default function LotesFIV() {
         }
       }
 
-      // Load doses disponíveis do lote (se houver doses selecionadas no lote)
+      // Load doses disponíveis do lote (agora com informações do touro)
       const { data: dosesDisponiveisData, error: dosesDisponiveisError } = await supabase
         .from('doses_semen')
-        .select('id, nome, cliente_id')
-        .order('nome', { ascending: true });
+        .select(`
+          id,
+          touro_id,
+          cliente_id,
+          tipo_semen,
+          quantidade,
+          touro:touros(id, nome, registro, raca)
+        `)
+        .order('created_at', { ascending: false });
 
       if (dosesDisponiveisError) {
         console.error('Erro ao carregar doses disponíveis:', dosesDisponiveisError);
@@ -1382,11 +1399,15 @@ export default function LotesFIV() {
             .select('id, registro, nome')
             .in('id', doadoraIds);
 
-          // Buscar doses
+          // Buscar doses (com informações do touro)
           const doseIds = [...new Set(acasalamentosData.map(a => a.dose_semen_id).filter(Boolean))] as string[];
           const { data: dosesData } = await supabase
             .from('doses_semen')
-            .select('id, nome')
+            .select(`
+              id,
+              touro_id,
+              touro:touros(id, nome, registro, raca)
+            `)
             .in('id', doseIds);
 
           // Criar maps para busca rápida
@@ -1422,7 +1443,7 @@ export default function LotesFIV() {
                 acasalamento_id: acasalamentoId,
                 quantidade,
                 doadora: doadora?.registro || doadora?.nome || '-',
-                dose: dose?.nome || '-',
+                dose: dose ? ((dose.touro as any)?.nome || 'Touro desconhecido') : '-',
               };
             });
 
@@ -1505,7 +1526,7 @@ export default function LotesFIV() {
         return;
       }
 
-      // Validar que há quantidades preenchidas
+      // Validar que há quantidades preenchidas e que não excedam os oócitos disponíveis
       const acasalamentosComQuantidade = acasalamentos.filter(ac => {
         const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || ac.quantidade_embrioes?.toString() || '0');
         return quantidade > 0;
@@ -1518,6 +1539,22 @@ export default function LotesFIV() {
           variant: 'destructive',
         });
         return;
+      }
+
+      // Validar que nenhum acasalamento tenha mais embriões do que oócitos disponíveis
+      for (const ac of acasalamentosComQuantidade) {
+        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || ac.quantidade_embrioes?.toString() || '0');
+        const quantidadeOocitos = ac.quantidade_oocitos ?? 0;
+        
+        if (quantidade > quantidadeOocitos) {
+          const doadoraNome = ac.doadora_nome || ac.doadora_registro || 'Doadora desconhecida';
+          toast({
+            title: 'Validação de quantidade',
+            description: `O acasalamento da doadora "${doadoraNome}" possui ${quantidade} embriões, mas apenas ${quantidadeOocitos} oócitos foram usados. A quantidade de embriões não pode exceder a quantidade de oócitos disponíveis.`,
+            variant: 'destructive',
+          });
+          return;
+        }
       }
 
       // Buscar fazenda origem do pacote original
@@ -1695,11 +1732,11 @@ export default function LotesFIV() {
         setDoadoras(doadorasData || []);
       }
 
-      // Load doses
+      // Load doses com join com touros para obter nome do touro
       const { data: dosesData, error: dosesError } = await supabase
         .from('doses_semen')
-        .select('id, nome, cliente_id')
-        .order('nome', { ascending: true });
+        .select('id, cliente_id, touro_id, tipo_semen, quantidade, touro:touros(id, nome, registro, raca)')
+        .order('created_at', { ascending: false });
 
       if (dosesError) {
         console.error('Erro ao carregar doses:', dosesError);
@@ -2294,6 +2331,7 @@ export default function LotesFIV() {
                                 <>
                                   <TableHead className="text-center">QTD. EMBRIÕES</TableHead>
                                   <TableHead className="text-center">TOTAL PRODUZIDOS</TableHead>
+                                  <TableHead className="text-center">% DE VIRADA</TableHead>
                                 </>
                               )}
                             </TableRow>
@@ -2316,13 +2354,37 @@ export default function LotesFIV() {
                                           <Input
                                             type="number"
                                             min="0"
+                                            max={acasalamento.quantidade_oocitos ?? undefined}
                                             value={editQuantidadeEmbrioes[acasalamento.id] ?? acasalamento.quantidade_embrioes ?? ''}
-                                            onChange={(e) =>
-                                              setEditQuantidadeEmbrioes({
-                                                ...editQuantidadeEmbrioes,
-                                                [acasalamento.id]: e.target.value,
-                                              })
-                                            }
+                                            onChange={(e) => {
+                                              const valor = e.target.value;
+                                              const quantidadeOocitos = acasalamento.quantidade_oocitos ?? 0;
+                                              
+                                              // Validar que não excede a quantidade de oócitos
+                                              if (valor === '' || valor === '0') {
+                                                setEditQuantidadeEmbrioes({
+                                                  ...editQuantidadeEmbrioes,
+                                                  [acasalamento.id]: valor,
+                                                });
+                                              } else {
+                                                const numero = parseInt(valor);
+                                                if (!isNaN(numero) && numero >= 0) {
+                                                  if (numero > quantidadeOocitos) {
+                                                    toast({
+                                                      title: 'Validação',
+                                                      description: `A quantidade de embriões não pode ser maior que ${quantidadeOocitos} oócitos disponíveis para este acasalamento.`,
+                                                      variant: 'destructive',
+                                                    });
+                                                    // Não atualizar o estado se exceder
+                                                    return;
+                                                  }
+                                                  setEditQuantidadeEmbrioes({
+                                                    ...editQuantidadeEmbrioes,
+                                                    [acasalamento.id]: valor,
+                                                  });
+                                                }
+                                              }
+                                            }}
                                             className="w-20 text-center"
                                             placeholder="0"
                                           />
@@ -2332,7 +2394,31 @@ export default function LotesFIV() {
                                       )}
                                     </TableCell>
                                     <TableCell className="text-center font-semibold text-green-600">
-                                      {acasalamento.total_embrioes_produzidos ?? 0}
+                                      {(() => {
+                                        // Usar valor editado se existir, senão usar o valor salvo ou total produzido
+                                        const quantidadeEditada = editQuantidadeEmbrioes[acasalamento.id];
+                                        return quantidadeEditada !== undefined && quantidadeEditada !== ''
+                                          ? (parseInt(quantidadeEditada) || 0)
+                                          : (acasalamento.quantidade_embrioes ?? acasalamento.total_embrioes_produzidos ?? 0);
+                                      })()}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {(() => {
+                                        // Usar valor editado se existir, senão usar o valor salvo ou total produzido
+                                        const quantidadeEditada = editQuantidadeEmbrioes[acasalamento.id];
+                                        const quantidadeEmbrioes = quantidadeEditada !== undefined && quantidadeEditada !== ''
+                                          ? parseInt(quantidadeEditada) || 0
+                                          : (acasalamento.quantidade_embrioes ?? acasalamento.total_embrioes_produzidos ?? 0);
+                                        
+                                        const quantidadeOocitos = acasalamento.quantidade_oocitos ?? 0;
+                                        
+                                        if (quantidadeOocitos === 0 || quantidadeEmbrioes === 0) {
+                                          return '-';
+                                        }
+                                        
+                                        const percentual = (quantidadeEmbrioes / quantidadeOocitos) * 100;
+                                        return `${percentual.toFixed(1)}%`;
+                                      })()}
                                     </TableCell>
                                   </>
                                 )}
@@ -2474,9 +2560,11 @@ export default function LotesFIV() {
                           <SelectContent>
                             {dosesDisponiveis.map((dose) => {
                               const cliente = clientes.find((c) => c.id === dose.cliente_id);
+                              const touro = dose.touro as any;
+                              const touroNome = touro?.nome || 'Touro desconhecido';
                               return (
                                 <SelectItem key={dose.id} value={dose.id}>
-                                  {dose.nome} {cliente ? `(${cliente.nome})` : ''}
+                                  {touroNome} {touro?.registro ? `(${touro.registro})` : ''} {cliente ? `- ${cliente.nome}` : ''}
                                 </SelectItem>
                               );
                             })}
@@ -2820,8 +2908,9 @@ export default function LotesFIV() {
                               className="rounded"
                             />
                             <label htmlFor={`dose-${dose.id}`} className="text-sm cursor-pointer flex-1">
-                              <span className="font-medium">{dose.nome}</span>
-                              {cliente && <span className="text-slate-500 ml-2">({cliente.nome})</span>}
+                              <span className="font-medium">{(dose as any).touro?.nome || 'Touro desconhecido'}</span>
+                              {(dose as any).touro?.registro && <span className="text-slate-500 ml-2">({(dose as any).touro.registro})</span>}
+                              {cliente && <span className="text-slate-500 ml-2">- {cliente.nome}</span>}
                             </label>
                           </div>
                         );
@@ -3053,21 +3142,33 @@ export default function LotesFIV() {
           <TabsContent value="historico" className="mt-0">
               {/* Filtros do Histórico */}
               <div className="flex gap-4 mb-6 flex-wrap items-end">
-                <div className="flex-1 min-w-[200px]">
-                  <Label htmlFor="filtro-historico-data-inicio">Data Início</Label>
-                  <DatePickerBR
-                    value={filtroHistoricoDataInicio}
-                    onChange={(date) => setFiltroHistoricoDataInicio(date || '')}
-                    placeholder="Data inicial"
-                  />
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <Label htmlFor="filtro-historico-data-fim">Data Fim</Label>
-                  <DatePickerBR
-                    value={filtroHistoricoDataFim}
-                    onChange={(date) => setFiltroHistoricoDataFim(date || '')}
-                    placeholder="Data final"
-                  />
+                <div className="flex-1 min-w-[280px]">
+                  <div className="mb-2">
+                    <Label className="text-sm font-medium text-slate-700">Período de Busca</Label>
+                    <p className="text-xs text-slate-500 mt-0.5">Filtro pela data D0 (Fecundação) do lote</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label htmlFor="filtro-historico-data-inicio" className="text-xs text-slate-500 font-normal">
+                        Data Início
+                      </Label>
+                      <DatePickerBR
+                        value={filtroHistoricoDataInicio}
+                        onChange={(date) => setFiltroHistoricoDataInicio(date || '')}
+                        placeholder="Data inicial"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="filtro-historico-data-fim" className="text-xs text-slate-500 font-normal">
+                        Data Fim
+                      </Label>
+                      <DatePickerBR
+                        value={filtroHistoricoDataFim}
+                        onChange={(date) => setFiltroHistoricoDataFim(date || '')}
+                        placeholder="Data final"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex-1 min-w-[250px] relative fazenda-busca-container">
                   <Label htmlFor="filtro-historico-fazenda">Fazenda de Origem</Label>
@@ -3435,6 +3536,9 @@ export default function LotesFIV() {
                                                 </TableCell>
                                                 <TableCell className="py-2">
                                                   <div className="font-medium">{acasalamento.dose_semen?.nome || '-'}</div>
+                                                  {acasalamento.dose_semen?.registro && (
+                                                    <div className="text-[10px] text-slate-500">{acasalamento.dose_semen.registro}</div>
+                                                  )}
                                                   <div className="text-[10px] text-slate-500 space-x-1">
                                                     {acasalamento.dose_semen?.raca && <span>{acasalamento.dose_semen.raca}</span>}
                                                     {acasalamento.dose_semen?.tipo_semen && <span>• {acasalamento.dose_semen.tipo_semen}</span>}

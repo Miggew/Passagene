@@ -393,7 +393,11 @@ export default function Sexagem() {
           doseIds.length > 0
             ? supabase
                 .from('doses_semen')
-                .select('id, nome')
+                .select(`
+                  id,
+                  touro_id,
+                  touro:touros(id, nome, registro, raca)
+                `)
                 .in('id', doseIds)
             : Promise.resolve({ data: null }),
         ]);
@@ -412,6 +416,15 @@ export default function Sexagem() {
             if (doadorasData) {
               const doadoraMap = new Map(doadorasData.map(d => [d.id, d.registro]));
               const aspiracaoDoadoraMap = new Map(aspiracoesData.map((a: any) => [a.id, a.doadora_id]));
+              
+              // Criar mapa de doses para touros (extrair nome do touro relacionado)
+              const tourosMap = new Map<string, string>();
+              if (dosesData) {
+                (dosesData as any[]).forEach((d: any) => {
+                  const touro = d.touro;
+                  tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
+                });
+              }
 
               acasalamentosData.forEach((ac: any) => {
                 if (ac.aspiracao_doadora_id) {
@@ -428,9 +441,11 @@ export default function Sexagem() {
           }
         }
 
-        if (dosesData.length > 0) {
-          dosesData.forEach((d: any) => {
-            tourosMap.set(d.id, d.nome);
+        if (dosesData && dosesData.length > 0) {
+          // Extrair nome do touro relacionado
+          (dosesData as any[]).forEach((d: any) => {
+            const touro = d.touro;
+            tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
           });
 
           acasalamentosData.forEach((ac: any) => {

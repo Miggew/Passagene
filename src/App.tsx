@@ -23,6 +23,8 @@ import Aspiracoes from './pages/Aspiracoes';
 import PacoteAspiracaoForm from './pages/PacoteAspiracaoForm';
 import PacoteAspiracaoDetail from './pages/PacoteAspiracaoDetail';
 import DosesSemen from './pages/DosesSemen';
+import Touros from './pages/Touros';
+import TouroDetail from './pages/TouroDetail';
 import LotesFIV from './pages/LotesFIV';
 import Embrioes from './pages/Embrioes';
 import TransferenciaEmbrioes from './pages/TransferenciaEmbrioes';
@@ -37,7 +39,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <ToasterShadcn />
-      <HashRouter>
+      <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Dashboard />} />
@@ -72,6 +74,10 @@ const App = () => (
             <Route path="/aspiracoes" element={<Aspiracoes />} />
             <Route path="/aspiracoes/novo" element={<PacoteAspiracaoForm />} />
             <Route path="/aspiracoes/:id" element={<PacoteAspiracaoDetail />} />
+
+            {/* Touros */}
+            <Route path="/touros" element={<Touros />} />
+            <Route path="/touros/:id" element={<TouroDetail />} />
 
             {/* Doses de Sêmen */}
             <Route path="/doses-semen" element={<DosesSemen />} />

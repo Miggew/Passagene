@@ -217,20 +217,7 @@ export default function ProtocoloPasso2() {
         return;
       }
 
-      // Log para debug
-      console.log('=== DEBUG loadReceptoras ===');
-      console.log('Protocolo ID:', id);
-      console.log('Receptoras retornadas:', finalPrData?.length || 0);
-      if (finalPrData && finalPrData.length > 0) {
-        console.log('Primeira receptora:', {
-          id: finalPrData[0].id,
-          protocolo_id: finalPrData[0].protocolo_id,
-          receptora_id: finalPrData[0].receptora_id,
-          status: finalPrData[0].status,
-        });
-      } else {
-        console.warn('Nenhuma receptora retornada pela query');
-      }
+      // Receptoras carregadas com sucesso
 
       // CRITICAL: Validar que há pelo menos 1 receptora vinculada
       if (!finalPrData || finalPrData.length === 0) {
@@ -514,8 +501,6 @@ export default function ProtocoloPasso2() {
           
           if (statusError) {
             console.error(`Erro ao atualizar status da receptora ${r.identificacao} para SINCRONIZADA:`, statusError);
-          } else {
-            console.log(`Status da receptora ${r.identificacao} atualizado para SINCRONIZADA`);
           }
         }),
         // Atualizar receptoras descartadas para VAZIA
@@ -528,8 +513,6 @@ export default function ProtocoloPasso2() {
           
           if (statusError) {
             console.error(`Erro ao atualizar status da receptora ${r.identificacao} para VAZIA:`, statusError);
-          } else {
-            console.log(`Status da receptora ${r.identificacao} atualizado para VAZIA`);
           }
         }),
       ];

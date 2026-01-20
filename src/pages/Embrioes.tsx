@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Embriao, Fazenda, HistoricoEmbriao } from '@/lib/types';
+import { Embriao, Fazenda, HistoricoEmbriao, Cliente } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,6 +16,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -32,7 +33,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Snowflake, ArrowRightLeft, Tag, MapPin, Trash2, History, ChevronDown, ChevronUp, Package, CheckSquare, Square } from 'lucide-react';
+import { Snowflake, ArrowRightLeft, Tag, MapPin, Trash2, History, ChevronDown, ChevronUp, Package, CheckSquare, Square, User, Edit } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Sheet,
@@ -97,15 +98,20 @@ export default function Embrioes() {
   const [embrioesSelecionados, setEmbrioesSelecionados] = useState<Set<string>>(new Set());
   const [showAcoesEmMassa, setShowAcoesEmMassa] = useState(false);
   const [showCongelarDialog, setShowCongelarDialog] = useState(false);
+  const [showDirecionarClienteDialog, setShowDirecionarClienteDialog] = useState(false);
   const [showClassificarDialog, setShowClassificarDialog] = useState(false);
   const [showDescartarDialog, setShowDescartarDialog] = useState(false);
   const [showHistoricoDialog, setShowHistoricoDialog] = useState(false);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [classificarEmbriao, setClassificarEmbriao] = useState<Embriao | null>(null);
   const [descartarEmbriao, setDescartarEmbriao] = useState<Embriao | null>(null);
   const [historicoEmbriao, setHistoricoEmbriao] = useState<Embriao | null>(null);
   const [historico, setHistorico] = useState<HistoricoEmbriao[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [showEditarFazendasDestinoDialog, setShowEditarFazendasDestinoDialog] = useState(false);
+  const [pacoteEditandoFazendas, setPacoteEditandoFazendas] = useState<PacoteEmbrioes | null>(null);
+  const [fazendasDestinoSelecionadas, setFazendasDestinoSelecionadas] = useState<string[]>([]);
   const { toast } = useToast();
 
   const [congelarData, setCongelarData] = useState({
@@ -122,9 +128,28 @@ export default function Embrioes() {
     observacoes: '',
   });
 
+  const [direcionarClienteData, setDirecionarClienteData] = useState({
+    cliente_id: '',
+  });
+
   useEffect(() => {
     loadFazendas();
+    loadClientes();
   }, []);
+
+  const loadClientes = async () => {
+    try {
+      const { data: clientesData, error } = await supabase
+        .from('clientes')
+        .select('id, nome')
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+      setClientes(clientesData || []);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -233,11 +258,15 @@ export default function Embrioes() {
 
       if (doadorasError) throw doadorasError;
 
-      // Buscar doses
+      // Buscar doses (com informações do touro)
       const doseIds = [...new Set(acasalamentosData?.map((a) => a.dose_semen_id) || [])];
       const { data: dosesData, error: dosesError } = await supabase
         .from('doses_semen')
-        .select('id, nome')
+        .select(`
+          id,
+          touro_id,
+          touro:touros(id, nome, registro, raca)
+        `)
         .in('id', doseIds);
 
       if (dosesError) throw dosesError;
@@ -392,10 +421,12 @@ export default function Embrioes() {
         const pacoteId = embriao.lote_fiv_id ? pacoteParaLoteMap.get(embriao.lote_fiv_id) : undefined;
         const pacoteInfo = pacoteId ? pacotesAspiracaoMap.get(pacoteId) : undefined;
 
+        const touro = dose ? (dose.touro as any) : null;
+        
         return {
           ...embriao,
           doadora_registro: doadora?.registro,
-          touro_nome: dose?.nome,
+          touro_nome: touro?.nome || 'Touro desconhecido',
           fazenda_destino_nome: embriao.fazenda_destino_id
             ? fazendasDestinoMap.get(embriao.fazenda_destino_id)
             : undefined,
@@ -590,6 +621,75 @@ export default function Embrioes() {
     }
   };
 
+  const handleSalvarFazendasDestino = async () => {
+    if (!pacoteEditandoFazendas) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Buscar o pacote_aspiracao_id do lote FIV
+      const { data: loteData, error: loteError } = await supabase
+        .from('lotes_fiv')
+        .select('pacote_aspiracao_id')
+        .eq('id', pacoteEditandoFazendas.lote_fiv_id)
+        .single();
+
+      if (loteError || !loteData || !loteData.pacote_aspiracao_id) {
+        throw new Error('Pacote de aspiração não encontrado para este lote FIV');
+      }
+
+      const pacoteAspiracaoId = loteData.pacote_aspiracao_id;
+
+      // Remover todas as fazendas destino existentes do pacote
+      const { error: deleteError } = await supabase
+        .from('pacotes_aspiracao_fazendas_destino')
+        .delete()
+        .eq('pacote_aspiracao_id', pacoteAspiracaoId);
+
+      if (deleteError) {
+        console.error('Erro ao remover fazendas destino:', deleteError);
+      }
+
+      // Inserir as novas fazendas destino selecionadas
+      if (fazendasDestinoSelecionadas.length > 0) {
+        const fazendasParaInserir = fazendasDestinoSelecionadas.map(fazendaId => ({
+          pacote_aspiracao_id: pacoteAspiracaoId,
+          fazenda_destino_id: fazendaId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('pacotes_aspiracao_fazendas_destino')
+          .insert(fazendasParaInserir);
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      toast({
+        title: 'Fazendas destino atualizadas',
+        description: `As fazendas destino do pacote foram atualizadas com sucesso.`,
+      });
+
+      setShowEditarFazendasDestinoDialog(false);
+      setPacoteEditandoFazendas(null);
+      setFazendasDestinoSelecionadas([]);
+      
+      // Recarregar dados
+      loadData();
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar fazendas destino',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleClassificar = async (embriaoId?: string) => {
     const embriaoParaClassificar = embriaoId 
       ? embrioes.find(e => e.id === embriaoId)
@@ -727,10 +827,37 @@ export default function Embrioes() {
       return;
     }
 
+    // Validar que todos os embriões selecionados estão classificados
+    const embrioesParaCongelar = Array.from(embrioesSelecionados);
+    const embrioesSemClassificacao = embrioes.filter(e => 
+      embrioesParaCongelar.includes(e.id) && (!e.classificacao || e.classificacao.trim() === '')
+    );
+
+    if (embrioesSemClassificacao.length > 0) {
+      toast({
+        title: 'Erro de validação',
+        description: `Não é possível congelar embriões sem classificação. ${embrioesSemClassificacao.length} embrião(ões) selecionado(s) não está(ão) classificado(s). Por favor, classifique os embriões antes de congelá-los.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar que todos os embriões selecionados estão frescos
+    const embrioesNaoFrescos = embrioes.filter(e => 
+      embrioesParaCongelar.includes(e.id) && e.status_atual !== 'FRESCO'
+    );
+
+    if (embrioesNaoFrescos.length > 0) {
+      toast({
+        title: 'Erro de validação',
+        description: `Apenas embriões frescos podem ser congelados. ${embrioesNaoFrescos.length} embrião(ões) selecionado(s) não está(ão) com status FRESCO.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
-
-      const embrioesParaCongelar = Array.from(embrioesSelecionados);
       
       const updates = embrioesParaCongelar.map(embriaoId => {
         return supabase
@@ -850,6 +977,84 @@ export default function Embrioes() {
     }
   };
 
+  const handleDirecionarCliente = async () => {
+    if (embrioesSelecionados.size === 0 || !direcionarClienteData.cliente_id) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Selecione pelo menos um embrião congelado e um cliente',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Verificar se os embriões selecionados estão congelados
+    const embrioesSelecionadosArray = Array.from(embrioesSelecionados);
+    const embrioesParaDirecionar = embrioes.filter(e => 
+      embrioesSelecionadosArray.includes(e.id) && e.status_atual === 'CONGELADO'
+    );
+
+    if (embrioesParaDirecionar.length === 0) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Apenas embriões congelados podem ser direcionados para clientes',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const embriaoIds = embrioesParaDirecionar.map(e => e.id);
+      
+      const updates = embriaoIds.map(embriaoId => {
+        return supabase
+          .from('embrioes')
+          .update({
+            cliente_id: direcionarClienteData.cliente_id,
+          })
+          .eq('id', embriaoId);
+      });
+
+      await Promise.all(updates);
+
+      // Registrar histórico para cada embrião
+      const cliente = clientes.find(c => c.id === direcionarClienteData.cliente_id);
+      for (const embriaoId of embriaoIds) {
+        const embriao = embrioes.find(e => e.id === embriaoId);
+        if (embriao) {
+          await registrarHistorico(
+            embriao.id,
+            embriao.status_atual,
+            embriao.status_atual,
+            'DESTINACAO',
+            null,
+            `Direcionado para cliente: ${cliente?.nome || direcionarClienteData.cliente_id}`
+          );
+        }
+      }
+
+      toast({
+        title: 'Embriões direcionados',
+        description: `${embrioesParaDirecionar.length} embrião(ões) direcionado(s) para ${cliente?.nome || 'o cliente'} com sucesso`,
+      });
+
+      setShowDirecionarClienteDialog(false);
+      setDirecionarClienteData({ cliente_id: '' });
+      setEmbrioesSelecionados(new Set());
+      setShowAcoesEmMassa(false);
+      loadData();
+    } catch (error) {
+      toast({
+        title: 'Erro ao direcionar embriões',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const loadHistorico = async (embriaoId: string) => {
     try {
       setLoadingHistorico(true);
@@ -941,20 +1146,35 @@ export default function Embrioes() {
                                 <ChevronDown className="w-5 h-5 text-slate-600" />
                               )}
                             </Button>
-                            <CardTitle className="text-lg">
-                              {pacote.pacote_info.fazenda_nome || 'Fazenda não identificada'} →{' '}
-                              {pacote.fazendas_destino_nomes && pacote.fazendas_destino_nomes.length > 0 ? (
-                                <span className="inline-flex flex-wrap gap-1 items-center">
-                                  {pacote.fazendas_destino_nomes.map((nome, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      {nome}
-                                    </Badge>
-                                  ))}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">Sem destino</span>
-                              )}
-                            </CardTitle>
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-lg">
+                                {pacote.pacote_info.fazenda_nome || 'Fazenda não identificada'} →{' '}
+                                {pacote.fazendas_destino_nomes && pacote.fazendas_destino_nomes.length > 0 ? (
+                                  <span className="inline-flex flex-wrap gap-1 items-center">
+                                    {pacote.fazendas_destino_nomes.map((nome, index) => (
+                                      <Badge key={index} variant="outline" className="text-xs">
+                                        {nome}
+                                      </Badge>
+                                    ))}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">Sem destino</span>
+                                )}
+                              </CardTitle>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setPacoteEditandoFazendas(pacote);
+                                  setFazendasDestinoSelecionadas([...pacote.fazendas_destino_ids]);
+                                  setShowEditarFazendasDestinoDialog(true);
+                                }}
+                                className="h-8 w-8 p-0"
+                                title="Editar fazendas destino"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                           <div className="mt-2 ml-7 space-y-1 text-sm text-slate-600">
                             <p><strong>Data Despacho:</strong> {pacote.data_despacho ? formatDate(pacote.data_despacho) : '-'}</p>
@@ -1144,12 +1364,36 @@ export default function Embrioes() {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => {
+                                              // Verificar se está classificado antes de permitir congelar
+                                              if (!embriao.classificacao || embriao.classificacao.trim() === '') {
+                                                toast({
+                                                  title: 'Classificação obrigatória',
+                                                  description: 'É necessário classificar o embrião antes de congelá-lo. Por favor, classifique o embrião primeiro.',
+                                                  variant: 'destructive',
+                                                });
+                                                return;
+                                              }
                                               setShowCongelarDialog(true);
                                               setEmbrioesSelecionados(new Set([embriao.id]));
                                             }}
-                                            title="Congelar"
+                                            title={embriao.classificacao ? "Congelar" : "Classifique antes de congelar"}
+                                            disabled={!embriao.classificacao || embriao.classificacao.trim() === ''}
                                           >
-                                            <Snowflake className="w-4 h-4 text-blue-600" />
+                                            <Snowflake className={embriao.classificacao ? "w-4 h-4 text-blue-600" : "w-4 h-4 text-slate-400"} />
+                                          </Button>
+                                        )}
+                                        {embriao.status_atual === 'CONGELADO' && !embriao.cliente_id && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setShowDirecionarClienteDialog(true);
+                                              setEmbrioesSelecionados(new Set([embriao.id]));
+                                              setDirecionarClienteData({ cliente_id: '' });
+                                            }}
+                                            title="Direcionar para Cliente"
+                                          >
+                                            <User className="w-4 h-4 text-green-600" />
                                           </Button>
                                         )}
                                         {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
@@ -1232,6 +1476,36 @@ export default function Embrioes() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
+                    // Verificar se todos os embriões selecionados estão classificados
+                    const embrioesSemClassificacao = Array.from(embrioesSelecionados).filter(id => {
+                      const embriao = embrioes.find(e => e.id === id);
+                      return !embriao || !embriao.classificacao || embriao.classificacao.trim() === '';
+                    });
+
+                    if (embrioesSemClassificacao.length > 0) {
+                      toast({
+                        title: 'Classificação obrigatória',
+                        description: `Não é possível congelar embriões sem classificação. ${embrioesSemClassificacao.length} embrião(ões) selecionado(s) não está(ão) classificado(s). Por favor, classifique os embriões antes de congelá-los.`,
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+
+                    // Verificar se todos são frescos
+                    const embrioesNaoFrescos = Array.from(embrioesSelecionados).filter(id => {
+                      const embriao = embrioes.find(e => e.id === id);
+                      return !embriao || embriao.status_atual !== 'FRESCO';
+                    });
+
+                    if (embrioesNaoFrescos.length > 0) {
+                      toast({
+                        title: 'Erro de validação',
+                        description: `Apenas embriões frescos podem ser congelados. ${embrioesNaoFrescos.length} embrião(ões) selecionado(s) não está(ão) com status FRESCO.`,
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+
                     setCongelarData({
                       data_congelamento: new Date().toISOString().split('T')[0],
                       localizacao_atual: '',
@@ -1241,6 +1515,22 @@ export default function Embrioes() {
                 >
                   <Snowflake className="w-4 h-4 mr-2" />
                   Congelar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDirecionarClienteData({ cliente_id: '' });
+                    setShowDirecionarClienteDialog(true);
+                  }}
+                  disabled={!Array.from(embrioesSelecionados).some(id => {
+                    const embriao = embrioes.find(e => e.id === id);
+                    return embriao?.status_atual === 'CONGELADO';
+                  })}
+                  title="Apenas embriões congelados podem ser direcionados para clientes"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Direcionar para Cliente
                 </Button>
                 <Button
                   variant="outline"
@@ -1494,6 +1784,55 @@ export default function Embrioes() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog de Direcionar para Cliente */}
+      <Dialog open={showDirecionarClienteDialog} onOpenChange={setShowDirecionarClienteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Direcionar {embrioesSelecionados.size} Embrião(ões) Congelado(s) para Cliente</DialogTitle>
+            <DialogDescription>
+              Direcionar embriões congelados selecionados para o estoque de um cliente
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cliente_id">Cliente *</Label>
+              <Select
+                value={direcionarClienteData.cliente_id}
+                onValueChange={(value) => setDirecionarClienteData({ cliente_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={handleDirecionarCliente}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={submitting}
+              >
+                {submitting ? 'Direcionando...' : `Direcionar ${embrioesSelecionados.size} Embrião(ões)`}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDirecionarClienteDialog(false)}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Histórico Dialog */}
       <Sheet open={showHistoricoDialog} onOpenChange={setShowHistoricoDialog}>
         <SheetContent className="w-full sm:max-w-2xl">
@@ -1546,6 +1885,80 @@ export default function Embrioes() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Dialog para editar fazendas destino do pacote */}
+      <Dialog open={showEditarFazendasDestinoDialog} onOpenChange={setShowEditarFazendasDestinoDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Fazendas Destino</DialogTitle>
+            <DialogDescription>
+              Selecione as fazendas destino para este pacote de embriões.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pacoteEditandoFazendas && (
+            <div className="space-y-4">
+              <div>
+                <Label>Pacote</Label>
+                <p className="text-sm text-slate-600 mt-1">
+                  {pacoteEditandoFazendas.pacote_info.fazenda_nome || 'Fazenda não identificada'} → 
+                  {pacoteEditandoFazendas.data_despacho ? ` ${formatDate(pacoteEditandoFazendas.data_despacho)}` : ''}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fazendas Destino</Label>
+                <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                  {fazendas.map((fazenda) => (
+                    <label key={fazenda.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={fazendasDestinoSelecionadas.includes(fazenda.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFazendasDestinoSelecionadas([...fazendasDestinoSelecionadas, fazenda.id]);
+                          } else {
+                            setFazendasDestinoSelecionadas(
+                              fazendasDestinoSelecionadas.filter(id => id !== fazenda.id)
+                            );
+                          }
+                        }}
+                        className="rounded border-slate-300"
+                      />
+                      <span className="text-sm">{fazenda.nome}</span>
+                    </label>
+                  ))}
+                </div>
+                {fazendas.length === 0 && (
+                  <p className="text-sm text-slate-500 text-center py-4">
+                    Nenhuma fazenda disponível
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditarFazendasDestinoDialog(false);
+                setPacoteEditandoFazendas(null);
+                setFazendasDestinoSelecionadas([]);
+              }}
+              disabled={submitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSalvarFazendasDestino}
+              disabled={submitting}
+            >
+              {submitting ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

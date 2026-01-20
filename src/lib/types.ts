@@ -117,14 +117,220 @@ export interface AspiracaoDoadora {
   created_at?: string;
 }
 
-export interface DoseSemen {
+// Campos dinâmicos em JSONB - estruturas por raça
+export interface DadosGeneticosHolandesa {
+  nm_dolares?: number; // NM$ (Net Merit Dollars)
+  tpi?: number; // TPI (Total Performance Index)
+  ptat?: number; // PTAT (Predicted Transmitting Ability - Type)
+  udc?: number; // UDC (Udder Composite)
+  flc?: number; // FLC (Foot & Leg Composite)
+  bwc?: number; // BWC (Body Weight Composite)
+  gpa_lpi?: number; // GPA LPI
+  pro_dolar?: number; // PRO$ (Profit Dollars)
+  [key: string]: any; // Permite campos adicionais
+}
+
+export interface DadosProducaoHolandesa {
+  leite_kg?: number;
+  gordura_kg?: number;
+  gordura_porcent?: number;
+  proteina_kg?: number;
+  proteina_porcent?: number;
+  eficiencia_alimentar?: number;
+  bmr?: number; // Body Maintenance Requirement
+  eficiencia_metano?: number;
+  [key: string]: any;
+}
+
+export interface DadosConformacaoHolandesa {
+  conformacao_geral?: number;
+  forca_leiteira?: number;
+  sistema_mamario?: number;
+  pernas_pes?: number;
+  garupa?: number;
+  estatura?: number;
+  largura_peito?: number;
+  profundidade_corpo?: number;
+  angularidade?: number;
+  [key: string]: any;
+}
+
+export interface DadosSaudeReproducaoHolandesa {
+  perm_rebanho?: number; // Permanência no Rebanho
+  ccs?: number; // Contagem de Células Somáticas
+  facilidade_parto?: number;
+  fertilidade_filhas?: number;
+  facilidade_parto_materna?: number;
+  velocidade_ordenha?: number;
+  temperamento?: number;
+  persistencia_lactacao?: number;
+  resistencia_mastite?: number;
+  resistencia_doencas_metabolicas?: number;
+  immunity_bezerra?: number;
+  escore_condicao_corporal?: number;
+  [key: string]: any;
+}
+
+export interface DadosGeneticosNelore {
+  // SUMÁRIO ANCP
+  sumario_ancp?: {
+    mp120?: number;
+    dpn?: number;
+    dp210?: number;
+    dp365?: number;
+    dp450?: number;
+    dpe365?: number;
+    dpe450?: number;
+    dipp?: number;
+    dstay?: number;
+    d3p?: number;
+    daol?: number;
+    dacab?: number;
+    mgete?: number;
+    mgetecr?: number;
+    mgetere?: number;
+    mgetecd?: number;
+    mgetef1?: number;
+  };
+  // SUMÁRIO ABCZ PMGZ
+  sumario_abcz_pmgz?: {
+    pm_em?: number;
+    pn_ed?: number;
+    pd_ed?: number;
+    pa_ed?: number;
+    ps_ed?: number;
+    ipp?: number; // DIAS
+    pe365?: number; // cm
+    pe450?: number; // cm
+    stay?: number; // %
+    ec?: number;
+    prec?: number;
+    musc_s?: number;
+    adl?: number; // cm
+    acab?: number; // mm
+    marm?: number; // %
+    abcz?: number;
+  };
+  // GENEPLUS
+  genepius?: {
+    pn?: number;
+    p120?: number;
+    tm120?: number;
+    pd?: number;
+    tmd?: number;
+    ps?: number;
+    gpd?: number;
+    stay?: number;
+    pes?: number;
+    ipp?: number;
+    aol?: number;
+    egs?: number;
+    mar?: number;
+    car?: number;
+    iqg?: number;
+  };
+  [key: string]: any;
+}
+
+export interface MedidasFisicasNelore {
+  cc?: number; // Circunferência do Coração
+  ag?: number; // Altura da Garupa
+  cg?: number; // Circunferência da Garupa
+  lg?: number; // Largura da Garupa
+  pt?: number; // Perímetro Torácico
+  pc?: number; // Profundidade do Corpo
+  ce?: number; // Comprimento Escápula
+  idade_medicao?: number; // Meses
+  peso_medicao?: number; // kg
+  [key: string]: any;
+}
+
+export interface DadosGeneticosGirolando {
+  gpta_leite?: number; // GPTA Leite (kg)
+  ipplg?: number; // Índice de Produção e Persistência na Lactação
+  ietg?: number; // Índice de Eficiência Tropical
+  ifpg?: number; // Índice Facilidade de Parto
+  ireg?: number; // Composto Reprodução
+  csmg?: number; // Composto Sistema Mamário
+  esug?: number; // Composto Sistema Locomotor
+  ptapn?: number; // PTA Peso ao Nascimento (kg)
+  ptapg?: number; // PTA Período Gestacional (dias) - ou "ROBUSTO"
+  idade_primeiro_parto?: number; // dias
+  intervalo_partos?: number; // dias
+  longevidade?: number;
+  tolerancia_estresse?: number; // TE
+  [key: string]: any;
+}
+
+export interface DadosProducaoGirolando {
+  leite_kg?: number;
+  gordura_kg?: number;
+  gordura_porcent?: number;
+  proteina_kg?: number;
+  proteina_porcent?: number;
+  [key: string]: any;
+}
+
+export interface Caseinas {
+  beta_caseina?: string; // "A1A1", "A1A2", "A2A2"
+  kappa_caseina?: string; // "AA", "AB", "BB"
+  beta_lactoglobulina?: string; // "AA", "AB", "BB"
+  [key: string]: any;
+}
+
+export interface OutrosDados {
+  composicao_genetica?: string; // Ex: "5/8 HOLANDÊS + 3/8 GIR", "3/4 HOLANDÊS + 1/4 GIR"
+  badges?: string[]; // Ex: ["A2A2", "GENOMAX", "SEMEXX", "GRAZINGPRO", "ROBOTREADY"]
+  [key: string]: any;
+}
+
+export interface Touro {
   id: string;
-  cliente_id?: string;
+  registro: string;
   nome: string;
   raca?: string;
-  tipo_semen?: string;
+  data_nascimento?: string;
+  
+  // Proprietário e fazenda
+  proprietario?: string;
+  fazenda_nome?: string;
+  
+  // Pedigree
+  pai_registro?: string;
+  pai_nome?: string;
+  mae_registro?: string;
+  mae_nome?: string;
+  genealogia_texto?: string;
+  
+  // Links e mídia
+  link_catalogo?: string;
+  foto_url?: string;
+  link_video?: string;
+  
+  // Campos dinâmicos (JSONB)
+  dados_geneticos?: DadosGeneticosHolandesa | DadosGeneticosNelore | DadosGeneticosGirolando | Record<string, any>;
+  dados_producao?: DadosProducaoHolandesa | DadosProducaoGirolando | Record<string, any>;
+  dados_conformacao?: DadosConformacaoHolandesa | Record<string, any>;
+  medidas_fisicas?: MedidasFisicasNelore | Record<string, any>;
+  dados_saude_reproducao?: DadosSaudeReproducaoHolandesa | Record<string, any>;
+  caseinas?: Caseinas;
+  outros_dados?: OutrosDados;
+  
+  // Outros
+  observacoes?: string;
+  disponivel?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DoseSemen {
+  id: string;
+  touro_id: string; // Referência ao touro do catálogo
+  cliente_id: string; // Cliente que possui a dose
+  tipo_semen?: 'CONVENCIONAL' | 'SEXADO';
   quantidade?: number;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface LoteFIV {
@@ -162,6 +368,7 @@ export interface Embriao {
   classificacao?: string;
   tipo_embriao?: string;
   status_atual: 'FRESCO' | 'CONGELADO' | 'TRANSFERIDO' | 'DESCARTADO';
+  cliente_id?: string; // ID do cliente dono do estoque (apenas para embriões congelados)
   fazenda_destino_id?: string;
   data_classificacao?: string;
   data_envase?: string;

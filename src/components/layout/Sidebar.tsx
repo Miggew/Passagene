@@ -11,6 +11,7 @@ import {
   ArrowRightLeft,
   Stethoscope,
   Activity,
+  Sparkles,
 } from 'lucide-react';
 
 const menuItems = [
@@ -21,6 +22,7 @@ const menuItems = [
   { path: '/receptoras', label: 'Receptoras', icon: Beef },
   { path: '/protocolos', label: 'Protocolos', icon: Syringe },
   { path: '/aspiracoes', label: 'Aspirações', icon: TestTube },
+  { path: '/touros', label: 'Catálogo de Touros', icon: Sparkles },
   { path: '/doses-semen', label: 'Doses de Sêmen', icon: Dna },
   { path: '/lotes-fiv', label: 'Lotes FIV', icon: TestTube },
   { path: '/embrioes', label: 'Embriões/Estoque', icon: Dna },
