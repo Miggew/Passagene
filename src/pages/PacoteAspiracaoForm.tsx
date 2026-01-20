@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { Fazenda } from '@/lib/types';
@@ -14,10 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, Search, X } from 'lucide-react';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface FazendaSelect {
@@ -31,6 +44,11 @@ export default function PacoteAspiracaoForm() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [fazendas, setFazendas] = useState<FazendaSelect[]>([]);
+  const mountRef = useRef(performance.now());
+  const destinoRequestId = useRef(0);
+  const [fazendasDestinoResultados, setFazendasDestinoResultados] = useState<FazendaSelect[]>([]);
+  const [loadingDestino, setLoadingDestino] = useState(false);
+  const [destinoPopoverOpen, setDestinoPopoverOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     fazenda_id: '',
@@ -43,13 +61,45 @@ export default function PacoteAspiracaoForm() {
   });
   const [buscaFazendaDestino, setBuscaFazendaDestino] = useState('');
 
+  const buscaDestino = buscaFazendaDestino.trim();
+  const buscaDestinoAtiva = buscaDestino.length >= 2;
+  const fazendasDestinoFiltradas = fazendasDestinoResultados
+    .filter((f) => !formData.fazendas_destino_ids.includes(f.id));
+
   useEffect(() => {
     loadFazendas();
   }, []);
 
+  useEffect(() => {
+    const termo = buscaDestino;
+    if (!termo) {
+      setFazendasDestinoResultados([]);
+      setLoadingDestino(false);
+      return;
+    }
+    const t0 = performance.now();
+    const requestId = ++destinoRequestId.current;
+    setLoadingDestino(true);
+    supabase
+      .from('fazendas')
+      .select('id, nome')
+      .ilike('nome', `%${termo}%`)
+      .order('nome', { ascending: true })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (requestId !== destinoRequestId.current) return;
+        setFazendasDestinoResultados(data || []);
+      })
+      .finally(() => {
+        if (requestId !== destinoRequestId.current) return;
+        setLoadingDestino(false);
+      });
+  }, [buscaFazendaDestino]);
+
   const loadFazendas = async () => {
     try {
       setLoading(true);
+      const t0 = performance.now();
       const { data, error } = await supabase
         .from('fazendas')
         .select('id, nome')
@@ -67,6 +117,9 @@ export default function PacoteAspiracaoForm() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+  }, [buscaFazendaDestino, fazendasDestinoFiltradas.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,42 +251,60 @@ export default function PacoteAspiracaoForm() {
               <div className="space-y-2 col-span-2">
                 <Label>Fazendas Destino *</Label>
                 <div className="space-y-2">
-                  <Input
-                    placeholder="Buscar fazenda destino..."
-                    value={buscaFazendaDestino}
-                    onChange={(e) => setBuscaFazendaDestino(e.target.value)}
-                    className="mb-2"
-                  />
-                  <Select
-                    value=""
-                    onValueChange={(value) => {
-                      if (value && !formData.fazendas_destino_ids.includes(value)) {
-                        setFormData({
-                          ...formData,
-                          fazendas_destino_ids: [...formData.fazendas_destino_ids, value],
-                        });
-                        setBuscaFazendaDestino(''); // Limpar busca após selecionar
-                      }
+                  <Popover
+                    open={destinoPopoverOpen}
+                    onOpenChange={(open) => {
+                      setDestinoPopoverOpen(open);
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma fazenda destino para adicionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fazendas
-                        .filter((f) => !formData.fazendas_destino_ids.includes(f.id))
-                        .filter((f) =>
-                          buscaFazendaDestino.trim() === ''
-                            ? true
-                            : f.nome.toLowerCase().includes(buscaFazendaDestino.toLowerCase())
-                        )
-                        .map((fazenda) => (
-                          <SelectItem key={fazenda.id} value={fazenda.id}>
-                            {fazenda.nome}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {buscaFazendaDestino.trim() === ''
+                          ? 'Buscar/selecionar fazenda destino'
+                          : `Busca: ${buscaFazendaDestino}`}
+                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Buscar fazenda destino..."
+                          value={buscaFazendaDestino}
+                          onValueChange={setBuscaFazendaDestino}
+                        />
+                        <CommandList>
+                          {!buscaDestinoAtiva ? (
+                            <CommandEmpty>Digite pelo menos 2 letras para buscar</CommandEmpty>
+                          ) : loadingDestino ? (
+                            <div className="p-2 text-sm text-slate-500">Buscando...</div>
+                          ) : fazendasDestinoFiltradas.length === 0 ? (
+                            <CommandEmpty>Nenhuma fazenda encontrada</CommandEmpty>
+                          ) : (
+                            <CommandGroup>
+                              {fazendasDestinoFiltradas.map((fazenda) => (
+                                <CommandItem
+                                  key={fazenda.id}
+                                  value={`${fazenda.nome} ${fazenda.id}`}
+                                  onSelect={() => {
+                                    if (!formData.fazendas_destino_ids.includes(fazenda.id)) {
+                                      setFormData({
+                                        ...formData,
+                                        fazendas_destino_ids: [...formData.fazendas_destino_ids, fazenda.id],
+                                      });
+                                    }
+                                    setBuscaFazendaDestino('');
+                                    setDestinoPopoverOpen(false);
+                                  }}
+                                >
+                                  {fazenda.nome}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 {formData.fazendas_destino_ids.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -273,6 +344,7 @@ export default function PacoteAspiracaoForm() {
                   value={formData.data_aspiracao}
                   onChange={(value) => setFormData({ ...formData, data_aspiracao: value || '' })}
                   required
+                  // Não há restrições de data mínima ou máxima - permite datas retroativas
                 />
               </div>
 

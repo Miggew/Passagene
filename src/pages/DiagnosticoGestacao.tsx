@@ -167,6 +167,9 @@ export default function DiagnosticoGestacao() {
   const loadLotesTE = async (fazendaId: string) => {
     try {
       setLoading(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:168',message:'dg:load:start',data:{fazendaId},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion agent log
 
       // 1. Buscar receptoras SERVIDAS da fazenda
       const { data: viewData, error: viewError } = await supabase
@@ -182,6 +185,9 @@ export default function DiagnosticoGestacao() {
         setLotesTE([]);
         return;
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:185',message:'dg:receptoras_fazenda',data:{receptoraIds:receptoraIds.length,amostra:receptoraIds.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion agent log
 
       // 2. Verificar quais estão SERVIDAS
       const { data: receptorasData } = await supabase
@@ -196,6 +202,12 @@ export default function DiagnosticoGestacao() {
         setLotesTE([]);
         return;
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:195',message:'dg:status_reprodutivo',data:{total:receptorasData?.length||0,amostra:receptorasData?.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion agent log
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:199',message:'dg:servidas',data:{servidas:servidasIds.length,amostra:servidasIds.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion agent log
 
       // 3. Buscar TEs realizadas agrupadas por data_te
       const { data: teData, error: teError } = await supabase
@@ -206,6 +218,9 @@ export default function DiagnosticoGestacao() {
         .order('data_te', { ascending: false });
 
       if (teError) throw teError;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:208',message:'dg:te_realizadas',data:{te_total:teData?.length||0,amostra:teData?.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion agent log
 
       // 4. Buscar diagnósticos existentes para verificar status e veterinário/técnico do DG
       const { data: diagnosticosData } = await supabase

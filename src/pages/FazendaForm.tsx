@@ -43,19 +43,51 @@ export default function FazendaForm() {
 
   const loadClientes = async () => {
     try {
-      const { data, error } = await supabase
+      // Primeiro, verificar se a tabela clientes existe e tem dados
+      const { data, error, count } = await supabase
         .from('clientes')
-        .select('id, nome')
+        .select('id, nome', { count: 'exact' })
         .order('nome', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar clientes:', error);
+        // Se o erro for relacionado à ordenação, tentar sem ordenação
+        if (error.message?.includes('order') || error.code === 'PGRST116') {
+          const { data: dataWithoutOrder, error: errorWithoutOrder } = await supabase
+            .from('clientes')
+            .select('id, nome');
+          
+          if (errorWithoutOrder) {
+            throw errorWithoutOrder;
+          }
+          
+          // Ordenar manualmente
+          const sorted = (dataWithoutOrder || []).sort((a, b) => 
+            (a.nome || '').localeCompare(b.nome || '')
+          );
+          setClientes(sorted);
+          return;
+        }
+        throw error;
+      }
+      
       setClientes(data || []);
+      
+      if (!data || data.length === 0) {
+        toast({
+          title: 'Atenção',
+          description: 'Nenhum cliente cadastrado. Cadastre um cliente antes de criar uma fazenda.',
+          variant: 'default',
+        });
+      }
     } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
       toast({
         title: 'Erro ao carregar clientes',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
+      setClientes([]);
     }
   };
 
@@ -185,21 +217,27 @@ export default function FazendaForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="cliente_id">Cliente *</Label>
-              <Select
-                value={formData.cliente_id}
-                onValueChange={(value) => setFormData({ ...formData, cliente_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {clientes.length === 0 ? (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                  Nenhum cliente cadastrado. Por favor, cadastre um cliente primeiro.
+                </div>
+              ) : (
+                <Select
+                  value={formData.cliente_id}
+                  onValueChange={(value) => setFormData({ ...formData, cliente_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
