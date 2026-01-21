@@ -30,6 +30,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Search, History, Star, Gem } from 'lucide-react';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
@@ -320,10 +322,7 @@ export default function Doadoras() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Doadoras</h1>
-        <p className="text-slate-600 mt-1">Gerenciar doadoras do sistema</p>
-      </div>
+      <PageHeader title="Doadoras" description="Gerenciar doadoras do sistema" />
 
       {/* Fazenda Selection */}
       <Card>
@@ -347,11 +346,10 @@ export default function Doadoras() {
       </Card>
 
       {!selectedFazendaId ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-slate-500">Selecione uma fazenda para visualizar e gerenciar doadoras</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Selecione uma fazenda"
+          description="Escolha uma fazenda para visualizar e gerenciar doadoras."
+        />
       ) : (
         <>
           <div className="flex items-center justify-between">

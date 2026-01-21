@@ -32,6 +32,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
+import { handleError } from '@/lib/error-handler';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, ArrowLeft, Eye, Lock, X, Users, FileText, Package, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDate, extractDateOnly, addDays, diffDays, getTodayDateString, formatDateString, getDayOfWeekName } from '@/lib/utils';
@@ -149,6 +152,29 @@ interface DetalhesLoteHistorico {
   }>;
 }
 
+const LOTES_FIV_FILTROS_KEY = 'lotes_fiv_filtros';
+
+type LotesFivFiltrosPersistidos = {
+  abaAtiva?: 'ativos' | 'historico';
+  filtroFazendaAspiracao?: string;
+  filtroFazendaAspiracaoBusca?: string;
+  filtroDiaCultivo?: string;
+  filtroHistoricoDataInicio?: string;
+  filtroHistoricoDataFim?: string;
+  filtroHistoricoFazenda?: string;
+  filtroHistoricoFazendaBusca?: string;
+  historicoPage?: number;
+};
+
+const carregarFiltrosLotesFiv = (): LotesFivFiltrosPersistidos => {
+  try {
+    const raw = localStorage.getItem(LOTES_FIV_FILTROS_KEY);
+    return raw ? (JSON.parse(raw) as LotesFivFiltrosPersistidos) : {};
+  } catch {
+    return {};
+  }
+};
+
 export default function LotesFIV() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -165,6 +191,7 @@ export default function LotesFIV() {
   const [selectedLote, setSelectedLote] = useState<LoteFIVComNomes | null>(null);
   const [acasalamentos, setAcasalamentos] = useState<AcasalamentoComNomes[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
   const [editQuantidadeEmbrioes, setEditQuantidadeEmbrioes] = useState<{ [key: string]: string }>({});
   const [showAddAcasalamento, setShowAddAcasalamento] = useState(false);
   const [fazendasDestinoIds, setFazendasDestinoIds] = useState<string[]>([]);
@@ -182,9 +209,10 @@ export default function LotesFIV() {
   const [recomendacaoAspiracaoSelecionada, setRecomendacaoAspiracaoSelecionada] = useState<string>('');
   const [dosesDisponiveisNoLote, setDosesDisponiveisNoLote] = useState<DoseSemen[]>([]);
   const [dataAspiracao, setDataAspiracao] = useState<string>('');
-  const [filtroFazendaAspiracao, setFiltroFazendaAspiracao] = useState<string>('');
-  const [filtroFazendaAspiracaoBusca, setFiltroFazendaAspiracaoBusca] = useState<string>('');
-  const [filtroDiaCultivo, setFiltroDiaCultivo] = useState<string>('');
+  const filtrosPersistidos = carregarFiltrosLotesFiv();
+  const [filtroFazendaAspiracao, setFiltroFazendaAspiracao] = useState<string>(filtrosPersistidos.filtroFazendaAspiracao ?? '');
+  const [filtroFazendaAspiracaoBusca, setFiltroFazendaAspiracaoBusca] = useState<string>(filtrosPersistidos.filtroFazendaAspiracaoBusca ?? '');
+  const [filtroDiaCultivo, setFiltroDiaCultivo] = useState<string>(filtrosPersistidos.filtroDiaCultivo ?? '');
   const [lotesFiltrados, setLotesFiltrados] = useState<LoteFIVComNomes[]>([]);
   const [pacotesParaFiltro, setPacotesParaFiltro] = useState<PacoteComNomes[]>([]);
   const [datasAspiracaoUnicas, setDatasAspiracaoUnicas] = useState<string[]>([]);
@@ -192,15 +220,18 @@ export default function LotesFIV() {
   const [showFazendaBusca, setShowFazendaBusca] = useState(false);
   const [lotesHistoricos, setLotesHistoricos] = useState<LoteHistorico[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
-  const [abaAtiva, setAbaAtiva] = useState<'ativos' | 'historico'>('ativos');
+  const [abaAtiva, setAbaAtiva] = useState<'ativos' | 'historico'>(filtrosPersistidos.abaAtiva ?? 'ativos');
   const [loteExpandido, setLoteExpandido] = useState<string | null>(null);
   const [detalhesLoteExpandido, setDetalhesLoteExpandido] = useState<DetalhesLoteHistorico | null>(null);
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
-  const [filtroHistoricoDataInicio, setFiltroHistoricoDataInicio] = useState<string>('');
-  const [filtroHistoricoDataFim, setFiltroHistoricoDataFim] = useState<string>('');
-  const [filtroHistoricoFazenda, setFiltroHistoricoFazenda] = useState<string>('');
-  const [filtroHistoricoFazendaBusca, setFiltroHistoricoFazendaBusca] = useState<string>('');
+  const [filtroHistoricoDataInicio, setFiltroHistoricoDataInicio] = useState<string>(filtrosPersistidos.filtroHistoricoDataInicio ?? '');
+  const [filtroHistoricoDataFim, setFiltroHistoricoDataFim] = useState<string>(filtrosPersistidos.filtroHistoricoDataFim ?? '');
+  const [filtroHistoricoFazenda, setFiltroHistoricoFazenda] = useState<string>(filtrosPersistidos.filtroHistoricoFazenda ?? '');
+  const [filtroHistoricoFazendaBusca, setFiltroHistoricoFazendaBusca] = useState<string>(filtrosPersistidos.filtroHistoricoFazendaBusca ?? '');
   const [showFazendaBuscaHistorico, setShowFazendaBuscaHistorico] = useState(false);
+  const [historicoPage, setHistoricoPage] = useState<number>(filtrosPersistidos.historicoPage ?? 1);
+  const HISTORICO_PAGE_SIZE = 8;
+
 
   // Função para obter o nome resumido do dia
   const getNomeDia = (dia: number): string => {
@@ -255,6 +286,42 @@ export default function LotesFIV() {
     }
   }, [id]);
 
+  useEffect(() => {
+    const payload: LotesFivFiltrosPersistidos = {
+      abaAtiva,
+      filtroFazendaAspiracao,
+      filtroFazendaAspiracaoBusca,
+      filtroDiaCultivo,
+      filtroHistoricoDataInicio,
+      filtroHistoricoDataFim,
+      filtroHistoricoFazenda,
+      filtroHistoricoFazendaBusca,
+      historicoPage,
+    };
+    localStorage.setItem(LOTES_FIV_FILTROS_KEY, JSON.stringify(payload));
+  }, [
+    abaAtiva,
+    filtroFazendaAspiracao,
+    filtroFazendaAspiracaoBusca,
+    filtroDiaCultivo,
+    filtroHistoricoDataInicio,
+    filtroHistoricoDataFim,
+    filtroHistoricoFazenda,
+    filtroHistoricoFazendaBusca,
+    historicoPage,
+  ]);
+
+  useEffect(() => {
+    setHistoricoPage(1);
+  }, [filtroHistoricoDataInicio, filtroHistoricoDataFim, filtroHistoricoFazenda]);
+
+  useEffect(() => {
+    const totalPaginas = Math.max(1, Math.ceil(lotesHistoricos.length / HISTORICO_PAGE_SIZE));
+    if (historicoPage > totalPaginas) {
+      setHistoricoPage(totalPaginas);
+    }
+  }, [lotesHistoricos.length, historicoPage, HISTORICO_PAGE_SIZE]);
+
   // Não carregar histórico automaticamente - apenas quando o botão Buscar for clicado
   // useEffect removido - histórico só carrega quando o usuário clicar em "Buscar"
 
@@ -288,7 +355,13 @@ export default function LotesFIV() {
     // Filtrar por dia do cultivo
     if (filtroDiaCultivo !== '') {
       const diaFiltro = parseInt(filtroDiaCultivo);
-      filtrados = filtrados.filter((l) => l.dia_atual === diaFiltro);
+      filtrados = filtrados.filter((l) => {
+        if (l.dia_atual === undefined || l.dia_atual === null) {
+          return false;
+        }
+        const diaCultivo = l.dia_atual === 0 ? -1 : l.dia_atual - 1;
+        return diaCultivo === diaFiltro;
+      });
     }
 
     setLotesFiltrados(filtrados);
@@ -609,11 +682,7 @@ export default function LotesFIV() {
         Array.from(fazendasUnicas.entries()).map(([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome))
       );
     } catch (error) {
-      toast({
-        title: 'Erro ao carregar dados',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -622,6 +691,7 @@ export default function LotesFIV() {
   const loadLotesHistoricos = async () => {
     try {
       setLoadingHistorico(true);
+      setHistoricoPage(1);
 
       // Construir query com filtros
       let query = supabase
@@ -854,11 +924,7 @@ export default function LotesFIV() {
       setLotesHistoricos(historicos);
     } catch (error) {
       console.error('Erro ao carregar lotes históricos:', error);
-      toast({
-        title: 'Erro ao carregar histórico',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar histórico');
     } finally {
       setLoadingHistorico(false);
     }
@@ -966,7 +1032,7 @@ export default function LotesFIV() {
         acasalamentos: (acasalamentosData || []).map(acasalamento => {
           const aspiracao = acasalamento.aspiracao_doadora_id ? aspiracoesMap.get(acasalamento.aspiracao_doadora_id) : null;
           const dose = acasalamento.dose_semen_id ? dosesMap.get(acasalamento.dose_semen_id) : null;
-          const doadora = aspiracao?.doadora as any;
+          const doadora = aspiracao?.doadora;
           const statsEmbrioes = embrioesPorAcasalamento.get(acasalamento.id) || {
             total: 0,
             porStatus: {},
@@ -992,11 +1058,11 @@ export default function LotesFIV() {
               veterinario_responsavel: aspiracao.veterinario_responsavel,
             } : undefined,
             dose_semen: dose ? {
-              nome: (dose.touro as any)?.nome || 'Touro desconhecido',
-              registro: (dose.touro as any)?.registro,
-              raca: (dose.touro as any)?.raca || dose.raca,
+              nome: dose.touro?.nome || 'Touro desconhecido',
+              registro: dose.touro?.registro,
+              raca: dose.touro?.raca || dose.raca,
               tipo_semen: dose.tipo_semen,
-              cliente: (dose.cliente as any)?.nome,
+              cliente: dose.cliente?.nome,
             } : undefined,
             quantidade_fracionada: acasalamento.quantidade_fracionada,
             quantidade_oocitos: acasalamento.quantidade_oocitos,
@@ -1018,11 +1084,7 @@ export default function LotesFIV() {
       setDetalhesLoteExpandido(detalhes);
     } catch (error) {
       console.error('Erro ao carregar detalhes do lote:', error);
-      toast({
-        title: 'Erro ao carregar detalhes',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar detalhes');
     } finally {
       setLoadingDetalhes(false);
     }
@@ -1193,7 +1255,7 @@ export default function LotesFIV() {
         const aspiracao = aspiracoesMap.get(a.aspiracao_doadora_id);
         const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
         const dose = dosesMap.get(a.dose_semen_id);
-        const touro = dose ? (dose.touro as any) : null;
+        const touro = dose?.touro ?? null;
 
         return {
           ...a,
@@ -1283,7 +1345,7 @@ export default function LotesFIV() {
         // Se o lote tem doses selecionadas, filtrar por elas, senão mostrar todas
         // Tratar caso o campo não exista no banco ainda
         try {
-          const dosesSelecionadas = (loteData as any).doses_selecionadas;
+        const dosesSelecionadas = loteData?.doses_selecionadas as string[] | undefined;
           if (dosesSelecionadas && Array.isArray(dosesSelecionadas) && dosesSelecionadas.length > 0) {
             setDosesDisponiveis(
               (dosesDisponiveisData || []).filter((d) => dosesSelecionadas.includes(d.id))
@@ -1314,11 +1376,7 @@ export default function LotesFIV() {
       await loadHistoricoDespachos(loteId);
 
     } catch (error) {
-      toast({
-        title: 'Erro ao carregar detalhes do lote',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar detalhes do lote');
     } finally {
       setLoading(false);
     }
@@ -1443,7 +1501,7 @@ export default function LotesFIV() {
                 acasalamento_id: acasalamentoId,
                 quantidade,
                 doadora: doadora?.registro || doadora?.nome || '-',
-                dose: dose ? ((dose.touro as any)?.nome || 'Touro desconhecido') : '-',
+                dose: dose ? (dose.touro?.nome || 'Touro desconhecido') : '-',
               };
             });
 
@@ -1618,7 +1676,11 @@ export default function LotesFIV() {
       }
 
       // Criar embriões no pacote
-      const embrioesParaCriar: any[] = [];
+      const embrioesParaCriar: Array<{
+        lote_fiv_id: string;
+        lote_fiv_acasalamento_id: string;
+        status_atual: string;
+      }> = [];
       const acasalamentosDespachados: Array<{ acasalamento_id: string; quantidade: number; doadora?: string; dose?: string }> = [];
 
       for (const acasalamento of acasalamentosComQuantidade) {
@@ -1910,7 +1972,14 @@ export default function LotesFIV() {
 
       // Criar lote
       // Preparar dados do lote
-      const loteDataToInsert: any = {
+      const loteDataToInsert: {
+        pacote_aspiracao_id: string;
+        data_abertura: string;
+        data_fecundacao: string;
+        status: string;
+        observacoes: string | null;
+        doses_selecionadas?: string[];
+      } = {
         pacote_aspiracao_id: formData.pacote_aspiracao_id,
         data_abertura: dataAbertura,
         data_fecundacao: dataAbertura, // data_fecundacao = data_abertura (mesma data)
@@ -1929,7 +1998,7 @@ export default function LotesFIV() {
         }
       }
 
-      let loteData: any;
+      let loteData: LoteFIV;
       const { data: loteDataInsert, error: loteError } = await supabase
         .from('lotes_fiv')
         .insert([loteDataToInsert])
@@ -2560,7 +2629,7 @@ export default function LotesFIV() {
                           <SelectContent>
                             {dosesDisponiveis.map((dose) => {
                               const cliente = clientes.find((c) => c.id === dose.cliente_id);
-                              const touro = dose.touro as any;
+                              const touro = dose.touro;
                               const touroNome = touro?.nome || 'Touro desconhecido';
                               return (
                                 <SelectItem key={dose.id} value={dose.id}>
@@ -2804,25 +2873,24 @@ export default function LotesFIV() {
   // Lista de lotes
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Lotes FIV</h1>
-          <p className="text-slate-600 mt-1">Gerenciar lotes de fecundação in vitro</p>
-        </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Lote
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Lote FIV</DialogTitle>
-              <DialogDescription>
-                Selecione um pacote de aspiração FINALIZADO para criar o lote
-              </DialogDescription>
-            </DialogHeader>
+      <PageHeader
+        title="Lotes FIV"
+        description="Gerenciar lotes de fecundação in vitro"
+        actions={
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Lote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Criar Novo Lote FIV</DialogTitle>
+                <DialogDescription>
+                  Selecione um pacote de aspiração FINALIZADO para criar o lote
+                </DialogDescription>
+              </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="pacote_aspiracao_id">Pacote de Aspiração *</Label>
@@ -2908,8 +2976,8 @@ export default function LotesFIV() {
                               className="rounded"
                             />
                             <label htmlFor={`dose-${dose.id}`} className="text-sm cursor-pointer flex-1">
-                              <span className="font-medium">{(dose as any).touro?.nome || 'Touro desconhecido'}</span>
-                              {(dose as any).touro?.registro && <span className="text-slate-500 ml-2">({(dose as any).touro.registro})</span>}
+                              <span className="font-medium">{dose.touro?.nome || 'Touro desconhecido'}</span>
+                              {dose.touro?.registro && <span className="text-slate-500 ml-2">({dose.touro.registro})</span>}
                               {cliente && <span className="text-slate-500 ml-2">- {cliente.nome}</span>}
                             </label>
                           </div>
@@ -2964,7 +3032,8 @@ export default function LotesFIV() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -3069,25 +3138,28 @@ export default function LotesFIV() {
             )}
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Aspiração</TableHead>
-                <TableHead>Fazendas Destino</TableHead>
-                <TableHead>Dia do Cultivo</TableHead>
-                <TableHead>Acasalamentos</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lotesFiltrados.length === 0 ? (
+          {lotesFiltrados.length === 0 ? (
+            <EmptyState
+              title={lotes.length === 0 ? 'Nenhum lote cadastrado' : 'Nenhum lote encontrado'}
+              description={
+                lotes.length === 0
+                  ? 'Crie um novo lote para começar.'
+                  : 'Ajuste os filtros para encontrar outros lotes.'
+              }
+            />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500">
-                    {lotes.length === 0 ? 'Nenhum lote cadastrado' : 'Nenhum lote encontrado com os filtros selecionados'}
-                  </TableCell>
+                  <TableHead>Aspiração</TableHead>
+                  <TableHead>Fazendas Destino</TableHead>
+                  <TableHead>Dia do Cultivo</TableHead>
+                  <TableHead>Acasalamentos</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ) : (
-                lotesFiltrados.map((lote) => (
+              </TableHeader>
+              <TableBody>
+                {lotesFiltrados.map((lote) => (
                   <TableRow key={lote.id}>
                     <TableCell>
                       {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
@@ -3133,10 +3205,10 @@ export default function LotesFIV() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          )}
           </TabsContent>
 
           <TabsContent value="historico" className="mt-0">
@@ -3258,12 +3330,18 @@ export default function LotesFIV() {
                   <LoadingSpinner />
                 </div>
               ) : lotesHistoricos.length === 0 ? (
-                <div className="text-center text-slate-500 py-8">
-                  Nenhum lote histórico encontrado
-                </div>
+                <EmptyState
+                  title="Nenhum lote histórico encontrado"
+                  description="Ajuste os filtros ou tente outro período."
+                />
               ) : (
                 <div className="space-y-4">
-                  {lotesHistoricos.map((lote) => (
+                  {lotesHistoricos
+                    .slice(
+                      (historicoPage - 1) * HISTORICO_PAGE_SIZE,
+                      historicoPage * HISTORICO_PAGE_SIZE
+                    )
+                    .map((lote) => (
                     <Card key={lote.id} className="border-l-4 border-l-slate-400">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
@@ -3648,6 +3726,35 @@ export default function LotesFIV() {
                       </CardContent>
                     </Card>
                   ))}
+                  <div className="flex items-center justify-between pt-2 text-sm text-slate-600">
+                    <div>
+                      {lotesHistoricos.length} lotes no histórico
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoricoPage(Math.max(1, historicoPage - 1))}
+                        disabled={historicoPage === 1}
+                      >
+                        Anterior
+                      </Button>
+                      <span>
+                        Página {Math.min(historicoPage, Math.max(1, Math.ceil(lotesHistoricos.length / HISTORICO_PAGE_SIZE)))} de {Math.max(1, Math.ceil(lotesHistoricos.length / HISTORICO_PAGE_SIZE))}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const totalPaginas = Math.max(1, Math.ceil(lotesHistoricos.length / HISTORICO_PAGE_SIZE));
+                          setHistoricoPage(Math.min(totalPaginas, historicoPage + 1));
+                        }}
+                        disabled={historicoPage >= Math.max(1, Math.ceil(lotesHistoricos.length / HISTORICO_PAGE_SIZE))}
+                      >
+                        Próxima
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
           </TabsContent>

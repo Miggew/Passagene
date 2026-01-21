@@ -33,6 +33,13 @@ const menuItems = [
 
 export default function Sidebar() {
   const location = useLocation();
+  const isRouteActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <div className="w-64 bg-slate-900 text-white min-h-screen p-4 flex flex-col">
@@ -44,7 +51,7 @@ export default function Sidebar() {
       <nav className="flex-1 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = isRouteActive(item.path);
 
           return (
             <Link

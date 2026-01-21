@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Syringe, Activity, Baby, MapPin, UserPlus, Tag, CheckCircle, XCircle } from 'lucide-react';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -715,9 +716,10 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose }: Recep
               </CardHeader>
               <CardContent>
                 {historico.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
-                    Nenhum evento registrado
-                  </div>
+                  <EmptyState
+                    title="Nenhum evento registrado"
+                    description="Quando houver eventos, eles aparecerão aqui."
+                  />
                 ) : (
                   <Table>
                     <TableHeader>

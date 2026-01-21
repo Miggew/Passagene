@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, MapPin, Navigation, Calendar, Beef, Dna } from 'lucide-react';
 
@@ -251,26 +253,31 @@ export default function FazendaDetail() {
 
   if (!fazenda) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-600">Fazenda não encontrada</p>
-        <Button onClick={() => navigate('/fazendas')} className="mt-4">
-          Voltar para Fazendas
-        </Button>
+      <div className="space-y-6">
+        <EmptyState
+          title="Fazenda não encontrada"
+          description="Volte para a lista e selecione outra fazenda."
+          action={(
+            <Button onClick={() => navigate('/fazendas')} variant="outline">
+              Voltar para Fazendas
+            </Button>
+          )}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/fazendas')}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">{fazenda.nome}</h1>
-          <p className="text-slate-600 mt-1">Cliente: {clienteNome}</p>
-        </div>
-      </div>
+      <PageHeader
+        title={fazenda.nome}
+        description={`Cliente: ${clienteNome}`}
+        actions={(
+          <Button variant="outline" size="icon" onClick={() => navigate('/fazendas')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        )}
+      />
 
       {/* Informações da Fazenda */}
       <Card>

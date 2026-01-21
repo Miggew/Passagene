@@ -24,6 +24,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Edit, Home, Dna, Plus, MapPin, Navigation, Snowflake } from 'lucide-react';
 
@@ -36,6 +38,96 @@ export default function ClienteDetail() {
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
   const [doses, setDoses] = useState<DoseSemen[]>([]);
   const [embrioesCongelados, setEmbrioesCongelados] = useState<Embriao[]>([]);
+  const [embriaoDetalhe, setEmbriaoDetalhe] = useState<Embriao | null>(null);
+
+  const DialogDetalheContent = ({ embriao }: { embriao: Embriao }) => {
+    const acasalamento = (embriao as any).acasalamento;
+    const dose = acasalamento?.dose_semen;
+    const touro = dose?.touro;
+    const aspiracao = acasalamento?.aspiracao;
+    const doadora = aspiracao?.doadora;
+    const loteFiv = (embriao as any).lote_fiv;
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p className="text-slate-500">ID</p>
+          <p className="font-medium">{embriao.id}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Identificação</p>
+          <p className="font-medium">{embriao.identificacao || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Classificação</p>
+          <p className="font-medium">{embriao.classificacao || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Status</p>
+          <p className="font-medium">{embriao.status_atual || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Data de Congelamento</p>
+          <p className="font-medium">
+            {embriao.data_congelamento
+              ? new Date(embriao.data_congelamento).toLocaleDateString('pt-BR')
+              : '-'}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-500">Localização</p>
+          <p className="font-medium">{embriao.localizacao_atual || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Doadora</p>
+          <p className="font-medium">{doadora?.registro || doadora?.nome || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Touro</p>
+          <p className="font-medium">
+            {touro?.nome || '-'}
+            {touro?.registro ? ` (${touro.registro})` : ''}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-500">Raça do Touro</p>
+          <p className="font-medium">{touro?.raca || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Data D0 (Lote FIV)</p>
+          <p className="font-medium">
+            {loteFiv?.data_abertura
+              ? new Date(loteFiv.data_abertura).toLocaleDateString('pt-BR')
+              : '-'}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-500">Data de Aspiração (D-1)</p>
+          <p className="font-medium">
+            {aspiracao?.data_aspiracao
+              ? new Date(aspiracao.data_aspiracao).toLocaleDateString('pt-BR')
+              : '-'}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-500">Hora de Aspiração</p>
+          <p className="font-medium">{aspiracao?.horario_aspiracao || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Criado em</p>
+          <p className="font-medium">
+            {embriao.created_at
+              ? new Date(embriao.created_at).toLocaleDateString('pt-BR')
+              : '-'}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const handleDetalharEmbriao = (embriao: Embriao) => {
+    setEmbriaoDetalhe(embriao);
+  };
   const [showFazendaDialog, setShowFazendaDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -105,6 +197,8 @@ export default function ClienteDetail() {
             ),
             aspiracao:aspiracoes_doadoras(
               id,
+              data_aspiracao,
+              horario_aspiracao,
               doadora:doadoras(id, registro, nome)
             )
           )
@@ -209,34 +303,39 @@ export default function ClienteDetail() {
 
   if (!cliente) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-600">Cliente não encontrado</p>
-        <Button onClick={() => navigate('/clientes')} className="mt-4">
-          Voltar para Clientes
-        </Button>
+      <div className="space-y-6">
+        <EmptyState
+          title="Cliente não encontrado"
+          description="Volte para a lista e selecione outro cliente."
+          action={(
+            <Button onClick={() => navigate('/clientes')} variant="outline">
+              Voltar para Clientes
+            </Button>
+          )}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/clientes')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">{cliente.nome}</h1>
-            <p className="text-slate-600 mt-1">Detalhes do cliente</p>
+      <PageHeader
+        title={cliente.nome}
+        description="Detalhes do cliente"
+        actions={(
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => navigate('/clientes')}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Link to={`/clientes/${id}/editar`}>
+              <Button variant="outline">
+                <Edit className="w-4 h-4 mr-2" />
+                Editar
+              </Button>
+            </Link>
           </div>
-        </div>
-        <Link to={`/clientes/${id}/editar`}>
-          <Button variant="outline">
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-        </Link>
-      </div>
+        )}
+      />
 
       <Card>
         <CardHeader>
@@ -454,6 +553,7 @@ export default function ClienteDetail() {
               </Table>
             </CardContent>
           </Card>
+
         </TabsContent>
 
         <TabsContent value="doses">
@@ -515,12 +615,13 @@ export default function ClienteDetail() {
                     <TableHead>Touro</TableHead>
                     <TableHead>Data Congelamento</TableHead>
                     <TableHead>Localização</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {embrioesCongelados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-slate-500">
+                      <TableCell colSpan={7} className="text-center text-slate-500">
                         Nenhum embrião congelado no estoque
                       </TableCell>
                     </TableRow>
@@ -559,6 +660,15 @@ export default function ClienteDetail() {
                               : '-'}
                           </TableCell>
                           <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDetalharEmbriao(embriao)}
+                            >
+                              Detalhar
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })
@@ -567,6 +677,18 @@ export default function ClienteDetail() {
               </Table>
             </CardContent>
           </Card>
+
+          <Dialog open={!!embriaoDetalhe} onOpenChange={(open) => !open && setEmbriaoDetalhe(null)}>
+            <DialogContent className="max-w-2xl" style={{ opacity: 1 }}>
+              <DialogHeader>
+                <DialogTitle>Detalhes do Embrião</DialogTitle>
+                <DialogDescription>
+                  Informações completas do embrião congelado direcionado ao cliente.
+                </DialogDescription>
+              </DialogHeader>
+              {embriaoDetalhe && <DialogDetalheContent embriao={embriaoDetalhe} />}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

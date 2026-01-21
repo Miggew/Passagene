@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Beef } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -216,36 +218,36 @@ export default function TouroDetail() {
   if (!touro) {
     return (
       <div className="space-y-6">
-        <div className="text-center py-12">
-          <p className="text-slate-500">Touro não encontrado</p>
-          <Button onClick={() => navigate('/touros')} className="mt-4" variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para Catálogo de Touros
-          </Button>
-        </div>
+        <EmptyState
+          title="Touro não encontrado"
+          description="Volte para a lista e selecione outro touro."
+          action={(
+            <Button onClick={() => navigate('/touros')} variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar para Catálogo de Touros
+            </Button>
+          )}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <PageHeader
+        title={(
+          <span className="flex items-center gap-2">
+            <Beef className="w-8 h-8" />
+            {formData.nome || formData.registro}
+          </span>
+        )}
+        description={`${formData.registro}${formData.raca ? ` • ${formData.raca}` : ''}`}
+        actions={(
           <Button onClick={() => navigate('/touros')} variant="outline" size="icon">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-              <Beef className="w-8 h-8" />
-              {formData.nome || formData.registro}
-            </h1>
-            <p className="text-slate-600 mt-1">
-              {formData.registro} {formData.raca && `• ${formData.raca}`}
-            </p>
-          </div>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Foto do Touro (se houver) */}
       {formData.foto_url && (

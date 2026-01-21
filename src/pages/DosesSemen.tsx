@@ -29,6 +29,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import {
@@ -337,26 +339,25 @@ export default function DosesSemen() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Doses de Sêmen</h1>
-          <p className="text-slate-600 mt-1">Gerenciar doses de sêmen dos clientes relacionadas aos touros do catálogo</p>
-        </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Dose
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Criar Nova Dose de Sêmen</DialogTitle>
-              <DialogDescription>
-                Selecione um touro do catálogo e um cliente para criar a dose
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      <PageHeader
+        title="Doses de Sêmen"
+        description="Gerenciar doses de sêmen dos clientes relacionadas aos touros do catálogo"
+        actions={
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Dose
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Criar Nova Dose de Sêmen</DialogTitle>
+                <DialogDescription>
+                  Selecione um touro do catálogo e um cliente para criar a dose
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="touro_id">Touro do Catálogo *</Label>
                 <Select
@@ -440,10 +441,11 @@ export default function DosesSemen() {
                   Cancelar
                 </Button>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -499,7 +501,10 @@ export default function DosesSemen() {
               {dosesFiltradas.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-slate-500">
-                    Nenhuma dose cadastrada
+                    <EmptyState
+                      title="Nenhuma dose cadastrada"
+                      description="Cadastre a primeira dose para começar."
+                    />
                   </TableCell>
                 </TableRow>
               ) : (

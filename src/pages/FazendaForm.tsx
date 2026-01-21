@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
+import PageHeader from '@/components/shared/PageHeader';
 
 interface Cliente {
   id: string;
@@ -195,19 +196,15 @@ export default function FazendaForm() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/fazendas')}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            {id ? 'Editar Fazenda' : 'Nova Fazenda'}
-          </h1>
-          <p className="text-slate-600 mt-1">
-            {id ? 'Atualizar informações da fazenda' : 'Cadastrar nova fazenda'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={id ? 'Editar Fazenda' : 'Nova Fazenda'}
+        description={id ? 'Atualizar informações da fazenda' : 'Cadastrar nova fazenda'}
+        actions={(
+          <Button variant="outline" size="icon" onClick={() => navigate('/fazendas')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        )}
+      />
 
       <Card>
         <CardHeader>

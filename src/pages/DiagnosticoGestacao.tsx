@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Stethoscope, Save, Lock, CheckCircle } from 'lucide-react';
@@ -976,12 +978,10 @@ export default function DiagnosticoGestacao() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Diagnóstico de Gestação (DG)</h1>
-          <p className="text-slate-600 mt-1">Registrar diagnósticos de gestação por lote de TE</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Diagnóstico de Gestação (DG)"
+        description="Registrar diagnósticos de gestação por lote de TE"
+      />
 
       <Card>
         <CardHeader>
@@ -1018,9 +1018,10 @@ export default function DiagnosticoGestacao() {
             {loading ? (
               <LoadingSpinner />
             ) : lotesTE.length === 0 ? (
-              <p className="text-center text-slate-500 py-8">
-                Nenhum lote de TE encontrado nesta fazenda
-              </p>
+              <EmptyState
+                title="Nenhum lote de TE encontrado"
+                description="Selecione outra fazenda ou verifique se há transferências registradas."
+              />
             ) : (
               <Table>
                 <TableHeader>

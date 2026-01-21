@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Baby, Lock, CheckCircle } from 'lucide-react';
@@ -906,12 +908,10 @@ export default function Sexagem() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Sexagem</h1>
-          <p className="text-slate-600 mt-1">Registrar sexagem fetal por lote de receptoras prenhes</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Sexagem"
+        description="Registrar sexagem fetal por lote de receptoras prenhes"
+      />
 
       <Card>
         <CardHeader>
@@ -948,9 +948,10 @@ export default function Sexagem() {
             {loading ? (
               <LoadingSpinner />
             ) : lotesTE.length === 0 ? (
-              <p className="text-center text-slate-500 py-8">
-                Nenhum lote de receptoras prenhes encontrado nesta fazenda
-              </p>
+              <EmptyState
+                title="Nenhum lote de receptoras prenhes encontrado"
+                description="Selecione outra fazenda ou verifique se há receptoras prenhes registradas."
+              />
             ) : (
               <Table>
                 <TableHeader>

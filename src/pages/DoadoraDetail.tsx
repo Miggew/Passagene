@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Dna, Save, Star, Gem } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -264,36 +266,36 @@ export default function DoadoraDetail() {
   if (!doadora) {
     return (
       <div className="space-y-6">
-        <div className="text-center py-12">
-          <p className="text-slate-500">Doadora não encontrada</p>
-          <Button onClick={() => navigate('/doadoras')} className="mt-4" variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para Doadoras
-          </Button>
-        </div>
+        <EmptyState
+          title="Doadora não encontrada"
+          description="Volte para a lista e selecione outra doadora."
+          action={(
+            <Button onClick={() => navigate('/doadoras')} variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar para Doadoras
+            </Button>
+          )}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <PageHeader
+        title={(
+          <span className="flex items-center gap-2">
+            <Dna className="w-8 h-8" />
+            {formData.nome || formData.registro}
+          </span>
+        )}
+        description={`${formData.registro}${fazenda ? ` • ${fazenda.nome}` : ''}`}
+        actions={(
           <Button onClick={() => navigate('/doadoras')} variant="outline" size="icon">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-              <Dna className="w-8 h-8" />
-              {formData.nome || formData.registro}
-            </h1>
-            <p className="text-slate-600 mt-1">
-              {formData.registro} {fazenda && `• ${fazenda.nome}`}
-            </p>
-          </div>
-        </div>
-      </div>
+        )}
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Informações Básicas */}

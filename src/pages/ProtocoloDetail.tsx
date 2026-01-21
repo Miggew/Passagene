@@ -45,6 +45,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { ArrowLeft, Plus, UserPlus, CheckCircle, Lock, Trash2 } from 'lucide-react';
@@ -1028,11 +1030,16 @@ export default function ProtocoloDetail() {
 
   if (!protocolo) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-600">Protocolo não encontrado</p>
-        <Button onClick={() => navigate('/protocolos')} className="mt-4">
-          Voltar para Protocolos
-        </Button>
+      <div className="space-y-6">
+        <EmptyState
+          title="Protocolo não encontrado"
+          description="Volte para a lista e selecione outro protocolo."
+          action={(
+            <Button onClick={() => navigate('/protocolos')} variant="outline">
+              Voltar para Protocolos
+            </Button>
+          )}
+        />
       </div>
     );
   }
@@ -1043,19 +1050,14 @@ export default function ProtocoloDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/protocolos')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Protocolo - {fazendaNome}</h1>
-            <p className="text-slate-600 mt-1">
-              {isPasso1Aberto ? 'Gerenciar receptoras do 1º passo' : 'Protocolo finalizado'}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title={`Protocolo - ${fazendaNome}`}
+        description={isPasso1Aberto ? 'Gerenciar receptoras do 1º passo' : 'Protocolo finalizado'}
+        actions={(
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => navigate('/protocolos')}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
           {isPasso1Aberto && (
             <>
               <Dialog open={showAddReceptora} onOpenChange={setShowAddReceptora}>
@@ -1216,8 +1218,9 @@ export default function ProtocoloDetail() {
               </AlertDialog>
             </>
           )}
-        </div>
-      </div>
+          </div>
+        )}
+      />
 
       <Card>
         <CardHeader>

@@ -12,7 +12,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
-import { useToast } from '@/hooks/use-toast';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
+import { handleError } from '@/lib/error-handler';
 
 interface FazendaWithCliente extends Fazenda {
   cliente_nome?: string;
@@ -21,7 +23,6 @@ interface FazendaWithCliente extends Fazenda {
 export default function Fazendas() {
   const [fazendas, setFazendas] = useState<FazendaWithCliente[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,11 +59,7 @@ export default function Fazendas() {
 
       setFazendas(fazendasWithCliente || []);
     } catch (error) {
-      toast({
-        title: 'Erro ao carregar dados',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -74,35 +71,28 @@ export default function Fazendas() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Fazendas</h1>
-        <p className="text-slate-600 mt-1">Gerenciar fazendas do sistema</p>
-      </div>
+      <PageHeader title="Fazendas" description="Gerenciar fazendas do sistema" />
 
       <Card>
         <CardHeader>
           <CardTitle>Lista de Fazendas</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Localização</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fazendas.length === 0 ? (
+          {fazendas.length === 0 ? (
+            <EmptyState title="Nenhuma fazenda cadastrada" description="Cadastre uma fazenda para começar." />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500">
-                    Nenhuma fazenda cadastrada
-                  </TableCell>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Localização</TableHead>
                 </TableRow>
-              ) : (
-                fazendas.map((fazenda) => (
+              </TableHeader>
+              <TableBody>
+                {fazendas.map((fazenda) => (
                   <TableRow
                     key={fazenda.id}
                     className="cursor-pointer hover:bg-slate-50"
@@ -116,10 +106,10 @@ export default function Fazendas() {
                     <TableCell>{fazenda.contato_responsavel || '-'}</TableCell>
                     <TableCell>{fazenda.localizacao || '-'}</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

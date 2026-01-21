@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Plus, UserPlus, Lock, X, Search } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
@@ -708,17 +709,15 @@ export default function ProtocoloFormWizard() {
   if (currentStep === 'form') {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleSair}>
+        <PageHeader
+          title="Novo Protocolo"
+          description="Primeira visita - Cadastrar novo protocolo de sincronização"
+          actions={(
+            <Button variant="outline" size="icon" onClick={handleSair}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Novo Protocolo</h1>
-              <p className="text-slate-600 mt-1">Primeira visita - Cadastrar novo protocolo de sincronização</p>
-            </div>
-          </div>
-        </div>
+          )}
+        />
 
         <Card>
           <CardHeader>
@@ -834,21 +833,21 @@ export default function ProtocoloFormWizard() {
   // Step 2: Receptoras
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handleVoltar}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Adicionar Receptoras</h1>
-            <p className="text-slate-600 mt-1">Selecione as receptoras para este protocolo</p>
+      <PageHeader
+        title="Adicionar Receptoras"
+        description="Selecione as receptoras para este protocolo"
+        actions={(
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleVoltar}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" onClick={handleSair}>
+              <X className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
           </div>
-        </div>
-        <Button variant="ghost" onClick={handleSair}>
-          <X className="w-4 h-4 mr-2" />
-          Sair
-        </Button>
-      </div>
+        )}
+      />
 
       <Card>
         <CardHeader>

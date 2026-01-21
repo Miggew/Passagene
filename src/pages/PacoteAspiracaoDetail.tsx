@@ -43,6 +43,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { ArrowLeft, Plus, UserPlus, Lock, Edit } from 'lucide-react';
@@ -801,11 +803,16 @@ export default function PacoteAspiracaoDetail() {
 
   if (!pacote) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-600">Aspiração não encontrada</p>
-        <Button onClick={() => navigate('/aspiracoes')} className="mt-4">
-          Voltar para Aspirações
-        </Button>
+      <div className="space-y-6">
+        <EmptyState
+          title="Aspiração não encontrada"
+          description="Volte para a lista e selecione outra aspiração."
+          action={(
+            <Button onClick={() => navigate('/aspiracoes')} variant="outline">
+              Voltar para Aspirações
+            </Button>
+          )}
+        />
       </div>
     );
   }
@@ -814,29 +821,27 @@ export default function PacoteAspiracaoDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/aspiracoes')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Aspiração - {fazendaNome}</h1>
-            <p className="text-slate-600 mt-1">
-              {isFinalizado ? 'Aspiração finalizada' : 'Gerenciar doadoras da aspiração'}
-            </p>
+      <PageHeader
+        title={`Aspiração - ${fazendaNome}`}
+        description={isFinalizado ? 'Aspiração finalizada' : 'Gerenciar doadoras da aspiração'}
+        actions={(
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => navigate('/aspiracoes')}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            {!isFinalizado && (
+              <Button
+                onClick={() => setShowFinalizarDialog(true)}
+                disabled={submitting || aspiracoes.length === 0}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Lock className="w-4 h-4 mr-2" />
+                {submitting ? 'Finalizando...' : 'Finalizar Pacote'}
+              </Button>
+            )}
           </div>
-        </div>
-        {!isFinalizado && (
-          <Button
-            onClick={() => setShowFinalizarDialog(true)}
-            disabled={submitting || aspiracoes.length === 0}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Lock className="w-4 h-4 mr-2" />
-            {submitting ? 'Finalizando...' : 'Finalizar Pacote'}
-          </Button>
         )}
-      </div>
+      />
 
       {/* Informações da Aspiração */}
       <Card>

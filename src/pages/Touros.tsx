@@ -31,6 +31,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -287,29 +289,28 @@ export default function Touros() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Catálogo de Touros</h1>
-          <p className="text-slate-600 mt-1">Gerenciar catálogo de touros para FIV</p>
-        </div>
-        <Dialog open={showDialog} onOpenChange={(open) => {
-          setShowDialog(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Touro
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Cadastrar Novo Touro</DialogTitle>
-              <DialogDescription>
-                Adicione um touro ao catálogo. Os clientes poderão ter doses deste touro.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      <PageHeader
+        title="Catálogo de Touros"
+        description="Gerenciar catálogo de touros para FIV"
+        actions={
+          <Dialog open={showDialog} onOpenChange={(open) => {
+            setShowDialog(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Touro
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Cadastrar Novo Touro</DialogTitle>
+                <DialogDescription>
+                  Adicione um touro ao catálogo. Os clientes poderão ter doses deste touro.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="registro">Registro *</Label>
@@ -520,10 +521,11 @@ export default function Touros() {
                   Cancelar
                 </Button>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -579,7 +581,10 @@ export default function Touros() {
               {filteredTouros.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-slate-500">
-                    Nenhum touro cadastrado
+                    <EmptyState
+                      title="Nenhum touro cadastrado"
+                      description="Cadastre o primeiro touro para começar."
+                    />
                   </TableCell>
                 </TableRow>
               ) : (

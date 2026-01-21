@@ -127,7 +127,7 @@ export interface DadosGeneticosHolandesa {
   bwc?: number; // BWC (Body Weight Composite)
   gpa_lpi?: number; // GPA LPI
   pro_dolar?: number; // PRO$ (Profit Dollars)
-  [key: string]: any; // Permite campos adicionais
+  [key: string]: unknown; // Permite campos adicionais
 }
 
 export interface DadosProducaoHolandesa {
@@ -139,7 +139,7 @@ export interface DadosProducaoHolandesa {
   eficiencia_alimentar?: number;
   bmr?: number; // Body Maintenance Requirement
   eficiencia_metano?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DadosConformacaoHolandesa {
@@ -152,7 +152,7 @@ export interface DadosConformacaoHolandesa {
   largura_peito?: number;
   profundidade_corpo?: number;
   angularidade?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DadosSaudeReproducaoHolandesa {
@@ -168,7 +168,7 @@ export interface DadosSaudeReproducaoHolandesa {
   resistencia_doencas_metabolicas?: number;
   immunity_bezerra?: number;
   escore_condicao_corporal?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DadosGeneticosNelore {
@@ -229,7 +229,7 @@ export interface DadosGeneticosNelore {
     car?: number;
     iqg?: number;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface MedidasFisicasNelore {
@@ -242,7 +242,7 @@ export interface MedidasFisicasNelore {
   ce?: number; // Comprimento Escápula
   idade_medicao?: number; // Meses
   peso_medicao?: number; // kg
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DadosGeneticosGirolando {
@@ -259,7 +259,7 @@ export interface DadosGeneticosGirolando {
   intervalo_partos?: number; // dias
   longevidade?: number;
   tolerancia_estresse?: number; // TE
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DadosProducaoGirolando {
@@ -268,20 +268,20 @@ export interface DadosProducaoGirolando {
   gordura_porcent?: number;
   proteina_kg?: number;
   proteina_porcent?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface Caseinas {
   beta_caseina?: string; // "A1A1", "A1A2", "A2A2"
   kappa_caseina?: string; // "AA", "AB", "BB"
   beta_lactoglobulina?: string; // "AA", "AB", "BB"
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface OutrosDados {
   composicao_genetica?: string; // Ex: "5/8 HOLANDÊS + 3/8 GIR", "3/4 HOLANDÊS + 1/4 GIR"
   badges?: string[]; // Ex: ["A2A2", "GENOMAX", "SEMEXX", "GRAZINGPRO", "ROBOTREADY"]
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface Touro {
@@ -308,11 +308,11 @@ export interface Touro {
   link_video?: string;
   
   // Campos dinâmicos (JSONB)
-  dados_geneticos?: DadosGeneticosHolandesa | DadosGeneticosNelore | DadosGeneticosGirolando | Record<string, any>;
-  dados_producao?: DadosProducaoHolandesa | DadosProducaoGirolando | Record<string, any>;
-  dados_conformacao?: DadosConformacaoHolandesa | Record<string, any>;
-  medidas_fisicas?: MedidasFisicasNelore | Record<string, any>;
-  dados_saude_reproducao?: DadosSaudeReproducaoHolandesa | Record<string, any>;
+  dados_geneticos?: DadosGeneticosHolandesa | DadosGeneticosNelore | DadosGeneticosGirolando | Record<string, unknown>;
+  dados_producao?: DadosProducaoHolandesa | DadosProducaoGirolando | Record<string, unknown>;
+  dados_conformacao?: DadosConformacaoHolandesa | Record<string, unknown>;
+  medidas_fisicas?: MedidasFisicasNelore | Record<string, unknown>;
+  dados_saude_reproducao?: DadosSaudeReproducaoHolandesa | Record<string, unknown>;
   caseinas?: Caseinas;
   outros_dados?: OutrosDados;
   

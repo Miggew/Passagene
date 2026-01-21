@@ -23,7 +23,9 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
-import { useToast } from '@/hooks/use-toast';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
+import { handleError } from '@/lib/error-handler';
 import { formatDate } from '@/lib/utils';
 import { Plus, Eye, PlayCircle, Search, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import DatePickerBR from '@/components/shared/DatePickerBR';
@@ -33,18 +35,37 @@ interface ProtocoloWithFazenda extends ProtocoloSincronizacao {
   receptoras_count: number;
 }
 
+const PROTOCOLOS_FILTROS_KEY = 'protocolos_filtros';
+
+type ProtocolosFiltrosPersistidos = {
+  filtroStatus?: string;
+  fazendaFilter?: string;
+  filtroDataInicio?: string;
+  filtroDataFim?: string;
+  protocolosPage?: number;
+};
+
+const carregarFiltrosPersistidos = (): ProtocolosFiltrosPersistidos => {
+  try {
+    const raw = localStorage.getItem(PROTOCOLOS_FILTROS_KEY);
+    return raw ? (JSON.parse(raw) as ProtocolosFiltrosPersistidos) : {};
+  } catch {
+    return {};
+  }
+};
+
 export default function Protocolos() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [protocolos, setProtocolos] = useState<ProtocoloWithFazenda[]>([]);
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [fazendaFilter, setFazendaFilter] = useState('');
-  const [filtroDataInicio, setFiltroDataInicio] = useState('');
-  const [filtroDataFim, setFiltroDataFim] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<string>('all'); // 'all', 'aguardando_2_passo', 'sincronizado', 'fechado'
+  const filtrosPersistidos = carregarFiltrosPersistidos();
+  const [fazendaFilter, setFazendaFilter] = useState(filtrosPersistidos.fazendaFilter ?? '');
+  const [filtroDataInicio, setFiltroDataInicio] = useState(filtrosPersistidos.filtroDataInicio ?? '');
+  const [filtroDataFim, setFiltroDataFim] = useState(filtrosPersistidos.filtroDataFim ?? '');
+  const [filtroStatus, setFiltroStatus] = useState<string>(filtrosPersistidos.filtroStatus ?? 'all'); // 'all', 'aguardando_2_passo', 'sincronizado', 'fechado'
   const [loadingProtocolos, setLoadingProtocolos] = useState(false);
-  const [protocolosPage, setProtocolosPage] = useState(1);
+  const [protocolosPage, setProtocolosPage] = useState(filtrosPersistidos.protocolosPage ?? 1);
   const [protocolosTotalCount, setProtocolosTotalCount] = useState(0);
   const PROTOCOLOS_PAGE_SIZE = 50;
 
@@ -52,17 +73,24 @@ export default function Protocolos() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const payload: ProtocolosFiltrosPersistidos = {
+      filtroStatus,
+      fazendaFilter,
+      filtroDataInicio,
+      filtroDataFim,
+      protocolosPage,
+    };
+    localStorage.setItem(PROTOCOLOS_FILTROS_KEY, JSON.stringify(payload));
+  }, [filtroStatus, fazendaFilter, filtroDataInicio, filtroDataFim, protocolosPage]);
+
   const loadData = async () => {
     try {
       setLoading(true);
       await loadFazendas();
       await loadProtocolos();
     } catch (error) {
-      toast({
-        title: 'Erro ao carregar dados',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -194,11 +222,7 @@ export default function Protocolos() {
       setProtocolosTotalCount(count || 0);
     } catch (error) {
       console.error('Erro ao carregar protocolos:', error);
-      toast({
-        title: 'Erro ao carregar protocolos',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar protocolos');
       setProtocolos([]);
     } finally {
       setLoadingProtocolos(false);
@@ -211,19 +235,19 @@ export default function Protocolos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Protocolos de Sincronização</h1>
-          <p className="text-slate-600 mt-1">Gerenciar protocolos em 2 passos</p>
-        </div>
-        <Button
-          onClick={() => navigate('/protocolos/novo')}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Protocolo (1º Passo)
-        </Button>
-      </div>
+      <PageHeader
+        title="Protocolos de Sincronização"
+        description="Gerenciar protocolos em 2 passos"
+        actions={
+          <Button
+            onClick={() => navigate('/protocolos/novo')}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Protocolo (1º Passo)
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <Card>
@@ -374,10 +398,39 @@ export default function Protocolos() {
               <LoadingSpinner />
             </div>
           ) : protocolos.length === 0 ? (
-            <div className="py-12 text-center text-slate-500">
-              <p className="text-lg">Nenhum protocolo encontrado</p>
-              <p className="text-sm mt-2">Ajuste os filtros ou adicione um novo protocolo</p>
-            </div>
+            <EmptyState
+              title="Nenhum protocolo encontrado"
+              description="Ajuste os filtros ou adicione um novo protocolo."
+              action={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFazendaFilter('');
+                      setFiltroDataInicio('');
+                      setFiltroDataFim('');
+                      setFiltroStatus('all');
+                      setProtocolosPage(1);
+                      loadProtocolos(1, {
+                        fazenda: '',
+                        dataInicio: '',
+                        dataFim: '',
+                        status: 'all',
+                      });
+                    }}
+                  >
+                    Limpar filtros
+                  </Button>
+                  <Button
+                    onClick={() => navigate('/protocolos/novo')}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Protocolo
+                  </Button>
+                </div>
+              }
+            />
           ) : (
             <>
               <Table>

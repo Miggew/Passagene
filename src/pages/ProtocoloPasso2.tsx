@@ -24,6 +24,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
@@ -584,11 +586,16 @@ export default function ProtocoloPasso2() {
 
   if (!protocolo) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-600">Protocolo não encontrado</p>
-        <Button onClick={() => navigate('/protocolos')} className="mt-4">
-          Voltar para Protocolos
-        </Button>
+      <div className="space-y-6">
+        <EmptyState
+          title="Protocolo não encontrado"
+          description="Volte para a lista e selecione outro protocolo."
+          action={(
+            <Button onClick={() => navigate('/protocolos')} variant="outline">
+              Voltar para Protocolos
+            </Button>
+          )}
+        />
       </div>
     );
   }
@@ -597,17 +604,15 @@ export default function ProtocoloPasso2() {
   if (receptoras.length === 0 && !loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleVoltarClick}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">2º Passo - {fazendaNome}</h1>
-              <p className="text-slate-600 mt-1">Revisar e confirmar receptoras</p>
-            </div>
-          </div>
-        </div>
+      <PageHeader
+        title={`2º Passo - ${fazendaNome}`}
+        description="Revisar e confirmar receptoras"
+        actions={(
+          <Button variant="outline" size="icon" onClick={handleVoltarClick}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        )}
+      />
 
         <Card className="border-red-200 bg-red-50">
           <CardHeader>
@@ -635,36 +640,36 @@ export default function ProtocoloPasso2() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handleVoltarClick}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">2º Passo - {fazendaNome}</h1>
-            <p className="text-slate-600 mt-1">Revisar e confirmar receptoras</p>
+      <PageHeader
+        title={`2º Passo - ${fazendaNome}`}
+        description="Revisar e confirmar receptoras"
+        actions={(
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleVoltarClick}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex flex-col items-end gap-2">
+              <Button 
+                onClick={handleFinalizarPasso2}
+                disabled={receptorasPendentes.length > 0 || !passo2Form.data || !passo2Form.tecnico.trim() || submitting}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Lock className="w-4 h-4 mr-2" />
+                {submitting ? 'Finalizando...' : 'Finalizar 2º Passo'}
+              </Button>
+              {(receptorasPendentes.length > 0 || !passo2Form.data || !passo2Form.tecnico.trim()) && (
+                <p className="text-xs text-slate-500 text-right">
+                  {!passo2Form.data || !passo2Form.tecnico.trim()
+                    ? 'Preencha a data e o técnico responsável'
+                    : receptorasPendentes.length > 0
+                    ? `${receptorasPendentes.length} receptora(s) aguardando avaliação`
+                    : ''}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <Button 
-            onClick={handleFinalizarPasso2}
-            disabled={receptorasPendentes.length > 0 || !passo2Form.data || !passo2Form.tecnico.trim() || submitting}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Lock className="w-4 h-4 mr-2" />
-            {submitting ? 'Finalizando...' : 'Finalizar 2º Passo'}
-          </Button>
-          {(receptorasPendentes.length > 0 || !passo2Form.data || !passo2Form.tecnico.trim()) && (
-            <p className="text-xs text-slate-500 text-right">
-              {!passo2Form.data || !passo2Form.tecnico.trim()
-                ? 'Preencha a data e o técnico responsável'
-                : receptorasPendentes.length > 0
-                ? `${receptorasPendentes.length} receptora(s) aguardando avaliação`
-                : ''}
-            </p>
-          )}
-        </div>
-      </div>
+        )}
+      />
 
       {/* Campos para preencher passo2_data e passo2_tecnico_responsavel (unificado) */}
       {protocolo && protocolo.status !== 'SINCRONIZADO' && (

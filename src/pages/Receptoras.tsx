@@ -31,6 +31,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import StatusBadge from '@/components/shared/StatusBadge';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
+import { handleError } from '@/lib/error-handler';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Search, History, ArrowRight } from 'lucide-react';
 import ReceptoraHistorico from './ReceptoraHistorico';
@@ -133,11 +136,7 @@ export default function Receptoras() {
       if (error) throw error;
       setFazendas(data || []);
     } catch (error) {
-      toast({
-        title: 'Erro ao carregar fazendas',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar fazendas');
     } finally {
       setLoadingFazendas(false);
     }
@@ -307,11 +306,7 @@ export default function Receptoras() {
       setFilteredReceptoras(receptorasComStatus);
       setFiltroStatus('all'); // Reset filtro ao carregar nova fazenda
     } catch (error) {
-      toast({
-        title: 'Erro ao carregar receptoras',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      handleError(error, 'Erro ao carregar receptoras');
     } finally {
       setLoadingReceptoras(false);
     }
@@ -908,12 +903,7 @@ export default function Receptoras() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Receptoras</h1>
-          <p className="text-slate-600 mt-1">Gerenciar receptoras por fazenda</p>
-        </div>
-      </div>
+      <PageHeader title="Receptoras" description="Gerenciar receptoras por fazenda" />
 
       <div className="space-y-6">
 
@@ -939,11 +929,10 @@ export default function Receptoras() {
       </Card>
 
       {!selectedFazendaId ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-slate-500 text-lg">Selecione uma fazenda para listar receptoras</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Selecione uma fazenda"
+          description="Escolha uma fazenda para listar receptoras e aplicar filtros."
+        />
       ) : (
         <>
           {/* Filtros: Status e Busca */}

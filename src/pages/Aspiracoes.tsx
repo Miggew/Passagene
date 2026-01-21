@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { Plus, Eye, Filter, X, Search } from 'lucide-react';
@@ -229,19 +231,19 @@ export default function Aspiracoes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Aspirações</h1>
-          <p className="text-slate-600 mt-1">Gerenciar aspirações</p>
-        </div>
-        <Button
-          onClick={() => navigate('/aspiracoes/novo')}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Aspiração
-        </Button>
-      </div>
+      <PageHeader
+        title="Aspirações"
+        description="Gerenciar aspirações"
+        actions={
+          <Button
+            onClick={() => navigate('/aspiracoes/novo')}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Aspiração
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -404,7 +406,10 @@ export default function Aspiracoes() {
               ) : pacotesFiltrados.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center text-slate-500 py-12">
-                    Nenhuma aspiração encontrada com os filtros aplicados
+                    <EmptyState
+                      title="Nenhuma aspiração encontrada"
+                      description="Ajuste os filtros ou tente outro período."
+                    />
                   </TableCell>
                 </TableRow>
               ) : (
