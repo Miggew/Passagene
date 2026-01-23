@@ -86,11 +86,96 @@
 - `doses_semen`, `touros`
 - `transferencias_embrioes`, `diagnosticos_gestacao`, `pacotes_embrioes`
 - `receptora_fazenda_historico`
+- `receptoras_cio_livre`, `animais`
 
 **Views usadas no app**
 - `vw_receptoras_fazenda_atual`
 - `v_protocolo_receptoras_status`
 - `v_tentativas_te_status`
+- `v_embrioes_disponiveis_te`
+
+### Extensões recentes (SQL necessário)
+
+**Receptoras em cio livre (sincronização manual para TE)**
+```sql
+create table if not exists public.receptoras_cio_livre (
+  id uuid primary key default gen_random_uuid(),
+  receptora_id uuid not null references public.receptoras(id),
+  fazenda_id uuid not null references public.fazendas(id),
+  data_cio date not null,
+  observacoes text,
+  ativa boolean not null default true,
+  created_at timestamptz not null default now()
+);
+```
+
+**Cópia de receptora para Cio Livre (proteção contra erro humano)**
+```sql
+alter table public.receptoras
+  add column if not exists receptora_origem_id uuid references public.receptoras(id),
+  add column if not exists is_cio_livre boolean not null default false,
+  add column if not exists status_cio_livre text,
+  add column if not exists codigo_cio_livre text;
+
+create index if not exists idx_receptoras_origem_cio_livre
+  on public.receptoras(receptora_origem_id);
+```
+
+**Animais (nascimentos)**
+```sql
+create table if not exists public.animais (
+  id uuid primary key default gen_random_uuid(),
+  embriao_id uuid references public.embrioes(id),
+  receptora_id uuid references public.receptoras(id),
+  fazenda_id uuid references public.fazendas(id),
+  cliente_id uuid references public.clientes(id),
+  data_nascimento date not null,
+  sexo text not null,
+  raca text,
+  pai_nome text,
+  mae_nome text,
+  observacoes text,
+  created_at timestamptz not null default now()
+);
+```
+
+**Descartar embriões D9 (automático)**
+```sql
+create or replace function public.descartar_embrioes_d9()
+returns void
+language plpgsql
+as $$
+begin
+  update public.embrioes
+  set status_atual = 'DESCARTADO',
+      data_descarte = current_date
+  where status_atual = 'FRESCO'
+    and id in (
+      select embriao_id
+      from public.v_embrioes_disponiveis_te
+      where d8_limite is not null
+        and d8_limite < current_date
+    )
+    and id not in (
+      select embriao_id
+      from public.transferencias_embrioes
+      where status_te = 'REALIZADA'
+    );
+end;
+$$;
+```
+
+**Agendar execução diária (pg_cron)**
+```sql
+-- requer extensão pg_cron habilitada no Supabase
+select cron.schedule(
+  'descartar_embrioes_d9_diario',
+  '0 2 * * *',
+  $$select public.descartar_embrioes_d9();$$
+);
+```
+
+> Regra oficial: D9 baseado na data do lote/aspiração (via `v_embrioes_disponiveis_te`), não no `created_at` do embrião.
 
 ## Observação
 - Todos os SQLs e docs antigos foram removidos da raiz. Este arquivo é a nova referência mínima.

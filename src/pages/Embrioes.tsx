@@ -36,7 +36,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { handleError } from '@/lib/error-handler';
 import { useToast } from '@/hooks/use-toast';
-import { Snowflake, ArrowRightLeft, Tag, MapPin, Trash2, History, ChevronDown, ChevronUp, Package, CheckSquare, Square, User, Edit } from 'lucide-react';
+import { Snowflake, Tag, MapPin, Trash2, History, ChevronDown, ChevronUp, Package, CheckSquare, Square, User, Edit } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Sheet,
@@ -149,6 +149,7 @@ export default function Embrioes() {
   const [classificarData, setClassificarData] = useState({
     classificacao: '',
   });
+  const [classificacoesPendentes, setClassificacoesPendentes] = useState<Record<string, string>>({});
 
   const [descartarData, setDescartarData] = useState({
     data_descarte: new Date().toISOString().split('T')[0],
@@ -158,6 +159,34 @@ export default function Embrioes() {
   const [direcionarClienteData, setDirecionarClienteData] = useState({
     cliente_id: '',
   });
+
+  const getClassificacaoAtual = (embriao: EmbrioCompleto) => {
+    const pendente = classificacoesPendentes[embriao.id];
+    return (pendente ?? embriao.classificacao ?? '').trim();
+  };
+
+  const getResumoPacote = (pacote: PacoteEmbrioes) => {
+    const classificados = { BE: 0, BN: 0, BX: 0, BL: 0, BI: 0 };
+    let semClassificacao = 0;
+    pacote.embrioes.forEach((embriao) => {
+      const classificacao = getClassificacaoAtual(embriao).toUpperCase();
+      if (!classificacao) {
+        semClassificacao += 1;
+        return;
+      }
+      if (classificacao === 'BE') classificados.BE += 1;
+      else if (classificacao === 'BN') classificados.BN += 1;
+      else if (classificacao === 'BX') classificados.BX += 1;
+      else if (classificacao === 'BL') classificados.BL += 1;
+      else if (classificacao === 'BI') classificados.BI += 1;
+    });
+    return {
+      semClassificacao,
+      classificados,
+      total: pacote.total,
+      todosClassificados: pacote.total > 0 && semClassificacao === 0,
+    };
+  };
 
   useEffect(() => {
     loadFazendas();
@@ -659,29 +688,83 @@ export default function Embrioes() {
     }));
   };
 
-  const disponibilizarLoteParaTransferencia = async (loteFivId: string) => {
+  const despacharPacoteParaCampo = async (pacote: PacoteEmbrioes) => {
+    const resumo = getResumoPacote(pacote);
+    if (!resumo.todosClassificados) {
+      toast({
+        title: 'Classificação pendente',
+        description: 'Classifique todos os embriões do pacote antes de despachar para o campo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
+      setSubmitting(true);
+
+      const dataClassificacao = new Date().toISOString().split('T')[0];
+      const embrioesPendentes = pacote.embrioes.filter((embriao) => {
+        const classificacaoAtual = getClassificacaoAtual(embriao);
+        return classificacaoAtual && classificacaoAtual !== (embriao.classificacao || '').trim();
+      });
+
+      if (embrioesPendentes.length > 0) {
+        const updates = await Promise.all(
+          embrioesPendentes.map((embriao) =>
+            supabase
+              .from('embrioes')
+              .update({
+                classificacao: getClassificacaoAtual(embriao),
+                data_classificacao: dataClassificacao,
+              })
+              .eq('id', embriao.id)
+          )
+        );
+        const updateError = updates.find((result) => result.error)?.error;
+        if (updateError) throw updateError;
+
+        for (const embriao of embrioesPendentes) {
+          await registrarHistorico(
+            embriao.id,
+            embriao.status_atual,
+            embriao.status_atual,
+            'CLASSIFICACAO',
+            null,
+            `Classificação: ${getClassificacaoAtual(embriao)}`
+          );
+        }
+      }
+
       const { error } = await supabase
         .from('lotes_fiv')
         .update({ disponivel_para_transferencia: true })
-        .eq('id', loteFivId);
+        .eq('id', pacote.lote_fiv_id);
 
       if (error) throw error;
 
       toast({
-        title: 'Lote disponibilizado',
-        description: 'O lote agora está disponível para transferência de embriões.',
+        title: 'Pacote despachado',
+        description: 'O pacote agora está disponível para transferência de embriões.',
       });
 
       // Recarregar dados
+      setClassificacoesPendentes((prev) => {
+        const next = { ...prev };
+        embrioesPendentes.forEach((embriao) => {
+          delete next[embriao.id];
+        });
+        return next;
+      });
       loadData();
     } catch (error) {
       console.error('Erro ao disponibilizar lote:', error);
       toast({
-        title: 'Erro ao disponibilizar lote',
+        title: 'Erro ao despachar pacote',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -768,51 +851,21 @@ export default function Embrioes() {
       return;
     }
 
-    try {
-      setSubmitting(true);
+    setClassificacoesPendentes((prev) => ({
+      ...prev,
+      [embriaoParaClassificar.id]: classificarData.classificacao,
+    }));
 
-      const statusAnterior = embriaoParaClassificar.status_atual;
-      const statusNovo = embriaoParaClassificar.status_atual;
+    toast({
+      title: 'Classificação pendente',
+      description: 'A classificação foi salva localmente. Use "Despachar para o campo" para salvar tudo.',
+    });
 
-      const { error } = await supabase
-        .from('embrioes')
-        .update({
-          classificacao: classificarData.classificacao,
-          data_classificacao: new Date().toISOString().split('T')[0],
-        })
-        .eq('id', embriaoParaClassificar.id);
-
-      if (error) throw error;
-
-      await registrarHistorico(
-        embriaoParaClassificar.id,
-        statusAnterior,
-        statusNovo,
-        'CLASSIFICACAO',
-        null,
-        `Classificação: ${classificarData.classificacao}`
-      );
-
-      toast({
-        title: 'Embrião classificado',
-        description: 'Classificação salva com sucesso',
-      });
-
-      setShowClassificarDialog(false);
-      setClassificarEmbriao(null);
-      setClassificarData({ classificacao: '' });
-      setEmbrioesSelecionados(new Set());
-      setShowAcoesEmMassa(false);
-      loadData();
-    } catch (error) {
-      toast({
-        title: 'Erro ao classificar embrião',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    setShowClassificarDialog(false);
+    setClassificarEmbriao(null);
+    setClassificarData({ classificacao: '' });
+    setEmbrioesSelecionados(new Set());
+    setShowAcoesEmMassa(false);
   };
 
   const handleClassificarEmMassa = async () => {
@@ -825,60 +878,24 @@ export default function Embrioes() {
       return;
     }
 
-    try {
-      setSubmitting(true);
-
-      const embrioesParaClassificar = Array.from(embrioesSelecionados);
-      
-      const updates = embrioesParaClassificar.map(embriaoId => {
-        const embriao = embrioes.find(e => e.id === embriaoId);
-        if (!embriao) return null;
-
-        return supabase
-          .from('embrioes')
-          .update({
-            classificacao: classificarData.classificacao,
-            data_classificacao: new Date().toISOString().split('T')[0],
-          })
-          .eq('id', embriaoId);
-      }).filter(Boolean);
-
-      await Promise.all(updates);
-
-      // Registrar histórico para cada embrião
-      for (const embriaoId of embrioesParaClassificar) {
-        const embriao = embrioes.find(e => e.id === embriaoId);
-        if (embriao) {
-          await registrarHistorico(
-            embriao.id,
-            embriao.status_atual,
-            embriao.status_atual,
-            'CLASSIFICACAO',
-            null,
-            `Classificação: ${classificarData.classificacao}`
-          );
-        }
-      }
-
-      toast({
-        title: 'Embriões classificados',
-        description: `${embrioesParaClassificar.length} embrião(ões) classificados com sucesso`,
+    const embrioesParaClassificar = Array.from(embrioesSelecionados);
+    setClassificacoesPendentes((prev) => {
+      const next = { ...prev };
+      embrioesParaClassificar.forEach((embriaoId) => {
+        next[embriaoId] = classificarData.classificacao;
       });
+      return next;
+    });
 
-      setShowClassificarDialog(false);
-      setClassificarData({ classificacao: '' });
-      setEmbrioesSelecionados(new Set());
-      setShowAcoesEmMassa(false);
-      loadData();
-    } catch (error) {
-      toast({
-        title: 'Erro ao classificar embriões',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    toast({
+      title: 'Classificações pendentes',
+      description: 'As classificações foram salvas localmente. Use "Despachar para o campo" para salvar tudo.',
+    });
+
+    setShowClassificarDialog(false);
+    setClassificarData({ classificacao: '' });
+    setEmbrioesSelecionados(new Set());
+    setShowAcoesEmMassa(false);
   };
 
   const handleCongelarEmMassa = async () => {
@@ -893,8 +910,8 @@ export default function Embrioes() {
 
     // Validar que todos os embriões selecionados estão classificados
     const embrioesParaCongelar = Array.from(embrioesSelecionados);
-    const embrioesSemClassificacao = embrioes.filter(e => 
-      embrioesParaCongelar.includes(e.id) && (!e.classificacao || e.classificacao.trim() === '')
+    const embrioesSemClassificacao = embrioes.filter(e =>
+      embrioesParaCongelar.includes(e.id) && !getClassificacaoAtual(e)
     );
 
     if (embrioesSemClassificacao.length > 0) {
@@ -1071,10 +1088,6 @@ export default function Embrioes() {
 
       const embriaoIds = embrioesParaDirecionar.map(e => e.id);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2473a88-08bc-45e4-985e-dbd30c86d2a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/pages/Embrioes.tsx:1034',message:'direcionar cliente start',data:{clienteId:direcionarClienteData.cliente_id,embriaoIdsCount:embriaoIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
-      
       const updates = embriaoIds.map(embriaoId => {
         return supabase
           .from('embrioes')
@@ -1085,10 +1098,6 @@ export default function Embrioes() {
       });
 
       await Promise.all(updates);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c2473a88-08bc-45e4-985e-dbd30c86d2a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/pages/Embrioes.tsx:1046',message:'direcionar cliente updated',data:{clienteId:direcionarClienteData.cliente_id,embriaoIdsCount:embriaoIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
 
       // Registrar histórico para cada embrião
       const cliente = clientes.find(c => c.id === direcionarClienteData.cliente_id);
@@ -1200,6 +1209,7 @@ export default function Embrioes() {
               {pacotes.map((pacote) => {
                 const expandido = pacotesExpandidos.has(pacote.id);
                 const totalSelecionados = pacote.embrioes.filter(e => embrioesSelecionados.has(e.id)).length;
+                const resumoPacote = getResumoPacote(pacote);
 
                 return (
                   <Card key={pacote.id} className="border-l-4 border-l-green-500">
@@ -1267,20 +1277,20 @@ export default function Embrioes() {
                               {pacote.frescos} frescos, {pacote.congelados} congelados
                             </div>
                             <div className="text-xs text-slate-500">
-                              {pacote.sem_classificacao} sem classificação
+                              {resumoPacote.semClassificacao} sem classificação
                             </div>
-                            {pacote.classificados.BE > 0 || pacote.classificados.BN > 0 || pacote.classificados.BX > 0 || pacote.classificados.BL > 0 || pacote.classificados.BI > 0 ? (
+                            {resumoPacote.classificados.BE > 0 || resumoPacote.classificados.BN > 0 || resumoPacote.classificados.BX > 0 || resumoPacote.classificados.BL > 0 || resumoPacote.classificados.BI > 0 ? (
                               <div className="text-xs text-slate-500 mt-1">
-                                BE: {pacote.classificados.BE} | BN: {pacote.classificados.BN} | BX: {pacote.classificados.BX} | BL: {pacote.classificados.BL} | BI: {pacote.classificados.BI}
+                                BE: {resumoPacote.classificados.BE} | BN: {resumoPacote.classificados.BN} | BX: {resumoPacote.classificados.BX} | BL: {resumoPacote.classificados.BL} | BI: {resumoPacote.classificados.BI}
                               </div>
                             ) : null}
                           </div>
                           {/* Status de classificação e disponibilidade */}
                           <div className="flex flex-col items-end gap-2 min-w-[280px]">
-                            {pacote.todos_classificados ? (
+                            {resumoPacote.todosClassificados ? (
                               <>
                                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                                  ✓ Todos classificados ({pacote.total}/{pacote.total})
+                                  ✓ Todos classificados ({resumoPacote.total}/{resumoPacote.total})
                                 </Badge>
                                 {pacote.disponivel_para_transferencia ? (
                                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
@@ -1289,16 +1299,16 @@ export default function Embrioes() {
                                 ) : (
                                   <Button
                                     size="sm"
-                                    onClick={() => disponibilizarLoteParaTransferencia(pacote.lote_fiv_id)}
+                                    onClick={() => despacharPacoteParaCampo(pacote)}
                                     className="bg-green-600 hover:bg-green-700 text-white w-full"
                                   >
-                                    Disponibilizar para Transferência
+                                    Despachar para o campo
                                   </Button>
                                 )}
                               </>
-                            ) : pacote.total > 0 ? (
+                            ) : resumoPacote.total > 0 ? (
                               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
-                                Pendente: {pacote.total - pacote.sem_classificacao}/{pacote.total} classificados
+                                Pendente: {resumoPacote.total - resumoPacote.semClassificacao}/{resumoPacote.total} classificados
                               </Badge>
                             ) : null}
                           </div>
@@ -1394,8 +1404,8 @@ export default function Embrioes() {
                                         <TableCell>{embriao.doadora_registro || '-'}</TableCell>
                                         <TableCell>{embriao.touro_nome || '-'}</TableCell>
                                         <TableCell>
-                                          {embriao.classificacao ? (
-                                            <Badge variant="outline">{embriao.classificacao}</Badge>
+                                  {getClassificacaoAtual(embriao) ? (
+                                    <Badge variant="outline">{getClassificacaoAtual(embriao)}</Badge>
                                           ) : (
                                             <span className="text-slate-400">-</span>
                                           )}
@@ -1406,7 +1416,7 @@ export default function Embrioes() {
                                         <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
                                         <TableCell className="text-right">
                                           <div className="flex gap-1 justify-end">
-                                            {!embriao.classificacao && embriao.status_atual === 'FRESCO' && (
+                                    {!getClassificacaoAtual(embriao) && embriao.status_atual === 'FRESCO' && (
                                               <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -1420,13 +1430,13 @@ export default function Embrioes() {
                                                 <Tag className="w-4 h-4 text-purple-600" />
                                               </Button>
                                             )}
-                                            {embriao.classificacao && (
+                                    {getClassificacaoAtual(embriao) && (
                                               <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => {
                                                   setClassificarEmbriao(embriao);
-                                                  setClassificarData({ classificacao: embriao.classificacao || '' });
+                                          setClassificarData({ classificacao: getClassificacaoAtual(embriao) });
                                                   setShowClassificarDialog(true);
                                                 }}
                                                 title="Editar Classificação"
@@ -1440,7 +1450,7 @@ export default function Embrioes() {
                                                 size="sm"
                                                 onClick={() => {
                                               // Verificar se está classificado antes de permitir congelar
-                                              if (!embriao.classificacao || embriao.classificacao.trim() === '') {
+                                      if (!getClassificacaoAtual(embriao)) {
                                                 toast({
                                                   title: 'Classificação obrigatória',
                                                   description: 'É necessário classificar o embrião antes de congelá-lo. Por favor, classifique o embrião primeiro.',
@@ -1451,10 +1461,10 @@ export default function Embrioes() {
                                               setShowCongelarDialog(true);
                                               setEmbrioesSelecionados(new Set([embriao.id]));
                                             }}
-                                            title={embriao.classificacao ? "Congelar" : "Classifique antes de congelar"}
-                                            disabled={!embriao.classificacao || embriao.classificacao.trim() === ''}
+                                    title={getClassificacaoAtual(embriao) ? "Congelar" : "Classifique antes de congelar"}
+                                    disabled={!getClassificacaoAtual(embriao)}
                                           >
-                                            <Snowflake className={embriao.classificacao ? "w-4 h-4 text-blue-600" : "w-4 h-4 text-slate-400"} />
+                                    <Snowflake className={getClassificacaoAtual(embriao) ? "w-4 h-4 text-blue-600" : "w-4 h-4 text-slate-400"} />
                                           </Button>
                                         )}
                                         {embriao.status_atual === 'CONGELADO' && !embriao.cliente_id && (
@@ -1469,16 +1479,6 @@ export default function Embrioes() {
                                             title="Direcionar para Cliente"
                                           >
                                             <User className="w-4 h-4 text-green-600" />
-                                          </Button>
-                                        )}
-                                        {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => navigate('/transferencia')}
-                                            title="Transferir"
-                                          >
-                                            <ArrowRightLeft className="w-4 h-4 text-green-600" />
                                           </Button>
                                         )}
                                         {(embriao.status_atual === 'FRESCO' || embriao.status_atual === 'CONGELADO') && (
@@ -1579,7 +1579,7 @@ export default function Embrioes() {
                     // Verificar se todos os embriões selecionados estão classificados
                     const embrioesSemClassificacao = Array.from(embrioesSelecionados).filter(id => {
                       const embriao = embrioes.find(e => e.id === id);
-                      return !embriao || !embriao.classificacao || embriao.classificacao.trim() === '';
+                      return !embriao || !getClassificacaoAtual(embriao);
                     });
 
                     if (embrioesSemClassificacao.length > 0) {

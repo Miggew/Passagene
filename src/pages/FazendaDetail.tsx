@@ -12,12 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, MapPin, Navigation, Calendar, Beef, Dna } from 'lucide-react';
+import { ArrowLeft, MapPin, Navigation, Calendar, Beef, Dna, Syringe, Activity, Baby } from 'lucide-react';
 
 interface ProtocoloInfo {
   id: string;
@@ -40,11 +41,49 @@ interface ReceptoraFazenda {
   brinco: string;
   nome?: string;
   status_reprodutivo?: string;
+  data_provavel_parto?: string | null;
 }
 
 interface TransferenciaStats {
   total_ultimos_60_dias: number;
   sem_diagnostico: number;
+}
+
+interface PendenciasResumo {
+  passo2Pendente: number;
+  tePendente: number;
+  dgPendente: number;
+  sexagemPendente: number;
+  prenhesTotal: number;
+  prenhesDataMaisProxima?: string;
+  prenhesNaDataMaisProxima: number;
+}
+
+interface ReceptoraStats {
+  total: number;
+  porStatus: Array<{ status: string; total: number }>;
+}
+
+interface DoadoraStats {
+  total: number;
+  porRaca: Array<{ raca: string; total: number }>;
+  oocitos30d: number;
+  aspiracoes30d: number;
+  mediaOocitos: number;
+}
+
+interface AnimalNascido {
+  id: string;
+  data_nascimento: string;
+  sexo: string;
+  raca?: string | null;
+  receptora_id?: string | null;
+  receptora_brinco?: string;
+  receptora_nome?: string;
+  embriao_id?: string | null;
+  embriao_identificacao?: string | null;
+  doadora?: string | null;
+  touro?: string | null;
 }
 
 export default function FazendaDetail() {
@@ -62,6 +101,27 @@ export default function FazendaDetail() {
     total_ultimos_60_dias: 0,
     sem_diagnostico: 0,
   });
+  const [pendencias, setPendencias] = useState<PendenciasResumo>({
+    passo2Pendente: 0,
+    tePendente: 0,
+    dgPendente: 0,
+    sexagemPendente: 0,
+    prenhesTotal: 0,
+    prenhesDataMaisProxima: undefined,
+    prenhesNaDataMaisProxima: 0,
+  });
+  const [receptoraStats, setReceptoraStats] = useState<ReceptoraStats>({
+    total: 0,
+    porStatus: [],
+  });
+  const [doadoraStats, setDoadoraStats] = useState<DoadoraStats>({
+    total: 0,
+    porRaca: [],
+    oocitos30d: 0,
+    aspiracoes30d: 0,
+    mediaOocitos: 0,
+  });
+  const [animaisNascidos, setAnimaisNascidos] = useState<AnimalNascido[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -143,6 +203,7 @@ export default function FazendaDetail() {
       if (viewErrorFazenda) throw viewErrorFazenda;
 
       const receptoraIdsNaFazenda = viewDataFazenda?.map(v => v.receptora_id) || [];
+      const hoje = new Date().toISOString().split('T')[0];
 
       const dataLimite = new Date();
       dataLimite.setDate(dataLimite.getDate() - 60);
@@ -189,7 +250,7 @@ export default function FazendaDetail() {
         if (receptoraIds.length > 0) {
           const { data: receptorasData, error: receptorasError } = await supabase
             .from('receptoras')
-            .select('id, identificacao, nome, status_reprodutivo')
+            .select('id, identificacao, nome, status_reprodutivo, data_provavel_parto')
             .in('id', receptoraIds)
             .order('identificacao', { ascending: true });
 
@@ -199,10 +260,85 @@ export default function FazendaDetail() {
               brinco: r.identificacao,
               nome: r.nome,
               status_reprodutivo: r.status_reprodutivo,
+              data_provavel_parto: r.data_provavel_parto,
             })) || []);
+
+            const totalReceptoras = receptorasData?.length || 0;
+            const statusMap = new Map<string, number>();
+            (receptorasData || []).forEach((r) => {
+              const status = r.status_reprodutivo || 'SEM_STATUS';
+              statusMap.set(status, (statusMap.get(status) || 0) + 1);
+            });
+            setReceptoraStats({
+              total: totalReceptoras,
+              porStatus: Array.from(statusMap.entries())
+                .map(([status, total]) => ({ status, total }))
+                .sort((a, b) => b.total - a.total),
+            });
+
+            const protocolosPendentesPasso2 = (protocolosData || [])
+              .filter(p => p.status === 'PASSO1_FECHADO' || p.status === 'PRIMEIRO_PASSO_FECHADO').length;
+            const protocolosPendentesTe = (protocolosData || [])
+              .filter(p => p.status === 'SINCRONIZADO').length;
+
+            const { data: tesData } = await supabase
+              .from('transferencias_embrioes')
+              .select('receptora_id')
+              .in('receptora_id', receptoraIds)
+              .eq('status_te', 'REALIZADA');
+
+            const teReceptoraIds = Array.from(new Set((tesData || []).map(t => t.receptora_id)));
+            const dgQueryIds = teReceptoraIds.length > 0 ? teReceptoraIds : ['00000000-0000-0000-0000-000000000000'];
+            const { data: diagnosticosData } = await supabase
+              .from('diagnosticos_gestacao')
+              .select('receptora_id, tipo_diagnostico')
+              .in('receptora_id', dgQueryIds)
+              .in('tipo_diagnostico', ['DG', 'SEXAGEM']);
+
+            const dgSet = new Set((diagnosticosData || [])
+              .filter(d => d.tipo_diagnostico === 'DG')
+              .map(d => d.receptora_id));
+            const sexagemSet = new Set((diagnosticosData || [])
+              .filter(d => d.tipo_diagnostico === 'SEXAGEM')
+              .map(d => d.receptora_id));
+
+            const dgPendente = teReceptoraIds.filter(id => !dgSet.has(id)).length;
+            const prenhesComDg = (receptorasData || [])
+              .filter(r => (r.status_reprodutivo || '').includes('PRENHE') && dgSet.has(r.id))
+              .map(r => r.id);
+            const sexagemPendente = prenhesComDg.filter(id => !sexagemSet.has(id)).length;
+
+            const prenhes = (receptorasData || [])
+              .filter(r => (r.status_reprodutivo || '').includes('PRENHE') && r.data_provavel_parto)
+              .map(r => r.data_provavel_parto as string)
+              .sort((a, b) => a.localeCompare(b));
+            const prenhesDataMaisProxima = prenhes.length > 0 ? prenhes[0] : undefined;
+            const prenhesNaDataMaisProxima = prenhesDataMaisProxima
+              ? prenhes.filter(d => d === prenhesDataMaisProxima).length
+              : 0;
+
+            setPendencias({
+              passo2Pendente: protocolosPendentesPasso2,
+              tePendente: protocolosPendentesTe,
+              dgPendente,
+              sexagemPendente,
+              prenhesTotal: prenhes.length,
+              prenhesDataMaisProxima,
+              prenhesNaDataMaisProxima,
+            });
           }
         } else {
           setReceptorasFazenda([]);
+          setReceptoraStats({ total: 0, porStatus: [] });
+          setPendencias({
+            passo2Pendente: 0,
+            tePendente: 0,
+            dgPendente: 0,
+            sexagemPendente: 0,
+            prenhesTotal: 0,
+            prenhesDataMaisProxima: undefined,
+            prenhesNaDataMaisProxima: 0,
+          });
         }
       }
 
@@ -215,6 +351,126 @@ export default function FazendaDetail() {
 
       if (doadorasError) throw doadorasError;
       setDoadoras(doadorasData || []);
+
+      const doadorasMap = new Map<string, number>();
+      (doadorasData || []).forEach((d) => {
+        const raca = d.raca || 'SEM_RACA';
+        doadorasMap.set(raca, (doadorasMap.get(raca) || 0) + 1);
+      });
+
+      const dataLimite30 = new Date();
+      dataLimite30.setDate(dataLimite30.getDate() - 30);
+      const { data: aspiracoesData } = await supabase
+        .from('aspiracoes_doadoras')
+        .select('id, total_oocitos, data_aspiracao')
+        .eq('fazenda_id', id)
+        .gte('data_aspiracao', dataLimite30.toISOString().split('T')[0]);
+
+      const aspiracoes30d = aspiracoesData?.length || 0;
+      const oocitos30d = (aspiracoesData || []).reduce((sum, a) => sum + (a.total_oocitos || 0), 0);
+      const mediaOocitos = aspiracoes30d > 0 ? Math.round((oocitos30d / aspiracoes30d) * 10) / 10 : 0;
+
+      setDoadoraStats({
+        total: doadorasData?.length || 0,
+        porRaca: Array.from(doadorasMap.entries())
+          .map(([raca, total]) => ({ raca, total }))
+          .sort((a, b) => b.total - a.total),
+        oocitos30d,
+        aspiracoes30d,
+        mediaOocitos,
+      });
+
+      const { data: animaisData } = await supabase
+        .from('animais')
+        .select('id, embriao_id, receptora_id, data_nascimento, sexo, raca, pai_nome, mae_nome, created_at')
+        .eq('fazenda_id', id)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      const receptoraIdsAnimais = Array.from(new Set((animaisData || [])
+        .map(a => a.receptora_id)
+        .filter((rid): rid is string => !!rid)));
+      const embriaoIdsAnimais = Array.from(new Set((animaisData || [])
+        .map(a => a.embriao_id)
+        .filter((eid): eid is string => !!eid)));
+
+      const { data: receptorasAnimaisData } = await supabase
+        .from('receptoras')
+        .select('id, identificacao, nome')
+        .in('id', receptoraIdsAnimais.length > 0 ? receptoraIdsAnimais : ['00000000-0000-0000-0000-000000000000']);
+      const receptoraMap = new Map((receptorasAnimaisData || []).map(r => [r.id, r]));
+
+      const { data: embrioesAnimaisData } = await supabase
+        .from('embrioes')
+        .select('id, identificacao, lote_fiv_acasalamento_id')
+        .in('id', embriaoIdsAnimais.length > 0 ? embriaoIdsAnimais : ['00000000-0000-0000-0000-000000000000']);
+      const embriaoMap = new Map((embrioesAnimaisData || []).map(e => [e.id, e]));
+
+      const acasalamentoIds = Array.from(new Set((embrioesAnimaisData || [])
+        .map(e => e.lote_fiv_acasalamento_id)
+        .filter((aid): aid is string => !!aid)));
+      const { data: acasalamentosData } = await supabase
+        .from('lote_fiv_acasalamentos')
+        .select('id, aspiracao_doadora_id, dose_semen_id')
+        .in('id', acasalamentoIds.length > 0 ? acasalamentoIds : ['00000000-0000-0000-0000-000000000000']);
+      const acasalamentoMap = new Map((acasalamentosData || []).map(a => [a.id, a]));
+
+      const aspiracaoIds = Array.from(new Set((acasalamentosData || [])
+        .map(a => a.aspiracao_doadora_id)
+        .filter((aid): aid is string => !!aid)));
+      const doseIds = Array.from(new Set((acasalamentosData || [])
+        .map(a => a.dose_semen_id)
+        .filter((did): did is string => !!did)));
+
+      const { data: aspiracoesAnimaisData } = await supabase
+        .from('aspiracoes_doadoras')
+        .select('id, doadora_id')
+        .in('id', aspiracaoIds.length > 0 ? aspiracaoIds : ['00000000-0000-0000-0000-000000000000']);
+      const aspiracaoMap = new Map((aspiracoesAnimaisData || []).map(a => [a.id, a.doadora_id]));
+
+      const doadoraIds = Array.from(new Set((aspiracoesAnimaisData || [])
+        .map(a => a.doadora_id)
+        .filter((did): did is string => !!did)));
+      const { data: doadorasAnimaisData } = await supabase
+        .from('doadoras')
+        .select('id, registro, nome')
+        .in('id', doadoraIds.length > 0 ? doadoraIds : ['00000000-0000-0000-0000-000000000000']);
+      const doadoraMap = new Map((doadorasAnimaisData || []).map(d => [d.id, d]));
+
+      const { data: dosesData } = await supabase
+        .from('doses_semen')
+        .select('id, touro:touros(id, nome, registro)')
+        .in('id', doseIds.length > 0 ? doseIds : ['00000000-0000-0000-0000-000000000000']);
+      const doseMap = new Map((dosesData || []).map(d => [d.id, d]));
+
+      const animaisFormatados: AnimalNascido[] = (animaisData || []).map((a) => {
+        const receptora = a.receptora_id ? receptoraMap.get(a.receptora_id) : null;
+        const embriao = a.embriao_id ? embriaoMap.get(a.embriao_id) : null;
+        const acasalamento = embriao?.lote_fiv_acasalamento_id ? acasalamentoMap.get(embriao.lote_fiv_acasalamento_id) : null;
+        const doadoraId = acasalamento?.aspiracao_doadora_id ? aspiracaoMap.get(acasalamento.aspiracao_doadora_id) : null;
+        const doadora = doadoraId ? doadoraMap.get(doadoraId) : null;
+        const dose = acasalamento?.dose_semen_id ? doseMap.get(acasalamento.dose_semen_id) as any : null;
+        const touroRaw = dose?.touro;
+        const touro = Array.isArray(touroRaw) ? touroRaw[0] : touroRaw;
+        const doadoraLabel = doadora ? `${doadora.registro || ''}${doadora.nome ? ` - ${doadora.nome}` : ''}`.trim() : (a.mae_nome || null);
+        const touroLabel = touro?.nome || a.pai_nome || null;
+
+        return {
+          id: a.id,
+          data_nascimento: a.data_nascimento,
+          sexo: a.sexo,
+          raca: a.raca,
+          receptora_id: a.receptora_id,
+          receptora_brinco: receptora?.identificacao,
+          receptora_nome: receptora?.nome,
+          embriao_id: a.embriao_id,
+          embriao_identificacao: embriao?.identificacao || null,
+          doadora: doadoraLabel || null,
+          touro: touroLabel || null,
+        };
+      });
+
+      setAnimaisNascidos(animaisFormatados);
 
     } catch (error) {
       toast({
@@ -245,6 +501,29 @@ export default function FazendaDetail() {
       return getMapsLink();
     }
     return null;
+  };
+
+  const formatDateBR = (date?: string | null) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('pt-BR');
+  };
+
+  const formatStatusLabel = (status?: string | null) => {
+    const value = (status || '').toUpperCase();
+    const map: Record<string, string> = {
+      VAZIA: 'Vazia',
+      SERVIDA: 'Servida',
+      PRENHE: 'Prenhe',
+      PRENHE_RETOQUE: 'Prenhe (retoque)',
+      PRENHE_FEMEA: 'Prenhe (fêmea)',
+      PRENHE_MACHO: 'Prenhe (macho)',
+      PRENHE_SEM_SEXO: 'Prenhe (sem sexo)',
+      PRENHE_2_SEXOS: 'Prenhe (2 sexos)',
+      INAPTA: 'Inapta',
+      APTA: 'Apta',
+      SINCRONIZADA: 'Sincronizada',
+    };
+    return map[value] || (status ? status : 'Sem status');
   };
 
   if (loading) {
@@ -338,185 +617,223 @@ export default function FazendaDetail() {
         </CardContent>
       </Card>
 
-      {/* Serviços Ativos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Serviços Ativos na Fazenda</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Protocolos em andamento */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Protocolos em Andamento ({protocolos.length})
-            </h3>
-            {protocolos.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum protocolo ativo</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Data Início</TableHead>
-                    <TableHead>Data Retirada</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {protocolos.map((protocolo) => (
-                    <TableRow key={protocolo.id}>
-                      <TableCell className="font-mono text-xs">
-                        {protocolo.id.substring(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        {new Date(protocolo.data_inicio).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell>
-                        {protocolo.data_retirada
-                          ? new Date(protocolo.data_retirada).toLocaleDateString('pt-BR')
-                          : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="default">{protocolo.status || 'N/A'}</Badge>
-                      </TableCell>
-                    </TableRow>
+      <Tabs defaultValue="resumo" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="resumo">Resumo</TabsTrigger>
+          <TabsTrigger value="animais">Animais nascidos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="resumo" className="space-y-6">
+          {/* Pendências */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Serviços pendentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="border-dashed">
+                  <CardContent className="pt-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium">2º passo a fazer</span>
+                      </div>
+                      <Badge variant="outline">{pendencias.passo2Pendente}</Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">Protocolos com 1º passo fechado</p>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/protocolos')}>
+                      Abrir protocolos
+                    </Button>
+                  </CardContent>
+                </Card>
+                <Card className="border-dashed">
+                  <CardContent className="pt-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Syringe className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium">TE a fazer</span>
+                      </div>
+                      <Badge variant="outline">{pendencias.tePendente}</Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">Protocolos sincronizados</p>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/transferencia')}>
+                      Abrir TE
+                    </Button>
+                  </CardContent>
+                </Card>
+                <Card className="border-dashed">
+                  <CardContent className="pt-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium">DG a fazer</span>
+                      </div>
+                      <Badge variant="outline">{pendencias.dgPendente}</Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">TE realizada sem DG</p>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/dg')}>
+                      Abrir DG
+                    </Button>
+                  </CardContent>
+                </Card>
+                <Card className="border-dashed">
+                  <CardContent className="pt-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Baby className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium">Sexagem a fazer</span>
+                      </div>
+                      <Badge variant="outline">{pendencias.sexagemPendente}</Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">Prenhes com DG sem sexagem</p>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/sexagem')}>
+                      Abrir Sexagem
+                    </Button>
+                  </CardContent>
+                </Card>
+                <Card className="border-dashed md:col-span-2">
+                  <CardContent className="pt-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Baby className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium">Receptoras prenhes</span>
+                      </div>
+                      <Badge variant="outline">{pendencias.prenhesTotal}</Badge>
+                    </div>
+                    {!pendencias.prenhesDataMaisProxima ? (
+                      <p className="text-xs text-slate-500">Nenhuma prenhe com data prevista</p>
+                    ) : (
+                      <div className="space-y-1 text-xs text-slate-600">
+                        <div className="flex items-center justify-between">
+                          <span>Data mais próxima</span>
+                          <span>{formatDateBR(pendencias.prenhesDataMaisProxima)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Receptoras nessa data</span>
+                          <span>{pendencias.prenhesNaDataMaisProxima}</span>
+                        </div>
+                      </div>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => navigate('/receptoras')}>
+                      Ver receptoras
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estatísticas de receptoras */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumo de receptoras</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border border-slate-200 p-4 flex items-center justify-between">
+                <span className="text-sm text-slate-500">Total na fazenda</span>
+                <span className="text-2xl font-semibold">{receptoraStats.total}</span>
+              </div>
+              {receptoraStats.porStatus.length === 0 ? (
+                <p className="text-sm text-slate-500">Nenhuma receptora cadastrada</p>
+              ) : (
+                <div className="grid gap-2 md:grid-cols-3">
+                  {receptoraStats.porStatus.map((item) => (
+                    <div key={item.status} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 bg-slate-50">
+                      <span className="text-sm font-medium">{formatStatusLabel(item.status)}</span>
+                      <Badge variant="outline">{item.total}</Badge>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Receptoras sincronizadas */}
-          {receptorasSincronizadas.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3">
-                Receptoras Sincronizadas Aguardando TE ({receptorasSincronizadas.length})
-              </h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Brinco</TableHead>
-                    <TableHead>Fase</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data TE Prevista</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {receptorasSincronizadas.map((receptora, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{receptora.brinco}</TableCell>
-                      <TableCell>{receptora.fase_ciclo || '-'}</TableCell>
-                      <TableCell>{receptora.status_efetivo || '-'}</TableCell>
-                      <TableCell>
-                        {receptora.data_te_prevista
-                          ? new Date(receptora.data_te_prevista).toLocaleDateString('pt-BR')
-                          : '-'}
-                      </TableCell>
-                    </TableRow>
+          {/* Resumo de doadoras */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumo de doadoras</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-md border border-slate-200 p-4">
+                  <p className="text-sm text-slate-500">Total de doadoras</p>
+                  <p className="text-2xl font-semibold">{doadoraStats.total}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 p-4">
+                  <p className="text-sm text-slate-500">Oócitos (30 dias)</p>
+                  <p className="text-2xl font-semibold">{doadoraStats.oocitos30d}</p>
+                  <p className="text-xs text-slate-500">Média: {doadoraStats.mediaOocitos}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 p-4">
+                  <p className="text-sm text-slate-500">Aspirações (30 dias)</p>
+                  <p className="text-2xl font-semibold">{doadoraStats.aspiracoes30d}</p>
+                </div>
+              </div>
+              {doadoraStats.porRaca.length === 0 ? (
+                <p className="text-sm text-slate-500">Nenhuma doadora cadastrada</p>
+              ) : (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {doadoraStats.porRaca.map((item) => (
+                    <div key={item.raca} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                      <span className="text-sm">{item.raca}</span>
+                      <Badge variant="outline">{item.total}</Badge>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Transferências recentes */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Transferências Recentes</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-2xl font-bold text-slate-900">
-                    {transferenciaStats.total_ultimos_60_dias}
-                  </p>
-                  <p className="text-sm text-slate-500">Últimos 60 dias</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-2xl font-bold text-orange-600">
-                    {transferenciaStats.sem_diagnostico}
-                  </p>
-                  <p className="text-sm text-slate-500">Aguardando diagnóstico</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Receptoras da Fazenda */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Beef className="w-5 h-5" />
-            Receptoras da Fazenda ({receptorasFazenda.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {receptorasFazenda.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhuma receptora vinculada</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Brinco</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Status Reprodutivo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {receptorasFazenda.map((receptora) => (
-                  <TableRow key={receptora.receptora_id}>
-                    <TableCell className="font-medium">{receptora.brinco}</TableCell>
-                    <TableCell>{receptora.nome || '-'}</TableCell>
-                    <TableCell>{receptora.status_reprodutivo || '-'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Doadoras da Fazenda */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Dna className="w-5 h-5" />
-            Doadoras da Fazenda ({doadoras.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {doadoras.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhuma doadora cadastrada</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Registro</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Raça</TableHead>
-                  <TableHead>GPTA</TableHead>
-                  <TableHead>Controle Leiteiro</TableHead>
-                  <TableHead>Beta Caseína</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {doadoras.map((doadora) => (
-                  <TableRow key={doadora.id}>
-                    <TableCell className="font-medium">{doadora.registro}</TableCell>
-                    <TableCell>{doadora.nome || '-'}</TableCell>
-                    <TableCell>{doadora.raca || '-'}</TableCell>
-                    <TableCell>{doadora.gpta || '-'}</TableCell>
-                    <TableCell>{doadora.controle_leiteiro || '-'}</TableCell>
-                    <TableCell>{doadora.beta_caseina || '-'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="animais" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Animais nascidos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {animaisNascidos.length === 0 ? (
+                <EmptyState
+                  title="Nenhum animal registrado"
+                  description="Os nascimentos registrados aparecerão aqui."
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Sexo</TableHead>
+                      <TableHead>Raça</TableHead>
+                      <TableHead>Receptora</TableHead>
+                      <TableHead>Embrião</TableHead>
+                      <TableHead>Acasalamento</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {animaisNascidos.map((animal) => (
+                      <TableRow key={animal.id}>
+                        <TableCell>{formatDateBR(animal.data_nascimento)}</TableCell>
+                        <TableCell>{animal.sexo}</TableCell>
+                        <TableCell>{animal.raca || '-'}</TableCell>
+                        <TableCell>
+                          {animal.receptora_brinco || '-'}
+                          {animal.receptora_nome ? ` - ${animal.receptora_nome}` : ''}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {animal.embriao_identificacao || animal.embriao_id?.substring(0, 8) || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {animal.doadora || '-'} x {animal.touro || '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

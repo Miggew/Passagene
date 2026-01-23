@@ -63,7 +63,11 @@ export default function Protocolos() {
   const [fazendaFilter, setFazendaFilter] = useState(filtrosPersistidos.fazendaFilter ?? '');
   const [filtroDataInicio, setFiltroDataInicio] = useState(filtrosPersistidos.filtroDataInicio ?? '');
   const [filtroDataFim, setFiltroDataFim] = useState(filtrosPersistidos.filtroDataFim ?? '');
-  const [filtroStatus, setFiltroStatus] = useState<string>(filtrosPersistidos.filtroStatus ?? 'all'); // 'all', 'aguardando_2_passo', 'sincronizado', 'fechado'
+  const filtroStatusInicial =
+    filtrosPersistidos.filtroStatus && filtrosPersistidos.filtroStatus !== 'all'
+      ? filtrosPersistidos.filtroStatus
+      : 'aguardando_2_passo';
+  const [filtroStatus, setFiltroStatus] = useState<string>(filtroStatusInicial); // 'all', 'aguardando_2_passo', 'sincronizado', 'fechado'
   const [loadingProtocolos, setLoadingProtocolos] = useState(false);
   const [protocolosPage, setProtocolosPage] = useState(filtrosPersistidos.protocolosPage ?? 1);
   const [protocolosTotalCount, setProtocolosTotalCount] = useState(0);

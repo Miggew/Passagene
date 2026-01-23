@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { calcularStatusReceptora, atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
+import { atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
 import { getTodayDateString } from '@/lib/utils';
 import type { Fazenda, Receptora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -171,7 +171,7 @@ export default function ProtocoloFormWizard() {
       // Buscar dados completos das receptoras usando os IDs da view
       const { data, error } = await supabase
         .from('receptoras')
-        .select('id, identificacao, nome')
+        .select('id, identificacao, nome, status_reprodutivo')
         .in('id', receptoraIds)
         .order('identificacao', { ascending: true });
       
@@ -188,7 +188,7 @@ export default function ProtocoloFormWizard() {
         .map(async (r) => {
           const rId = r.id ? String(r.id).trim() : '';
           if (!rId) return null;
-          const status = await calcularStatusReceptora(rId);
+          const status = r.status_reprodutivo || 'VAZIA';
           const validacao = validarTransicaoStatus(status, 'ENTRAR_PASSO1');
           
           return {
@@ -308,7 +308,7 @@ export default function ProtocoloFormWizard() {
     }
 
     // Validar que a receptora está VAZIA antes de adicionar ao protocolo
-    const statusAtual = await calcularStatusReceptora(receptoraIdNormalized);
+    const statusAtual = receptora.status_reprodutivo || 'VAZIA';
     const validacao = validarTransicaoStatus(statusAtual, 'ENTRAR_PASSO1');
     
     if (!validacao.valido) {
@@ -647,17 +647,20 @@ export default function ProtocoloFormWizard() {
       // Atualizar status das receptoras para EM_SINCRONIZACAO após finalizar passo 1
       // IMPORTANTE: Não validar se está VAZIA aqui, pois os protocolo_receptoras já foram criados
       // pela RPC e a lógica legada pode retornar EM_SINCRONIZACAO. Simplesmente atualizar diretamente.
-      const statusUpdatePromises = receptorasIds.map(async (receptoraId) => {
-        // Atualizar diretamente para EM_SINCRONIZACAO, já que acabamos de criar o protocolo
-        // e sabemos que é válido (as receptoras foram validadas antes de adicionar ao protocolo)
-        const { error: statusError } = await atualizarStatusReceptora(receptoraId, 'EM_SINCRONIZACAO');
-        if (statusError) {
-          console.error(`Erro ao atualizar status da receptora ${receptoraId}:`, statusError);
-        }
-      });
-
-      // Aguardar todos os updates de status (mas não falhar se algum der erro)
-      await Promise.allSettled(statusUpdatePromises);
+      const statusUpdateResults = await Promise.all(
+        receptorasIds.map((receptoraId) =>
+          atualizarStatusReceptora(receptoraId, 'EM_SINCRONIZACAO')
+        )
+      );
+      const statusErrors = statusUpdateResults
+        .map((result, index) => ({ result, receptoraId: receptorasIds[index] }))
+        .filter(({ result }) => result.error);
+      if (statusErrors.length > 0) {
+        statusErrors.forEach(({ result, receptoraId }) => {
+          console.error(`Erro ao atualizar status da receptora ${receptoraId}:`, result.error);
+        });
+        throw new Error('Erro ao atualizar status das receptoras. Tente novamente.');
+      }
 
       toast({
         title: 'Protocolo criado com sucesso',

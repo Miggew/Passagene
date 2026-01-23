@@ -27,7 +27,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Baby, Lock, CheckCircle } from 'lucide-react';
-import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
+import { atualizarStatusReceptora } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface LoteTE {
@@ -154,7 +154,94 @@ export default function Sexagem() {
         .order('nome');
 
       if (error) throw error;
-      setFazendas(data || []);
+      const fazendasData = data || [];
+
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id, fazenda_id_atual');
+
+      if (viewError) throw viewError;
+
+      const receptoraIds = [...new Set((viewData || []).map(v => v.receptora_id).filter(Boolean))];
+
+      if (receptoraIds.length === 0) {
+        setFazendas([]);
+        return;
+      }
+
+      const { data: receptorasData, error: receptorasError } = await supabase
+        .from('receptoras')
+        .select('id')
+        .in('id', receptoraIds)
+        .in('status_reprodutivo', ['PRENHE', 'PRENHE_RETOQUE']);
+
+      if (receptorasError) throw receptorasError;
+
+      const prenhesIds = receptorasData?.map(r => r.id) || [];
+      if (prenhesIds.length === 0) {
+        setFazendas([]);
+        return;
+      }
+
+      const { data: teData, error: teError } = await supabase
+        .from('transferencias_embrioes')
+        .select('receptora_id, data_te')
+        .in('receptora_id', prenhesIds)
+        .eq('status_te', 'REALIZADA');
+
+      if (teError) throw teError;
+
+      const { data: sexagensData, error: sexagensError } = await supabase
+        .from('diagnosticos_gestacao')
+        .select('receptora_id, data_te')
+        .in('receptora_id', prenhesIds)
+        .eq('tipo_diagnostico', 'SEXAGEM');
+
+      if (sexagensError) throw sexagensError;
+
+      const receptoraFazendaMap = new Map(
+        (viewData || [])
+          .filter(v => v.receptora_id && v.fazenda_id_atual)
+          .map(v => [v.receptora_id, v.fazenda_id_atual])
+      );
+
+      const receptorasPorLote = new Map<string, Set<string>>();
+      (teData || []).forEach(te => {
+        const fazendaId = receptoraFazendaMap.get(te.receptora_id);
+        if (!fazendaId) return;
+        const chave = `${fazendaId}-${te.data_te}`;
+        if (!receptorasPorLote.has(chave)) {
+          receptorasPorLote.set(chave, new Set());
+        }
+        receptorasPorLote.get(chave)!.add(te.receptora_id);
+      });
+
+      const sexagensPorLote = new Map<string, Set<string>>();
+      (sexagensData || []).forEach(sex => {
+        const fazendaId = receptoraFazendaMap.get(sex.receptora_id);
+        if (!fazendaId) return;
+        const chave = `${fazendaId}-${sex.data_te}`;
+        if (!sexagensPorLote.has(chave)) {
+          sexagensPorLote.set(chave, new Set());
+        }
+        sexagensPorLote.get(chave)!.add(sex.receptora_id);
+      });
+
+      const fazendasAptasSet = new Set<string>();
+      receptorasPorLote.forEach((receptorasLote, chave) => {
+        const sexagensLote = sexagensPorLote.get(chave)?.size || 0;
+        if (sexagensLote < receptorasLote.size) {
+          const fazendaId = chave.split('-')[0];
+          fazendasAptasSet.add(fazendaId);
+        }
+      });
+
+      const fazendasFiltradas = fazendasData.filter(f => fazendasAptasSet.has(f.id));
+
+      setFazendas(fazendasFiltradas);
+      if (fazendaSelecionada && !fazendasAptasSet.has(fazendaSelecionada)) {
+        setFazendaSelecionada('');
+      }
     } catch (error) {
       toast({
         title: 'Erro ao carregar fazendas',
@@ -241,7 +328,10 @@ export default function Sexagem() {
       const lotesArray = Array.from(lotesMap.values())
         .sort((a, b) => new Date(b.data_te).getTime() - new Date(a.data_te).getTime());
 
-      setLotesTE(lotesArray);
+      const lotesFechados = lotesArray.filter(l => l.status === 'FECHADO').length;
+      const lotesAbertos = lotesArray.length - lotesFechados;
+      const lotesAbertosArray = lotesArray.filter(l => l.status === 'ABERTO');
+      setLotesTE(lotesAbertosArray);
     } catch (error) {
       toast({
         title: 'Erro ao carregar lotes',
@@ -864,7 +954,22 @@ export default function Sexagem() {
 
       // Atualizar status das receptoras
       for (const atualizacao of atualizacoesStatus) {
-        await atualizarStatusReceptora(atualizacao.receptora_id, atualizacao.status as any);
+        const { error: statusError } = await atualizarStatusReceptora(
+          atualizacao.receptora_id,
+          atualizacao.status as any
+        );
+        if (statusError) {
+          throw new Error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}`);
+        }
+        if (atualizacao.status === 'VAZIA') {
+          const { error: dataPartoError } = await supabase
+            .from('receptoras')
+            .update({ data_provavel_parto: null })
+            .eq('id', atualizacao.receptora_id);
+          if (dataPartoError) {
+            throw new Error(`Erro ao limpar data provável de parto da receptora ${atualizacao.receptora_id}`);
+          }
+        }
       }
 
       const todasComSexagem = receptoras.every(r => {
@@ -960,7 +1065,6 @@ export default function Sexagem() {
                     <TableHead>Quantidade</TableHead>
                     <TableHead>Vet. Sexagem</TableHead>
                     <TableHead>Téc. Sexagem</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -976,11 +1080,6 @@ export default function Sexagem() {
                       <TableCell>{lote.quantidade_receptoras} receptoras</TableCell>
                       <TableCell>{lote.veterinario_sexagem || '-'}</TableCell>
                       <TableCell>{lote.tecnico_sexagem || '-'}</TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          status={lote.status === 'ABERTO' ? 'ABERTO' : 'FECHADO'}
-                        />
-                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           size="sm"

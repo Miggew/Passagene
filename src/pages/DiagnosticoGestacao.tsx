@@ -27,7 +27,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Stethoscope, Save, Lock, CheckCircle } from 'lucide-react';
-import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
+import { atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface LoteTE {
@@ -56,6 +56,7 @@ interface ReceptoraServida {
   receptora_id: string;
   brinco: string;
   nome?: string;
+  status_reprodutivo?: string | null;
   data_te: string;
   embrioes: EmbriaoTransferido[]; // Array de embriões (1 ou 2)
   data_abertura_lote: string; // d0 (sempre o mesmo para todos os embriões do grupo)
@@ -156,7 +157,94 @@ export default function DiagnosticoGestacao() {
         .order('nome', { ascending: true });
 
       if (error) throw error;
-      setFazendas(data || []);
+      const fazendasData = data || [];
+
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id, fazenda_id_atual');
+
+      if (viewError) throw viewError;
+
+      const receptoraIds = [...new Set((viewData || []).map(v => v.receptora_id).filter(Boolean))];
+
+      if (receptoraIds.length === 0) {
+        setFazendas([]);
+        return;
+      }
+
+      const { data: receptorasData, error: receptorasError } = await supabase
+        .from('receptoras')
+        .select('id')
+        .in('id', receptoraIds)
+        .eq('status_reprodutivo', 'SERVIDA');
+
+      if (receptorasError) throw receptorasError;
+
+      const servidasIds = receptorasData?.map(r => r.id) || [];
+      if (servidasIds.length === 0) {
+        setFazendas([]);
+        return;
+      }
+
+      const { data: teData, error: teError } = await supabase
+        .from('transferencias_embrioes')
+        .select('receptora_id, data_te')
+        .in('receptora_id', servidasIds)
+        .eq('status_te', 'REALIZADA');
+
+      if (teError) throw teError;
+
+      const { data: diagnosticosData, error: diagnosticosError } = await supabase
+        .from('diagnosticos_gestacao')
+        .select('receptora_id, data_te')
+        .in('receptora_id', servidasIds)
+        .eq('tipo_diagnostico', 'DG');
+
+      if (diagnosticosError) throw diagnosticosError;
+
+      const receptoraFazendaMap = new Map(
+        (viewData || [])
+          .filter(v => v.receptora_id && v.fazenda_id_atual)
+          .map(v => [v.receptora_id, v.fazenda_id_atual])
+      );
+
+      const receptorasPorLote = new Map<string, Set<string>>();
+      (teData || []).forEach(te => {
+        const fazendaId = receptoraFazendaMap.get(te.receptora_id);
+        if (!fazendaId) return;
+        const chave = `${fazendaId}-${te.data_te}`;
+        if (!receptorasPorLote.has(chave)) {
+          receptorasPorLote.set(chave, new Set());
+        }
+        receptorasPorLote.get(chave)!.add(te.receptora_id);
+      });
+
+      const diagnosticosPorLote = new Map<string, Set<string>>();
+      (diagnosticosData || []).forEach(dg => {
+        const fazendaId = receptoraFazendaMap.get(dg.receptora_id);
+        if (!fazendaId) return;
+        const chave = `${fazendaId}-${dg.data_te}`;
+        if (!diagnosticosPorLote.has(chave)) {
+          diagnosticosPorLote.set(chave, new Set());
+        }
+        diagnosticosPorLote.get(chave)!.add(dg.receptora_id);
+      });
+
+      const fazendasAptasSet = new Set<string>();
+      receptorasPorLote.forEach((receptorasLote, chave) => {
+        const diagnosticosLote = diagnosticosPorLote.get(chave)?.size || 0;
+        if (diagnosticosLote < receptorasLote.size) {
+          const fazendaId = chave.split('-')[0];
+          fazendasAptasSet.add(fazendaId);
+        }
+      });
+
+      const fazendasFiltradas = fazendasData.filter(f => fazendasAptasSet.has(f.id));
+
+      setFazendas(fazendasFiltradas);
+      if (fazendaSelecionada && !fazendasAptasSet.has(fazendaSelecionada)) {
+        setFazendaSelecionada('');
+      }
     } catch (error) {
       toast({
         title: 'Erro ao carregar fazendas',
@@ -169,9 +257,6 @@ export default function DiagnosticoGestacao() {
   const loadLotesTE = async (fazendaId: string) => {
     try {
       setLoading(true);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:168',message:'dg:load:start',data:{fazendaId},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion agent log
 
       // 1. Buscar receptoras SERVIDAS da fazenda
       const { data: viewData, error: viewError } = await supabase
@@ -187,9 +272,6 @@ export default function DiagnosticoGestacao() {
         setLotesTE([]);
         return;
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:185',message:'dg:receptoras_fazenda',data:{receptoraIds:receptoraIds.length,amostra:receptoraIds.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion agent log
 
       // 2. Verificar quais estão SERVIDAS
       const { data: receptorasData } = await supabase
@@ -204,12 +286,6 @@ export default function DiagnosticoGestacao() {
         setLotesTE([]);
         return;
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:195',message:'dg:status_reprodutivo',data:{total:receptorasData?.length||0,amostra:receptorasData?.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion agent log
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:199',message:'dg:servidas',data:{servidas:servidasIds.length,amostra:servidasIds.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion agent log
 
       // 3. Buscar TEs realizadas agrupadas por data_te
       const { data: teData, error: teError } = await supabase
@@ -220,9 +296,6 @@ export default function DiagnosticoGestacao() {
         .order('data_te', { ascending: false });
 
       if (teError) throw teError;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DiagnosticoGestacao.tsx:208',message:'dg:te_realizadas',data:{te_total:teData?.length||0,amostra:teData?.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'debug1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion agent log
 
       // 4. Buscar diagnósticos existentes para verificar status e veterinário/técnico do DG
       const { data: diagnosticosData } = await supabase
@@ -285,7 +358,10 @@ export default function DiagnosticoGestacao() {
       const lotesArray = Array.from(lotesMap.values())
         .sort((a, b) => new Date(b.data_te).getTime() - new Date(a.data_te).getTime());
 
-      setLotesTE(lotesArray);
+      const lotesFechados = lotesArray.filter(l => l.status === 'FECHADO').length;
+      const lotesAbertos = lotesArray.length - lotesFechados;
+      const lotesAbertosArray = lotesArray.filter(l => l.status === 'ABERTO');
+      setLotesTE(lotesAbertosArray);
     } catch (error) {
       toast({
         title: 'Erro ao carregar lotes',
@@ -568,6 +644,7 @@ export default function DiagnosticoGestacao() {
           receptora_id: primeiraTE.receptora_id,
           brinco: receptora.identificacao,
           nome: receptora.nome,
+          status_reprodutivo: receptora.status_reprodutivo,
           data_te: primeiraTE.data_te,
           embrioes: embrioesDoGrupo,
           data_abertura_lote: dataAberturalote,
@@ -691,7 +768,7 @@ export default function DiagnosticoGestacao() {
 
       // Validar todas as receptoras antes de salvar
       for (const receptora of receptoras) {
-        const statusAtual = await calcularStatusReceptora(receptora.receptora_id);
+        const statusAtual = receptora.status_reprodutivo || 'VAZIA';
         const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_DG');
         
         if (!validacao.valido) {
@@ -915,6 +992,7 @@ export default function DiagnosticoGestacao() {
 
         if (statusError) {
           console.error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}:`, statusError);
+          throw new Error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}`);
         }
       }
 
@@ -1030,7 +1108,6 @@ export default function DiagnosticoGestacao() {
                     <TableHead>Quantidade</TableHead>
                     <TableHead>Vet. DG</TableHead>
                     <TableHead>Téc. DG</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1046,11 +1123,6 @@ export default function DiagnosticoGestacao() {
                       <TableCell>{lote.quantidade_receptoras} receptoras</TableCell>
                       <TableCell>{lote.veterinario_dg || '-'}</TableCell>
                       <TableCell>{lote.tecnico_dg || '-'}</TableCell>
-                      <TableCell>
-                        <StatusBadge 
-                          status={lote.status === 'ABERTO' ? 'ABERTO' : 'FECHADO'} 
-                        />
-                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           size="sm"

@@ -393,14 +393,30 @@ export default function LotesFIV() {
     try {
       setLoading(true);
 
-      // Load pacotes FINALIZADOS
-      const { data: pacotesData, error: pacotesError } = await supabase
+      // Load pacotes FINALIZADOS (com fallback se vazio)
+      let pacotesData: any[] | null = null;
+      let pacotesError: any = null;
+      const pacotesResponse = await supabase
         .from('pacotes_aspiracao')
         .select('*')
         .eq('status', 'FINALIZADO')
         .order('data_aspiracao', { ascending: false });
+      pacotesData = pacotesResponse.data;
+      pacotesError = pacotesResponse.error;
 
-      if (pacotesError) throw pacotesError;
+      if (pacotesError) {
+        throw pacotesError;
+      }
+      if ((pacotesData || []).length === 0) {
+        const pacotesCount = await supabase
+          .from('pacotes_aspiracao')
+          .select('id', { count: 'exact', head: true });
+        const pacotesFallback = await supabase
+          .from('pacotes_aspiracao')
+          .select('*')
+          .order('data_aspiracao', { ascending: false });
+        pacotesData = pacotesFallback.data;
+      }
 
       console.log('Pacotes FINALIZADOS encontrados:', pacotesData?.length || 0);
       if (pacotesData && pacotesData.length > 0) {
@@ -1113,7 +1129,9 @@ export default function LotesFIV() {
         .eq('id', loteId)
         .single();
 
-      if (loteError) throw loteError;
+      if (loteError) {
+        throw loteError;
+      }
 
       // Load pacote
       const { data: pacoteData, error: pacoteError } = await supabase
@@ -1122,7 +1140,18 @@ export default function LotesFIV() {
         .eq('id', loteData.pacote_aspiracao_id)
         .single();
 
-      if (pacoteError) throw pacoteError;
+      if (pacoteError) {
+        if (pacoteError.code === 'PGRST116') {
+          toast({
+            title: 'Pacote não encontrado',
+            description: 'O lote referencia um pacote de aspiração inexistente. Verifique o vínculo do lote.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+        throw pacoteError;
+      }
 
       // Armazenar data da aspiração para cálculo de dias (D-1)
       setDataAspiracao(pacoteData.data_aspiracao);
@@ -1147,6 +1176,8 @@ export default function LotesFIV() {
         .select('fazenda_destino_id')
         .eq('pacote_aspiracao_id', pacoteData.id);
 
+      if (fazendasDestinoError) {
+      }
       if (fazendasDestinoError) {
         console.error('Erro ao carregar fazendas destino:', fazendasDestinoError);
       }
@@ -1865,6 +1896,23 @@ export default function LotesFIV() {
         return;
       }
 
+      const { data: doseAtual, error: doseAtualError } = await supabase
+        .from('doses_semen')
+        .select('id, quantidade')
+        .eq('id', acasalamentoForm.dose_semen_id)
+        .single();
+      if (doseAtualError) throw doseAtualError;
+
+      const quantidadeDisponivel = doseAtual?.quantidade ?? 0;
+      if (quantidadeDisponivel < quantidadeFracionada) {
+        toast({
+          title: 'Estoque insuficiente',
+          description: `Quantidade disponível (${quantidadeDisponivel}) é menor que a quantidade fracionada (${quantidadeFracionada}).`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Criar acasalamento
       const acasalamentoParaInserir = {
         lote_fiv_id: selectedLote.id,
@@ -1878,6 +1926,13 @@ export default function LotesFIV() {
       const { error } = await supabase.from('lote_fiv_acasalamentos').insert([acasalamentoParaInserir]);
 
       if (error) throw error;
+
+      const novaQuantidade = quantidadeDisponivel - quantidadeFracionada;
+      const { error: doseUpdateError } = await supabase
+        .from('doses_semen')
+        .update({ quantidade: novaQuantidade })
+        .eq('id', doseAtual?.id || '');
+      if (doseUpdateError) throw doseUpdateError;
 
       toast({
         title: 'Acasalamento adicionado',

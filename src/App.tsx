@@ -49,7 +49,6 @@ const queryClient = new QueryClient({
 
 const AppRoutes = () => {
   const location = useLocation();
-
   return (
     <ErrorBoundary FallbackComponent={AppErrorFallback} resetKeys={[location.pathname]}>
       <Suspense fallback={<LoadingSpinner />}>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Receptora, Fazenda, ReceptoraComStatus } from '@/lib/types';
-import { calcularStatusReceptoras } from '@/lib/receptoraStatus';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -19,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -29,17 +29,26 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import StatusBadge from '@/components/shared/StatusBadge';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { handleError } from '@/lib/error-handler';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Search, History, ArrowRight } from 'lucide-react';
+import { Plus, Edit, Search, History, ArrowRight, Baby } from 'lucide-react';
 import ReceptoraHistorico from './ReceptoraHistorico';
 import { formatStatusLabel } from '@/lib/statusLabels';
+import DatePickerBR from '@/components/shared/DatePickerBR';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+type NascimentoEmbriaoInfo = {
+  embriao_id: string;
+  doadora_registro?: string;
+  touro_nome?: string;
+  raca?: string;
+};
 
 export default function Receptoras() {
   const [receptoras, setReceptoras] = useState<ReceptoraComStatus[]>([]);
@@ -56,6 +65,15 @@ export default function Receptoras() {
   const [showMoverFazendaDialog, setShowMoverFazendaDialog] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [selectedReceptoraId, setSelectedReceptoraId] = useState('');
+  const [showNascimentoDialog, setShowNascimentoDialog] = useState(false);
+  const [nascimentoLoading, setNascimentoLoading] = useState(false);
+  const [nascimentoEmbrioes, setNascimentoEmbrioes] = useState<NascimentoEmbriaoInfo[]>([]);
+  const [nascimentoForm, setNascimentoForm] = useState({
+    receptora_id: '',
+    data_nascimento: new Date().toISOString().split('T')[0],
+    sexo: '',
+    observacoes: '',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [submittingMover, setSubmittingMover] = useState(false);
   const [editingReceptora, setEditingReceptora] = useState<Receptora | null>(null);
@@ -64,6 +82,7 @@ export default function Receptoras() {
   const [temConflitoBrinco, setTemConflitoBrinco] = useState(false);
   const [temConflitoNome, setTemConflitoNome] = useState(false);
   const { toast } = useToast();
+  const hoje = new Date().toISOString().split('T')[0];
 
   const [formData, setFormData] = useState({
     identificacao: '',
@@ -130,7 +149,7 @@ export default function Receptoras() {
       setLoadingFazendas(true);
       const { data, error } = await supabase
         .from('fazendas')
-        .select('id, nome')
+        .select('id, nome, cliente_id')
         .order('nome', { ascending: true });
 
       if (error) throw error;
@@ -180,13 +199,9 @@ export default function Receptoras() {
         fazenda_nome_atual: fazendaMap.get(r.id),
       }));
 
-      // Calculate status for all receptoras
-      const receptoraIdsForStatus = receptorasData.map(r => r.id);
-      const statusMap = await calcularStatusReceptoras(receptoraIdsForStatus);
-
       const receptorasComStatus: ReceptoraComStatus[] = receptorasData.map(r => ({
         ...r,
-        status_calculado: statusMap.get(r.id) || 'VAZIA',
+        status_calculado: r.status_reprodutivo || 'VAZIA',
       }));
 
       // Buscar número de gestações e recalcular data de parto para receptoras prenhes
@@ -238,62 +253,7 @@ export default function Receptoras() {
           .eq('status_te', 'REALIZADA')
           .order('data_te', { ascending: false });
 
-        if (!teError && teData) {
-          // Buscar embriões e lotes FIV para obter D0
-          const embriaoIds = [...new Set(teData.map(te => te.embriao_id))];
-          
-          if (embriaoIds.length > 0) {
-            const { data: embrioesData, error: embrioesError } = await supabase
-              .from('embrioes')
-              .select('id, lote_fiv_id')
-              .in('id', embriaoIds);
-
-            if (!embrioesError && embrioesData) {
-              const loteFivIds = [...new Set(embrioesData.map(e => e.lote_fiv_id))];
-              
-              if (loteFivIds.length > 0) {
-                const { data: lotesData, error: lotesError } = await supabase
-                  .from('lotes_fiv')
-                  .select('id, data_abertura')
-                  .in('id', loteFivIds);
-
-                if (!lotesError && lotesData) {
-                  // Criar mapas para facilitar busca
-                  const embriaoToLoteMap = new Map(embrioesData.map(e => [e.id, e.lote_fiv_id]));
-                  const loteToD0Map = new Map(lotesData.map(l => [l.id, l.data_abertura]));
-                  const receptoraToTeMap = new Map<string, typeof teData[0]>();
-                  
-                  // Pegar a TE mais recente de cada receptora
-                  teData.forEach(te => {
-                    if (!receptoraToTeMap.has(te.receptora_id)) {
-                      receptoraToTeMap.set(te.receptora_id, te);
-                    }
-                  });
-
-                  // Recalcular data de parto para cada receptora prenhe
-                  receptorasComStatus.forEach(r => {
-                    if (statusPrenhes.includes(r.status_calculado) || r.status_calculado.includes('PRENHE')) {
-                      const te = receptoraToTeMap.get(r.id);
-                      if (te) {
-                        const loteFivId = embriaoToLoteMap.get(te.embriao_id);
-                        if (loteFivId) {
-                          const d0 = loteToD0Map.get(loteFivId);
-                          if (d0) {
-                            // Calcular data de parto: D0 + 275 dias
-                            const d0Date = new Date(d0);
-                            const dataPartoDate = new Date(d0Date);
-                            dataPartoDate.setDate(dataPartoDate.getDate() + 275);
-                            r.data_provavel_parto = dataPartoDate.toISOString().split('T')[0];
-                          }
-                        }
-                      }
-                    }
-                  });
-                }
-              }
-            }
-          }
-        }
+        // data_provavel_parto deve vir do BD (preenchida no DG); não recalcular aqui
       }
 
       // Extrair status únicos para o filtro
@@ -309,6 +269,270 @@ export default function Receptoras() {
       handleError(error, 'Erro ao carregar receptoras');
     } finally {
       setLoadingReceptoras(false);
+    }
+  };
+
+  const handleCioLivreConfirmado = async () => {
+    const removedId = selectedReceptoraId;
+    if (removedId) {
+      setReceptoras(prev => prev.filter(r => r.id !== removedId));
+      setFilteredReceptoras(prev => prev.filter(r => r.id !== removedId));
+    }
+    await loadReceptoras();
+  };
+
+  const inferSexoFromStatus = (status: string) => {
+    if (status.includes('FEMEA')) return 'FEMEA';
+    if (status.includes('MACHO')) return 'MACHO';
+    return 'SEM_SEXO';
+  };
+
+  const carregarDadosNascimento = async (receptoraId: string): Promise<NascimentoEmbriaoInfo[]> => {
+    const { data: transferenciasData, error: teError } = await supabase
+      .from('transferencias_embrioes')
+      .select('embriao_id, data_te')
+      .eq('receptora_id', receptoraId)
+      .eq('status_te', 'REALIZADA')
+      .order('data_te', { ascending: false });
+    if (teError) throw teError;
+
+    if (!transferenciasData || transferenciasData.length === 0) return [];
+
+    const dataTeRef = transferenciasData[0].data_te;
+    const transferenciasDaGestacao = transferenciasData.filter(t => t.data_te === dataTeRef);
+    const embriaoIds = transferenciasDaGestacao.map(t => t.embriao_id).filter(Boolean) as string[];
+    if (embriaoIds.length === 0) return [];
+
+    const { data: animaisExistentes } = await supabase
+      .from('animais')
+      .select('embriao_id')
+      .in('embriao_id', embriaoIds);
+    const animaisExistentesSet = new Set((animaisExistentes || []).map(a => a.embriao_id));
+    const embriaoIdsNovos = embriaoIds.filter(id => !animaisExistentesSet.has(id));
+    if (embriaoIdsNovos.length === 0) return [];
+
+    const { data: embrioesData, error: embrioesError } = await supabase
+      .from('embrioes')
+      .select('id, lote_fiv_acasalamento_id')
+      .in('id', embriaoIdsNovos);
+    if (embrioesError) throw embrioesError;
+
+    const acasalamentoIds = [...new Set((embrioesData || []).map(e => e.lote_fiv_acasalamento_id).filter(Boolean))] as string[];
+    let acasalamentosData: Array<{ id: string; aspiracao_doadora_id?: string; dose_semen_id?: string }> = [];
+    let aspiracoesData: Array<{ id: string; doadora_id?: string }> = [];
+    let doadorasData: Array<{ id: string; registro?: string; raca?: string }> = [];
+    let dosesData: Array<{ id: string; touro?: { nome?: string; raca?: string } }> = [];
+
+    if (acasalamentoIds.length > 0) {
+      const { data: acasalamentosResult, error: acasalamentosError } = await supabase
+        .from('lote_fiv_acasalamentos')
+        .select('id, aspiracao_doadora_id, dose_semen_id')
+        .in('id', acasalamentoIds);
+      if (acasalamentosError) throw acasalamentosError;
+      acasalamentosData = acasalamentosResult || [];
+
+      const aspiracaoIds = [...new Set(acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean))] as string[];
+      const doseIds = [...new Set(acasalamentosData.map(a => a.dose_semen_id).filter(Boolean))] as string[];
+
+      if (aspiracaoIds.length > 0) {
+        const { data: aspiracoesResult, error: aspiracoesError } = await supabase
+          .from('aspiracoes_doadoras')
+          .select('id, doadora_id')
+          .in('id', aspiracaoIds);
+        if (aspiracoesError) throw aspiracoesError;
+        aspiracoesData = aspiracoesResult || [];
+
+        const doadoraIds = [...new Set(aspiracoesData.map(a => a.doadora_id).filter(Boolean))] as string[];
+        if (doadoraIds.length > 0) {
+          const { data: doadorasResult, error: doadorasError } = await supabase
+            .from('doadoras')
+            .select('id, registro, raca')
+            .in('id', doadoraIds);
+          if (doadorasError) throw doadorasError;
+          doadorasData = doadorasResult || [];
+        }
+      }
+
+      if (doseIds.length > 0) {
+        const { data: dosesResult, error: dosesError } = await supabase
+          .from('doses_semen')
+          .select(`
+            id,
+            touro:touros(id, nome, registro, raca)
+          `)
+          .in('id', doseIds);
+        if (dosesError) throw dosesError;
+        dosesData = dosesResult || [];
+      }
+    }
+
+    const acasalamentosMap = new Map(acasalamentosData.map(a => [a.id, a]));
+    const aspiracoesMap = new Map(aspiracoesData.map(a => [a.id, a]));
+    const doadorasMap = new Map(doadorasData.map(d => [d.id, d]));
+    const dosesMap = new Map(dosesData.map(d => [d.id, d]));
+
+    return (embrioesData || []).map((embriao) => {
+      const acasalamento = embriao.lote_fiv_acasalamento_id
+        ? acasalamentosMap.get(embriao.lote_fiv_acasalamento_id)
+        : undefined;
+      const aspiracao = acasalamento
+        ? aspiracoesMap.get(acasalamento.aspiracao_doadora_id)
+        : undefined;
+      const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
+      const dose = acasalamento ? dosesMap.get(acasalamento.dose_semen_id) : undefined;
+      const touro = dose?.touro ?? null;
+      return {
+        embriao_id: embriao.id,
+        doadora_registro: doadora?.registro,
+        touro_nome: touro?.nome,
+        raca: doadora?.raca || touro?.raca,
+      };
+    });
+  };
+
+  const handleAbrirNascimento = async (receptora: ReceptoraComStatus) => {
+    try {
+      setNascimentoLoading(true);
+      setNascimentoEmbrioes([]);
+      setNascimentoForm({
+        receptora_id: receptora.id,
+        data_nascimento: hoje,
+        sexo: '',
+        observacoes: '',
+      });
+      setShowNascimentoDialog(true);
+
+      const [embrioesInfo, sexoInfo] = await Promise.all([
+        carregarDadosNascimento(receptora.id),
+        supabase
+          .from('diagnosticos_gestacao')
+          .select('sexagem')
+          .eq('receptora_id', receptora.id)
+          .eq('tipo_diagnostico', 'SEXAGEM')
+          .order('data_diagnostico', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const sexoSugerido = sexoInfo?.data?.sexagem || inferSexoFromStatus(receptora.status_calculado);
+      setNascimentoForm(prev => ({ ...prev, sexo: sexoSugerido || '' }));
+      setNascimentoEmbrioes(embrioesInfo);
+      if (embrioesInfo.length === 0) {
+        toast({
+          title: 'Sem embriões disponíveis',
+          description: 'Nenhum embrião elegível para criar animal foi encontrado.',
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao preparar nascimento:', error);
+      toast({
+        title: 'Erro ao preparar nascimento',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setNascimentoLoading(false);
+    }
+  };
+
+  const handleRegistrarNascimento = async () => {
+    if (!selectedFazendaId) {
+      toast({
+        title: 'Fazenda não selecionada',
+        description: 'Selecione a fazenda antes de registrar o nascimento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!nascimentoForm.receptora_id) {
+      toast({
+        title: 'Receptora não selecionada',
+        description: 'Selecione a receptora para registrar o nascimento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!nascimentoForm.data_nascimento) {
+      toast({
+        title: 'Data de nascimento obrigatória',
+        description: 'Informe a data de nascimento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!nascimentoForm.sexo) {
+      toast({
+        title: 'Sexo obrigatório',
+        description: 'Selecione o sexo da prenhez.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (nascimentoEmbrioes.length === 0) {
+      toast({
+        title: 'Sem embriões vinculados',
+        description: 'Nenhum embrião encontrado para a última transferência desta receptora.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const fazendaAtual = fazendas.find(f => f.id === selectedFazendaId);
+      const clienteId = fazendaAtual?.cliente_id || null;
+
+      const animaisToInsert = nascimentoEmbrioes.map((embriao) => ({
+        embriao_id: embriao.embriao_id,
+        receptora_id: nascimentoForm.receptora_id,
+        fazenda_id: selectedFazendaId,
+        cliente_id: clienteId,
+        data_nascimento: nascimentoForm.data_nascimento,
+        sexo: nascimentoForm.sexo,
+        raca: embriao.raca || null,
+        pai_nome: embriao.touro_nome || null,
+        mae_nome: embriao.doadora_registro || null,
+        observacoes: nascimentoForm.observacoes || null,
+      }));
+
+
+      const { error: insertError } = await supabase
+        .from('animais')
+        .insert(animaisToInsert);
+      if (insertError) throw insertError;
+      const { data: animaisCheck, error: animaisCheckError } = await supabase
+        .from('animais')
+        .select('id, data_nascimento')
+        .eq('receptora_id', nascimentoForm.receptora_id);
+
+      const { error: receptoraError } = await supabase
+        .from('receptoras')
+        .update({ status_reprodutivo: 'VAZIA', data_provavel_parto: null })
+        .eq('id', nascimentoForm.receptora_id);
+      if (receptoraError) throw receptoraError;
+
+      toast({
+        title: 'Nascimento registrado',
+        description: `${animaisToInsert.length} animal(is) criado(s) com sucesso.`,
+      });
+      setShowNascimentoDialog(false);
+      setNascimentoEmbrioes([]);
+      setNascimentoForm({
+        receptora_id: '',
+        data_nascimento: hoje,
+        sexo: '',
+        observacoes: '',
+      });
+      await loadReceptoras();
+    } catch (error) {
+      console.error('Erro ao registrar nascimento:', error);
+      toast({
+        title: 'Erro ao registrar nascimento',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1076,6 +1300,16 @@ export default function Receptoras() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
+                              {receptora.status_calculado.includes('PRENHE') && receptora.data_provavel_parto && receptora.data_provavel_parto <= new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0] && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleAbrirNascimento(receptora)}
+                                  title="Registrar nascimento"
+                                >
+                                  <Baby className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1107,6 +1341,105 @@ export default function Receptoras() {
           </Card>
         </>
       )}
+
+      {/* Nascimento Dialog */}
+      <Dialog open={showNascimentoDialog} onOpenChange={setShowNascimentoDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Registrar nascimento</DialogTitle>
+            <DialogDescription>
+              Crie os animais a partir da prenhez desta receptora.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data de nascimento *</Label>
+                <DatePickerBR
+                  value={nascimentoForm.data_nascimento}
+                  onChange={(value) => setNascimentoForm(prev => ({ ...prev, data_nascimento: value || '' }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Sexo *</Label>
+                <Select
+                  value={nascimentoForm.sexo}
+                  onValueChange={(value) => setNascimentoForm(prev => ({ ...prev, sexo: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o sexo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FEMEA">Fêmea</SelectItem>
+                    <SelectItem value="MACHO">Macho</SelectItem>
+                    <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={nascimentoForm.observacoes}
+                onChange={(e) => setNascimentoForm(prev => ({ ...prev, observacoes: e.target.value }))}
+                placeholder="Observações sobre o nascimento"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Embriões vinculados</Label>
+              {nascimentoLoading && (
+                <div className="text-sm text-slate-500">Carregando dados...</div>
+              )}
+              {!nascimentoLoading && nascimentoEmbrioes.length === 0 && (
+                <div className="text-sm text-slate-500">Nenhum embrião disponível para registro.</div>
+              )}
+              {!nascimentoLoading && nascimentoEmbrioes.length > 0 && (
+                <div className="border rounded-lg p-3">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Embrião</TableHead>
+                        <TableHead>Doadora</TableHead>
+                        <TableHead>Touro</TableHead>
+                        <TableHead>Raça</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {nascimentoEmbrioes.map((e) => (
+                        <TableRow key={e.embriao_id}>
+                          <TableCell className="font-medium">{e.embriao_id.substring(0, 8)}</TableCell>
+                          <TableCell>{e.doadora_registro || '-'}</TableCell>
+                          <TableCell>{e.touro_nome || '-'}</TableCell>
+                          <TableCell>{e.raca || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowNascimentoDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleRegistrarNascimento}
+              disabled={submitting}
+            >
+              Registrar nascimento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
@@ -1292,6 +1625,9 @@ export default function Receptoras() {
         receptoraId={selectedReceptoraId}
         open={showHistorico}
         onClose={() => setShowHistorico(false)}
+        onUpdated={() => {
+          handleCioLivreConfirmado();
+        }}
       />
       </div>
     </div>

@@ -47,6 +47,8 @@ export interface Receptora {
   status_reprodutivo?: string;
   fazenda_atual_id?: string;
   data_provavel_parto?: string;
+  is_cio_livre?: boolean;
+  status_cio_livre?: 'PENDENTE' | 'CONFIRMADA' | 'REJEITADA' | 'SUBSTITUIDA' | null;
   created_at?: string;
 }
 
@@ -439,6 +441,21 @@ export interface DiagnosticoGestacao {
   observacoes?: string;
   veterinario_responsavel?: string; // Veterinário responsável pelo DG (diferente do da TE)
   tecnico_responsavel?: string; // Técnico responsável pelo DG (diferente do da TE)
+  created_at?: string;
+}
+
+export interface Animal {
+  id: string;
+  embriao_id?: string;
+  receptora_id?: string;
+  fazenda_id?: string;
+  cliente_id?: string;
+  data_nascimento?: string;
+  sexo?: 'FEMEA' | 'MACHO' | 'SEM_SEXO';
+  raca?: string;
+  pai_nome?: string;
+  mae_nome?: string;
+  observacoes?: string;
   created_at?: string;
 }
 

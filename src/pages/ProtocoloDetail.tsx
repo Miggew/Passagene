@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { calcularStatusReceptora } from '@/lib/receptoraStatus';
 import type { ProtocoloSincronizacao, Receptora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -202,7 +201,7 @@ export default function ProtocoloDetail() {
       // Buscar dados completos das receptoras usando os IDs da view
       const { data, error } = await supabase
         .from('receptoras')
-        .select('id, identificacao, nome')
+        .select('id, identificacao, nome, status_reprodutivo')
         .in('id', receptoraIds)
         .order('identificacao', { ascending: true });
       
@@ -224,7 +223,7 @@ export default function ProtocoloDetail() {
       const disponiveisPromises = (allReceptoras || [])
         .filter(r => !receptorasJaAdicionadas.includes(r.id))
         .map(async (r) => {
-          const status = await calcularStatusReceptora(r.id);
+          const status = r.status_reprodutivo || 'VAZIA';
           return status === 'VAZIA' ? r : null;
         });
 
@@ -257,7 +256,7 @@ export default function ProtocoloDetail() {
       // Buscar informações da receptora que está sendo adicionada
       const { data: receptoraData, error: receptoraDataError } = await supabase
         .from('receptoras')
-        .select('id, identificacao')
+        .select('id, identificacao, status_reprodutivo')
         .eq('id', addReceptoraForm.receptora_id)
         .single();
 
@@ -398,7 +397,7 @@ export default function ProtocoloDetail() {
       }
 
       // Check receptora status
-      const status = await calcularStatusReceptora(addReceptoraForm.receptora_id);
+      const status = receptoraData?.status_reprodutivo || 'VAZIA';
       
       if (status !== 'VAZIA') {
         const motivoMap: Record<string, string> = {
@@ -551,7 +550,7 @@ export default function ProtocoloDetail() {
       // Primeiro, buscar todas as receptoras com esse brinco
       const { data: receptorasComBrinco, error: brincoCheckError } = await supabase
         .from('receptoras')
-        .select('id, identificacao')
+        .select('id, identificacao, status_reprodutivo')
         .ilike('identificacao', createReceptoraForm.identificacao.trim());
 
       if (brincoCheckError) {
@@ -622,7 +621,7 @@ export default function ProtocoloDetail() {
         // SEGUNDO: Verificar status de cada receptora existente com esse brinco
         // Se alguma estiver em protocolo ativo ou sincronizada, bloquear criação
         for (const receptoraExistente of receptorasComBrinco) {
-          const status = await calcularStatusReceptora(receptoraExistente.id);
+          const status = receptoraExistente.status_reprodutivo || 'VAZIA';
           
           if (status !== 'VAZIA') {
             const motivoMap: Record<string, string> = {

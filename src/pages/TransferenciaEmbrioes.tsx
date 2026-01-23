@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import { useToast } from '@/hooks/use-toast';
-import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
+import { validarTransicaoStatus } from '@/lib/receptoraStatus';
 import { ArrowRightLeft, Package, AlertTriangle, FileText, X, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -46,16 +46,26 @@ interface Fazenda {
   nome: string;
 }
 
+interface Cliente {
+  id: string;
+  nome: string;
+}
+
 interface ReceptoraSincronizada {
   receptora_id: string;
   brinco: string;
-  protocolo_id: string;
-  protocolo_receptora_id: string;
+  protocolo_id?: string;
+  protocolo_receptora_id?: string;
+  pr_id?: string;
+  identificacao?: string;
   data_te_prevista?: string;
   data_limite_te?: string;
   quantidade_embrioes?: number; // Quantidade de embriões já transferidos nesta receptora
   ciclando_classificacao?: 'N' | 'CL' | null;
   qualidade_semaforo?: 1 | 2 | 3 | null;
+  origem?: 'PROTOCOLO' | 'CIO_LIVRE';
+  data_cio?: string;
+  status_reprodutivo?: string | null;
 }
 
 interface EmbrioCompleto {
@@ -66,6 +76,11 @@ interface EmbrioCompleto {
   localizacao_atual?: string;
   doadora_registro?: string;
   touro_nome?: string;
+  doadora_raca?: string;
+  touro_raca?: string;
+  cliente_nome?: string;
+  d7_pronto?: boolean;
+  d8_limite?: boolean;
   created_at?: string;
 }
 
@@ -94,13 +109,18 @@ interface PacoteEmbrioes {
 
 type SessaoTransferenciaStorage = {
   fazenda_id?: string;
-  protocolo_id?: string;
+  pacote_id?: string;
+  data_passo2?: string;
   data_te?: string;
   veterinario_responsavel?: string;
   tecnico_responsavel?: string;
   transferenciasIdsSessao?: string[];
   transferenciasSessao?: string[];
   embrioes_page?: number;
+  origem_embriao?: 'PACOTE' | 'CONGELADO';
+  filtro_cliente_id?: string;
+  filtro_raca?: string;
+  incluir_cio_livre?: boolean;
 };
 
 type RelatorioTransferenciaItem = {
@@ -136,7 +156,11 @@ type DoseComTouro = {
   id: string;
   touro?: {
     nome?: string | null;
-  } | null;
+    raca?: string | null;
+  } | Array<{
+    nome?: string | null;
+    raca?: string | null;
+  }> | null;
 };
 
 type EmbriaoComLote = {
@@ -145,30 +169,29 @@ type EmbriaoComLote = {
 
 export default function TransferenciaEmbrioes() {
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [pacotes, setPacotes] = useState<PacoteEmbrioes[]>([]);
   const [pacotesFiltrados, setPacotesFiltrados] = useState<PacoteEmbrioes[]>([]);
-  const [protocolosDisponiveis, setProtocolosDisponiveis] = useState<Array<{
-    id: string;
-    status?: string;
-    data_inicio?: string;
-    total_receptoras: number;
-    receptoras_aptas: number;
-    sincronizadas: number;
-  }>>([]);
-  const protocolosRequestId = useRef(0);
+  const [embrioesCongelados, setEmbrioesCongelados] = useState<EmbrioCompleto[]>([]);
+  const [loadingCongelados, setLoadingCongelados] = useState(false);
   const [receptoras, setReceptoras] = useState<ReceptoraSincronizada[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [permitirDuplas, setPermitirDuplas] = useState(false);
   const [transferenciasSessao, setTransferenciasSessao] = useState<string[]>([]); // IDs dos protocolos_receptoras da sessão atual
   const [transferenciasIdsSessao, setTransferenciasIdsSessao] = useState<string[]>([]); // IDs das transferências_embrioes da sessão atual
   const [showRelatorioDialog, setShowRelatorioDialog] = useState(false);
   const [relatorioData, setRelatorioData] = useState<RelatorioTransferenciaItem[]>([]);
   const [isVisualizacaoApenas, setIsVisualizacaoApenas] = useState(false);
   const [embrioesPage, setEmbrioesPage] = useState(1);
+  const [origemEmbriao, setOrigemEmbriao] = useState<'PACOTE' | 'CONGELADO'>('PACOTE');
+  const [filtroClienteId, setFiltroClienteId] = useState('');
+  const [filtroRaca, setFiltroRaca] = useState('');
+  const [dataPasso2, setDataPasso2] = useState(new Date().toISOString().split('T')[0]);
+  const [incluirCioLivre, setIncluirCioLivre] = useState(false);
+  const [contagemSessaoPorReceptora, setContagemSessaoPorReceptora] = useState<Record<string, number>>({});
+  const [receptorasSessaoInfo, setReceptorasSessaoInfo] = useState<Record<string, ReceptoraSincronizada>>({});
   const { toast } = useToast();
-  const AUTO_RESTORE_ESTADO = true;
-  const AUTO_RESTORE_SESSAO = false;
+  const AUTO_RESTORE_SESSAO = true;
   const EMBRIOES_PAGE_SIZE = 20;
 
   const [formData, setFormData] = useState({
@@ -191,39 +214,106 @@ export default function TransferenciaEmbrioes() {
     tecnico_responsavel: '',
   });
 
-  // Chave para localStorage
-  const STORAGE_KEY = 'transferencia_embrioes_sessao';
-
-  // Função para salvar estado no localStorage
+  // Função para salvar estado da sessão no banco
   const salvarEstadoSessao = () => {
     const estadoSessao = {
       fazenda_id: formData.fazenda_id,
       pacote_id: formData.pacote_id,
-      protocolo_id: formData.protocolo_id,
+      data_passo2: dataPasso2,
       data_te: formData.data_te,
       veterinario_responsavel: formData.veterinario_responsavel,
       tecnico_responsavel: formData.tecnico_responsavel,
-      permitirDuplas,
+      origem_embriao: origemEmbriao,
+      filtro_cliente_id: filtroClienteId,
+      filtro_raca: filtroRaca,
+      incluir_cio_livre: incluirCioLivre,
       transferenciasSessao,
       transferenciasIdsSessao,
       embrioes_page: embrioesPage,
-    };    localStorage.setItem(STORAGE_KEY, JSON.stringify(estadoSessao));
+    };
+    void salvarSessaoNoBanco(estadoSessao);
   };
 
-  // Função para restaurar estado do localStorage
-  const restaurarEstadoSessao = () => {
-    try {
-      const estadoSalvo = localStorage.getItem(STORAGE_KEY);
-      if (estadoSalvo) {
-        const estado = JSON.parse(estadoSalvo);        if (estado.fazenda_id) {
-          // Desativar auto-seleção: aguardar seleção manual da fazenda
-          return false;
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao restaurar estado da sessão:', error);
+  const salvarSessaoNoBanco = async (estadoSessao: SessaoTransferenciaStorage) => {
+    if (!estadoSessao.fazenda_id) return;
+    const temTransferencias =
+      (estadoSessao.transferenciasIdsSessao?.length || 0) > 0 ||
+      (estadoSessao.transferenciasSessao?.length || 0) > 0;
+    if (!temTransferencias) return;
+
+    const payload = {
+      fazenda_id: estadoSessao.fazenda_id,
+      pacote_id: estadoSessao.pacote_id || null,
+      data_passo2: estadoSessao.data_passo2 || null,
+      data_te: estadoSessao.data_te || null,
+      veterinario_responsavel: estadoSessao.veterinario_responsavel || null,
+      tecnico_responsavel: estadoSessao.tecnico_responsavel || null,
+      origem_embriao: estadoSessao.origem_embriao || null,
+      filtro_cliente_id: estadoSessao.filtro_cliente_id || null,
+      filtro_raca: estadoSessao.filtro_raca || null,
+      incluir_cio_livre: !!estadoSessao.incluir_cio_livre,
+      transferencias_ids: estadoSessao.transferenciasIdsSessao || [],
+      protocolo_receptora_ids: estadoSessao.transferenciasSessao || [],
+      status: 'ABERTA',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('transferencias_sessoes')
+      .upsert(payload, { onConflict: 'fazenda_id,status' });
+    if (error && error.code !== 'PGRST205') {
+      console.error('Erro ao salvar sessão de TE no banco:', error);
     }
-    return false;
+  };
+
+  const encerrarSessaoNoBanco = async (fazendaId?: string) => {
+    if (!fazendaId) return;
+    const { error } = await supabase
+      .from('transferencias_sessoes')
+      .update({ status: 'ENCERRADA', updated_at: new Date().toISOString() })
+      .eq('fazenda_id', fazendaId)
+      .eq('status', 'ABERTA');
+    if (error && error.code !== 'PGRST205') {
+      console.error('Erro ao encerrar sessão no banco:', error);
+    }
+  };
+
+  const aplicarSessaoPersistida = (sessao: any) => {
+    const transferenciasIds = Array.isArray(sessao?.transferencias_ids)
+      ? sessao.transferencias_ids
+      : [];
+    const protocoloReceptoraIds = Array.isArray(sessao?.protocolo_receptora_ids)
+      ? sessao.protocolo_receptora_ids
+      : [];
+    const origem = sessao?.origem_embriao === 'CONGELADO' ? 'CONGELADO' : 'PACOTE';
+    const dataTe = sessao?.data_te || new Date().toISOString().split('T')[0];
+
+    setTransferenciasIdsSessao(transferenciasIds);
+    setTransferenciasSessao(protocoloReceptoraIds);
+    setOrigemEmbriao(origem);
+    setFiltroClienteId(sessao?.filtro_cliente_id || '');
+    setFiltroRaca(sessao?.filtro_raca || '');
+    setDataPasso2(sessao?.data_passo2 || new Date().toISOString().split('T')[0]);
+    setIncluirCioLivre(!!sessao?.incluir_cio_livre);
+    setCamposPacote({
+      data_te: dataTe,
+      veterinario_responsavel: sessao?.veterinario_responsavel || '',
+      tecnico_responsavel: sessao?.tecnico_responsavel || '',
+    });
+    setFormData((prev) => ({
+      ...prev,
+      fazenda_id: sessao?.fazenda_id || '',
+      pacote_id: sessao?.pacote_id || '',
+      protocolo_id: sessao?.protocolo_id || '',
+      embriao_id: '',
+      receptora_id: '',
+      protocolo_receptora_id: '',
+      data_te: dataTe,
+      veterinario_responsavel: sessao?.veterinario_responsavel || '',
+      tecnico_responsavel: sessao?.tecnico_responsavel || '',
+      observacoes: '',
+    }));
+
   };
 
   // Função para buscar transferências não finalizadas e restaurar sessão (silenciosamente)
@@ -231,144 +321,61 @@ export default function TransferenciaEmbrioes() {
     try {
       if (!AUTO_RESTORE_SESSAO) {        return false;
       }
-      // Buscar todas as transferências REALIZADAS dos últimos 7 dias
-      const dataLimite = new Date();
-      dataLimite.setDate(dataLimite.getDate() - 7);
-      const dataLimiteStr = dataLimite.toISOString().split('T')[0];
-      const hoje = new Date().toISOString().split('T')[0];
-      
-      const { data: transferenciasData, error: teError } = await supabase
-        .from('transferencias_embrioes')
-        .select('id, protocolo_receptora_id, data_te, receptora_id, created_at')
-        .eq('status_te', 'REALIZADA')
-        .gte('data_te', dataLimiteStr)
-        .order('created_at', { ascending: false });
-
-      if (teError || !transferenciasData || transferenciasData.length === 0) {
-        return false;
+      // Priorizar sessão persistida no banco
+      const { data: sessoesData, error: sessoesError } = await supabase
+        .from('transferencias_sessoes')
+        .select('*')
+        .eq('status', 'ABERTA')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (sessoesError && sessoesError.code !== 'PGRST205') {
+        console.error('Erro ao restaurar sessão do banco:', sessoesError);
       }
-      // Obter protocolo_receptora_ids únicos
-      const protocoloReceptoraIds = [...new Set(
-        transferenciasData.map(t => t.protocolo_receptora_id).filter(Boolean)
-      )];
+      if (sessoesData && sessoesData.length > 0) {
+        const sessao = sessoesData[0];
+        const transferenciasIds = Array.isArray(sessao?.transferencias_ids)
+          ? sessao.transferencias_ids
+          : [];
+        let protocoloReceptoraIds = Array.isArray(sessao?.protocolo_receptora_ids)
+          ? sessao.protocolo_receptora_ids
+          : [];
 
-      // Verificar status dos protocolos_receptoras
-      const { data: protocolosReceptorasData, error: prError } = await supabase
-        .from('protocolo_receptoras')
-        .select('id, status')
-        .in('id', protocoloReceptoraIds);
-
-      if (prError || !protocolosReceptorasData || protocolosReceptorasData.length === 0) {
-        return false;
-      }
-      // Priorizar transferências com protocolos NÃO UTILIZADAS (sessão realmente em andamento)
-      const protocoloReceptoraIdsAtivos = new Set(
-        protocolosReceptorasData
-          .filter(pr => pr.status !== 'UTILIZADA')
-          .map(pr => pr.id)
-      );
-      
-      let transferenciasAtivas = transferenciasData.filter(t => 
-        t.protocolo_receptora_id && protocoloReceptoraIdsAtivos.has(t.protocolo_receptora_id)
-      );
-
-      // Se não encontrou transferências com protocolos ativos, verificar transferências de hoje
-      if (transferenciasAtivas.length === 0) {
-        const transferenciasHoje = transferenciasData.filter(t => t.data_te === hoje);
-        
-        if (transferenciasHoje.length > 0) {
-          transferenciasAtivas = transferenciasHoje;
-        } else {
-          // Última tentativa: buscar transferências dos últimos 3 dias
-          const tresDiasAtras = new Date();
-          tresDiasAtras.setDate(tresDiasAtras.getDate() - 3);
-          const tresDiasAtrasStr = tresDiasAtras.toISOString().split('T')[0];
-          
-          const transferenciasRecentes = transferenciasData.filter(t => 
-            t.data_te >= tresDiasAtrasStr
-          );
-          
-          if (transferenciasRecentes.length > 0) {
-            transferenciasAtivas = transferenciasRecentes;
-          } else {
-            return false;
+        if (protocoloReceptoraIds.length === 0 && transferenciasIds.length > 0) {
+          const { data: transferenciasSessaoData, error: transferenciasSessaoError } = await supabase
+            .from('transferencias_embrioes')
+            .select('protocolo_receptora_id')
+            .in('id', transferenciasIds);
+          if (!transferenciasSessaoError && transferenciasSessaoData) {
+            protocoloReceptoraIds = [...new Set(
+              transferenciasSessaoData
+                .map(t => t.protocolo_receptora_id)
+                .filter((id): id is string => !!id)
+            )];
           }
         }
-      }
-      // Agrupar por fazenda através das receptoras
-      const receptoraIds = [...new Set(transferenciasAtivas.map(t => t.receptora_id))];
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual')
-        .in('receptora_id', receptoraIds);
 
-      if (viewError || !viewData || viewData.length === 0) {
-        return false;
-      }
-
-      // Obter fazenda mais comum
-      const fazendaIds = viewData.map(v => v.fazenda_id_atual).filter(Boolean);
-      const fazendaMaisComum = fazendaIds.sort((a, b) =>
-        fazendaIds.filter(id => id === a).length - fazendaIds.filter(id => id === b).length
-      ).pop();
-
-      if (!fazendaMaisComum) {
-        return false;
-      }
-      // Restaurar sessão com transferências ativas
-      const transferenciasIds = transferenciasAtivas.map(t => t.id);
-      const protocoloReceptoraIdsRestaurar = [...new Set(transferenciasAtivas.map(t => t.protocolo_receptora_id).filter(Boolean))];
-      
-      setTransferenciasIdsSessao(transferenciasIds);
-      setTransferenciasSessao(protocoloReceptoraIdsRestaurar);
-      
-      // Buscar primeira transferência (mais recente) para restaurar campos do pacote
-      const primeiraTransferencia = transferenciasAtivas[0];
-      if (primeiraTransferencia) {
-        const { data: transferenciaCompleta } = await supabase
-          .from('transferencias_embrioes')
-          .select('veterinario_responsavel, tecnico_responsavel, data_te')
-          .eq('id', primeiraTransferencia.id)
-          .single();
-
-        if (transferenciaCompleta) {
-          const novoEstado = {
-            fazenda_id: fazendaMaisComum,
-            pacote_id: '',
-            data_te: transferenciaCompleta.data_te || primeiraTransferencia.data_te,
-            veterinario_responsavel: transferenciaCompleta.veterinario_responsavel || '',
-            tecnico_responsavel: transferenciaCompleta.tecnico_responsavel || '',
-          };
-          
-          setFormData(prev => ({
-            ...prev,
-            ...novoEstado,
-          }));
-          setCamposPacote({
-            data_te: transferenciaCompleta.data_te || primeiraTransferencia.data_te,
-            veterinario_responsavel: transferenciaCompleta.veterinario_responsavel || '',
-            tecnico_responsavel: transferenciaCompleta.tecnico_responsavel || '',
-          });
-          
-          // Salvar estado restaurado no localStorage
-          const estadoSessao = {
-            ...novoEstado,
-            permitirDuplas: false,
-            transferenciasSessao: protocoloReceptoraIdsRestaurar,
-            transferenciasIdsSessao: transferenciasIds,
-          embrioes_page: 1,
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(estadoSessao));
-
-          toast({
-            title: 'Sessão em andamento restaurada',
-            description: `${transferenciasAtivas.length} transferência(s) encontrada(s). Continue de onde parou.`,
-          });
-          
-          return true;
+        let temProtocolosAtivos = false;
+        if (protocoloReceptoraIds.length > 0) {
+          const { data: protocolosData, error: protocolosError } = await supabase
+            .from('protocolo_receptoras')
+            .select('id, status')
+            .in('id', protocoloReceptoraIds);
+          if (!protocolosError && protocolosData) {
+            temProtocolosAtivos = protocolosData.some(p => p.status !== 'UTILIZADA');
+          }
         }
-      }
 
+        if (!temProtocolosAtivos) {
+          await supabase
+            .from('transferencias_sessoes')
+            .update({ status: 'ENCERRADA', updated_at: new Date().toISOString() })
+            .eq('id', sessao.id);
+          return false;
+        }
+
+        aplicarSessaoPersistida(sessao);
+        return true;
+      }
       return false;
     } catch (error) {
       console.error('Erro ao restaurar sessão em andamento:', error);
@@ -378,31 +385,11 @@ export default function TransferenciaEmbrioes() {
 
   useEffect(() => {
     const carregarDados = async () => {
-      await Promise.all([loadFazendas(), loadPacotes()]);
+      await Promise.all([loadFazendas(), loadPacotes(), loadClientes()]);
       
-      if (AUTO_RESTORE_ESTADO) {
-        // Tentar restaurar estado salvo do localStorage primeiro
-        const estadoRestaurado = restaurarEstadoSessao();
-        
-        if (estadoRestaurado) {
-          const estadoSalvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-          if (estadoSalvo.fazenda_id) {
-            await recarregarReceptoras(estadoSalvo.fazenda_id);
-          }
-        } else {
-          // Se não há estado salvo, tentar restaurar sessão em andamento do banco
-          await restaurarSessaoEmAndamento();
-          // Após restaurar sessão, também restaurar estado (que foi salvo em restaurarSessaoEmAndamento)
-          const estadoRestauradoBanco = restaurarEstadoSessao();
-          if (estadoRestauradoBanco) {
-            const estadoSalvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-            if (estadoSalvo.fazenda_id) {
-              await recarregarReceptoras(estadoSalvo.fazenda_id);
-            }
-          }
-        }
-      } else {
-        localStorage.removeItem(STORAGE_KEY);      }
+      if (AUTO_RESTORE_SESSAO) {
+        await restaurarSessaoEmAndamento();
+      }
     };
     
     carregarDados();
@@ -413,7 +400,11 @@ export default function TransferenciaEmbrioes() {
     if (formData.fazenda_id || formData.pacote_id || transferenciasIdsSessao.length > 0) {
       salvarEstadoSessao();
     }
-  }, [formData.fazenda_id, formData.pacote_id, formData.protocolo_id, formData.data_te, formData.veterinario_responsavel, formData.tecnico_responsavel, permitirDuplas, transferenciasSessao.length, transferenciasIdsSessao.length, embrioesPage]);
+  }, [formData.fazenda_id, formData.pacote_id, formData.protocolo_id, formData.data_te, formData.veterinario_responsavel, formData.tecnico_responsavel, origemEmbriao, filtroClienteId, filtroRaca, dataPasso2, incluirCioLivre, transferenciasSessao.length, transferenciasIdsSessao.length, embrioesPage]);
+
+  useEffect(() => {
+    void loadFazendas();
+  }, [dataPasso2]);
 
   useEffect(() => {
     // Filtrar pacotes quando a fazenda mudar
@@ -427,179 +418,141 @@ export default function TransferenciaEmbrioes() {
     }
   }, [formData.fazenda_id, pacotes]);
 
-  // Recarregar receptoras quando o switch mudar (sem limpar campos)
   useEffect(() => {
-    if (formData.fazenda_id && formData.protocolo_id) {
-      carregarReceptorasDaFazenda(
-        formData.fazenda_id,
-        permitirDuplas,
-        formData.protocolo_id || undefined
-      );
+    if (formData.fazenda_id && dataPasso2) {
+      carregarReceptorasDaFazenda(formData.fazenda_id);
     }
-  }, [formData.fazenda_id, formData.protocolo_id, permitirDuplas]);
+  }, [formData.fazenda_id, dataPasso2, incluirCioLivre]);
+
+  useEffect(() => {
+    const carregarContagemSessao = async () => {
+      if (transferenciasIdsSessao.length === 0) {
+        setContagemSessaoPorReceptora({});
+        setReceptorasSessaoInfo({});
+        return;
+      }
+      const { data, error } = await supabase
+        .from('transferencias_embrioes')
+        .select('id, receptora_id, protocolo_receptora_id, receptoras(id, identificacao, status_reprodutivo)')
+        .in('id', transferenciasIdsSessao);
+      if (error) {
+        console.error('Erro ao reconstruir contagem da sessão:', error);
+        return;
+      }
+      const contagem: Record<string, number> = {};
+      const info: Record<string, ReceptoraSincronizada> = {};
+      (data || []).forEach((item: any) => {
+        if (!item.receptora_id) return;
+        contagem[item.receptora_id] = (contagem[item.receptora_id] || 0) + 1;
+        const receptora = Array.isArray(item.receptoras) ? item.receptoras[0] : item.receptoras;
+        info[item.receptora_id] = {
+          receptora_id: item.receptora_id,
+          brinco: receptora?.identificacao || 'N/A',
+          identificacao: receptora?.identificacao || '',
+          protocolo_id: undefined,
+          protocolo_receptora_id: item.protocolo_receptora_id || '',
+          quantidade_embrioes: contagem[item.receptora_id],
+          origem: item.protocolo_receptora_id ? 'PROTOCOLO' : 'CIO_LIVRE',
+          status_reprodutivo: receptora?.status_reprodutivo || 'SERVIDA',
+        };
+      });
+      setContagemSessaoPorReceptora(contagem);
+      setReceptorasSessaoInfo(info);
+    };
+    void carregarContagemSessao();
+  }, [transferenciasIdsSessao]);
+
+  const loadClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('id, nome')
+        .order('nome', { ascending: true });
+      if (error) throw error;
+      setClientes(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+      setClientes([]);
+    }
+  };
 
   const loadFazendas = async () => {
     try {
-      const t0 = performance.now();
-      // Buscar receptoras sincronizadas usando a view de status
-      const { data: statusData, error: statusError } = await supabase
-        .from('v_protocolo_receptoras_status')
-        .select('receptora_id')
-        .eq('fase_ciclo', 'SINCRONIZADA');
-      if (statusError) throw statusError;
-
-      if (!statusData || statusData.length === 0) {
-        let estadoSalvo: SessaoTransferenciaStorage | null = null;
-        try {
-          estadoSalvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as SessaoTransferenciaStorage | null;
-        } catch {
-          estadoSalvo = null;
-        }
-        const temSessaoEmAndamento = !!estadoSalvo?.fazenda_id &&
-          ((estadoSalvo.transferenciasIdsSessao?.length || 0) > 0 || (estadoSalvo.transferenciasSessao?.length || 0) > 0);
-        if (temSessaoEmAndamento) {
-          const { data: fazendasData, error: fazendasError } = await supabase
-            .from('fazendas')
-            .select('id, nome')
-            .eq('id', estadoSalvo.fazenda_id)
-            .limit(1);          if (!fazendasError && fazendasData && fazendasData.length > 0) {
-            setFazendas(fazendasData);
-            setLoading(false);
-            return;
-          }
-        }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TransferenciaEmbrioes.tsx:loadFazendas:entry',message:'entrada loadFazendas',data:{dataPasso2,hasDataPasso2:!!dataPasso2},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+      if (!dataPasso2) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TransferenciaEmbrioes.tsx:loadFazendas:noData',message:'sem dataPasso2, limpando fazendas',data:{dataPasso2},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         setFazendas([]);
         setLoading(false);
         return;
       }
 
-      const { data: receptorasSincronizadasData } = await supabase
-        .from('receptoras')
-        .select('id, status_reprodutivo')
-        .eq('status_reprodutivo', 'SINCRONIZADA');
-      const receptoraIdsSincronizadas = (receptorasSincronizadasData || []).map(r => r.id);
-      const statusReceptoraIds = new Set(statusData.map(s => s.receptora_id));
-      const receptorasSincronizadasForaView = receptoraIdsSincronizadas.filter(id => !statusReceptoraIds.has(id));
+      const { data: protocolosData, error: protocolosError } = await supabase
+        .from('protocolos_sincronizacao')
+        .select('id')
+        .eq('passo2_data', dataPasso2);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TransferenciaEmbrioes.tsx:loadFazendas:statusData',message:'resultado protocolos_sincronizacao',data:{hasError:!!protocolosError,errorCode:protocolosError?.code||null,errorMsg:protocolosError?.message||null,count:protocolosData?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
+      if (protocolosError) throw protocolosError;
 
-      let protocolosForaView: { receptora_id: string; status: string }[] = [];
-      let transferenciasForaView: { receptora_id: string; status_te: string }[] = [];
-      if (receptorasSincronizadasForaView.length > 0) {
-        const { data: prForaView } = await supabase
-          .from('protocolo_receptoras')
-          .select('receptora_id, status')
-          .in('receptora_id', receptorasSincronizadasForaView);
-        protocolosForaView = prForaView || [];
-
-        const { data: teForaView } = await supabase
-          .from('transferencias_embrioes')
-          .select('receptora_id, status_te')
-          .in('receptora_id', receptorasSincronizadasForaView);
-        transferenciasForaView = teForaView || [];
+      const protocoloIds = [...new Set((protocolosData || []).map(p => p.id).filter(Boolean))];
+      if (protocoloIds.length === 0) {
+        setFazendas([]);
+        setLoading(false);
+        return;
       }
 
-      const protocolosUtilizados = new Set(
-        protocolosForaView.filter(pr => pr.status === 'UTILIZADA').map(pr => pr.receptora_id)
-      );
-      const transferenciasRealizadas = new Set(
-        transferenciasForaView.filter(te => te.status_te === 'REALIZADA').map(te => te.receptora_id)
-      );
-      const receptorasParaCorrigir = receptorasSincronizadasForaView.filter(
-        id => protocolosUtilizados.has(id) && transferenciasRealizadas.has(id)
-      );
+      const { data: statusData, error: statusError } = await supabase
+        .from('v_protocolo_receptoras_status')
+        .select('receptora_id')
+        .eq('fase_ciclo', 'SINCRONIZADA')
+        .in('protocolo_id', protocoloIds);
+      if (statusError) throw statusError;
 
-      if (receptorasParaCorrigir.length > 0) {
-        const { data: receptorasAtualizadas, error: atualizarError } = await supabase
-          .from('receptoras')
-          .update({ status_reprodutivo: 'SERVIDA' })
-          .in('id', receptorasParaCorrigir)
-          .select('id');
-      }
-      let sincronizadasPorFazendaStatus = new Map<string, number>();
-      if (receptoraIdsSincronizadas.length > 0) {
-        const { data: viewSincronizadas } = await supabase
-          .from('vw_receptoras_fazenda_atual')
-          .select('receptora_id, fazenda_id_atual')
-          .in('receptora_id', receptoraIdsSincronizadas);
-        viewSincronizadas?.forEach(v => {
-          if (!v.fazenda_id_atual) return;
-          sincronizadasPorFazendaStatus.set(
-            v.fazenda_id_atual,
-            (sincronizadasPorFazendaStatus.get(v.fazenda_id_atual) || 0) + 1
-          );
-        });
+      const receptoraIds = [...new Set((statusData || []).map(s => s.receptora_id).filter(Boolean))];
+      if (receptoraIds.length === 0) {
+        setFazendas([]);
+        setLoading(false);
+        return;
       }
 
-      // Obter IDs únicos das receptoras sincronizadas
-      const receptoraIds = [...new Set(statusData.map(s => s.receptora_id))];
-
-      // Buscar fazendas atuais dessas receptoras usando a view
       const { data: viewData, error: viewError } = await supabase
         .from('vw_receptoras_fazenda_atual')
         .select('fazenda_id_atual')
         .in('receptora_id', receptoraIds);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TransferenciaEmbrioes.tsx:loadFazendas:viewData',message:'resultado view fazenda atual',data:{hasError:!!viewError,errorCode:viewError?.code||null,errorMsg:viewError?.message||null,count:viewData?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
       if (viewError) throw viewError;
 
-      if (!viewData || viewData.length === 0) {        setFazendas([]);
+      const fazendaIds = [...new Set((viewData || []).map(v => v.fazenda_id_atual).filter(Boolean))];
+      if (fazendaIds.length === 0) {
+        setFazendas([]);
         setLoading(false);
         return;
       }
 
-      const receptoraIdsNaView = [...new Set(
-        (await supabase
-          .from('vw_receptoras_fazenda_atual')
-          .select('receptora_id, fazenda_id_atual')
-          .in('receptora_id', receptoraIds)).data || []
-      )];
-
-      const receptoraIdsParaStatus = receptoraIdsNaView.map(r => r.receptora_id);
-      const { data: receptorasStatusData } = await supabase
-        .from('receptoras')
-        .select('id, status_reprodutivo')
-        .in('id', receptoraIdsParaStatus);
-
-      const fazendaPorReceptora = new Map(receptoraIdsNaView.map(r => [r.receptora_id, r.fazenda_id_atual]));
-      const sincronizadasPorFazenda = new Map<string, number>();
-      receptorasStatusData?.forEach(r => {
-        const fazendaId = fazendaPorReceptora.get(r.id);
-        if (!fazendaId) return;
-        if (r.status_reprodutivo === 'SINCRONIZADA') {
-          sincronizadasPorFazenda.set(fazendaId, (sincronizadasPorFazenda.get(fazendaId) || 0) + 1);
-        }
-      });
-
-      const { data: transferenciasStatusData } = await supabase
-        .from('transferencias_embrioes')
-        .select('receptora_id, status_te')
-        .in('receptora_id', receptoraIdsParaStatus)
-        .eq('status_te', 'REALIZADA');
-
-      const transferenciasPorReceptora = new Set(
-        (transferenciasStatusData || []).map(t => t.receptora_id)
-      );
-
-      const inconsistentes = (receptorasStatusData || [])
-        .filter(r => r.status_reprodutivo === 'SINCRONIZADA' && transferenciasPorReceptora.has(r.id))
-        .slice(0, 5)
-        .map(r => ({ receptora_id: r.id, status_reprodutivo: r.status_reprodutivo }));
-
-      // Obter IDs únicos das fazendas
-      const fazendaIds = [...new Set(viewData.map(v => v.fazenda_id_atual).filter(Boolean))];
-
-      if (fazendaIds.length === 0) {        setFazendas([]);
-        setLoading(false);
-        return;
-      }
-
-      // Buscar dados das fazendas
       const { data: fazendasData, error: fazendasError } = await supabase
         .from('fazendas')
         .select('id, nome')
         .in('id', fazendaIds)
         .order('nome', { ascending: true });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TransferenciaEmbrioes.tsx:loadFazendas:fazendas',message:'resultado fazendas',data:{hasError:!!fazendasError,errorCode:fazendasError?.code||null,errorMsg:fazendasError?.message||null,count:fazendasData?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       if (fazendasError) throw fazendasError;
 
-      setFazendas(fazendasData || []);      setLoading(false);    } catch (error) {
+      setFazendas(fazendasData || []);
+      setLoading(false);
+    } catch (error) {
       console.error('Erro ao carregar fazendas:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d06514c8-d078-4b09-95be-4d993bc95f78',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TransferenciaEmbrioes.tsx:loadFazendas:catch',message:'erro ao carregar fazendas',data:{errorMsg:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H5'})}).catch(()=>{});
+      // #endregion
       toast({
         title: 'Erro ao carregar fazendas',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -612,14 +565,17 @@ export default function TransferenciaEmbrioes() {
   const loadPacotes = async () => {
     try {
       const t0 = performance.now();
-      // Buscar embriões disponíveis para transferência:
-      // - Embriões FRESCOS sempre disponíveis (exceto TRANSFERIDO ou já transferidos)
-      // - Embriões CONGELADOS sem cliente_id ainda disponíveis (exceto TRANSFERIDO ou já transferidos)
-      // - Embriões CONGELADOS com cliente_id NÃO aparecem (já direcionados para estoque do cliente)
-      // - Embriões TRANSFERIDO ou já com transferência nunca aparecem na lista
+      const { error: descarteError } = await supabase.rpc('descartar_embrioes_d9');
+      if (descarteError) {
+        if (descarteError.code !== 'PGRST202') {
+          console.warn('Aviso ao descartar embriões D9:', descarteError.message || descarteError);
+        }
+      }
+      // Buscar embriões FRESCOS disponíveis para transferência (pacotes)
+      // Embriões congelados são carregados em fluxo separado
       // 
       // Buscar IDs de embriões já transferidos e embriões disponíveis em paralelo
-      const [transferenciasResult, frescosResult, congeladosResult] = await Promise.all([
+      const [transferenciasResult, frescosResult] = await Promise.all([
         supabase
           .from('transferencias_embrioes')
           .select('embriao_id'),
@@ -628,23 +584,15 @@ export default function TransferenciaEmbrioes() {
           .select('*')
           .eq('status_atual', 'FRESCO')
           .order('created_at', { ascending: false }),
-        supabase
-          .from('embrioes')
-          .select('*')
-          .eq('status_atual', 'CONGELADO')
-          .is('cliente_id', null)
-          .order('created_at', { ascending: false })
       ]);
 
       const embrioesTransferidosIds = transferenciasResult.data?.map(t => t.embriao_id) || [];
 
       if (frescosResult.error) throw frescosResult.error;
-      if (congeladosResult.error) throw congeladosResult.error;
 
       // Combinar os resultados e excluir embriões já transferidos ou com status TRANSFERIDO
       const embrioesData = [
-        ...(frescosResult.data || []),
-        ...(congeladosResult.data || [])
+        ...(frescosResult.data || [])
       ]
       .filter(e => !embrioesTransferidosIds.includes(e.id) && e.status_atual !== 'TRANSFERIDO')
       .sort((a, b) => {
@@ -657,6 +605,20 @@ export default function TransferenciaEmbrioes() {
       if (!embrioesData || embrioesData.length === 0) {
         setPacotes([]);
         return;
+      }
+
+      const disponibilidadeIds = embrioesData.map(e => e.id);
+      let disponibilidadeMap = new Map<string, { d7_pronto?: boolean; d8_limite?: boolean }>();
+      if (disponibilidadeIds.length > 0) {
+        const { data: disponibilidadeData, error: disponibilidadeError } = await supabase
+          .from('v_embrioes_disponiveis_te')
+          .select('embriao_id, d7_pronto, d8_limite')
+          .in('embriao_id', disponibilidadeIds);
+        if (!disponibilidadeError && disponibilidadeData) {
+          disponibilidadeMap = new Map(
+            disponibilidadeData.map(d => [d.embriao_id, { d7_pronto: d.d7_pronto, d8_limite: d.d8_limite }])
+          );
+        }
       }
 
       const loteFivIds = [
@@ -817,7 +779,8 @@ export default function TransferenciaEmbrioes() {
               // Criar mapa de dose_id -> nome do touro
               dosesMap = new Map(
                 dosesData.map((d) => {
-                  const touro = (d as DoseComTouro).touro;
+                  const touroRaw = (d as DoseComTouro).touro;
+                  const touro = Array.isArray(touroRaw) ? touroRaw[0] : touroRaw;
                   return [d.id, touro?.nome || 'Touro desconhecido'];
                 })
               );
@@ -894,6 +857,8 @@ export default function TransferenciaEmbrioes() {
           ...embriao,
           doadora_registro: doadoraRegistro,
           touro_nome: touroNome,
+          d7_pronto: disponibilidadeMap.get(embriao.id)?.d7_pronto,
+          d8_limite: disponibilidadeMap.get(embriao.id)?.d8_limite,
         });
         pacote.total++;
 
@@ -932,7 +897,8 @@ export default function TransferenciaEmbrioes() {
         .sort((a, b) => b.data_despacho.localeCompare(a.data_despacho));
 
 
-      setPacotes(pacotesArray);    } catch (error) {
+      setPacotes(pacotesArray);
+    } catch (error) {
       console.error('Erro ao carregar pacotes:', error);
       toast({
         title: 'Erro ao carregar pacotes de embriões',
@@ -943,289 +909,386 @@ export default function TransferenciaEmbrioes() {
     }
   };
 
-  // Função unificada para carregar receptoras (usada tanto em handleFazendaChange quanto em recarregarReceptoras)
-  const carregarReceptorasDaFazenda = async (
-    fazendaId: string,
-    valorPermitirDuplas: boolean = permitirDuplas,
-    protocoloId?: string
-  ) => {
+  const loadEmbrioesCongelados = async () => {
+    const filtroRacaNormalizado = filtroRaca.trim().toLowerCase();
+    if (!filtroClienteId && !filtroRacaNormalizado) {
+      setEmbrioesCongelados([]);
+      return;
+    }
+
     try {
-      const t0 = performance.now();
-      // Verificar se a fazenda tem receptoras antes de continuar
+      setLoadingCongelados(true);
+      const { data: transferenciasData, error: transferenciasError } = await supabase
+        .from('transferencias_embrioes')
+        .select('embriao_id');
+      if (transferenciasError) throw transferenciasError;
+
+      let congeladosQuery = supabase
+        .from('embrioes')
+        .select('*')
+        .eq('status_atual', 'CONGELADO')
+        .not('cliente_id', 'is', null);
+
+      if (filtroClienteId) {
+        congeladosQuery = congeladosQuery.eq('cliente_id', filtroClienteId);
+      }
+
+      const { data: embrioesData, error: embrioesError } = await congeladosQuery
+        .order('created_at', { ascending: false });
+
+      if (embrioesError) throw embrioesError;
+      if (embrioesData && embrioesData.length > 0) {
+        const sample = embrioesData[0] as Record<string, unknown>;
+      }
+
+      const embrioesTransferidosIds = transferenciasData?.map(t => t.embriao_id) || [];
+      const embrioesFiltradosBase = (embrioesData || [])
+        .filter(e => !embrioesTransferidosIds.includes(e.id) && e.status_atual !== 'TRANSFERIDO');
+
+      if (embrioesFiltradosBase.length === 0) {
+        setEmbrioesCongelados([]);
+        return;
+      }
+
+      const acasalamentoIdsDiretos = embrioesFiltradosBase
+        .map(e => e.lote_fiv_acasalamento_id)
+        .filter((id): id is string => !!id);
+      const acasalamentoMediaIds = embrioesFiltradosBase
+        .map(e => e.acasalamento_media_id)
+        .filter((id): id is string => !!id);
+      let acasalamentoIds = [...new Set(acasalamentoIdsDiretos)];
+      const acasalamentoIdsFromMedia = new Set<string>();
+
+      if (acasalamentoMediaIds.length > 0) {
+        const { data: mediaData, error: mediaError } = await supabase
+          .from('acasalamento_embrioes_media')
+          .select('id, lote_fiv_acasalamento_id')
+          .in('id', acasalamentoMediaIds);
+        if (mediaError) throw mediaError;
+        (mediaData || []).forEach(m => {
+          if (m.lote_fiv_acasalamento_id) {
+            acasalamentoIdsFromMedia.add(m.lote_fiv_acasalamento_id);
+          }
+        });
+      }
+
+      if (acasalamentoIds.length === 0 && acasalamentoIdsFromMedia.size > 0) {
+        acasalamentoIds = [...acasalamentoIdsFromMedia];
+      }
+
+      let acasalamentosData: Array<{ id: string; aspiracao_doadora_id?: string; dose_semen_id?: string }> = [];
+      let aspiracoesData: Array<{ id: string; doadora_id?: string }> = [];
+      let doadorasData: Array<{ id: string; registro?: string; raca?: string }> = [];
+      let dosesData: DoseComTouro[] = [];
+
+      if (acasalamentoIds.length > 0) {
+        const { data: acasalamentosResult, error: acasalamentosError } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select('id, aspiracao_doadora_id, dose_semen_id')
+          .in('id', acasalamentoIds);
+        if (acasalamentosError) throw acasalamentosError;
+        acasalamentosData = acasalamentosResult || [];
+        if (acasalamentosData.length === 0 && acasalamentoIdsFromMedia.size > 0) {
+          const idsFromMedia = [...acasalamentoIdsFromMedia];
+          const { data: acasalamentosViaMedia, error: acasalamentosViaMediaError } = await supabase
+            .from('lote_fiv_acasalamentos')
+            .select('id, aspiracao_doadora_id, dose_semen_id')
+            .in('id', idsFromMedia);
+          if (!acasalamentosViaMediaError && acasalamentosViaMedia && acasalamentosViaMedia.length > 0) {
+            acasalamentosData = acasalamentosViaMedia;
+          }
+        }
+
+        const aspiracaoIds = [...new Set(acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean))] as string[];
+        const doseIds = [...new Set(acasalamentosData.map(a => a.dose_semen_id).filter(Boolean))] as string[];
+
+        if (aspiracaoIds.length > 0) {
+          const { data: aspiracoesResult, error: aspiracoesError } = await supabase
+            .from('aspiracoes_doadoras')
+            .select('id, doadora_id')
+            .in('id', aspiracaoIds);
+          if (aspiracoesError) throw aspiracoesError;
+          aspiracoesData = aspiracoesResult || [];
+
+          const doadoraIds = [...new Set(aspiracoesData.map(a => a.doadora_id).filter(Boolean))] as string[];
+          if (doadoraIds.length > 0) {
+            const { data: doadorasResult, error: doadorasError } = await supabase
+              .from('doadoras')
+              .select('id, registro, raca')
+              .in('id', doadoraIds);
+            if (doadorasError) throw doadorasError;
+            doadorasData = doadorasResult || [];
+          }
+        }
+
+        if (doseIds.length > 0) {
+          const { data: dosesResult, error: dosesError } = await supabase
+            .from('doses_semen')
+            .select(`
+              id,
+              touro:touros(id, nome, registro, raca)
+            `)
+            .in('id', doseIds);
+          if (dosesError) throw dosesError;
+          dosesData = dosesResult || [];
+        }
+      }
+
+      if (acasalamentosData.length === 0) {
+        const loteFivIdsFallback = [...new Set(embrioesFiltradosBase.map(e => e.lote_fiv_id).filter(Boolean))] as string[];
+        if (loteFivIdsFallback.length > 0) {
+          const { data: acasalamentosPorLote } = await supabase
+            .from('lote_fiv_acasalamentos')
+            .select('id, lote_fiv_id')
+            .in('lote_fiv_id', loteFivIdsFallback);
+        }
+      }
+
+      const acasalamentosMap = new Map(acasalamentosData.map(a => [a.id, a]));
+      const aspiracoesMap = new Map(aspiracoesData.map(a => [a.id, a]));
+      const doadorasMap = new Map(doadorasData.map(d => [d.id, d]));
+      const dosesMap = new Map(dosesData.map(d => [d.id, d]));
+      const clientesMap = new Map(clientes.map(c => [c.id, c.nome]));
+
+      const embrioesCompletos = embrioesFiltradosBase.map((embriao) => {
+        const acasalamento = embriao.lote_fiv_acasalamento_id
+          ? acasalamentosMap.get(embriao.lote_fiv_acasalamento_id)
+          : undefined;
+        const aspiracao = acasalamento
+          ? aspiracoesMap.get(acasalamento.aspiracao_doadora_id)
+          : undefined;
+        const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
+        const dose = acasalamento ? dosesMap.get(acasalamento.dose_semen_id) : undefined;
+        const touroRaw = dose?.touro ?? null;
+        const touro = Array.isArray(touroRaw) ? touroRaw[0] : touroRaw;
+        const clienteNome = embriao.cliente_id ? clientesMap.get(embriao.cliente_id) : undefined;
+
+        return {
+          ...embriao,
+          doadora_registro: doadora?.registro,
+          doadora_raca: doadora?.raca,
+          touro_nome: touro?.nome || 'Touro desconhecido',
+          touro_raca: touro?.raca,
+          cliente_nome: clienteNome,
+        };
+      });
+
+      const embrioesFiltrados = filtroRacaNormalizado
+        ? embrioesCompletos.filter(e => {
+            const raca = (e.doadora_raca || e.touro_raca || '').toLowerCase();
+            return raca.includes(filtroRacaNormalizado);
+          })
+        : embrioesCompletos;
+
+      setEmbrioesCongelados(embrioesFiltrados);
+    } catch (error) {
+      console.error('Erro ao carregar embriões congelados:', error);
+      setEmbrioesCongelados([]);
+    } finally {
+      setLoadingCongelados(false);
+    }
+  };
+
+  useEffect(() => {
+    if (origemEmbriao !== 'CONGELADO') {
+      setEmbrioesCongelados([]);
+      return;
+    }
+    void loadEmbrioesCongelados();
+  }, [origemEmbriao, filtroClienteId, filtroRaca, clientes.length]);
+
+
+  const carregarReceptorasCioLivre = async (fazendaId: string) => {
+    try {
+      const { data: cioLivreData, error: cioLivreError } = await supabase
+        .from('receptoras_cio_livre')
+        .select('receptora_id, data_cio')
+        .eq('fazenda_id', fazendaId)
+        .eq('ativa', true);
+      if (cioLivreError && cioLivreError.code !== 'PGRST205') {
+        throw cioLivreError;
+      }
+
+      const receptoraIdsCioLivre = (cioLivreData || [])
+        .map(c => c.receptora_id)
+        .filter((id): id is string => !!id);
+      if (receptoraIdsCioLivre.length === 0) {
+        setReceptoras([]);
+        return { receptorasDisponiveis: 0 };
+      }
+
+      const { data: receptorasCioLivreInfo, error: receptorasError } = await supabase
+        .from('receptoras')
+        .select('id, identificacao, status_reprodutivo')
+        .in('id', receptoraIdsCioLivre);
+      if (receptorasError) throw receptorasError;
+
+      const dataCioPorReceptora = new Map(
+        (cioLivreData || []).map(c => [c.receptora_id, c.data_cio])
+      );
+
+      const receptorasBase = (receptorasCioLivreInfo || []).map(r => ({
+        receptora_id: r.id,
+        brinco: r.identificacao || 'N/A',
+        protocolo_id: undefined,
+        protocolo_receptora_id: undefined,
+        data_te_prevista: undefined,
+        data_limite_te: undefined,
+        quantidade_embrioes: 0,
+        ciclando_classificacao: undefined,
+        qualidade_semaforo: undefined,
+        origem: 'CIO_LIVRE' as const,
+        data_cio: dataCioPorReceptora.get(r.id),
+        status_reprodutivo: r.status_reprodutivo,
+      }));
+
+      return { receptoras: receptorasBase, receptorasDisponiveis: receptorasBase.length };
+    } catch (error) {
+      console.error('Erro ao carregar receptoras em cio livre:', error);
+      toast({
+        title: 'Erro ao carregar receptoras',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+      setReceptoras([]);
+      return { receptoras: [], receptorasDisponiveis: 0 };
+    }
+  };
+
+  // Função unificada para carregar receptoras (usada tanto em handleFazendaChange quanto em recarregarReceptoras)
+  const carregarReceptorasDaFazenda = async (fazendaId: string) => {
+    try {
+      if (!dataPasso2) {
+        setReceptoras([]);
+        return { receptorasDisponiveis: 0 };
+      }
+
+      const { data: protocolosData, error: protocolosError } = await supabase
+        .from('protocolos_sincronizacao')
+        .select('id')
+        .eq('passo2_data', dataPasso2);
+      if (protocolosError) throw protocolosError;
+
+      const protocoloIds = [...new Set((protocolosData || []).map(p => p.id).filter(Boolean))];
+      if (protocoloIds.length === 0) {
+        setReceptoras([]);
+        return { receptorasDisponiveis: 0 };
+      }
+
+      const { data: statusViewData, error: statusViewError } = await supabase
+        .from('v_protocolo_receptoras_status')
+        .select('receptora_id, brinco, identificacao, data_te_prevista, data_limite_te, protocolo_id')
+        .eq('fase_ciclo', 'SINCRONIZADA')
+        .in('protocolo_id', protocoloIds);
+      if (statusViewError && statusViewError.code !== 'PGRST205') {
+        throw statusViewError;
+      }
+
+      const statusViewSafe = statusViewData || [];
+      const receptoraIds = [...new Set(statusViewSafe.map(s => s.receptora_id).filter(Boolean))];
+      if (receptoraIds.length === 0) {
+        setReceptoras([]);
+        return { receptorasDisponiveis: 0 };
+      }
+
       const { data: viewData, error: viewError } = await supabase
         .from('vw_receptoras_fazenda_atual')
         .select('receptora_id')
+        .in('receptora_id', receptoraIds)
         .eq('fazenda_id_atual', fazendaId);
+      if (viewError) throw viewError;
 
-      if (viewError) {
-        console.error('Erro ao buscar receptoras da fazenda (view):', viewError);
-        throw viewError;
-      }
+      const receptoraIdsNaFazenda = new Set((viewData || []).map(v => v.receptora_id).filter(Boolean));
+      const statusFiltrado = statusViewSafe.filter(s => receptoraIdsNaFazenda.has(s.receptora_id));
+      const receptoraIdsFiltradas = [...new Set(statusFiltrado.map(s => s.receptora_id).filter(Boolean))];
 
-      const receptoraIdsNaFazenda = viewData?.map(v => v.receptora_id) || [];
-      let receptoraIdsFiltradas = receptoraIdsNaFazenda;
-      if (protocoloId && receptoraIdsNaFazenda.length > 0) {
-        const { data: prFiltro } = await supabase
-          .from('protocolo_receptoras')
-          .select('receptora_id')
-          .eq('protocolo_id', protocoloId)
-          .in('receptora_id', receptoraIdsNaFazenda);
-        receptoraIdsFiltradas = (prFiltro || []).map(pr => pr.receptora_id).filter(Boolean);
-      }
       if (receptoraIdsFiltradas.length === 0) {
         setReceptoras([]);
         return { receptorasDisponiveis: 0 };
       }
 
-      const { data: prDataTodas, error: prTodasError } = await supabase
-        .from('protocolo_receptoras')
-        .select('id, receptora_id, status')
-        .in('receptora_id', receptoraIdsFiltradas);
+      const { data: receptorasStatusData, error: receptorasStatusError } = await supabase
+        .from('receptoras')
+        .select('id, identificacao, status_reprodutivo')
+        .in('id', receptoraIdsFiltradas);
+      if (receptorasStatusError) throw receptorasStatusError;
 
-
-      // Buscar receptoras diretamente de protocolo_receptoras que estão na fazenda
-      // e que NÃO estão UTILIZADAS (para incluir todas as receptoras sincronizadas ativas)
-      // Primeiro, buscar protocolos_receptoras para essas receptoras
-      let { data: prDataInicial, error: prErrorInicial } = await supabase
-        .from('protocolo_receptoras')
-        .select('id, receptora_id, protocolo_id, status, ciclando_classificacao, qualidade_semaforo')
-        .in('receptora_id', receptoraIdsFiltradas)
-        .neq('status', 'UTILIZADA'); // Excluir apenas as que foram finalizadas
-      if (protocoloId) {
-        prDataInicial = (prDataInicial || []).filter(pr => pr.protocolo_id === protocoloId);
-      }
-      if (prErrorInicial) {
-        console.error('Erro ao buscar protocolo_receptoras:', prErrorInicial);
-        throw prErrorInicial;
-      }
-
-      if ((!prDataInicial || prDataInicial.length === 0) && valorPermitirDuplas && transferenciasIdsSessao.length > 0) {
-        const { data: transferenciasSessaoData, error: transferenciasSessaoError } = await supabase
-          .from('transferencias_embrioes')
-          .select('id, receptora_id, protocolo_receptora_id')
-          .in('id', transferenciasIdsSessao);
-        const receptoraIdsSessao = (transferenciasSessaoData || [])
-          .map(t => t.receptora_id)
-          .filter((id): id is string => !!id);
-        if (!transferenciasSessaoError && receptoraIdsSessao.length > 0) {
-          const { data: prDataSessao, error: prSessaoError } = await supabase
-            .from('protocolo_receptoras')
-            .select('id, receptora_id, protocolo_id, status, ciclando_classificacao, qualidade_semaforo')
-            .in('receptora_id', receptoraIdsSessao);
-          if (!prSessaoError && prDataSessao && prDataSessao.length > 0) {
-            prDataInicial = protocoloId
-              ? prDataSessao.filter(pr => pr.protocolo_id === protocoloId)
-              : prDataSessao;
-          }
-        }
-      }
-
-      if (!prDataInicial || prDataInicial.length === 0) {
-        setReceptoras([]);
-        return { receptorasDisponiveis: 0 };
-      }
-
-      // Filtrar apenas as que estão INAPTAS (descartadas)
-      const prDataAtivas = prDataInicial.filter(pr => pr.status !== 'INAPTA');      
-      if (prDataAtivas.length === 0) {
-        setReceptoras([]);
-        return { receptorasDisponiveis: 0 };
-      }
-      
-      if (prDataAtivas.length === 0) {
-        setReceptoras([]);
-        return { receptorasDisponiveis: 0 };
-      }
-
-      // Buscar informações da view para obter dados de sincronização
-      const protocoloIds = [...new Set(prDataAtivas.map(pr => pr.protocolo_id).filter(Boolean))];
-      const { data: statusData, error: statusError } = await supabase
-        .from('v_protocolo_receptoras_status')
-        .select('*')
-        .eq('fase_ciclo', 'SINCRONIZADA')
-        .in('receptora_id', receptoraIdsFiltradas)
-        .in('protocolo_id', protocoloIds);
-
-      if (statusError) {
-        console.error('Erro ao buscar receptoras sincronizadas (view):', statusError);
-        // Continuar mesmo se a view falhar - usar dados diretos de protocolo_receptoras
-      }
-
-      // Mapear receptoras: usar dados da view se disponível, senão usar dados diretos
-      const receptoraIdsAtivas = new Set(prDataAtivas.map(pr => pr.receptora_id));
-      const statusDataMap = new Map(
-        (statusData || []).map(s => [s.receptora_id, s])
+      const receptoraInfoMap = new Map(
+        (receptorasStatusData || []).map(r => [r.id, r])
       );
 
-      // Criar lista de receptoras sincronizadas combinando dados
-      const statusDataFiltrado = prDataAtivas
-        .filter(pr => {
-          // Quando a view existir, exigir fase_ciclo SINCRONIZADA
-          const dadosView = statusDataMap.get(pr.receptora_id);
-          if (!dadosView) return false;
-          return dadosView.fase_ciclo === 'SINCRONIZADA';
-        })
-        .map(pr => {
-          const dadosView = statusDataMap.get(pr.receptora_id);
+      const protocoloIdsView = [...new Set(statusFiltrado.map(s => s.protocolo_id).filter(Boolean))];
+      let prData: Array<{
+        id: string;
+        receptora_id: string;
+        protocolo_id: string;
+        status: string;
+        ciclando_classificacao?: 'N' | 'CL' | null;
+        qualidade_semaforo?: 1 | 2 | 3 | null;
+      }> = [];
+      if (protocoloIdsView.length > 0) {
+        const { data: prDataRaw, error: prError } = await supabase
+          .from('protocolo_receptoras')
+          .select('id, receptora_id, protocolo_id, status, ciclando_classificacao, qualidade_semaforo')
+          .in('protocolo_id', protocoloIdsView)
+          .neq('status', 'INAPTA')
+          .neq('status', 'UTILIZADA');
+        if (prError && prError.code !== 'PGRST205') throw prError;
+        prData = prDataRaw || [];
+      }
+
+      const prMap = new Map(prData.map(pr => [pr.receptora_id, pr]));
+
+      const receptorasProtocolo = statusFiltrado
+        .map((viewInfo) => {
+          const info = receptoraInfoMap.get(viewInfo.receptora_id);
+          const pr = prMap.get(viewInfo.receptora_id);
+          const quantidadeSessao = contagemSessaoPorReceptora[viewInfo.receptora_id] || 0;
           return {
-            receptora_id: pr.receptora_id,
-            protocolo_id: pr.protocolo_id,
-            protocolo_receptora_id: pr.id,
-            pr_id: pr.id,
-            brinco: dadosView?.brinco || '',
-            identificacao: dadosView?.identificacao || '',
-            data_te_prevista: dadosView?.data_te_prevista,
-            data_limite_te: dadosView?.data_limite_te,
+            receptora_id: viewInfo.receptora_id,
+            brinco: viewInfo.brinco || info?.identificacao || 'N/A',
+            identificacao: viewInfo.identificacao || info?.identificacao || '',
+            protocolo_id: pr?.protocolo_id || viewInfo.protocolo_id,
+            protocolo_receptora_id: pr?.id || '',
+            data_te_prevista: viewInfo.data_te_prevista,
+            data_limite_te: viewInfo.data_limite_te,
+            quantidade_embrioes: quantidadeSessao,
+            ciclando_classificacao: pr?.ciclando_classificacao ?? null,
+            qualidade_semaforo: pr?.qualidade_semaforo ?? null,
+            origem: 'PROTOCOLO' as const,
+            status_reprodutivo: info?.status_reprodutivo,
           };
-        });
-      if (valorPermitirDuplas && transferenciasIdsSessao.length > 0) {
-        const { data: transferenciasSessaoData, error: transferenciasSessaoError } = await supabase
-          .from('transferencias_embrioes')
-          .select('id, receptora_id, protocolo_receptora_id')
-          .in('id', transferenciasIdsSessao);
+        })
+        .filter(r => r.status_reprodutivo === 'SINCRONIZADA');
 
-        const receptoraIdsSessao = (transferenciasSessaoData || [])
-          .map(t => t.receptora_id)
-          .filter((id): id is string => !!id);
-        const receptoraIdsNaFazendaSet = new Set(receptoraIdsFiltradas);
+      let receptorasFinal = receptorasProtocolo;
 
-        const receptoraIdsParaAdicionar = receptoraIdsSessao.filter(id =>
-          receptoraIdsNaFazendaSet.has(id) && !statusDataFiltrado.some(r => r.receptora_id === id)
-        );
-        if (receptoraIdsParaAdicionar.length > 0) {
-          const { data: receptorasData } = await supabase
-            .from('receptoras')
-            .select('id, identificacao')
-            .in('id', receptoraIdsParaAdicionar);
-
-          receptoraIdsParaAdicionar.forEach((receptoraId) => {
-            const transferencia = transferenciasSessaoData?.find(t => t.receptora_id === receptoraId);
-            const receptoraInfo = receptorasData?.find(r => r.id === receptoraId);
-
-            statusDataFiltrado.push({
-              receptora_id: receptoraId,
-              protocolo_id: undefined,
-              protocolo_receptora_id: transferencia?.protocolo_receptora_id || '',
-              pr_id: transferencia?.protocolo_receptora_id || '',
-              brinco: receptoraInfo?.identificacao || '',
-              identificacao: receptoraInfo?.identificacao || '',
-              data_te_prevista: undefined,
-              data_limite_te: undefined,
-            });
-          });
-        }
-
+      if (incluirCioLivre) {
+        const { receptoras: receptorasCioLivre } = await carregarReceptorasCioLivre(fazendaId);
+        receptorasFinal = [...receptorasFinal, ...receptorasCioLivre];
       }
 
-      // Contar TODAS as transferências realizadas para cada receptora
-      const contagemEmbrioesPorReceptora = new Map<string, number>();
-      const receptoraIdsParaContagem = Array.from(new Set(statusDataFiltrado.map(r => r.receptora_id).filter(Boolean)));
-      const protocoloReceptoraIdsParaContagem = Array.from(
-        new Set(
-          statusDataFiltrado
-            .map(r => r.protocolo_receptora_id || r.pr_id)
-            .filter((id): id is string => !!id)
-        )
-      );
-      
-      if (protocoloReceptoraIdsParaContagem.length > 0) {
-        const receptoraPorProtocolo = new Map(
-          statusDataFiltrado
-            .map(r => [r.protocolo_receptora_id || r.pr_id, r.receptora_id])
-            .filter((entry): entry is [string, string] => !!entry[0] && !!entry[1])
-        );
-        const { data: todasTransferenciasData } = await supabase
-          .from('transferencias_embrioes')
-          .select('protocolo_receptora_id')
-          .in('protocolo_receptora_id', protocoloReceptoraIdsParaContagem)
-          .eq('status_te', 'REALIZADA')
-          .order('created_at', { ascending: false });
-
-
-        const { data: transferenciasTodasStatus, error: transferenciasTodasStatusError } = await supabase
-          .from('transferencias_embrioes')
-          .select('protocolo_receptora_id, status_te, created_at')
-          .in('protocolo_receptora_id', protocoloReceptoraIdsParaContagem)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-
-        const receptoraIdsContadas = new Set<string>();
-        todasTransferenciasData?.forEach(t => {
-          const receptoraId = t.protocolo_receptora_id
-            ? receptoraPorProtocolo.get(t.protocolo_receptora_id)
-            : undefined;
-          if (!receptoraId) return;
-          const atual = contagemEmbrioesPorReceptora.get(receptoraId) || 0;
-          contagemEmbrioesPorReceptora.set(receptoraId, atual + 1);
-          receptoraIdsContadas.add(receptoraId);
-        });
-
-        if (transferenciasIdsSessao.length > 0) {
-          const { data: transferenciasSessaoData, error: transferenciasSessaoError } = await supabase
-            .from('transferencias_embrioes')
-            .select('id, receptora_id, protocolo_receptora_id')
-            .in('id', transferenciasIdsSessao);
-
-
-          transferenciasSessaoData?.forEach(t => {
-            const receptoraId = t.protocolo_receptora_id
-              ? receptoraPorProtocolo.get(t.protocolo_receptora_id)
-              : t.receptora_id || undefined;
-            if (!receptoraId) return;
-            if (receptoraIdsContadas.has(receptoraId)) return;
-            const atual = contagemEmbrioesPorReceptora.get(receptoraId) || 0;
-            contagemEmbrioesPorReceptora.set(receptoraId, atual + 1);
-            receptoraIdsContadas.add(receptoraId);
+      const receptorasSessao = Object.values(receptorasSessaoInfo)
+        .filter(r => (contagemSessaoPorReceptora[r.receptora_id] || 0) === 1);
+      const existentes = new Set(receptorasFinal.map(r => r.receptora_id));
+      receptorasSessao.forEach(r => {
+        if (!existentes.has(r.receptora_id)) {
+          receptorasFinal.push({
+            ...r,
+            quantidade_embrioes: contagemSessaoPorReceptora[r.receptora_id] || 0,
           });
-        }      }
-
-      // Criar mapa de qualidade e ciclando a partir dos dados já obtidos
-      const qualidadeCiclandoMap = new Map<string, { ciclando_classificacao?: 'N' | 'CL' | null; qualidade_semaforo?: 1 | 2 | 3 | null }>();
-      prDataAtivas.forEach(pr => {
-        qualidadeCiclandoMap.set(pr.id, {
-          ciclando_classificacao: pr.ciclando_classificacao as 'N' | 'CL' | null | undefined,
-          qualidade_semaforo: pr.qualidade_semaforo as 1 | 2 | 3 | null | undefined,
-        });
+        }
       });
 
-      // Filtrar receptoras baseado no switch e na contagem
-      let receptorasFiltradas = statusDataFiltrado;
-      
-      if (!valorPermitirDuplas) {
-        // Modo normal: excluir receptoras que já receberam embrião (quantidade >= 1)
-        receptorasFiltradas = statusDataFiltrado.filter((r) => {
-          const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
-          return quantidade === 0;
-        });
-      } else {
-        // Modo duplas: excluir apenas receptoras que já receberam 2 embriões (máximo permitido)
-        // Mostrar receptoras com 0 ou 1 embrião (quantidade < 2)
-        receptorasFiltradas = statusDataFiltrado.filter((r) => {
-          const quantidade = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
-          return quantidade < 2;
-        });
-      }      
-      const receptorasComId = receptorasFiltradas.map((r) => {
-        const quantidadeEmbrioes = contagemEmbrioesPorReceptora.get(r.receptora_id) || 0;
-        const protocoloReceptoraId = r.protocolo_receptora_id || r.pr_id || '';
-        const qualidadeCiclando = qualidadeCiclandoMap.get(protocoloReceptoraId) || {};
-        
-        return {
-          receptora_id: r.receptora_id,
-          brinco: r.brinco || r.identificacao || 'N/A',
-          protocolo_id: r.protocolo_id,
-          protocolo_receptora_id: protocoloReceptoraId,
-          data_te_prevista: r.data_te_prevista,
-          data_limite_te: r.data_limite_te,
-          quantidade_embrioes: quantidadeEmbrioes,
-          ciclando_classificacao: qualidadeCiclando.ciclando_classificacao,
-          qualidade_semaforo: qualidadeCiclando.qualidade_semaforo,
-        };
-      });
+      receptorasFinal = receptorasFinal.map(r => ({
+        ...r,
+        quantidade_embrioes: contagemSessaoPorReceptora[r.receptora_id] || 0,
+      }));
 
-      setReceptoras(receptorasComId);      return { receptorasDisponiveis: receptorasComId.length };
-    } catch (error) {      console.error('Erro ao carregar receptoras:', error);
+      setReceptoras(receptorasFinal);
+      return { receptorasDisponiveis: receptorasFinal.length };
+    } catch (error) {
+      console.error('Erro ao carregar receptoras:', error);
       toast({
         title: 'Erro ao carregar receptoras',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -1237,95 +1300,14 @@ export default function TransferenciaEmbrioes() {
   };
 
   // Função para recarregar receptoras sem limpar o pacote (usada após registrar transferência)
-  const recarregarReceptoras = async (fazendaId: string, valorPermitirDuplas?: boolean) => {
-    await carregarReceptorasDaFazenda(
-      fazendaId,
-      valorPermitirDuplas ?? permitirDuplas,
-      formData.protocolo_id || undefined
-    );
-  };
-
-  const carregarProtocolosDaFazenda = async (fazendaId: string) => {
-    const requestId = ++protocolosRequestId.current;
-    const t0 = performance.now();
-    const { data: protocolosData, error: protocolosError } = await supabase
-      .from('protocolos_sincronizacao')
-      .select('id, status, data_inicio')
-      .eq('fazenda_id', fazendaId)
-      .order('data_inicio', { ascending: false })
-      .limit(20);    if (requestId !== protocolosRequestId.current) return;
-
-    const protocoloIds = (protocolosData || []).map(p => p.id);
-    if (protocoloIds.length === 0) {
-      setProtocolosDisponiveis([]);
-      return;
-    }
-
-    const t1 = performance.now();
-    const [prRawResult, sincronizadasResult] = await Promise.all([
-      supabase
-        .from('protocolo_receptoras')
-        .select('protocolo_id, status')
-        .in('protocolo_id', protocoloIds),
-      supabase
-        .from('v_protocolo_receptoras_status')
-        .select('protocolo_id, fase_ciclo')
-        .in('protocolo_id', protocoloIds)
-        .eq('fase_ciclo', 'SINCRONIZADA'),
-    ]);
-
-    if (requestId !== protocolosRequestId.current) return;
-
-    const prData = (prRawResult.data || []) as Array<{ protocolo_id: string; status: string }>;
-    const sincronizadasRaw = sincronizadasResult.data || [];
-    const sincronizadasPorProtocolo = new Map<string, number>();
-    sincronizadasRaw.forEach(item => {
-      sincronizadasPorProtocolo.set(
-        item.protocolo_id,
-        (sincronizadasPorProtocolo.get(item.protocolo_id) || 0) + 1
-      );
-    });
-    const contagemPorProtocolo = new Map<string, { total: number; apta: number }>();
-    prData.forEach(pr => {
-      const atual = contagemPorProtocolo.get(pr.protocolo_id) || { total: 0, apta: 0 };
-      contagemPorProtocolo.set(pr.protocolo_id, {
-        total: atual.total + 1,
-        apta: atual.apta + (pr.status === 'APTA' ? 1 : 0),
-      });
-    });
-
-    const protocolosComContagem = (protocolosData || [])
-      .map(p => {
-        const contagem = contagemPorProtocolo.get(p.id) || { total: 0, apta: 0 };
-        return {
-          id: p.id,
-          status: p.status,
-          data_inicio: p.data_inicio,
-          total_receptoras: contagem.total,
-          receptoras_aptas: contagem.apta,
-          sincronizadas: sincronizadasPorProtocolo.get(p.id) || 0,
-        };
-      })
-      .filter(p => p.sincronizadas > 0);
-
-    setProtocolosDisponiveis(protocolosComContagem);
+  const recarregarReceptoras = async (fazendaId: string) => {
+    await carregarReceptorasDaFazenda(fazendaId);
   };
 
   const handleFazendaChange = async (fazendaId: string) => {
     const t0 = performance.now();
     // Se não há fazenda selecionada, limpar tudo (permitir sempre limpar)
     if (!fazendaId) {
-      let estadoSalvo: SessaoTransferenciaStorage | null = null;
-      try {
-        estadoSalvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as SessaoTransferenciaStorage | null;
-      } catch {
-        estadoSalvo = null;
-      }
-      const temSessaoEmAndamento = !!estadoSalvo?.fazenda_id &&
-        ((estadoSalvo.transferenciasIdsSessao?.length || 0) > 0 || (estadoSalvo.transferenciasSessao?.length || 0) > 0);
-      if (temSessaoEmAndamento && estadoSalvo?.fazenda_id === formData.fazenda_id) {
-        return;
-      }
       setFormData({
         ...formData,
         fazenda_id: '',
@@ -1343,51 +1325,7 @@ export default function TransferenciaEmbrioes() {
       setTransferenciasSessao([]);
       setTransferenciasIdsSessao([]);
       setReceptoras([]);
-      setProtocolosDisponiveis([]);
-      localStorage.removeItem(STORAGE_KEY);
       return;
-    }
-
-    setProtocolosDisponiveis([]);
-    void carregarProtocolosDaFazenda(fazendaId);
-
-    let estadoSalvo: SessaoTransferenciaStorage | null = null;
-    try {
-      estadoSalvo = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as SessaoTransferenciaStorage | null;
-    } catch {
-      estadoSalvo = null;
-    }
-    const temSessaoLocal = !!estadoSalvo?.fazenda_id &&
-      estadoSalvo.fazenda_id === fazendaId &&
-      ((estadoSalvo.transferenciasIdsSessao?.length || 0) > 0 || (estadoSalvo.transferenciasSessao?.length || 0) > 0);
-
-    if (temSessaoLocal) {
-      setTransferenciasSessao(estadoSalvo.transferenciasSessao || []);
-      setTransferenciasIdsSessao(estadoSalvo.transferenciasIdsSessao || []);
-      setPermitirDuplas(!!estadoSalvo.permitirDuplas);
-      setEmbrioesPage(estadoSalvo.embrioes_page || 1);
-      setCamposPacote({
-        data_te: estadoSalvo.data_te || '',
-        veterinario_responsavel: estadoSalvo.veterinario_responsavel || '',
-        tecnico_responsavel: estadoSalvo.tecnico_responsavel || '',
-      });
-      setFormData(prev => ({
-        ...prev,
-        fazenda_id: fazendaId,
-        pacote_id: estadoSalvo.pacote_id || '',
-        protocolo_id: estadoSalvo.protocolo_id || '',
-        embriao_id: '',
-        receptora_id: '',
-        protocolo_receptora_id: '',
-        data_te: estadoSalvo.data_te || prev.data_te,
-        veterinario_responsavel: estadoSalvo.veterinario_responsavel || prev.veterinario_responsavel,
-        tecnico_responsavel: estadoSalvo.tecnico_responsavel || prev.tecnico_responsavel,
-      }));
-      await carregarReceptorasDaFazenda(
-        fazendaId,
-        !!estadoSalvo.permitirDuplas,
-        estadoSalvo.protocolo_id || undefined
-      );      return;
     }
 
     // Antes de carregar receptoras, tentar restaurar sessão em andamento para esta fazenda
@@ -1403,13 +1341,9 @@ export default function TransferenciaEmbrioes() {
       });
     }
 
-    // Carregar receptoras da fazenda (pode estar vazia se todas já receberam, mas ainda assim permitir selecionar)
-    if (formData.protocolo_id) {
-      await carregarReceptorasDaFazenda(
-        fazendaId,
-        permitirDuplas,
-        formData.protocolo_id || undefined
-      );
+    // Carregar receptoras da fazenda após selecionar data do 2º passo
+    if (dataPasso2) {
+      await carregarReceptorasDaFazenda(fazendaId);
     } else {
       setReceptoras([]);
     }
@@ -1428,131 +1362,61 @@ export default function TransferenciaEmbrioes() {
   // Função para restaurar sessão por fazenda específica
   const restaurarSessaoPorFazenda = async (fazendaId: string): Promise<boolean> => {
     try {
-      // Buscar transferências REALIZADAS dos últimos 7 dias para esta fazenda
-      const dataLimite = new Date();
-      dataLimite.setDate(dataLimite.getDate() - 7);
-      const dataLimiteStr = dataLimite.toISOString().split('T')[0];
-      
-      // Primeiro, buscar receptoras desta fazenda
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', fazendaId);
-
-      if (viewError || !viewData || viewData.length === 0) {
-        return false;
+      const { data: sessoesData, error: sessoesError } = await supabase
+        .from('transferencias_sessoes')
+        .select('*')
+        .eq('fazenda_id', fazendaId)
+        .eq('status', 'ABERTA')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (sessoesError && sessoesError.code !== 'PGRST205') {
+        console.error('Erro ao restaurar sessão da fazenda no banco:', sessoesError);
       }
+      if (sessoesData && sessoesData.length > 0) {
+        const sessao = sessoesData[0];
+        const transferenciasIds = Array.isArray(sessao?.transferencias_ids)
+          ? sessao.transferencias_ids
+          : [];
+        let protocoloReceptoraIds = Array.isArray(sessao?.protocolo_receptora_ids)
+          ? sessao.protocolo_receptora_ids
+          : [];
 
-      const receptoraIds = viewData.map(v => v.receptora_id);
-
-      // Buscar transferências para essas receptoras
-      const { data: transferenciasData, error: teError } = await supabase
-        .from('transferencias_embrioes')
-        .select('id, protocolo_receptora_id, data_te, receptora_id, created_at')
-        .eq('status_te', 'REALIZADA')
-        .gte('data_te', dataLimiteStr)
-        .in('receptora_id', receptoraIds)
-        .order('created_at', { ascending: false });
-
-      if (teError || !transferenciasData || transferenciasData.length === 0) {        return false;
-      }
-
-      // Verificar quais protocolos ainda não estão UTILIZADOS
-      const protocoloReceptoraIds = [...new Set(transferenciasData.map(t => t.protocolo_receptora_id).filter(Boolean))];
-      const { data: protocolosReceptorasData } = await supabase
-        .from('protocolo_receptoras')
-        .select('id, status')
-        .in('id', protocoloReceptoraIds);
-
-      if (!protocolosReceptorasData || protocolosReceptorasData.length === 0) {        return false;
-      }
-
-      // Filtrar transferências cujos protocolos ainda não foram marcados como UTILIZADA
-      const protocoloReceptoraIdsAtivos = new Set(
-        protocolosReceptorasData
-          .filter(pr => pr.status !== 'UTILIZADA')
-          .map(pr => pr.id)
-      );
-
-      const transferenciasAtivas = transferenciasData.filter(t => 
-        t.protocolo_receptora_id && protocoloReceptoraIdsAtivos.has(t.protocolo_receptora_id)
-      );
-
-      if (transferenciasAtivas.length === 0) {        return false;
-      }
-
-      // Restaurar sessão
-      const transferenciasIds = transferenciasAtivas.map(t => t.id);
-      const protocoloReceptoraIdsRestaurar = [...new Set(transferenciasAtivas.map(t => t.protocolo_receptora_id).filter(Boolean))];
-      
-      setTransferenciasIdsSessao(transferenciasIds);
-      setTransferenciasSessao(protocoloReceptoraIdsRestaurar);
-
-      // Buscar primeira transferência para restaurar campos
-      const primeiraTransferencia = transferenciasAtivas[0];
-      if (primeiraTransferencia) {
-        const { data: transferenciaCompleta } = await supabase
-          .from('transferencias_embrioes')
-          .select('veterinario_responsavel, tecnico_responsavel, data_te, embriao:embrioes(lote_fiv_id)')
-          .eq('id', primeiraTransferencia.id)
-          .single();
-
-        if (transferenciaCompleta) {
-          const embriaoData = transferenciaCompleta.embriao as EmbriaoComLote | null;
-          const loteFivId = embriaoData?.lote_fiv_id;
-          
-          // Buscar pacote pelo lote_fiv_id
-          let pacoteId = '';
-          if (loteFivId) {
-            const { data: pacoteData } = await supabase
-              .from('pacotes_embrioes')
-              .select('id')
-              .eq('lote_fiv_id', loteFivId)
-              .limit(1)
-              .single();
-            
-            if (pacoteData) {
-              pacoteId = pacoteData.id;
-            }
+        if (protocoloReceptoraIds.length === 0 && transferenciasIds.length > 0) {
+          const { data: transferenciasSessaoData, error: transferenciasSessaoError } = await supabase
+            .from('transferencias_embrioes')
+            .select('protocolo_receptora_id')
+            .in('id', transferenciasIds);
+          if (!transferenciasSessaoError && transferenciasSessaoData) {
+            protocoloReceptoraIds = [...new Set(
+              transferenciasSessaoData
+                .map(t => t.protocolo_receptora_id)
+                .filter((id): id is string => !!id)
+            )];
           }
-          
-          setFormData(prev => ({
-            ...prev,
-            fazenda_id: fazendaId,
-            pacote_id: pacoteId,
-            data_te: transferenciaCompleta.data_te || primeiraTransferencia.data_te,
-            veterinario_responsavel: transferenciaCompleta.veterinario_responsavel || '',
-            tecnico_responsavel: transferenciaCompleta.tecnico_responsavel || '',
-          }));
-
-          setCamposPacote({
-            data_te: transferenciaCompleta.data_te || primeiraTransferencia.data_te,
-            veterinario_responsavel: transferenciaCompleta.veterinario_responsavel || '',
-            tecnico_responsavel: transferenciaCompleta.tecnico_responsavel || '',
-          });
-
-          // Salvar estado no localStorage
-          const estadoSessao = {
-            fazenda_id: fazendaId,
-            pacote_id: pacoteId,
-            data_te: transferenciaCompleta.data_te || primeiraTransferencia.data_te,
-            veterinario_responsavel: transferenciaCompleta.veterinario_responsavel || '',
-            tecnico_responsavel: transferenciaCompleta.tecnico_responsavel || '',
-            permitirDuplas,
-            transferenciasSessao: protocoloReceptoraIdsRestaurar,
-            transferenciasIdsSessao: transferenciasIds,
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(estadoSessao));
-
-          toast({
-            title: 'Sessão em andamento restaurada',
-            description: `${transferenciasAtivas.length} transferência(s) encontrada(s) para esta fazenda.`,
-          });
-
-          return true;
         }
-      }
 
+        let temProtocolosAtivos = false;
+        if (protocoloReceptoraIds.length > 0) {
+          const { data: protocolosData, error: protocolosError } = await supabase
+            .from('protocolo_receptoras')
+            .select('id, status')
+            .in('id', protocoloReceptoraIds);
+          if (!protocolosError && protocolosData) {
+            temProtocolosAtivos = protocolosData.some(p => p.status !== 'UTILIZADA');
+          }
+        }
+
+        if (!temProtocolosAtivos) {
+          await supabase
+            .from('transferencias_sessoes')
+            .update({ status: 'ENCERRADA', updated_at: new Date().toISOString() })
+            .eq('id', sessao.id);
+          return false;
+        }
+
+        aplicarSessaoPersistida(sessao);
+        return true;
+      }
       return false;
     } catch (error) {
       console.error('Erro ao restaurar sessão por fazenda:', error);
@@ -1561,34 +1425,11 @@ export default function TransferenciaEmbrioes() {
   };
 
 
-  const handleProtocoloChange = async (protocoloId: string) => {
-    const mudouProtocolo = protocoloId !== formData.protocolo_id;
-    if (mudouProtocolo) {
-      setTransferenciasSessao([]);
-      setTransferenciasIdsSessao([]);
-      localStorage.removeItem(STORAGE_KEY);
-    }
-
-    setFormData({
-      ...formData,
-      protocolo_id: protocoloId,
-      embriao_id: '',
-      receptora_id: '',
-      protocolo_receptora_id: '',
-    });
-    if (formData.fazenda_id && protocoloId) {
-      await carregarReceptorasDaFazenda(formData.fazenda_id, permitirDuplas, protocoloId);
-    } else {
-      setReceptoras([]);
-    }
-  };
-
   const handlePacoteChange = (pacoteId: string) => {
     const mudouPacote = pacoteId !== formData.pacote_id;
     if (mudouPacote) {
       setTransferenciasSessao([]);
       setTransferenciasIdsSessao([]);
-      localStorage.removeItem(STORAGE_KEY);
     }
     // Quando muda o pacote, limpar embrião e receptora, mas manter fazenda
     // Se já havia campos salvos para este pacote, restaurá-los
@@ -1604,8 +1445,20 @@ export default function TransferenciaEmbrioes() {
     });
   };
 
+  const handleOrigemEmbriaoChange = (valor: 'PACOTE' | 'CONGELADO') => {
+    setOrigemEmbriao(valor);
+    setEmbrioesPage(1);
+    setFormData({
+      ...formData,
+      pacote_id: valor === 'PACOTE' ? formData.pacote_id : '',
+      embriao_id: '',
+      receptora_id: '',
+      protocolo_receptora_id: '',
+    });
+  };
+
   const handleDescartarReceptora = async () => {
-    if (!formData.protocolo_receptora_id || !formData.receptora_id) {
+    if (!formData.receptora_id) {
       toast({
         title: 'Erro',
         description: 'Nenhuma receptora selecionada para descartar',
@@ -1616,24 +1469,43 @@ export default function TransferenciaEmbrioes() {
 
     const receptoraSelecionada = receptoras.find(r => r.receptora_id === formData.receptora_id);
     const brincoReceptora = receptoraSelecionada?.brinco || 'Receptora';
+    const origemReceptora = receptoraSelecionada?.origem;
 
-    if (!confirm(`Tem certeza que deseja descartar a receptora ${brincoReceptora}? Ela não receberá embrião e não poderá ser selecionada novamente neste protocolo.`)) {
+    const mensagemConfirmacao = origemReceptora === 'CIO_LIVRE'
+      ? `Tem certeza que deseja descartar a receptora ${brincoReceptora}? Ela não receberá embrião e sairá da lista de cio livre.`
+      : `Tem certeza que deseja descartar a receptora ${brincoReceptora}? Ela não receberá embrião e não poderá ser selecionada novamente neste protocolo.`;
+    if (!confirm(mensagemConfirmacao)) {
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // Atualizar status para INAPTA (descartada)
-      const { error: prError } = await supabase
-        .from('protocolo_receptoras')
-        .update({ 
-          status: 'INAPTA',
-          motivo_inapta: 'Descartada no menu de TE - não recebeu embrião'
-        })
-        .eq('id', formData.protocolo_receptora_id);
+      if (origemReceptora === 'CIO_LIVRE' || !formData.protocolo_receptora_id) {
+        const { error: cioLivreError } = await supabase
+          .from('receptoras_cio_livre')
+          .update({ ativa: false })
+          .eq('receptora_id', formData.receptora_id)
+          .eq('ativa', true);
+        if (cioLivreError) throw cioLivreError;
 
-      if (prError) throw prError;
+        const { error: atualizarReceptoraError } = await supabase
+          .from('receptoras')
+          .update({ status_cio_livre: 'REJEITADA', is_cio_livre: false })
+          .eq('id', formData.receptora_id);
+        if (atualizarReceptoraError) throw atualizarReceptoraError;
+      } else {
+        // Atualizar status para INAPTA (descartada)
+        const { error: prError } = await supabase
+          .from('protocolo_receptoras')
+          .update({ 
+            status: 'INAPTA',
+            motivo_inapta: 'Descartada no menu de TE - não recebeu embrião'
+          })
+          .eq('id', formData.protocolo_receptora_id);
+
+        if (prError) throw prError;
+      }
 
       // Atualizar status da receptora para VAZIA quando descartada na TE
       // Atualizar diretamente sem validações para garantir que sempre atualiza
@@ -1653,7 +1525,9 @@ export default function TransferenciaEmbrioes() {
 
       toast({
         title: 'Receptora descartada',
-        description: `${brincoReceptora} foi descartada e não receberá embrião neste protocolo.`,
+        description: origemReceptora === 'CIO_LIVRE'
+          ? `${brincoReceptora} foi descartada e saiu da lista de cio livre.`
+          : `${brincoReceptora} foi descartada e não receberá embrião neste protocolo.`,
       });
 
       // Limpar seleção de receptora
@@ -1665,7 +1539,7 @@ export default function TransferenciaEmbrioes() {
 
       // Recarregar lista de receptoras (a descartada não aparecerá mais)
       if (formData.fazenda_id) {
-        await recarregarReceptoras(formData.fazenda_id, permitirDuplas);
+        await recarregarReceptoras(formData.fazenda_id);
       }
     } catch (error) {
       console.error('Erro ao descartar receptora:', error);
@@ -1681,6 +1555,7 @@ export default function TransferenciaEmbrioes() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const requerPacote = origemEmbriao === 'PACOTE';
     // Validações específicas com mensagens claras
     if (!formData.embriao_id) {
       toast({
@@ -1691,7 +1566,7 @@ export default function TransferenciaEmbrioes() {
       return;
     }
 
-    if (!formData.fazenda_id || !formData.pacote_id || !formData.protocolo_id || !formData.receptora_id || !formData.data_te) {
+    if (!formData.fazenda_id || !dataPasso2 || !formData.receptora_id || !formData.data_te || (requerPacote && !formData.pacote_id)) {
       toast({
         title: 'Erro de validação',
         description: 'Todos os campos obrigatórios devem ser preenchidos',
@@ -1699,9 +1574,7 @@ export default function TransferenciaEmbrioes() {
       });
       return;
     }
-    // Validar quantidade máxima de embriões por receptora
-    // A validação é feita pela lista de receptoras que já está filtrada baseado no switch
-    // Se a receptora aparece na lista, ela pode receber embrião
+    // Validar quantidade máxima de embriões por receptora na sessão atual
     const receptoraSelecionada = receptoras.find(r => r.receptora_id === formData.receptora_id);
     
     if (!receptoraSelecionada) {
@@ -1713,10 +1586,10 @@ export default function TransferenciaEmbrioes() {
       return;
     }
 
-    const quantidadeAtual = receptoraSelecionada.quantidade_embrioes || 0;
-    
-    // Se switch ligado, permitir até 2 embriões (a lista já filtra isso, mas validamos por segurança)
-    if (permitirDuplas && quantidadeAtual >= 2) {
+    const quantidadeSessao = contagemSessaoPorReceptora[formData.receptora_id] || 0;
+    const permitirSegundaTe = quantidadeSessao === 1;
+
+    if (quantidadeSessao >= 2) {
       toast({
         title: 'Limite atingido',
         description: 'Esta receptora já recebeu o máximo de 2 embriões permitidos.',
@@ -1726,10 +1599,14 @@ export default function TransferenciaEmbrioes() {
     }
 
     // Validar que a receptora está SINCRONIZADA antes de realizar a TE
-    if (formData.receptora_id) {
-      const statusAtual = await calcularStatusReceptora(formData.receptora_id);
+    if (formData.receptora_id && !permitirSegundaTe) {
+      const statusBase = receptoraSelecionada.status_reprodutivo || 'VAZIA';
+      const statusAtual =
+        receptoraSelecionada.origem === 'CIO_LIVRE'
+          ? 'SINCRONIZADA'
+          : statusBase;
       const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_TE');
-      
+
       if (!validacao.valido) {
         toast({
           title: 'Erro de validação',
@@ -1786,7 +1663,7 @@ export default function TransferenciaEmbrioes() {
         receptora_id: formData.receptora_id,
         protocolo_receptora_id: formData.protocolo_receptora_id || null,
         data_te: formData.data_te,
-        tipo_te: 'FRESCO', // Tipo fixo como FRESCO (campo removido do formulário)
+        tipo_te: origemEmbriao === 'CONGELADO' ? 'CONGELADO' : 'FRESCO',
         veterinario_responsavel: formData.veterinario_responsavel.trim(), // Campo obrigatório, sempre preenchido após validação
         tecnico_responsavel: formData.tecnico_responsavel?.trim() || null,
         status_te: 'REALIZADA',
@@ -1802,7 +1679,11 @@ export default function TransferenciaEmbrioes() {
         // Se houver erro de constraint única, recarregar a lista silenciosamente
         // (o embrião não deveria aparecer na lista se já foi transferido)
         if (teError.code === '23505' && teError.message?.includes('unq_embriao_te_realizada')) {
-          loadPacotes();
+          if (origemEmbriao === 'CONGELADO') {
+            loadEmbrioesCongelados();
+          } else {
+            loadPacotes();
+          }
           return;
         }
         
@@ -1828,22 +1709,30 @@ export default function TransferenciaEmbrioes() {
 
       if (embriaoError) throw embriaoError;
 
-      // NÃO atualizar status da receptora para SERVIDA imediatamente após a transferência
-      // Isso permite que a receptora continue aparecendo na lista para receber um segundo embrião
-      // (quando o switch "Permitir duplas" estiver ligado) durante a mesma sessão
-      // O status será atualizado apenas ao encerrar a sessão de transferências
-      
-      // Validar apenas que a receptora está apta para receber o embrião (sem atualizar status)
-      const statusAtual = await calcularStatusReceptora(formData.receptora_id);
-      const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_TE');
-      
-      if (!validacao.valido) {
-        console.warn(`Validação de status: ${validacao.mensagem}`);
-        // Não falhar a operação, apenas logar o aviso
-        // Em alguns casos, a receptora pode já ter status diferente mas ainda estar apta na sessão
-      }
+      // Atualizar status da receptora para SERVIDA imediatamente após a transferência
+      const { error: statusReprodutivoError } = await supabase
+        .from('receptoras')
+        .update({ status_reprodutivo: 'SERVIDA' })
+        .eq('id', formData.receptora_id);
+      if (statusReprodutivoError) throw statusReprodutivoError;
 
-      // NÃO marcar como UTILIZADA ou SERVIDA imediatamente - será feito ao encerrar a sessão
+      if (receptoraSelecionada?.origem === 'CIO_LIVRE') {
+        const { error: confirmarCioLivreError } = await supabase
+          .from('receptoras')
+          .update({ status_cio_livre: 'CONFIRMADA', is_cio_livre: false })
+          .eq('id', formData.receptora_id);
+        if (confirmarCioLivreError) throw confirmarCioLivreError;
+
+        const { error: inativarCioLivreError } = await supabase
+          .from('receptoras_cio_livre')
+          .update({ ativa: false })
+          .eq('receptora_id', formData.receptora_id)
+          .eq('ativa', true);
+        if (inativarCioLivreError) throw inativarCioLivreError;
+
+      }
+      
+      // Marcação de protocolo_receptoras como UTILIZADA será feita ao encerrar a sessão
       // Apenas adicionar à lista de transferências da sessão
       if (formData.protocolo_receptora_id) {
         setTransferenciasSessao(prev => {
@@ -1853,6 +1742,20 @@ export default function TransferenciaEmbrioes() {
           return prev;
         });
       }
+      const novaContagem = (contagemSessaoPorReceptora[formData.receptora_id] || 0) + 1;
+      setContagemSessaoPorReceptora(prev => ({
+        ...prev,
+        [formData.receptora_id]: novaContagem,
+      }));
+      setReceptorasSessaoInfo(prev => ({
+        ...prev,
+        [formData.receptora_id]: {
+          ...receptoraSelecionada,
+          quantidade_embrioes: novaContagem,
+          status_reprodutivo: 'SERVIDA',
+        },
+      }));
+
       toast({
         title: 'Transferência realizada',
         description: 'Transferência de embrião registrada com sucesso',
@@ -1868,7 +1771,7 @@ export default function TransferenciaEmbrioes() {
       // Manter fazenda, pacote e TODOS os campos preenchidos, apenas limpar receptora e embrião
       setFormData({
         fazenda_id: formData.fazenda_id, // Manter fazenda selecionada
-        pacote_id: formData.pacote_id, // Manter pacote selecionado (NÃO limpar)
+        pacote_id: origemEmbriao === 'PACOTE' ? formData.pacote_id : '',
         protocolo_id: formData.protocolo_id, // Manter protocolo selecionado
         embriao_id: '', // Limpar apenas embrião
         receptora_id: '', // Limpar apenas receptora
@@ -1879,12 +1782,15 @@ export default function TransferenciaEmbrioes() {
         observacoes: '', // Limpar apenas observações
       });
 
-      loadPacotes();
+      if (origemEmbriao === 'CONGELADO') {
+        loadEmbrioesCongelados();
+      } else {
+        loadPacotes();
+      }
       
       // Recarregar receptoras para atualizar a lista (sem limpar o pacote)
-      // Usar o valor atual de permitirDuplas para garantir que a lista seja recarregada corretamente
       if (formData.fazenda_id) {
-        await recarregarReceptoras(formData.fazenda_id, permitirDuplas);
+        await recarregarReceptoras(formData.fazenda_id);
       }
     } catch (error) {
       console.error('Erro completo:', error);
@@ -2007,8 +1913,8 @@ export default function TransferenciaEmbrioes() {
                     const doadoraId = aspiracaoDoadoraMap.get(a.id);
                     if (doadoraId) {
                       const doadora = doadorasData.find(d => d.id === doadoraId);
-                      if (doadora) {
-                        doadorasMap.set(a.id, doadora.registro);
+                      if (doadora?.registro) {
+                        doadorasMap.set(a.id, String(doadora.registro));
                       }
                     }
                   });
@@ -2030,7 +1936,8 @@ export default function TransferenciaEmbrioes() {
 
             if (dosesData) {
               dosesData.forEach(d => {
-                const touro = (d as DoseComTouro).touro;
+                const touroRaw = (d as DoseComTouro).touro;
+                const touro = Array.isArray(touroRaw) ? touroRaw[0] : touroRaw;
                 tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
               });
             }
@@ -2056,8 +1963,8 @@ export default function TransferenciaEmbrioes() {
         const doadoraRegistro = acasalamentoId ? (doadorasMap.get(acasalamentoId) || 'N/A') : 'N/A';
         const touroNome = acasalamentoId ? (tourosMap.get(acasalamentoId) || 'N/A') : 'N/A';
         // Buscar número do embrião do mapa ou usar ID como fallback
-        const numeroEmbriao = (numerosFixosMap && numerosFixosMap.get(t.embriao_id)) 
-          ? numerosFixosMap.get(t.embriao_id) 
+        const numeroEmbriao = (numerosFixosMap && numerosFixosMap.get(t.embriao_id))
+          ? String(numerosFixosMap.get(t.embriao_id))
           : (t.embriao_id ? t.embriao_id.substring(0, 8) : 'N/A');
 
         const item: RelatorioTransferenciaItem = {
@@ -2089,7 +1996,7 @@ export default function TransferenciaEmbrioes() {
   };
 
   const handleEncerrarSessao = async () => {
-    if (transferenciasSessao.length === 0) {
+    if (transferenciasIdsSessao.length === 0) {
       toast({
         title: 'Nenhuma transferência na sessão',
         description: 'Não há transferências para encerrar nesta sessão.',
@@ -2101,15 +2008,21 @@ export default function TransferenciaEmbrioes() {
     try {
       setSubmitting(true);
 
-      // Marcar todos os protocolos_receptoras da sessão como UTILIZADA
-      const { error: prError } = await supabase
-        .from('protocolo_receptoras')
-        .update({ status: 'UTILIZADA' })
-        .in('id', transferenciasSessao);
-
-      if (prError) {
-        console.error('Erro ao atualizar protocolos_receptoras:', prError);
-        throw prError;
+      let protocoloIdsParaEncerrar = [...transferenciasSessao];
+      if (protocoloIdsParaEncerrar.length === 0) {
+        const { data: transferenciasSessaoData, error: transferenciasSessaoError } = await supabase
+          .from('transferencias_embrioes')
+          .select('protocolo_receptora_id')
+          .in('id', transferenciasIdsSessao);
+        if (transferenciasSessaoError) {
+          console.error('Erro ao buscar protocolos da sessão:', transferenciasSessaoError);
+          throw transferenciasSessaoError;
+        }
+        protocoloIdsParaEncerrar = [...new Set(
+          (transferenciasSessaoData || [])
+            .map(t => t.protocolo_receptora_id)
+            .filter((id): id is string => !!id)
+        )];
       }
 
       // Buscar IDs das receptoras que receberam embriões nesta sessão para atualizar status
@@ -2121,35 +2034,33 @@ export default function TransferenciaEmbrioes() {
 
       if (teError) {
         console.error('Erro ao buscar transferências para atualizar status das receptoras:', teError);
-        // Não falhar a operação, apenas logar o erro
-      } else if (transferenciasData && transferenciasData.length > 0) {
-        // Obter IDs únicos das receptoras
-        const receptoraIds = [...new Set(transferenciasData.map(t => t.receptora_id))];
-        
-        // Atualizar status de cada receptora para SERVIDA
-        for (const receptoraId of receptoraIds) {
-          const { error: statusError } = await atualizarStatusReceptora(receptoraId, 'SERVIDA');
-          if (statusError) {
-            console.error(`Erro ao atualizar status da receptora ${receptoraId}:`, statusError);
-            // Não falhar a operação, apenas logar o erro
-          }
-        }
-
-        const { data: receptorasAtualizadas } = await supabase
-          .from('receptoras')
-          .select('id, status_reprodutivo')
-          .in('id', receptoraIds);
+        throw teError;
       }
+      const receptoraIds = [...new Set((transferenciasData || []).map(t => t.receptora_id).filter(Boolean))];
+      if (receptoraIds.length === 0) {
+        throw new Error('Nenhuma receptora encontrada para encerrar a sessão.');
+      }
+
+      const { error: rpcError } = await supabase.rpc('encerrar_sessao_te', {
+        p_receptora_ids: receptoraIds,
+        p_protocolo_receptora_ids: protocoloIdsParaEncerrar,
+      });
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      await encerrarSessaoNoBanco(formData.fazenda_id);
 
       toast({
         title: 'Sessão encerrada',
-        description: `${transferenciasSessao.length} transferência(s) finalizada(s) com sucesso.`,
+        description: `${transferenciasIdsSessao.length} transferência(s) finalizada(s) com sucesso.`,
       });
 
       // Limpar tudo
       setFormData({
         fazenda_id: '',
         pacote_id: '',
+        protocolo_id: '',
         embriao_id: '',
         receptora_id: '',
         protocolo_receptora_id: '',
@@ -2158,6 +2069,10 @@ export default function TransferenciaEmbrioes() {
         tecnico_responsavel: '',
         observacoes: '',
       });
+      setOrigemEmbriao('PACOTE');
+      setTipoPacoteReceptoras('PROTOCOLO');
+      setFiltroClienteId('');
+      setFiltroRaca('');
 
       setCamposPacote({
         data_te: '',
@@ -2169,13 +2084,13 @@ export default function TransferenciaEmbrioes() {
       
       setTransferenciasSessao([]);
       setTransferenciasIdsSessao([]);
-      setPermitirDuplas(false);
+      setContagemSessaoPorReceptora({});
+      setReceptorasSessaoInfo({});
       setShowRelatorioDialog(false);
       setRelatorioData([]);
+      setEmbrioesPage(1);
+      setEmbrioesCongelados([]);
       
-      // Limpar estado salvo no localStorage
-      localStorage.removeItem(STORAGE_KEY);
-
       // Recarregar dados antes de limpar o formData
       await loadPacotes();
       if (fazendaIdAnterior) {
@@ -2194,15 +2109,30 @@ export default function TransferenciaEmbrioes() {
   };
 
   const pacoteSelecionado = pacotes.find(p => p.id === formData.pacote_id);
+  const dataPasso2Selecionada = !!dataPasso2;
+  const origemSelecionada = !!origemEmbriao;
   const embrioesDisponiveis = useMemo(() => {
     return pacoteSelecionado?.embrioes.filter(e => 
-      e.status_atual === 'FRESCO' || e.status_atual === 'CONGELADO'
+      e.status_atual === 'FRESCO'
     ) || [];
   }, [pacoteSelecionado]);
+  const hasD8Limite = embrioesDisponiveis.some(e => e.d8_limite);
 
   useEffect(() => {
     setEmbrioesPage(1);
   }, [formData.pacote_id]);
+
+  useEffect(() => {
+    if (origemEmbriao === 'CONGELADO') {
+      setEmbrioesPage(1);
+    }
+  }, [origemEmbriao, filtroClienteId, filtroRaca]);
+
+  useEffect(() => {
+    if (origemEmbriao === 'CONGELADO') {
+      setFormData(prev => ({ ...prev, embriao_id: '' }));
+    }
+  }, [origemEmbriao, filtroClienteId, filtroRaca]);
 
   useEffect(() => {
     const totalPaginas = Math.max(1, Math.ceil(embrioesDisponiveis.length / EMBRIOES_PAGE_SIZE));
@@ -2261,7 +2191,7 @@ export default function TransferenciaEmbrioes() {
             Nova Transferência
           </CardTitle>
             {/* Botões de Sessão - Topo do Card */}
-            {formData.fazenda_id && formData.pacote_id && transferenciasSessao.length > 0 && (
+            {formData.fazenda_id && transferenciasIdsSessao.length > 0 && (
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -2272,17 +2202,17 @@ export default function TransferenciaEmbrioes() {
                   title="Visualizar relatório da sessão atual sem encerrar"
                 >
                   <FileText className="w-4 h-4 mr-2" />
-                  Visualizar Relatório ({transferenciasSessao.length} transferência{transferenciasSessao.length > 1 ? 's' : ''})
+                  Visualizar Relatório ({transferenciasIdsSessao.length} transferência{transferenciasIdsSessao.length > 1 ? 's' : ''})
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => gerarRelatorioSessao(false)}
+                  onClick={handleEncerrarSessao}
                   className="bg-blue-600 hover:bg-blue-700"
                   disabled={submitting}
                   variant="default"
                 >
                   <FileText className="w-4 h-4 mr-2" />
-                  {submitting ? 'Gerando...' : `Encerrar Sessão (${transferenciasSessao.length} transferência${transferenciasSessao.length > 1 ? 's' : ''})`}
+                  {submitting ? 'Gerando...' : `Encerrar Sessão (${transferenciasIdsSessao.length} transferência${transferenciasIdsSessao.length > 1 ? 's' : ''})`}
                 </Button>
               </div>
             )}
@@ -2311,43 +2241,60 @@ export default function TransferenciaEmbrioes() {
             </div>
 
 
-            {/* Passo 2: Selecionar Pacote de Receptoras (Protocolo) */}
+            {/* Passo 2: Selecionar Data do 2º Passo */}
             {formData.fazenda_id && (
               <div className="space-y-2">
-                <Label htmlFor="protocolo_id">2. Pacote de Receptoras (Protocolo) *</Label>
+                <Label htmlFor="data_passo2">2. Data do 2º Passo *</Label>
+                <DatePickerBR
+                  id="data_passo2"
+                  value={dataPasso2}
+                  onChange={(value) => setDataPasso2(value || '')}
+                  required
+                />
+              </div>
+            )}
+
+            {/* Passo 3: Incluir CIO livre */}
+            {formData.fazenda_id && dataPasso2Selecionada && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="incluir-cio-livre"
+                  checked={incluirCioLivre}
+                  onCheckedChange={setIncluirCioLivre}
+                />
+                <Label htmlFor="incluir-cio-livre" className="cursor-pointer text-sm">
+                  Incluir CIO livre
+                </Label>
+              </div>
+            )}
+
+            {/* Passo 4: Origem do Embrião */}
+            {formData.fazenda_id && dataPasso2Selecionada && (
+              <div className="space-y-2">
+                <Label htmlFor="origem_embriao">4. Origem do Embrião *</Label>
                 <Select
-                  value={formData.protocolo_id}
-                  onValueChange={handleProtocoloChange}
-                  disabled={!formData.fazenda_id}
+                  value={origemEmbriao}
+                  onValueChange={(value) => handleOrigemEmbriaoChange(value as 'PACOTE' | 'CONGELADO')}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um protocolo" />
+                    <SelectValue placeholder="Selecione a origem" />
                   </SelectTrigger>
                   <SelectContent>
-                    {protocolosDisponiveis.length === 0 ? (
-                      <div className="p-2 text-sm text-slate-500">
-                        Nenhum protocolo disponível para esta fazenda
-                      </div>
-                    ) : (
-                      protocolosDisponiveis.map((protocolo) => (
-                        <SelectItem key={protocolo.id} value={protocolo.id}>
-                          {protocolo.data_inicio ? formatDate(protocolo.data_inicio) : 'Sem data'} - {protocolo.status || 'SEM_STATUS'} - {protocolo.sincronizadas} sincronizada(s)
-                        </SelectItem>
-                      ))
-                    )}
+                    <SelectItem value="PACOTE">Pacote (Fresco)</SelectItem>
+                    <SelectItem value="CONGELADO">Estoque Congelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
 
-            {/* Passo 3: Selecionar Pacote de Embriões */}
-            {formData.fazenda_id && formData.protocolo_id && (
+            {/* Passo 5: Selecionar Pacote de Embriões (Frescos) */}
+            {formData.fazenda_id && dataPasso2Selecionada && origemEmbriao === 'PACOTE' && (
               <div className="space-y-2">
-                <Label htmlFor="pacote_id">3. Pacote de Embriões *</Label>
+                <Label htmlFor="pacote_id">5. Pacote de Embriões (Frescos) *</Label>
                 <Select
                   value={formData.pacote_id}
                   onValueChange={handlePacoteChange}
-                  disabled={!formData.fazenda_id || !formData.protocolo_id}
+                  disabled={!formData.fazenda_id || !dataPasso2Selecionada}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um pacote" />
@@ -2371,93 +2318,151 @@ export default function TransferenciaEmbrioes() {
               </div>
             )}
 
-              {/* Passo 4: Selecionar Receptora Sincronizada (ANTES do embrião) */}
-              {formData.fazenda_id && formData.protocolo_id && formData.pacote_id && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="receptora_id">4. Receptora Sincronizada *</Label>
-                    {/* Switch: Permitir Transferências Duplas - Versão discreta */}
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
-                      <Switch
-                        id="permitir-duplas"
-                        checked={permitirDuplas}
-                        onCheckedChange={setPermitirDuplas}
-                        className="scale-75"
-                      />
-                      <Label htmlFor="permitir-duplas" className="cursor-pointer text-xs">
-                        Permitir duplas
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
+            {/* Passo 5 (Congelados): Filtros */}
+            {formData.fazenda_id && dataPasso2Selecionada && origemEmbriao === 'CONGELADO' && (
+              <div className="space-y-2">
+                <Label>5. Filtros de Embriões Congelados *</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="filtro_cliente">Cliente</Label>
                     <Select
-                      value={formData.receptora_id}
-                      onValueChange={(value) => {
-                        const receptora = receptoras.find((r) => r.receptora_id === value);
-                        setFormData({
-                          ...formData,
-                          receptora_id: value,
-                          protocolo_receptora_id: receptora?.protocolo_receptora_id || '',
-                        });
-                      }}
-                      disabled={!formData.fazenda_id || !formData.protocolo_id || !formData.pacote_id}
+                      value={filtroClienteId || '__all__'}
+                      onValueChange={(value) => setFiltroClienteId(value === '__all__' ? '' : value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione a receptora" />
+                        <SelectValue placeholder="Selecione um cliente" />
                       </SelectTrigger>
                       <SelectContent>
-                        {receptoras.length === 0 ? (
-                          <div className="p-2 text-sm text-slate-500">
-                            {permitirDuplas 
-                              ? 'Nenhuma receptora sincronizada disponível. Todas já receberam 2 embriões ou não estão sincronizadas.'
-                              : 'Nenhuma receptora sincronizada disponível nesta fazenda'}
-                          </div>
-                        ) : (
-                          receptoras.map((receptora) => {
-                            const quantidadeEmbrioes = receptora.quantidade_embrioes || 0;
-                            const jaRecebeu = quantidadeEmbrioes > 0;
-                            return (
-                              <SelectItem key={receptora.receptora_id} value={receptora.receptora_id}>
-                                <div className="flex items-center gap-2">
-                                  <span>{receptora.brinco}</span>
-                                  {jaRecebeu && permitirDuplas && (
-                                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 text-xs">
-                                      {quantidadeEmbrioes === 1 ? '1 embrião' : '2 embriões'}
-                                    </Badge>
-                                  )}
-                                  {receptora.data_te_prevista && (
-                                    <span className="text-slate-500 text-xs">
-                                      (TE prevista: {formatDate(receptora.data_te_prevista)})
-                                    </span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            );
-                          })
-                        )}
+                        <SelectItem value="__all__">Todos os clientes</SelectItem>
+                        {clientes.map((cliente) => (
+                          <SelectItem key={cliente.id} value={cliente.id}>
+                            {cliente.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    {/* Botão Descartar Receptora */}
-                    {formData.receptora_id && formData.protocolo_receptora_id && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        onClick={handleDescartarReceptora}
-                        disabled={submitting}
-                        title="Descartar receptora (não receberá embrião)"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="filtro_raca">Raça</Label>
+                    <Input
+                      id="filtro_raca"
+                      value={filtroRaca}
+                      onChange={(e) => setFiltroRaca(e.target.value)}
+                      placeholder="Ex.: Nelore, Holandesa"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Selecione ao menos um filtro para buscar embriões congelados.
+                </p>
+              </div>
+            )}
+
+              {/* Passo 6: Selecionar Receptora (lista) */}
+              {formData.fazenda_id && dataPasso2Selecionada && origemSelecionada && (
+                <div className="space-y-2">
+                  <Label>6. Receptoras *</Label>
+                  <div className="border rounded-lg p-4">
+                    {receptoras.length === 0 ? (
+                      <div className="text-sm text-slate-500">
+                        Nenhuma receptora disponível para esta fazenda e data do 2º passo.
+                      </div>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-40">Ação</TableHead>
+                              <TableHead>Receptora</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Origem</TableHead>
+                              <TableHead>Sessão</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {receptoras.map((receptora) => {
+                              const quantidadeSessao = contagemSessaoPorReceptora[receptora.receptora_id] || 0;
+                              const selecionada = formData.receptora_id === receptora.receptora_id;
+                              const podeSegundo = quantidadeSessao === 1;
+                              const statusAtual = receptora.status_reprodutivo || (quantidadeSessao > 0 ? 'SERVIDA' : 'SINCRONIZADA');
+                              return (
+                                <TableRow
+                                  key={receptora.receptora_id}
+                                  className={selecionada ? 'bg-green-50' : 'hover:bg-slate-50'}
+                                >
+                                  <TableCell>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant={podeSegundo ? 'default' : 'outline'}
+                                      disabled={quantidadeSessao >= 2}
+                                      onClick={() => {
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          receptora_id: receptora.receptora_id,
+                                          protocolo_receptora_id: receptora.protocolo_receptora_id || '',
+                                          embriao_id: '',
+                                        }));
+                                      }}
+                                    >
+                                      {quantidadeSessao >= 2 ? 'Limite' : podeSegundo ? '2º embrião' : 'Selecionar'}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <span>{receptora.brinco}</span>
+                                      {receptora.origem === 'CIO_LIVRE' && (
+                                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                                          Cio livre
+                                        </Badge>
+                                      )}
+                                      {receptora.data_te_prevista && (
+                                        <span className="text-slate-500 text-xs">
+                                          (TE prevista: {formatDate(receptora.data_te_prevista)})
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-xs">
+                                      {statusAtual}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {receptora.origem === 'CIO_LIVRE' ? 'CIO livre' : 'Protocolo'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {quantidadeSessao > 0 ? `${quantidadeSessao} TE` : '—'}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     )}
                   </div>
-                  
+
+                  {/* Botão Descartar Receptora */}
+                  {formData.receptora_id && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={handleDescartarReceptora}
+                      disabled={submitting}
+                      title="Descartar receptora (não receberá embrião)"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Descartar receptora
+                    </Button>
+                  )}
+
                   {/* Exibir Qualidade e Ciclando quando receptora for selecionada */}
                   {formData.receptora_id && (() => {
                     const receptoraSelecionada = receptoras.find(r => r.receptora_id === formData.receptora_id);
                     const temQualidade = receptoraSelecionada?.qualidade_semaforo !== null && receptoraSelecionada?.qualidade_semaforo !== undefined;
                     const temCiclando = receptoraSelecionada?.ciclando_classificacao !== null && receptoraSelecionada?.ciclando_classificacao !== undefined;
-                    
+
                     if (temQualidade || temCiclando) {
                       return (
                         <div className="mt-3 p-3 bg-slate-50 rounded-md border border-slate-200">
@@ -2493,7 +2498,7 @@ export default function TransferenciaEmbrioes() {
               )}
 
               {/* Campos Comuns: Data TE, Vet Responsável, Técnico Responsável */}
-              {formData.pacote_id && (
+              {origemSelecionada && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="data_te">Data da TE *</Label>
@@ -2556,10 +2561,10 @@ export default function TransferenciaEmbrioes() {
 
             </div>
 
-            {/* Lista de Embriões - Sempre visível quando pacote está selecionado */}
-            {formData.pacote_id && pacoteSelecionado && (
+            {/* Lista de Embriões - Pacote (Fresco) */}
+            {origemEmbriao === 'PACOTE' && formData.pacote_id && pacoteSelecionado && (
               <div className="space-y-4">
-                <Label>4. Selecionar Embrião do Pacote *</Label>
+                <Label>7. Selecionar Embrião do Pacote *</Label>
                 <div className="border rounded-lg p-4">
                   <div className="mb-4">
                     <h3 className="font-semibold text-slate-900">Pacote selecionado</h3>
@@ -2567,6 +2572,12 @@ export default function TransferenciaEmbrioes() {
                       Data Despacho: {formatDate(pacoteSelecionado.data_despacho)} | 
                       Total: {pacoteSelecionado.total} embrião(ões)
                     </p>
+                    {hasD8Limite && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-amber-700">
+                        <AlertTriangle className="w-4 h-4" />
+                        Embriões em D8: transferir ou congelar hoje. No D9 serão descartados automaticamente.
+                      </div>
+                    )}
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     <Table>
@@ -2578,6 +2589,7 @@ export default function TransferenciaEmbrioes() {
                           <TableHead>Touro</TableHead>
                           <TableHead>Classificação</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Dia</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2629,6 +2641,17 @@ export default function TransferenciaEmbrioes() {
                               <TableCell>
                                 <StatusBadge status={embriao.status_atual} />
                               </TableCell>
+                              <TableCell>
+                                {embriao.d8_limite ? (
+                                  <Badge variant="destructive">D8</Badge>
+                                ) : embriao.d7_pronto ? (
+                                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    D7
+                                  </Badge>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </TableCell>
                             </TableRow>
                             );
                           });
@@ -2669,6 +2692,134 @@ export default function TransferenciaEmbrioes() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Lista de Embriões - Congelados */}
+            {origemEmbriao === 'CONGELADO' && (
+              <div className="space-y-4">
+                <Label>7. Selecionar Embrião Congelado *</Label>
+                <div className="border rounded-lg p-4">
+                  {(!filtroClienteId && !filtroRaca.trim()) && (
+                    <div className="text-sm text-slate-500">
+                      Selecione um cliente ou informe a raça para listar embriões congelados.
+                    </div>
+                  )}
+                  {loadingCongelados && (
+                    <div className="text-sm text-slate-500">
+                      Carregando embriões congelados...
+                    </div>
+                  )}
+                  {!loadingCongelados && embrioesCongelados.length === 0 && (filtroClienteId || filtroRaca.trim()) && (
+                    <div className="text-sm text-slate-500">
+                      Nenhum embrião congelado encontrado para os filtros aplicados.
+                    </div>
+                  )}
+                  {!loadingCongelados && embrioesCongelados.length > 0 && (
+                    <div className="max-h-96 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12"></TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Doadora</TableHead>
+                            <TableHead>Touro</TableHead>
+                            <TableHead>Classificação</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(() => {
+                            const ordenados = [...embrioesCongelados].sort((a, b) => {
+                              const dataA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                              const dataB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                              return dataB - dataA;
+                            });
+                            const totalPaginas = Math.max(1, Math.ceil(ordenados.length / EMBRIOES_PAGE_SIZE));
+                            const paginaAtual = Math.min(embrioesPage, totalPaginas);
+                            const inicio = (paginaAtual - 1) * EMBRIOES_PAGE_SIZE;
+                            const embrioesPagina = ordenados.slice(inicio, inicio + EMBRIOES_PAGE_SIZE);
+
+                            return embrioesPagina.map((embriao) => {
+                              return (
+                                <TableRow
+                                  key={embriao.id}
+                                  className={formData.embriao_id === embriao.id ? 'bg-green-50' : 'cursor-pointer hover:bg-slate-50'}
+                                  onClick={() => setFormData({ ...formData, embriao_id: embriao.id })}
+                                >
+                                  <TableCell>
+                                    <input
+                                      type="radio"
+                                      name="embriao"
+                                      value={embriao.id}
+                                      checked={formData.embriao_id === embriao.id}
+                                      onChange={() => setFormData({ ...formData, embriao_id: embriao.id })}
+                                      className="w-4 h-4"
+                                    />
+                                  </TableCell>
+                                  <TableCell>{embriao.cliente_nome || '-'}</TableCell>
+                                  <TableCell>
+                                    {embriao.doadora_registro
+                                      ? `${embriao.doadora_registro} - ${embriao.doadora_raca || '-'}`
+                                      : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {embriao.touro_nome
+                                      ? `${embriao.touro_nome} - ${embriao.touro_raca || '-'}`
+                                      : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {embriao.classificacao ? (
+                                      <Badge variant="outline">{embriao.classificacao}</Badge>
+                                    ) : (
+                                      <span className="text-slate-400">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <StatusBadge status={embriao.status_atual} />
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            });
+                          })()}
+                        </TableBody>
+                      </Table>
+                      <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+                        <div>
+                          {embrioesCongelados.length} embrião(ões) disponíveis
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEmbrioesPage(Math.max(1, embrioesPage - 1));
+                            }}
+                            disabled={embrioesPage === 1}
+                          >
+                            Anterior
+                          </Button>
+                          <span>
+                            Página {Math.min(embrioesPage, Math.max(1, Math.ceil(embrioesCongelados.length / EMBRIOES_PAGE_SIZE)))} de {Math.max(1, Math.ceil(embrioesCongelados.length / EMBRIOES_PAGE_SIZE))}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const totalPaginas = Math.max(1, Math.ceil(embrioesCongelados.length / EMBRIOES_PAGE_SIZE));
+                              setEmbrioesPage(Math.min(totalPaginas, embrioesPage + 1));
+                            }}
+                            disabled={embrioesPage >= Math.max(1, Math.ceil(embrioesCongelados.length / EMBRIOES_PAGE_SIZE))}
+                          >
+                            Próxima
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

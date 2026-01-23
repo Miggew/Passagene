@@ -28,7 +28,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { atualizarStatusReceptora, validarTransicaoStatus, calcularStatusReceptora } from '@/lib/receptoraStatus';
+import { atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
 import { ArrowLeft, CheckCircle, Lock } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
@@ -460,7 +460,7 @@ export default function ProtocoloPasso2() {
       ];
 
       // Aguardar todas as atualizações de protocolo_receptoras
-      await Promise.allSettled(protocoloReceptorasPromises);
+      await Promise.all(protocoloReceptorasPromises);
 
       // Atualizar status do protocolo (SINCRONIZADO se tem receptoras APTA, FECHADO se não tem)
       const { error: protocoloError } = await supabase
@@ -503,6 +503,7 @@ export default function ProtocoloPasso2() {
           
           if (statusError) {
             console.error(`Erro ao atualizar status da receptora ${r.identificacao} para SINCRONIZADA:`, statusError);
+            throw statusError;
           }
         }),
         // Atualizar receptoras descartadas para VAZIA
@@ -515,12 +516,13 @@ export default function ProtocoloPasso2() {
           
           if (statusError) {
             console.error(`Erro ao atualizar status da receptora ${r.identificacao} para VAZIA:`, statusError);
+            throw statusError;
           }
         }),
       ];
 
-      // Aguardar todos os updates de status (mas não falhar se algum der erro)
-      await Promise.allSettled(statusUpdatePromises);
+      // Aguardar todos os updates de status (falhar se algum der erro)
+      await Promise.all(statusUpdatePromises);
 
       // Resetar mudanças pendentes
       setHasPendingChanges(false);
