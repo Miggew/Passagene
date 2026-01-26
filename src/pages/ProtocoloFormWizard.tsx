@@ -207,7 +207,6 @@ export default function ProtocoloFormWizard() {
       setAllReceptoras(receptorasVazias);
       setReceptorasComStatus(receptorasComStatusFiltradas);
     } catch (error) {
-      console.error('Error loading receptoras:', error);
       toast({
         title: 'Erro ao carregar receptoras',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -390,7 +389,6 @@ export default function ProtocoloFormWizard() {
         .eq('fazenda_id_atual', protocoloData.fazenda_id);
 
       if (viewError) {
-        console.error('Erro ao buscar receptoras da fazenda:', viewError);
         throw viewError;
       }
 
@@ -405,16 +403,14 @@ export default function ProtocoloFormWizard() {
           .ilike('identificacao', createReceptoraForm.identificacao.trim());
 
         if (brincoError) {
-          console.error('Erro ao verificar brinco duplicado:', brincoError);
           throw brincoError;
         }
 
         if (receptorasComBrinco && receptorasComBrinco.length > 0) {
-          const nomeReceptora = receptorasComBrinco[0].nome 
-            ? `"${receptorasComBrinco[0].nome}"` 
+          const nomeReceptora = receptorasComBrinco[0].nome
+            ? `"${receptorasComBrinco[0].nome}"`
             : 'sem nome';
           const erroMsg = `Já existe uma receptora com o brinco "${createReceptoraForm.identificacao.trim()}" nesta fazenda (Nome: ${nomeReceptora}).`;
-          console.error('Brinco duplicado detectado:', erroMsg, receptorasComBrinco);
           throw new Error(erroMsg);
         }
       }
@@ -428,7 +424,6 @@ export default function ProtocoloFormWizard() {
           .ilike('nome', createReceptoraForm.nome.trim());
 
         if (nomeError) {
-          console.error('Erro ao verificar nome duplicado:', nomeError);
           throw nomeError;
         }
 
@@ -471,13 +466,7 @@ export default function ProtocoloFormWizard() {
       if (historicoError) {
         // Se o erro for de duplicata (trigger), significa que a validação falhou
         // Mas a receptora já foi criada, então precisamos tratá-la
-        if (historicoError.message?.includes('brinco') || historicoError.code === 'P0001') {
-          // Não logar como erro - é um caso esperado quando a validação falha
-          // A receptora foi criada mas não pode ser vinculada à fazenda
-          // Isso será tratado pela validação melhorada no ProtocoloDetail
-        } else {
-          console.error('Erro ao criar histórico de fazenda:', historicoError);
-        }
+        // Erro esperado quando validação de brinco falha ou histórico não pode ser criado
       }
 
       setReceptorasLocais([
@@ -542,7 +531,6 @@ export default function ProtocoloFormWizard() {
     );
 
     if (receptorasIdsInvalidas.length > 0) {
-      console.error('Receptoras com IDs inválidos:', receptorasIdsInvalidas);
       toast({
         title: 'Erro de validação',
         description: 'Seleção de receptora inválida. Refaça a seleção.',
@@ -557,7 +545,6 @@ export default function ProtocoloFormWizard() {
     );
 
     if (receptorasValidas.length !== receptorasLocais.length || receptorasValidas.length === 0) {
-      console.error('Receptoras inválidas ou nenhuma válida após validação');
       toast({
         title: 'Erro de validação',
         description: 'Seleção de receptora inválida. Refaça a seleção.',
@@ -594,7 +581,6 @@ export default function ProtocoloFormWizard() {
       );
 
       if (rpcError) {
-        console.error('Erro ao criar protocolo (RPC):', rpcError);
         throw rpcError;
       }
 
@@ -610,10 +596,8 @@ export default function ProtocoloFormWizard() {
         .eq('protocolo_id', protocoloId)
         .in('receptora_id', receptorasIds);
 
-      if (prError) {
-        console.error('Erro ao buscar receptoras do protocolo:', prError);
-        // Não falhar aqui - protocolo já foi criado, apenas logar o erro
-      } else if (prData && prData.length > 0) {
+      // Não falhar se erro - protocolo já foi criado
+      if (!prError && prData && prData.length > 0) {
         // Fazer UPDATE em lote das classificações (um UPDATE por receptora)
         // Criar mapa para acesso rápido: receptora_id -> índice
         const receptoraIndexMap = new Map(receptorasIds.map((id, idx) => [id, idx]));
@@ -621,11 +605,11 @@ export default function ProtocoloFormWizard() {
         // Executar updates em paralelo (mas aguardar para garantir persistência)
         const updatePromises = prData.map(async (pr) => {
           const receptoraIndex = receptoraIndexMap.get(pr.receptora_id);
-          if (receptoraIndex === undefined) return;
-          
+          if (receptoraIndex === undefined) return { success: true };
+
           const ciclando = receptorasCiclando[receptoraIndex];
           const qualidade = receptorasQualidade[receptoraIndex];
-          
+
           // Sempre fazer update (pode ser null para limpar)
           const { error: updateError } = await supabase
             .from('protocolo_receptoras')
@@ -635,13 +619,22 @@ export default function ProtocoloFormWizard() {
             })
             .eq('id', pr.id);
 
-          if (updateError) {
-            console.error(`Erro ao atualizar classificações da receptora ${pr.receptora_id}:`, updateError);
-          }
+          return { success: !updateError, error: updateError };
         });
 
-        // Aguardar todos os updates (mas não falhar se algum der erro)
-        await Promise.allSettled(updatePromises);
+        // Aguardar todos os updates (classificações são opcionais, não falhar protocolo)
+        const classResults = await Promise.allSettled(updatePromises);
+        const classErrors = classResults.filter(
+          r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value && !r.value.success)
+        );
+        if (classErrors.length > 0) {
+          // Classificações falharam mas protocolo foi criado - avisar usuário
+          toast({
+            title: 'Aviso',
+            description: `Protocolo criado, mas ${classErrors.length} classificação(ões) não foram salvas. Edite o protocolo para corrigir.`,
+            variant: 'destructive',
+          });
+        }
       }
 
       // Atualizar status das receptoras para EM_SINCRONIZACAO após finalizar passo 1
@@ -656,9 +649,6 @@ export default function ProtocoloFormWizard() {
         .map((result, index) => ({ result, receptoraId: receptorasIds[index] }))
         .filter(({ result }) => result.error);
       if (statusErrors.length > 0) {
-        statusErrors.forEach(({ result, receptoraId }) => {
-          console.error(`Erro ao atualizar status da receptora ${receptoraId}:`, result.error);
-        });
         throw new Error('Erro ao atualizar status das receptoras. Tente novamente.');
       }
 
@@ -670,7 +660,6 @@ export default function ProtocoloFormWizard() {
       // Navegar após sucesso
       navigate('/protocolos');
     } catch (error) {
-      console.error('Erro ao finalizar protocolo:', error);
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Erro desconhecido ao finalizar protocolo';

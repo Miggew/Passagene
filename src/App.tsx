@@ -2,13 +2,20 @@ import { lazy, Suspense } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import ScrollToTop from './components/shared/ScrollToTop';
 import AppErrorFallback from './components/shared/AppErrorFallback';
 import { ErrorBoundary } from 'react-error-boundary';
 import LoadingSpinner from './components/shared/LoadingSpinner';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
+// Paginas de autenticacao
+const Login = lazy(() => import('./pages/Login'));
+const SignUp = lazy(() => import('./pages/SignUp'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+
+// Paginas do app
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Clientes = lazy(() => import('./pages/Clientes'));
 const ClienteForm = lazy(() => import('./pages/ClienteForm'));
@@ -47,13 +54,53 @@ const queryClient = new QueryClient({
   },
 });
 
+// Componente que protege rotas: se nao logado, redireciona para /login
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  // Enquanto verifica sessao, mostra loading
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  // Se nao esta logado, redireciona para login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Se logado, mostra o conteudo
+  return <>{children}</>;
+}
+
+// Componente que impede acesso a paginas de auth se ja estiver logado
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  // Se ja esta logado, redireciona para o dashboard
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 const AppRoutes = () => {
   const location = useLocation();
   return (
     <ErrorBoundary FallbackComponent={AppErrorFallback} resetKeys={[location.pathname]}>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-          <Route element={<MainLayout />}>
+          {/* Rotas publicas (login, cadastro, recuperar senha) */}
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+
+          {/* Rotas protegidas (app principal) */}
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route path="/" element={<Dashboard />} />
 
             {/* Clientes */}
@@ -82,7 +129,7 @@ const AppRoutes = () => {
             <Route path="/protocolos/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
             <Route path="/protocolos/fechados/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
 
-            {/* Aspirações */}
+            {/* Aspiracoes */}
             <Route path="/aspiracoes" element={<Aspiracoes />} />
             <Route path="/aspiracoes/novo" element={<PacoteAspiracaoForm />} />
             <Route path="/aspiracoes/:id" element={<PacoteAspiracaoDetail />} />
@@ -91,25 +138,27 @@ const AppRoutes = () => {
             <Route path="/touros" element={<Touros />} />
             <Route path="/touros/:id" element={<TouroDetail />} />
 
-            {/* Doses de Sêmen */}
+            {/* Doses de Semen */}
             <Route path="/doses-semen" element={<DosesSemen />} />
 
             {/* Lotes FIV */}
             <Route path="/lotes-fiv" element={<LotesFIV />} />
             <Route path="/lotes-fiv/:id" element={<LotesFIV />} />
 
-            {/* Embriões */}
+            {/* Embrioes */}
             <Route path="/embrioes" element={<Embrioes />} />
 
-            {/* Transferência de Embriões */}
+            {/* Transferencia de Embrioes */}
             <Route path="/transferencia" element={<TransferenciaEmbrioes />} />
 
-            {/* Diagnóstico de Gestação */}
+            {/* Diagnostico de Gestacao */}
             <Route path="/dg" element={<DiagnosticoGestacao />} />
 
             {/* Sexagem */}
             <Route path="/sexagem" element={<Sexagem />} />
           </Route>
+
+          {/* Rota 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -122,8 +171,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <ScrollToTop />
-        <AppRoutes />
+        {/* AuthProvider envolve tudo para gerenciar estado de login */}
+        <AuthProvider>
+          <ScrollToTop />
+          <AppRoutes />
+        </AuthProvider>
       </HashRouter>
     </TooltipProvider>
   </QueryClientProvider>

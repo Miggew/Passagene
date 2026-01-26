@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { formatDate } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Printer } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
@@ -32,6 +33,7 @@ interface ReceptoraComStatusFinal extends Receptora {
 export default function ProtocoloRelatorioFechado() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [protocolo, setProtocolo] = useState<ProtocoloSincronizacao | null>(null);
   const [fazendaNome, setFazendaNome] = useState('');
@@ -164,8 +166,7 @@ export default function ProtocoloRelatorioFechado() {
       }
 
       return protocolo.observacoes || '';
-    } catch (error) {
-      console.error('Erro ao enriquecer observações:', error);
+    } catch {
       return protocolo.observacoes || '';
     }
   };
@@ -221,8 +222,8 @@ export default function ProtocoloRelatorioFechado() {
         ...protocoloData,
         observacoes: observacoesEnriquecidas,
       });
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+    } catch {
+      // Erro silencioso
     } finally {
       setLoading(false);
     }
@@ -237,7 +238,6 @@ export default function ProtocoloRelatorioFechado() {
         .eq('protocolo_id', protocoloId);
 
       if (prError) {
-        console.error('Erro ao buscar protocolo_receptoras:', prError);
         return;
       }
 
@@ -260,9 +260,7 @@ export default function ProtocoloRelatorioFechado() {
 
       if (teError) {
         // Se não encontrou TE, não é erro - apenas não há TE ainda
-        if (teError.code !== 'PGRST116') {
-          console.error('Erro ao buscar TE:', teError);
-        }
+        // Continua sem TE
         return;
       }
 
@@ -273,8 +271,9 @@ export default function ProtocoloRelatorioFechado() {
           tecnico_responsavel: teData.tecnico_responsavel || undefined,
         });
       }
-    } catch (error) {
-      console.error('Erro ao carregar informações da TE:', error);
+    } catch {
+      // Informações de TE são opcionais no relatório - não bloquear exibição
+      setTeInfo(null);
     }
   };
 
@@ -299,7 +298,6 @@ export default function ProtocoloRelatorioFechado() {
           .single();
 
         if (receptoraError) {
-          console.error('Erro ao carregar receptora:', receptoraError);
           continue;
         }
 
@@ -330,8 +328,12 @@ export default function ProtocoloRelatorioFechado() {
         totalDescartadas,
         totalConfirmadas,
       });
-    } catch (error) {
-      console.error('Erro ao carregar receptoras:', error);
+    } catch {
+      toast({
+        title: 'Erro ao carregar receptoras',
+        description: 'Não foi possível carregar a lista de receptoras do protocolo.',
+        variant: 'destructive',
+      });
     }
   };
 

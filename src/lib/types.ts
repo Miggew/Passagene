@@ -11,6 +11,7 @@ export interface Fazenda {
   id: string;
   cliente_id: string;
   nome: string;
+  sigla?: string;
   responsavel?: string;
   contato_responsavel?: string;
   localizacao?: string;
@@ -459,64 +460,6 @@ export interface Animal {
   created_at?: string;
 }
 
-// View Types
-export interface VProtocoloReceptoraStatus {
-  protocolo_id: string;
-  receptora_id: string;
-  brinco: string;
-  fase_ciclo: string;
-  status_efetivo: string;
-  motivo_efetivo?: string;
-  data_te_prevista?: string;
-  data_limite_te?: string;
-}
-
-export interface VTentativaTeStatus {
-  receptora_id: string;
-  brinco: string;
-  status_tentativa: string;
-  data_te: string;
-  data_dg?: string;
-  resultado_dg?: string;
-  sexagem?: string;
-}
-
-export interface VEmbrioDisponivelTE {
-  embriao_id: string;
-  identificacao?: string;
-  classificacao?: string;
-  tipo_embriao?: string;
-  lote_fiv_id?: string;
-  d7_pronto?: boolean;
-  d8_limite?: boolean;
-  disponivel_fresco_hoje?: boolean;
-  disponivel_congelado?: boolean;
-  localizacao_atual?: string;
-  status_atual: string;
-}
-
-// Histórico de fazendas da receptora
-export interface ReceptoraFazendaHistorico {
-  id: string;
-  receptora_id: string;
-  fazenda_id: string;
-  data_inicio: string;
-  data_fim?: string | null;
-  observacoes?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// View: Fazenda atual da receptora
-export interface VReceptoraFazendaAtual {
-  receptora_id: string;
-  fazenda_id_atual: string;
-  data_inicio_atual: string;
-  fazenda_nome_atual: string;
-  cliente_id: string;
-  cliente_nome: string;
-}
-
 // Helper type for receptora with calculated status
 export interface ReceptoraComStatus extends Receptora {
   status_calculado: string;
@@ -527,10 +470,197 @@ export interface ReceptoraComStatus extends Receptora {
   numero_gestacoes?: number;
 }
 
-// Timeline event for receptora history
-export interface ReceptoraHistoryEvent {
-  tipo: 'PROTOCOLO' | 'TE' | 'DG' | 'SEXAGEM';
-  data: string;
-  descricao: string;
-  detalhes?: string;
+// ========================================
+// Tipos para dados com relacionamentos (joins do Supabase)
+// ========================================
+
+// Embrião com dados de acasalamento e lote expandidos
+export interface EmbriaoComRelacionamentos extends Embriao {
+  acasalamento?: LoteFIVAcasalamento & {
+    aspiracao_doadora_id?: string;
+    dose_semen_id?: string;
+    doadora_registro?: string;
+    touro_nome?: string;
+  };
+  lote_fiv?: LoteFIV & {
+    pacote_aspiracao_id?: string;
+  };
+  doadora_registro?: string;
+  touro_nome?: string;
+}
+
+// Dose de sêmen com dados do touro expandidos
+export interface DoseSemenComTouro extends DoseSemen {
+  touro?: Touro | {
+    id: string;
+    nome: string;
+    registro?: string;
+    raca?: string;
+  };
+}
+
+// Protocolo receptora com dados do protocolo expandidos
+export interface ProtocoloReceptoraComProtocolo extends ProtocoloReceptora {
+  protocolos_sincronizacao?: ProtocoloSincronizacao;
+}
+
+// ========================================
+// Tipos para inserção/atualização no banco
+// ========================================
+
+// Diagnóstico de gestação para inserção (sem id e created_at)
+export interface DiagnosticoGestacaoInsert {
+  receptora_id: string;
+  data_te: string;
+  tipo_diagnostico: string;
+  data_diagnostico: string;
+  resultado: string;
+  sexagem?: string;
+  numero_gestacoes?: number;
+  observacoes?: string;
+  veterinario_responsavel?: string;
+  tecnico_responsavel?: string;
+}
+
+// Diagnóstico de gestação para atualização (com id)
+export interface DiagnosticoGestacaoUpdate extends DiagnosticoGestacaoInsert {
+  id: string;
+}
+
+// Dose de sêmen para inserção
+export interface DoseSemenInsert {
+  touro_id: string;
+  cliente_id: string;
+  tipo_semen?: 'CONVENCIONAL' | 'SEXADO';
+  quantidade?: number;
+}
+
+// Touro para inserção
+export interface TouroInsert {
+  registro: string;
+  nome: string;
+  raca?: string;
+  data_nascimento?: string;
+  proprietario?: string;
+  fazenda_nome?: string;
+  pai_registro?: string;
+  pai_nome?: string;
+  mae_registro?: string;
+  mae_nome?: string;
+  genealogia_texto?: string;
+  link_catalogo?: string;
+  foto_url?: string;
+  link_video?: string;
+  dados_geneticos?: Record<string, unknown>;
+  dados_producao?: Record<string, unknown>;
+  dados_conformacao?: Record<string, unknown>;
+  medidas_fisicas?: Record<string, unknown>;
+  dados_saude_reproducao?: Record<string, unknown>;
+  caseinas?: Caseinas;
+  outros_dados?: OutrosDados;
+  observacoes?: string;
+  disponivel?: boolean;
+}
+
+// ========================================
+// Tipos para sessões de transferência
+// ========================================
+
+export interface TransferenciaSessao {
+  id?: string;
+  fazenda_id?: string;
+  status?: 'ABERTA' | 'ENCERRADA';
+  transferencias_ids?: string[];
+  protocolo_receptora_ids?: string[];
+  origem_embriao?: 'PACOTE' | 'CONGELADO';
+  data_te?: string;
+  updated_at?: string;
+}
+
+// ========================================
+// Tipos auxiliares para queries
+// ========================================
+
+// Aspiração com dados da doadora
+export interface AspiracaoComDoadora extends AspiracaoDoadora {
+  doadora_id: string;
+  doadora_nome?: string;
+  doadora_registro?: string;
+}
+
+// Acasalamento com dados relacionados
+export interface AcasalamentoComDados extends LoteFIVAcasalamento {
+  aspiracao_doadora_id: string;
+  dose_semen_id: string;
+}
+
+// Lote FIV com dados do pacote
+export interface LoteFIVComPacote extends LoteFIV {
+  pacote_aspiracao?: PacoteAspiracao;
+}
+
+// Tipo genérico para erros do Supabase
+export interface SupabaseError {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+}
+
+// ========================================
+// Tipos para queries específicas (evita uso de 'any')
+// ========================================
+
+// Embrião com campos específicos para query (DiagnosticoGestacao, FazendaDetail)
+export interface EmbriaoQuery {
+  id: string;
+  identificacao?: string;
+  classificacao?: string;
+  lote_fiv_id: string;
+  lote_fiv_acasalamento_id?: string;
+}
+
+// Dose de sêmen com join de touro (retorno do Supabase)
+export interface DoseComTouroQuery {
+  id: string;
+  touro_id?: string;
+  touro?: {
+    id: string;
+    nome: string;
+    registro?: string;
+    raca?: string;
+  } | Array<{
+    id: string;
+    nome: string;
+    registro?: string;
+    raca?: string;
+  }> | null;
+}
+
+// Protocolo receptora com join de protocolo_sincronizacao
+export interface ProtocoloReceptoraQuery {
+  id: string;
+  protocolo_id: string;
+  receptora_id?: string;
+  status: string;
+  motivo_inapta?: string;
+  data_inclusao?: string;
+  protocolos_sincronizacao?: {
+    id: string;
+    status?: string;
+    data_inicio?: string;
+    fazenda_id?: string;
+  } | null;
+}
+
+// Item de view/query de transferência
+export interface ItemTransferenciaQuery {
+  id?: string;
+  receptora_id?: string;
+  embriao_id?: string;
+  data_te?: string;
+  status_te?: string;
+  brinco?: string;
+  nome?: string;
+  [key: string]: unknown;
 }

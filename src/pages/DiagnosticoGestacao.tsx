@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Fazenda } from '@/lib/types';
+import type { Fazenda, EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
+import { buscarDadosGenealogia, extrairAcasalamentoIds } from '@/lib/dataEnrichment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -209,10 +210,12 @@ export default function DiagnosticoGestacao() {
       );
 
       const receptorasPorLote = new Map<string, Set<string>>();
+      const chaveFazendaMap = new Map<string, string>(); // Mapear chave -> fazendaId
       (teData || []).forEach(te => {
         const fazendaId = receptoraFazendaMap.get(te.receptora_id);
         if (!fazendaId) return;
-        const chave = `${fazendaId}-${te.data_te}`;
+        const chave = `${fazendaId}|${te.data_te}`; // Usar | como separador
+        chaveFazendaMap.set(chave, fazendaId);
         if (!receptorasPorLote.has(chave)) {
           receptorasPorLote.set(chave, new Set());
         }
@@ -223,7 +226,7 @@ export default function DiagnosticoGestacao() {
       (diagnosticosData || []).forEach(dg => {
         const fazendaId = receptoraFazendaMap.get(dg.receptora_id);
         if (!fazendaId) return;
-        const chave = `${fazendaId}-${dg.data_te}`;
+        const chave = `${fazendaId}|${dg.data_te}`; // Usar | como separador
         if (!diagnosticosPorLote.has(chave)) {
           diagnosticosPorLote.set(chave, new Set());
         }
@@ -234,8 +237,8 @@ export default function DiagnosticoGestacao() {
       receptorasPorLote.forEach((receptorasLote, chave) => {
         const diagnosticosLote = diagnosticosPorLote.get(chave)?.size || 0;
         if (diagnosticosLote < receptorasLote.size) {
-          const fazendaId = chave.split('-')[0];
-          fazendasAptasSet.add(fazendaId);
+          const fazendaId = chaveFazendaMap.get(chave);
+          if (fazendaId) fazendasAptasSet.add(fazendaId);
         }
       });
 
@@ -461,7 +464,7 @@ export default function DiagnosticoGestacao() {
       }
 
       // 5. Buscar lotes FIV para obter d0
-      const loteIds = [...new Set(Array.from(embrioesMap.values()).map((e: any) => e.lote_fiv_id).filter(Boolean))];
+      const loteIds = [...new Set(Array.from(embrioesMap.values()).map((e: EmbriaoQuery) => e.lote_fiv_id).filter(Boolean))];
       
       let lotesMap = new Map();
       if (loteIds.length > 0) {
@@ -475,90 +478,9 @@ export default function DiagnosticoGestacao() {
       }
 
       // 6. Buscar dados dos acasalamentos
-      const acasalamentoIds = [...new Set(
-        Array.from(embrioesMap.values())
-          .map((e: any) => e.lote_fiv_acasalamento_id)
-          .filter(Boolean)
-      )];
-
-      let doadorasMap = new Map<string, string>();
-      let tourosMap = new Map<string, string>();
-
-      if (acasalamentoIds.length > 0) {
-        const { data: acasalamentosData } = await supabase
-          .from('lote_fiv_acasalamentos')
-          .select('id, aspiracao_doadora_id, dose_semen_id')
-          .in('id', acasalamentoIds);
-
-        if (acasalamentosData) {
-          const aspiracaoIds = [...new Set(acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean))];
-          const doseIds = [...new Set(acasalamentosData.map(a => a.dose_semen_id).filter(Boolean))];
-
-          if (aspiracaoIds.length > 0) {
-            const { data: aspiracoesData } = await supabase
-              .from('aspiracoes_doadoras')
-              .select('id, doadora_id')
-              .in('id', aspiracaoIds);
-
-            if (aspiracoesData) {
-              const doadoraIds = [...new Set(aspiracoesData.map(a => a.doadora_id))];
-              
-              if (doadoraIds.length > 0) {
-                const { data: doadorasData } = await supabase
-                  .from('doadoras')
-                  .select('id, registro')
-                  .in('id', doadoraIds);
-
-                if (doadorasData) {
-                  const doadoraMap = new Map(doadorasData.map(d => [d.id, d.registro]));
-                  const aspiracaoDoadoraMap = new Map(aspiracoesData.map(a => [a.id, a.doadora_id]));
-                  
-                  acasalamentosData.forEach(ac => {
-                    if (ac.aspiracao_doadora_id) {
-                      const doadoraId = aspiracaoDoadoraMap.get(ac.aspiracao_doadora_id);
-                      if (doadoraId) {
-                        const registro = doadoraMap.get(doadoraId);
-                        if (registro) {
-                          doadorasMap.set(ac.id, registro);
-                        }
-                      }
-                    }
-                  });
-                }
-              }
-            }
-          }
-
-          if (doseIds.length > 0) {
-            // Buscar doses com informações do touro relacionado
-            const { data: dosesData } = await supabase
-              .from('doses_semen')
-              .select(`
-                id,
-                touro_id,
-                touro:touros(id, nome, registro, raca)
-              `)
-              .in('id', doseIds);
-
-            if (dosesData) {
-              // Extrair nome do touro relacionado
-              dosesData.forEach((d: any) => {
-                const touro = d.touro;
-                tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
-              });
-
-              acasalamentosData.forEach(ac => {
-                if (ac.dose_semen_id) {
-                  const touroNome = tourosMap.get(ac.dose_semen_id);
-                  if (touroNome) {
-                    tourosMap.set(ac.id, touroNome);
-                  }
-                }
-              });
-            }
-          }
-        }
-      }
+      // 6. Buscar dados de genealogia (doadora + touro) usando função utilitária
+      const acasalamentoIds = extrairAcasalamentoIds(Array.from(embrioesMap.values()));
+      const { doadorasMap, tourosMap } = await buscarDadosGenealogia(acasalamentoIds);
 
       // 7. Buscar diagnósticos existentes
       const { data: diagnosticosData } = await supabase
@@ -782,8 +704,8 @@ export default function DiagnosticoGestacao() {
       }
 
       // Preparar dados para inserção/atualização em lote
-      const diagnosticosParaInserir: any[] = [];
-      const diagnosticosParaAtualizar: any[] = [];
+      const diagnosticosParaInserir: DiagnosticoGestacaoInsert[] = [];
+      const diagnosticosParaAtualizar: DiagnosticoGestacaoUpdate[] = [];
       const atualizacoesStatus: Array<{ receptora_id: string; status: string; dataParto: string | null }> = [];
 
       receptoras.forEach(receptora => {
@@ -792,17 +714,16 @@ export default function DiagnosticoGestacao() {
 
         // Validar campos obrigatórios
         if (!dados.data_diagnostico) {
-          console.warn(`Receptora ${receptora.brinco} sem data de diagnóstico`);
           return;
         }
 
-        const insertData: any = {
+        const insertData: DiagnosticoGestacaoInsert = {
           receptora_id: receptora.receptora_id,
           data_te: receptora.data_te,
           tipo_diagnostico: 'DG',
           data_diagnostico: dados.data_diagnostico,
           resultado: dados.resultado,
-          observacoes: dados.observacoes ? dados.observacoes.trim() || null : null,
+          observacoes: dados.observacoes ? dados.observacoes.trim() || undefined : undefined,
         };
         
         // Número de gestações só é adicionado se resultado for PRENHE ou RETOQUE
@@ -880,9 +801,7 @@ export default function DiagnosticoGestacao() {
           .in('receptora_id', [...new Set(diagnosticosParaInserir.map(dg => dg.receptora_id))])
           .eq('tipo_diagnostico', 'DG');
 
-        if (checkError) {
-          console.warn('Erro ao verificar diagnósticos existentes:', checkError);
-        }
+        // Continua mesmo se erro ao verificar
 
         // Mapear diagnósticos existentes para facilitar busca
         const existentesMap = new Map<string, string>();
@@ -892,7 +811,7 @@ export default function DiagnosticoGestacao() {
         });
 
         // Separar em inserir e atualizar
-        const diagnosticosParaInserirFinal: any[] = [];
+        const diagnosticosParaInserirFinal: DiagnosticoGestacaoInsert[] = [];
         
         diagnosticosParaInserir.forEach(dg => {
           const chave = `${dg.receptora_id}-${dg.data_te}-${dg.tipo_diagnostico}`;
@@ -917,11 +836,8 @@ export default function DiagnosticoGestacao() {
             .insert(diagnosticosParaInserirFinal);
 
           if (insertError) {
-            console.error('Erro ao inserir diagnósticos:', insertError);
-            
             // Se erro relacionado a coluna não existir, tentar sem os campos veterinário/técnico
             if (insertError.message?.includes('column') || insertError.code === '42703') {
-              console.warn('Campos veterinario_responsavel/tecnico_responsavel não existem, tentando sem eles...');
               
               // Remover campos veterinário/técnico de todos os registros
               const insertDataSemCampos = diagnosticosParaInserirFinal.map(({ veterinario_responsavel, tecnico_responsavel, ...rest }) => rest);
@@ -955,7 +871,6 @@ export default function DiagnosticoGestacao() {
 
           // Se erro relacionado a coluna não existir, tentar sem os campos veterinário/técnico
           if (updateError && (updateError.message?.includes('column') || updateError.code === '42703')) {
-            console.warn('Campos veterinario_responsavel/tecnico_responsavel não existem, atualizando sem eles...');
             
             const { veterinario_responsavel, tecnico_responsavel, ...updateDataSemCampos } = updateData;
             
@@ -991,7 +906,6 @@ export default function DiagnosticoGestacao() {
           .eq('id', atualizacao.receptora_id);
 
         if (statusError) {
-          console.error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}:`, statusError);
           throw new Error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}`);
         }
       }
@@ -1023,8 +937,6 @@ export default function DiagnosticoGestacao() {
         await loadReceptorasLote(loteSelecionado);
       }
     } catch (error) {
-      console.error('Erro detalhado ao salvar lote:', error);
-      
       let errorMessage = 'Erro desconhecido';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -1322,7 +1234,7 @@ export default function DiagnosticoGestacao() {
                           <TableCell>
                             <Select
                               value={dados.resultado}
-                              onValueChange={(value) => handleResultadoChange(receptora.receptora_id, value as any)}
+                              onValueChange={(value) => handleResultadoChange(receptora.receptora_id, value as 'PRENHE' | 'VAZIA' | 'RETOQUE' | '')}
                               disabled={loteSelecionado.status === 'FECHADO'}
                             >
                               <SelectTrigger className="w-32">

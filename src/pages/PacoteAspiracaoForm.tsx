@@ -44,7 +44,6 @@ export default function PacoteAspiracaoForm() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [fazendas, setFazendas] = useState<FazendaSelect[]>([]);
-  const mountRef = useRef(performance.now());
   const destinoRequestId = useRef(0);
   const [fazendasDestinoResultados, setFazendasDestinoResultados] = useState<FazendaSelect[]>([]);
   const [loadingDestino, setLoadingDestino] = useState(false);
@@ -77,7 +76,6 @@ export default function PacoteAspiracaoForm() {
       setLoadingDestino(false);
       return;
     }
-    const t0 = performance.now();
     const requestId = ++destinoRequestId.current;
     setLoadingDestino(true);
     supabase
@@ -99,7 +97,6 @@ export default function PacoteAspiracaoForm() {
   const loadFazendas = async () => {
     try {
       setLoading(true);
-      const t0 = performance.now();
       const { data, error } = await supabase
         .from('fazendas')
         .select('id, nome')

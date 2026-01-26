@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { Fazenda, Doadora } from '@/lib/types';
+import { formatStatusLabel } from '@/lib/statusLabels';
+import type { Fazenda, Doadora, DoseComTouroQuery } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,7 +19,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, MapPin, Navigation, Calendar, Beef, Dna, Syringe, Activity, Baby } from 'lucide-react';
+import { ArrowLeft, Navigation, Calendar, Syringe, Activity, Baby } from 'lucide-react';
 
 interface ProtocoloInfo {
   id: string;
@@ -188,9 +189,8 @@ export default function FazendaDetail() {
             data_limite_te: v.data_limite_te,
           })));
         }
-      } catch (e) {
+      } catch {
         // View doesn't exist, skip
-        console.log('View v_protocolo_receptoras_status not available');
       }
 
       // Load transferencias stats
@@ -449,7 +449,7 @@ export default function FazendaDetail() {
         const acasalamento = embriao?.lote_fiv_acasalamento_id ? acasalamentoMap.get(embriao.lote_fiv_acasalamento_id) : null;
         const doadoraId = acasalamento?.aspiracao_doadora_id ? aspiracaoMap.get(acasalamento.aspiracao_doadora_id) : null;
         const doadora = doadoraId ? doadoraMap.get(doadoraId) : null;
-        const dose = acasalamento?.dose_semen_id ? doseMap.get(acasalamento.dose_semen_id) as any : null;
+        const dose = acasalamento?.dose_semen_id ? doseMap.get(acasalamento.dose_semen_id) as DoseComTouroQuery | undefined : null;
         const touroRaw = dose?.touro;
         const touro = Array.isArray(touroRaw) ? touroRaw[0] : touroRaw;
         const doadoraLabel = doadora ? `${doadora.registro || ''}${doadora.nome ? ` - ${doadora.nome}` : ''}`.trim() : (a.mae_nome || null);
@@ -483,47 +483,28 @@ export default function FazendaDetail() {
     }
   };
 
-  const getMapsLink = () => {
-    if (!fazenda) return null;
+  const handleNavigate = () => {
+    if (!fazenda) return;
+
     if (fazenda.latitude && fazenda.longitude) {
-      return `https://www.google.com/maps?q=${fazenda.latitude},${fazenda.longitude}`;
+      // geo: URI - abre o app de mapas padrão do dispositivo
+      const geoUri = `geo:${fazenda.latitude},${fazenda.longitude}?q=${fazenda.latitude},${fazenda.longitude}`;
+      window.location.href = geoUri;
     } else if (fazenda.localizacao) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fazenda.localizacao)}`;
+      // Fallback para busca por endereço - abre no navegador
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fazenda.localizacao)}`;
+      window.open(mapsUrl, '_blank');
     }
-    return null;
   };
 
-  const getWazeLink = () => {
-    if (!fazenda) return null;
-    if (fazenda.latitude && fazenda.longitude) {
-      return `https://waze.com/ul?ll=${fazenda.latitude},${fazenda.longitude}&navigate=yes`;
-    } else if (fazenda.localizacao) {
-      return getMapsLink();
-    }
-    return null;
+  const hasLocation = () => {
+    if (!fazenda) return false;
+    return (fazenda.latitude && fazenda.longitude) || fazenda.localizacao;
   };
 
   const formatDateBR = (date?: string | null) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('pt-BR');
-  };
-
-  const formatStatusLabel = (status?: string | null) => {
-    const value = (status || '').toUpperCase();
-    const map: Record<string, string> = {
-      VAZIA: 'Vazia',
-      SERVIDA: 'Servida',
-      PRENHE: 'Prenhe',
-      PRENHE_RETOQUE: 'Prenhe (retoque)',
-      PRENHE_FEMEA: 'Prenhe (fêmea)',
-      PRENHE_MACHO: 'Prenhe (macho)',
-      PRENHE_SEM_SEXO: 'Prenhe (sem sexo)',
-      PRENHE_2_SEXOS: 'Prenhe (2 sexos)',
-      INAPTA: 'Inapta',
-      APTA: 'Apta',
-      SINCRONIZADA: 'Sincronizada',
-    };
-    return map[value] || (status ? status : 'Sem status');
   };
 
   if (loading) {
@@ -570,6 +551,10 @@ export default function FazendaDetail() {
               <p className="text-base text-slate-900">{fazenda.nome}</p>
             </div>
             <div>
+              <p className="text-sm font-medium text-slate-500">Sigla</p>
+              <p className="text-base text-slate-900">{fazenda.sigla || '-'}</p>
+            </div>
+            <div>
               <p className="text-sm font-medium text-slate-500">Cliente</p>
               <p className="text-base text-slate-900">{clienteNome}</p>
             </div>
@@ -594,26 +579,17 @@ export default function FazendaDetail() {
               <p className="text-base text-slate-900">{fazenda.contato_responsavel || '-'}</p>
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
-            {getMapsLink() && (
+          {hasLocation() && (
+            <div className="pt-2">
               <Button
                 variant="outline"
-                onClick={() => window.open(getMapsLink()!, '_blank')}
-              >
-                <MapPin className="w-4 h-4 mr-2" />
-                Abrir no Google Maps
-              </Button>
-            )}
-            {getWazeLink() && (
-              <Button
-                variant="outline"
-                onClick={() => window.open(getWazeLink()!, '_blank')}
+                onClick={handleNavigate}
               >
                 <Navigation className="w-4 h-4 mr-2" />
-                Abrir no Waze
+                Navegar
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

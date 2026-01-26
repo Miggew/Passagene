@@ -15,10 +15,13 @@ import {
   type CampoDinamico,
 } from '@/lib/schemas/tourosPorRaca';
 
+// Tipo para valores de campos dinâmicos
+type ValorCampoDinamico = string | number | boolean | null | undefined;
+
 interface CamposDinamicosPorRacaProps {
   raca: string;
-  valores: Record<string, any>; // Valores dos campos dinâmicos
-  onChange: (campo: string, valor: any, categoria: string) => void;
+  valores: Record<string, ValorCampoDinamico>; // Valores dos campos dinâmicos
+  onChange: (campo: string, valor: ValorCampoDinamico, categoria: string) => void;
   modoVisualizacao?: boolean; // Se true, apenas exibe os valores (sem edição)
 }
 

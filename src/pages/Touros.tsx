@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { Touro } from '@/lib/types';
+import type { Touro, TouroInsert } from '@/lib/types';
+
+// Tipo para valores de campos dinâmicos
+type ValorDinamico = string | number | boolean | null | undefined;
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -72,13 +75,13 @@ export default function Touros() {
 
   // Campos dinâmicos em JSONB
   const [dadosDinamicos, setDadosDinamicos] = useState({
-    dados_geneticos: {} as Record<string, any>,
-    dados_producao: {} as Record<string, any>,
-    dados_conformacao: {} as Record<string, any>,
-    medidas_fisicas: {} as Record<string, any>,
-    dados_saude_reproducao: {} as Record<string, any>,
-    caseinas: {} as Record<string, any>,
-    outros_dados: {} as Record<string, any>,
+    dados_geneticos: {} as Record<string, ValorDinamico>,
+    dados_producao: {} as Record<string, ValorDinamico>,
+    dados_conformacao: {} as Record<string, ValorDinamico>,
+    medidas_fisicas: {} as Record<string, ValorDinamico>,
+    dados_saude_reproducao: {} as Record<string, ValorDinamico>,
+    caseinas: {} as Record<string, ValorDinamico>,
+    outros_dados: {} as Record<string, ValorDinamico>,
   });
 
   useEffect(() => {
@@ -160,7 +163,7 @@ export default function Touros() {
     });
   };
 
-  const handleCampoDinamicoChange = (campo: string, valor: any, categoria: string) => {
+  const handleCampoDinamicoChange = (campo: string, valor: ValorDinamico, categoria: string) => {
     setDadosDinamicos((prev) => ({
       ...prev,
       [categoria]: {
@@ -205,8 +208,8 @@ export default function Touros() {
 
       // Limpar campos vazios dos dados dinâmicos antes de salvar
       // Retorna {} (objeto vazio) em vez de null para campos JSONB
-      const limparCamposVazios = (obj: Record<string, any>): Record<string, any> => {
-        const limpo: Record<string, any> = {};
+      const limparCamposVazios = (obj: Record<string, ValorDinamico>): Record<string, ValorDinamico> | null => {
+        const limpo: Record<string, ValorDinamico> = {};
         Object.entries(obj).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== '') {
             limpo[key] = value;
@@ -215,7 +218,7 @@ export default function Touros() {
         return Object.keys(limpo).length > 0 ? limpo : {};
       };
 
-      const insertData: any = {
+      const insertData: TouroInsert = {
         registro: formData.registro.trim(),
         nome: formData.nome.trim(),
         raca: formData.raca, // Já validado acima - não pode ser vazio
@@ -254,9 +257,7 @@ export default function Touros() {
       setShowDialog(false);
       resetForm();
       loadTouros();
-    } catch (error: any) {
-      console.error('Erro ao cadastrar touro:', error);
-      
+    } catch (error: unknown) {
       let errorMessage = 'Erro desconhecido';
       if (error?.message) {
         errorMessage = error.message;

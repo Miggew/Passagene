@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { Touro } from '@/lib/types';
+import type { Touro, TouroInsert } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -53,14 +53,15 @@ export default function TouroDetail() {
   });
 
   // Campos dinâmicos em JSONB
+  type ValorDinamico = string | number | boolean | null | undefined;
   const [dadosDinamicos, setDadosDinamicos] = useState({
-    dados_geneticos: {} as Record<string, any>,
-    dados_producao: {} as Record<string, any>,
-    dados_conformacao: {} as Record<string, any>,
-    medidas_fisicas: {} as Record<string, any>,
-    dados_saude_reproducao: {} as Record<string, any>,
-    caseinas: {} as Record<string, any>,
-    outros_dados: {} as Record<string, any>,
+    dados_geneticos: {} as Record<string, ValorDinamico>,
+    dados_producao: {} as Record<string, ValorDinamico>,
+    dados_conformacao: {} as Record<string, ValorDinamico>,
+    medidas_fisicas: {} as Record<string, ValorDinamico>,
+    dados_saude_reproducao: {} as Record<string, ValorDinamico>,
+    caseinas: {} as Record<string, ValorDinamico>,
+    outros_dados: {} as Record<string, ValorDinamico>,
   });
 
   useEffect(() => {
@@ -147,8 +148,8 @@ export default function TouroDetail() {
       setSaving(true);
 
       // Limpar campos vazios dos dados dinâmicos antes de salvar
-      const limparCamposVazios = (obj: Record<string, any>): Record<string, any> => {
-        const limpo: Record<string, any> = {};
+      const limparCamposVazios = (obj: Record<string, ValorDinamico>): Record<string, ValorDinamico> | null => {
+        const limpo: Record<string, ValorDinamico> = {};
         Object.entries(obj).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== '') {
             limpo[key] = value;
@@ -157,31 +158,31 @@ export default function TouroDetail() {
         return Object.keys(limpo).length > 0 ? limpo : null;
       };
 
-      const updateData: any = {
+      const updateData: TouroInsert = {
         registro: formData.registro.trim(),
         nome: formData.nome.trim(),
-        raca: formData.raca || null,
-        data_nascimento: formData.data_nascimento || null,
-        proprietario: formData.proprietario.trim() || null,
-        fazenda_nome: formData.fazenda_nome.trim() || null,
-        pai_registro: formData.pai_registro.trim() || null,
-        pai_nome: formData.pai_nome.trim() || null,
-        mae_registro: formData.mae_registro.trim() || null,
-        mae_nome: formData.mae_nome.trim() || null,
-        genealogia_texto: formData.genealogia_texto.trim() || null,
-        link_catalogo: formData.link_catalogo.trim() || null,
-        foto_url: formData.foto_url.trim() || null,
-        link_video: formData.link_video.trim() || null,
-        observacoes: formData.observacoes.trim() || null,
+        raca: formData.raca || undefined,
+        data_nascimento: formData.data_nascimento || undefined,
+        proprietario: formData.proprietario.trim() || undefined,
+        fazenda_nome: formData.fazenda_nome.trim() || undefined,
+        pai_registro: formData.pai_registro.trim() || undefined,
+        pai_nome: formData.pai_nome.trim() || undefined,
+        mae_registro: formData.mae_registro.trim() || undefined,
+        mae_nome: formData.mae_nome.trim() || undefined,
+        genealogia_texto: formData.genealogia_texto.trim() || undefined,
+        link_catalogo: formData.link_catalogo.trim() || undefined,
+        foto_url: formData.foto_url.trim() || undefined,
+        link_video: formData.link_video.trim() || undefined,
+        observacoes: formData.observacoes.trim() || undefined,
         disponivel: formData.disponivel,
         // Campos dinâmicos em JSONB
-        dados_geneticos: limparCamposVazios(dadosDinamicos.dados_geneticos),
-        dados_producao: limparCamposVazios(dadosDinamicos.dados_producao),
-        dados_conformacao: limparCamposVazios(dadosDinamicos.dados_conformacao),
-        medidas_fisicas: limparCamposVazios(dadosDinamicos.medidas_fisicas),
-        dados_saude_reproducao: limparCamposVazios(dadosDinamicos.dados_saude_reproducao),
-        caseinas: limparCamposVazios(dadosDinamicos.caseinas),
-        outros_dados: limparCamposVazios(dadosDinamicos.outros_dados),
+        dados_geneticos: limparCamposVazios(dadosDinamicos.dados_geneticos) || undefined,
+        dados_producao: limparCamposVazios(dadosDinamicos.dados_producao) || undefined,
+        dados_conformacao: limparCamposVazios(dadosDinamicos.dados_conformacao) || undefined,
+        medidas_fisicas: limparCamposVazios(dadosDinamicos.medidas_fisicas) || undefined,
+        dados_saude_reproducao: limparCamposVazios(dadosDinamicos.dados_saude_reproducao) || undefined,
+        caseinas: limparCamposVazios(dadosDinamicos.caseinas) || undefined,
+        outros_dados: limparCamposVazios(dadosDinamicos.outros_dados) || undefined,
       };
 
       const { error } = await supabase

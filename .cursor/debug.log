@@ -1,2 +1,0 @@
-{"location":"TransferenciaEmbrioes.tsx:loadFazendas:entry","message":"entrada loadFazendas","data":{"dataPasso2":"2026-01-12","hasDataPasso2":true},"timestamp":1769207965868,"sessionId":"debug-session","runId":"pre-fix","hypothesisId":"H1"}
-{"location":"TransferenciaEmbrioes.tsx:loadFazendas:statusData","message":"resultado protocolos_sincronizacao","data":{"hasError":false,"errorCode":null,"errorMsg":null,"count":0},"timestamp":1769207966125,"sessionId":"debug-session","runId":"pre-fix","hypothesisId":"H2"}

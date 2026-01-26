@@ -36,7 +36,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { handleError } from '@/lib/error-handler';
 import { useToast } from '@/hooks/use-toast';
-import { Snowflake, Tag, MapPin, Trash2, History, ChevronDown, ChevronUp, Package, CheckSquare, Square, User, Edit } from 'lucide-react';
+import { Snowflake, Tag, MapPin, Trash2, History, ChevronDown, ChevronUp, Package, CheckSquare, Square, User, Edit, AlertTriangle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Sheet,
@@ -45,9 +45,31 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { HistoricoEmbriao } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 import DatePickerBR from '@/components/shared/DatePickerBR';
+
+// Função para calcular o dia do embrião (D0, D1, D2... D7, D8, etc)
+// baseado na data de fecundação (D0 = dia da fecundação)
+const calcularDiaEmbriao = (dataFecundacao: string | undefined): number | null => {
+  if (!dataFecundacao) return null;
+
+  // Pegar a data de hoje no formato YYYY-MM-DD (horário local do usuário)
+  const hoje = new Date();
+  const hojeStr = hoje.getFullYear() + '-' +
+    String(hoje.getMonth() + 1).padStart(2, '0') + '-' +
+    String(hoje.getDate()).padStart(2, '0');
+
+  // Comparar apenas as datas (sem horas)
+  const [anoHoje, mesHoje, diaHoje] = hojeStr.split('-').map(Number);
+  const [anoFec, mesFec, diaFec] = dataFecundacao.split('-').map(Number);
+
+  const dataHojeMs = Date.UTC(anoHoje, mesHoje - 1, diaHoje);
+  const dataFecMs = Date.UTC(anoFec, mesFec - 1, diaFec);
+
+  const diffDays = Math.floor((dataHojeMs - dataFecMs) / (1000 * 60 * 60 * 24));
+
+  return diffDays;
+};
 
 interface EmbrioCompleto extends Embriao {
   doadora_registro?: string;
@@ -71,6 +93,7 @@ interface PacoteEmbrioes {
   id: string; // ID único do pacote (lote_fiv_id + data de criação)
   lote_fiv_id: string;
   data_despacho: string; // Data de criação dos embriões (data do despacho)
+  data_fecundacao?: string; // Data de fecundação para cálculo do dia do embrião
   fazendas_destino_ids: string[]; // Todas as fazendas destino do pacote
   fazendas_destino_nomes: string[]; // Nomes de todas as fazendas destino
   pacote_info: PacoteAspiracaoInfo;
@@ -232,7 +255,6 @@ export default function Embrioes() {
       if (error) throw error;
       setClientes(clientesData || []);
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
       handleError(error, 'Erro ao carregar clientes');
     }
   };
@@ -251,7 +273,6 @@ export default function Embrioes() {
       if (error) throw error;
       setFazendas(data || []);
     } catch (error) {
-      console.error('Erro ao carregar fazendas:', error);
       handleError(error, 'Erro ao carregar fazendas');
     }
   };
@@ -278,11 +299,9 @@ export default function Embrioes() {
         },
       ]);
 
-      if (error) {
-        console.error('Erro ao registrar histórico:', error);
-      }
-    } catch (error) {
-      console.error('Erro ao registrar histórico:', error);
+      // Erro silencioso - histórico é secundário
+    } catch {
+      // Erro silencioso - histórico é secundário
     }
   };
 
@@ -290,7 +309,7 @@ export default function Embrioes() {
     try {
       setLoading(true);
 
-      // Buscar embriões disponíveis (FRESCO ou CONGELADO)
+      // ===== FASE 1: Query inicial de embriões =====
       const { data: embrioesData, error: embrioesError } = await supabase
         .from('embrioes')
         .select('*')
@@ -307,10 +326,16 @@ export default function Embrioes() {
         return;
       }
 
-      // Buscar acasalamentos
-      const acasalamentoIds = [
-        ...new Set(embrioesData.filter((e) => e.lote_fiv_acasalamento_id).map((e) => e.lote_fiv_acasalamento_id)),
-      ] as string[];
+      // Coletar IDs necessários
+      const acasalamentoIds = [...new Set(
+        embrioesData.filter((e) => e.lote_fiv_acasalamento_id).map((e) => e.lote_fiv_acasalamento_id)
+      )] as string[];
+      const loteFivIds = [...new Set(
+        embrioesData.filter((e) => e.lote_fiv_id).map((e) => e.lote_fiv_id)
+      )] as string[];
+      const fazendaDestinoIdsEmbrioes = [...new Set(
+        embrioesData.filter((e) => e.fazenda_destino_id).map((e) => e.fazenda_destino_id)
+      )] as string[];
 
       if (acasalamentoIds.length === 0) {
         setEmbrioes(embrioesData as EmbrioCompleto[]);
@@ -319,181 +344,146 @@ export default function Embrioes() {
         return;
       }
 
-      const { data: acasalamentosData, error: acasalamentosError } = await supabase
-        .from('lote_fiv_acasalamentos')
-        .select('id, aspiracao_doadora_id, dose_semen_id')
-        .in('id', acasalamentoIds);
+      // ===== FASE 2: Queries paralelas (acasalamentos + lotes_fiv) =====
+      const [acasalamentosResult, lotesFivResult] = await Promise.all([
+        supabase
+          .from('lote_fiv_acasalamentos')
+          .select('id, aspiracao_doadora_id, dose_semen_id')
+          .in('id', acasalamentoIds),
+        loteFivIds.length > 0
+          ? supabase.from('lotes_fiv').select('id, pacote_aspiracao_id, data_fecundacao').in('id', loteFivIds)
+          : Promise.resolve({ data: null, error: null })
+      ]);
 
-      if (acasalamentosError) throw acasalamentosError;
+      if (acasalamentosResult.error) throw acasalamentosResult.error;
+      const acasalamentosData = acasalamentosResult.data || [];
+      const lotesFivData = lotesFivResult.data || [];
 
-      // Buscar aspirações
-      const aspiracaoIds = [
-        ...new Set(acasalamentosData?.map((a) => a.aspiracao_doadora_id) || []),
-      ];
-      const { data: aspiracoesData, error: aspiracoesError } = await supabase
-        .from('aspiracoes_doadoras')
-        .select('id, doadora_id, pacote_aspiracao_id')
-        .in('id', aspiracaoIds);
+      // Preparar IDs para próximas queries
+      const aspiracaoIds = [...new Set(acasalamentosData.map((a) => a.aspiracao_doadora_id))];
+      const doseIds = [...new Set(acasalamentosData.map((a) => a.dose_semen_id))];
+      const pacoteIds = [...new Set(lotesFivData.map((l) => l.pacote_aspiracao_id).filter(Boolean))] as string[];
 
-      if (aspiracoesError) throw aspiracoesError;
+      // Mapear lote_fiv_id -> pacote_aspiracao_id
+      const pacoteParaLoteMap = new Map<string, string>();
+      // Mapear lote_fiv_id -> data_fecundacao
+      const dataFecundacaoMap = new Map<string, string>();
+      lotesFivData.forEach(lote => {
+        if (lote.pacote_aspiracao_id) {
+          pacoteParaLoteMap.set(lote.id, lote.pacote_aspiracao_id);
+        }
+        if (lote.data_fecundacao) {
+          dataFecundacaoMap.set(lote.id, lote.data_fecundacao);
+        }
+      });
 
-      // Buscar doadoras
-      const doadoraIds = [...new Set(aspiracoesData?.map((a) => a.doadora_id) || [])];
-      const { data: doadorasData, error: doadorasError } = await supabase
-        .from('doadoras')
-        .select('id, registro')
-        .in('id', doadoraIds);
+      // ===== FASE 3: Queries paralelas (aspiracoes + doses + pacotes) =====
+      const [aspiracoesResult, dosesResult, pacotesResult] = await Promise.all([
+        aspiracaoIds.length > 0
+          ? supabase.from('aspiracoes_doadoras').select('id, doadora_id, pacote_aspiracao_id').in('id', aspiracaoIds)
+          : Promise.resolve({ data: null, error: null }),
+        doseIds.length > 0
+          ? supabase.from('doses_semen').select('id, touro_id, touro:touros(id, nome, registro, raca)').in('id', doseIds)
+          : Promise.resolve({ data: null, error: null }),
+        pacoteIds.length > 0
+          ? supabase.from('pacotes_aspiracao').select('id, data_aspiracao, fazenda_id, fazenda_destino_id, horario_inicio, veterinario_responsavel, total_oocitos').in('id', pacoteIds)
+          : Promise.resolve({ data: null, error: null })
+      ]);
 
-      if (doadorasError) throw doadorasError;
+      if (aspiracoesResult.error) throw aspiracoesResult.error;
+      if (dosesResult.error) throw dosesResult.error;
 
-      // Buscar doses (com informações do touro)
-      const doseIds = [...new Set(acasalamentosData?.map((a) => a.dose_semen_id) || [])];
-      const { data: dosesData, error: dosesError } = await supabase
-        .from('doses_semen')
-        .select(`
-          id,
-          touro_id,
-          touro:touros(id, nome, registro, raca)
-        `)
-        .in('id', doseIds);
+      const aspiracoesData = aspiracoesResult.data || [];
+      const dosesData = dosesResult.data || [];
+      const pacotesData = pacotesResult.data || [];
 
-      if (dosesError) throw dosesError;
+      // Coletar IDs de doadoras e fazendas
+      const doadoraIds = [...new Set(aspiracoesData.map((a) => a.doadora_id))];
+      const todasFazendaIds = new Set<string>(fazendaDestinoIdsEmbrioes);
+      pacotesData.forEach(p => {
+        if (p.fazenda_id) todasFazendaIds.add(p.fazenda_id);
+        if (p.fazenda_destino_id) todasFazendaIds.add(p.fazenda_destino_id);
+      });
 
-      // Buscar lotes FIV para obter pacotes de aspiração
-      const loteFivIds = [
-        ...new Set(embrioesData.filter((e) => e.lote_fiv_id).map((e) => e.lote_fiv_id)),
-      ] as string[];
+      // ===== FASE 4: Queries paralelas (doadoras + fazendas + fazendas_destino_pacotes) =====
+      const [doadorasResult, fazendasResult, fazendasDestinoResult] = await Promise.all([
+        doadoraIds.length > 0
+          ? supabase.from('doadoras').select('id, registro').in('id', doadoraIds)
+          : Promise.resolve({ data: null, error: null }),
+        todasFazendaIds.size > 0
+          ? supabase.from('fazendas').select('id, nome').in('id', Array.from(todasFazendaIds))
+          : Promise.resolve({ data: null, error: null }),
+        pacoteIds.length > 0
+          ? supabase.from('pacotes_aspiracao_fazendas_destino').select('pacote_aspiracao_id, fazenda_destino_id').in('pacote_aspiracao_id', pacoteIds)
+          : Promise.resolve({ data: null, error: null })
+      ]);
 
-      let pacotesAspiracaoMap = new Map<string, PacoteAspiracaoInfo>();
-      let pacoteParaLoteMap = new Map<string, string>(); // lote_fiv_id -> pacote_aspiracao_id
-      let fazendasDestinoPorPacoteMap = new Map<string, string[]>(); // pacote_id -> fazenda_destino_ids[]
+      if (doadorasResult.error) throw doadorasResult.error;
 
-      if (loteFivIds.length > 0) {
-        const { data: lotesFivData, error: lotesFivError } = await supabase
-          .from('lotes_fiv')
-          .select('id, pacote_aspiracao_id')
-          .in('id', loteFivIds);
+      const doadorasData = doadorasResult.data || [];
+      const fazendasData = fazendasResult.data || [];
+      const fazendasDestinoData = fazendasDestinoResult.data || [];
 
-        if (!lotesFivError && lotesFivData) {
-          lotesFivData.forEach(lote => {
-            if (lote.pacote_aspiracao_id) {
-              pacoteParaLoteMap.set(lote.id, lote.pacote_aspiracao_id);
-            }
-          });
+      // ===== PROCESSAR DADOS =====
 
-          const pacoteIds = [...new Set(lotesFivData.map((l) => l.pacote_aspiracao_id).filter(Boolean))] as string[];
-          
-          if (pacoteIds.length > 0) {
-            // OTIMIZAÇÃO: Buscar informações completas dos pacotes (incluindo fazenda_destino_id legacy)
-            const { data: pacotesData, error: pacotesError } = await supabase
-              .from('pacotes_aspiracao')
-              .select('id, data_aspiracao, fazenda_id, fazenda_destino_id, horario_inicio, veterinario_responsavel, total_oocitos')
-              .in('id', pacoteIds);
+      // Mapa de fazendas
+      const fazendasDestinoMap = new Map(fazendasData.map((f) => [f.id, f.nome]));
 
-            if (!pacotesError && pacotesData) {
-              // OTIMIZAÇÃO: Buscar fazendas destino dos pacotes e nomes das fazendas em paralelo
-              const [fazendasDestinoResult, fazendasDataResult] = await Promise.all([
-                supabase
-                  .from('pacotes_aspiracao_fazendas_destino')
-                  .select('pacote_aspiracao_id, fazenda_destino_id')
-                  .in('pacote_aspiracao_id', pacoteIds),
-                // Buscar todas as fazendas necessárias (da fazenda_id e fazenda_destino_id)
-                (async () => {
-                  const fazendaIds = new Set<string>();
-                  pacotesData.forEach(p => {
-                    if (p.fazenda_id) fazendaIds.add(p.fazenda_id);
-                    if (p.fazenda_destino_id) fazendaIds.add(p.fazenda_destino_id);
-                  });
-                  if (fazendaIds.size > 0) {
-                    return supabase
-                      .from('fazendas')
-                      .select('id, nome')
-                      .in('id', Array.from(fazendaIds));
-                  }
-                  return { data: null, error: null };
-                })()
-              ]);
-
-              const fazendasDestinoData = fazendasDestinoResult.data;
-              const fazendasData = fazendasDataResult.data;
-              const fazendasMap = new Map(fazendasData?.map((f) => [f.id, f.nome]) || []);
-
-              // OTIMIZAÇÃO: Contar doadoras por pacote usando aspiracoesData já carregado
-              const quantidadePorPacote = new Map<string, number>();
-              aspiracoesData?.forEach((a) => {
-                if (a.pacote_aspiracao_id) {
-                  quantidadePorPacote.set(
-                    a.pacote_aspiracao_id,
-                    (quantidadePorPacote.get(a.pacote_aspiracao_id) || 0) + 1
-                  );
-                }
-              });
-
-              // Processar fazendas destino da tabela de relacionamento
-              if (fazendasDestinoData) {
-                fazendasDestinoData.forEach(item => {
-                  const atual = fazendasDestinoPorPacoteMap.get(item.pacote_aspiracao_id) || [];
-                  if (!atual.includes(item.fazenda_destino_id)) {
-                    atual.push(item.fazenda_destino_id);
-                  }
-                  fazendasDestinoPorPacoteMap.set(item.pacote_aspiracao_id, atual);
-                });
-              }
-
-              // Fallback: adicionar fazenda_destino_id legacy dos pacotes
-              pacotesData.forEach(pacote => {
-                if (pacote.fazenda_destino_id) {
-                  const atual = fazendasDestinoPorPacoteMap.get(pacote.id) || [];
-                  if (!atual.includes(pacote.fazenda_destino_id)) {
-                    atual.push(pacote.fazenda_destino_id);
-                  }
-                  fazendasDestinoPorPacoteMap.set(pacote.id, atual);
-                }
-
-                // Criar mapa de informações dos pacotes
-                pacotesAspiracaoMap.set(pacote.id, {
-                  id: pacote.id,
-                  data_aspiracao: pacote.data_aspiracao,
-                  fazenda_nome: fazendasMap.get(pacote.fazenda_id),
-                  quantidade_doadoras: quantidadePorPacote.get(pacote.id) || 0,
-                  horario_inicio: pacote.horario_inicio,
-                  veterinario_responsavel: pacote.veterinario_responsavel,
-                  total_oocitos: pacote.total_oocitos,
-                });
-              });
-            }
+      // Mapa fazendas destino por pacote
+      const fazendasDestinoPorPacoteMap = new Map<string, string[]>();
+      fazendasDestinoData.forEach(item => {
+        const atual = fazendasDestinoPorPacoteMap.get(item.pacote_aspiracao_id) || [];
+        if (!atual.includes(item.fazenda_destino_id)) {
+          atual.push(item.fazenda_destino_id);
+          // Adicionar ao mapa de fazendas se não existe
+          if (!fazendasDestinoMap.has(item.fazenda_destino_id)) {
+            todasFazendaIds.add(item.fazenda_destino_id);
           }
         }
-      }
-
-      // Buscar nomes das fazendas destino
-      const todasFazendasDestinoIds = new Set<string>();
-      fazendasDestinoPorPacoteMap.forEach(ids => {
-        ids.forEach(id => todasFazendasDestinoIds.add(id));
+        fazendasDestinoPorPacoteMap.set(item.pacote_aspiracao_id, atual);
       });
-      embrioesData.forEach(e => {
-        if (e.fazenda_destino_id) {
-          todasFazendasDestinoIds.add(e.fazenda_destino_id);
+
+      // Fallback: adicionar fazenda_destino_id legacy dos pacotes
+      pacotesData.forEach(pacote => {
+        if (pacote.fazenda_destino_id) {
+          const atual = fazendasDestinoPorPacoteMap.get(pacote.id) || [];
+          if (!atual.includes(pacote.fazenda_destino_id)) {
+            atual.push(pacote.fazenda_destino_id);
+          }
+          fazendasDestinoPorPacoteMap.set(pacote.id, atual);
         }
       });
 
-      let fazendasDestinoMap = new Map<string, string>();
-      if (todasFazendasDestinoIds.size > 0) {
-        const { data: fazendasDestinoData, error: fazendasDestinoError } = await supabase
-          .from('fazendas')
-          .select('id, nome')
-          .in('id', Array.from(todasFazendasDestinoIds));
-
-        if (!fazendasDestinoError && fazendasDestinoData) {
-          fazendasDestinoMap = new Map(fazendasDestinoData.map((f) => [f.id, f.nome]));
+      // Contar doadoras por pacote
+      const quantidadePorPacote = new Map<string, number>();
+      aspiracoesData.forEach((a) => {
+        if (a.pacote_aspiracao_id) {
+          quantidadePorPacote.set(
+            a.pacote_aspiracao_id,
+            (quantidadePorPacote.get(a.pacote_aspiracao_id) || 0) + 1
+          );
         }
-      }
+      });
+
+      // Criar mapa de pacotes de aspiração
+      const pacotesAspiracaoMap = new Map<string, PacoteAspiracaoInfo>();
+      pacotesData.forEach(pacote => {
+        pacotesAspiracaoMap.set(pacote.id, {
+          id: pacote.id,
+          data_aspiracao: pacote.data_aspiracao,
+          fazenda_nome: fazendasDestinoMap.get(pacote.fazenda_id),
+          quantidade_doadoras: quantidadePorPacote.get(pacote.id) || 0,
+          horario_inicio: pacote.horario_inicio,
+          veterinario_responsavel: pacote.veterinario_responsavel,
+          total_oocitos: pacote.total_oocitos,
+        });
+      });
 
       // Mapear dados
-      const aspiracoesMap = new Map(aspiracoesData?.map((a) => [a.id, a]) || []);
-      const doadorasMap = new Map(doadorasData?.map((d) => [d.id, d]) || []);
-      const dosesMap = new Map(dosesData?.map((d) => [d.id, d]) || []);
-      const acasalamentosMap = new Map(acasalamentosData?.map((a) => [a.id, a]) || []);
+      const aspiracoesMap = new Map(aspiracoesData.map((a) => [a.id, a]));
+      const doadorasMap = new Map(doadorasData.map((d) => [d.id, d]));
+      const dosesMap = new Map(dosesData.map((d) => [d.id, d]));
+      const acasalamentosMap = new Map(acasalamentosData.map((a) => [a.id, a]));
 
       const embrioesCompletos: EmbrioCompleto[] = embrioesData.map((embriao) => {
         const acasalamento = embriao.lote_fiv_acasalamento_id
@@ -504,13 +494,12 @@ export default function Embrioes() {
           : undefined;
         const doadora = aspiracao ? doadorasMap.get(aspiracao.doadora_id) : undefined;
         const dose = acasalamento ? dosesMap.get(acasalamento.dose_semen_id) : undefined;
-        
-        // Obter dados do pacote de aspiração
+
         const pacoteId = embriao.lote_fiv_id ? pacoteParaLoteMap.get(embriao.lote_fiv_id) : undefined;
         const pacoteInfo = pacoteId ? pacotesAspiracaoMap.get(pacoteId) : undefined;
 
         const touro = dose?.touro ?? null;
-        
+
         return {
           ...embriao,
           doadora_registro: doadora?.registro,
@@ -556,10 +545,14 @@ export default function Embrioes() {
             .map(id => fazendasDestinoMap.get(id))
             .filter((nome): nome is string => !!nome);
           
+          // Obter data de fecundação do lote FIV
+          const dataFecundacao = dataFecundacaoMap.get(embriao.lote_fiv_id);
+
           pacote = {
             id: chavePacote,
             lote_fiv_id: embriao.lote_fiv_id,
             data_despacho: dataDespacho,
+            data_fecundacao: dataFecundacao,
             fazendas_destino_ids: fazendasDestinoIds,
             fazendas_destino_nomes: fazendasDestinoNomes,
             pacote_info: pacoteInfo || {
@@ -603,7 +596,7 @@ export default function Embrioes() {
 
       // Filtrar pacotes pela fazenda destino selecionada (depois do agrupamento)
       let pacotesArray = Array.from(pacotesMap.values());
-      
+
       if (selectedFazendaDestinoId) {
         pacotesArray = pacotesArray.filter(pacote => {
           // Um pacote é exibido se tiver a fazenda selecionada em suas fazendas destino
@@ -757,7 +750,6 @@ export default function Embrioes() {
       });
       loadData();
     } catch (error) {
-      console.error('Erro ao disponibilizar lote:', error);
       toast({
         title: 'Erro ao despachar pacote',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -795,9 +787,7 @@ export default function Embrioes() {
         .delete()
         .eq('pacote_aspiracao_id', pacoteAspiracaoId);
 
-      if (deleteError) {
-        console.error('Erro ao remover fazendas destino:', deleteError);
-      }
+      // Continua mesmo se erro ao remover fazendas
 
       // Inserir as novas fazendas destino selecionadas
       if (fazendasDestinoSelecionadas.length > 0) {
@@ -1149,7 +1139,6 @@ export default function Embrioes() {
       if (error) throw error;
       setHistorico(data || []);
     } catch (error) {
-      console.error('Erro ao carregar histórico:', error);
       handleError(error, 'Erro ao carregar histórico');
     } finally {
       setLoadingHistorico(false);
@@ -1210,9 +1199,19 @@ export default function Embrioes() {
                 const expandido = pacotesExpandidos.has(pacote.id);
                 const totalSelecionados = pacote.embrioes.filter(e => embrioesSelecionados.has(e.id)).length;
                 const resumoPacote = getResumoPacote(pacote);
+                // Usar data de fecundação para calcular o dia do embrião (D0 = dia da fecundação)
+                const diaEmbriao = calcularDiaEmbriao(pacote.data_fecundacao);
+                const isD8 = diaEmbriao === 8;
+                const isD7 = diaEmbriao === 7;
+                const isVencido = diaEmbriao !== null && diaEmbriao > 8;
+
+                // Definir cor da borda baseada no dia
+                let borderColor = 'border-l-green-500'; // Padrão
+                if (isD8) borderColor = 'border-l-orange-500';
+                if (isVencido) borderColor = 'border-l-red-500';
 
                 return (
-                  <Card key={pacote.id} className="border-l-4 border-l-green-500">
+                  <Card key={pacote.id} className={`border-l-4 ${borderColor}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -1229,6 +1228,28 @@ export default function Embrioes() {
                                 <ChevronDown className="w-5 h-5 text-slate-600" />
                               )}
                             </Button>
+                            {/* Badge de dia do embrião */}
+                            {diaEmbriao !== null && pacote.frescos > 0 && (
+                              <>
+                                {isD7 && (
+                                  <Badge className="bg-green-100 text-green-800 border-green-300">
+                                    D7 - Ideal
+                                  </Badge>
+                                )}
+                                {isD8 && (
+                                  <Badge className="bg-orange-100 text-orange-800 border-orange-300 animate-pulse">
+                                    <AlertTriangle className="w-3 h-3 mr-1" />
+                                    D8 - Último dia!
+                                  </Badge>
+                                )}
+                                {isVencido && (
+                                  <Badge className="bg-red-100 text-red-800 border-red-300">
+                                    <AlertTriangle className="w-3 h-3 mr-1" />
+                                    D{diaEmbriao} - Vencido
+                                  </Badge>
+                                )}
+                              </>
+                            )}
                             <div className="flex items-center gap-2">
                               <CardTitle className="text-lg">
                                 {pacote.pacote_info.fazenda_nome || 'Fazenda não identificada'} →{' '}
@@ -1318,9 +1339,18 @@ export default function Embrioes() {
                     {expandido && (
                       <CardContent>
                         {(() => {
-                          // Ordenar embriões por doadora e depois por data de criação
+                          // Ordenar embriões pela identificação (ex: SC-2401-001, SC-2401-002...)
                           const embrioesOrdenados = [...pacote.embrioes].sort((a, b) => {
-                            // Primeiro ordenar por doadora
+                            const idA = a.identificacao || '';
+                            const idB = b.identificacao || '';
+                            // Se ambos têm identificação, ordenar alfabeticamente
+                            if (idA && idB) {
+                              return idA.localeCompare(idB);
+                            }
+                            // Embriões com identificação vêm primeiro
+                            if (idA && !idB) return -1;
+                            if (!idA && idB) return 1;
+                            // Fallback: ordenar por doadora e data de criação
                             const doadoraA = a.doadora_registro || '';
                             const doadoraB = b.doadora_registro || '';
                             if (doadoraA !== doadoraB) {
@@ -1328,10 +1358,7 @@ export default function Embrioes() {
                             }
                             const dataA = a.created_at || '';
                             const dataB = b.created_at || '';
-                            if (dataA !== dataB) {
-                              return dataA.localeCompare(dataB);
-                            }
-                            return a.id.localeCompare(b.id);
+                            return dataA.localeCompare(dataB);
                           });
 
                           const totalPaginas = Math.max(1, Math.ceil(embrioesOrdenados.length / PAGE_SIZE));
@@ -1370,7 +1397,7 @@ export default function Embrioes() {
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead className="w-12"></TableHead>
-                                    <TableHead className="text-center w-16">Nº</TableHead>
+                                    <TableHead className="text-center w-28">Código</TableHead>
                                     <TableHead>Doadora</TableHead>
                                     <TableHead>Touro</TableHead>
                                     <TableHead>Classificação</TableHead>
@@ -1398,8 +1425,8 @@ export default function Embrioes() {
                                             )}
                                           </Button>
                                         </TableCell>
-                                        <TableCell className="text-center font-medium">
-                                          {inicio + index + 1}
+                                        <TableCell className="text-center font-medium font-mono text-xs">
+                                          {embriao.identificacao || `#${inicio + index + 1}`}
                                         </TableCell>
                                         <TableCell>{embriao.doadora_registro || '-'}</TableCell>
                                         <TableCell>{embriao.touro_nome || '-'}</TableCell>

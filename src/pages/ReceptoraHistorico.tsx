@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Receptora } from '@/lib/types';
+import type { Receptora, SupabaseError, DoseComTouroQuery, EmbriaoQuery, ProtocoloReceptoraQuery } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,43 @@ interface HistoricoAdmin {
   data: string;
   tipo: 'CADASTRO' | 'MUDANCA_FAZENDA';
   resumo: string;
+}
+
+// Tipos para queries de Supabase (evita uso de 'any')
+interface ProtocoloReceptoraComProtocoloQuery {
+  id: string;
+  protocolo_id: string;
+  status: string;
+  motivo_inapta?: string;
+  protocolos_sincronizacao?: {
+    id: string;
+    data_inicio: string;
+    passo2_data?: string;
+    status?: string;
+  } | Array<{
+    id: string;
+    data_inicio: string;
+    passo2_data?: string;
+    status?: string;
+  }>;
+}
+
+interface EmbriaoQueryLocal {
+  id: string;
+  identificacao?: string;
+  classificacao?: string;
+  lote_fiv_acasalamento_id?: string;
+}
+
+interface DoseQueryLocal {
+  id: string;
+  touro_id?: string;
+  touro?: {
+    id: string;
+    nome: string;
+    registro?: string;
+    raca?: string;
+  } | null;
 }
 
 const normalizarData = (dataString: string): string => {
@@ -130,7 +167,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
       .single();
 
     if (receptoraError) {
-      if ((receptoraError as any)?.code === 'PGRST116') {
+      if ((receptoraError as SupabaseError)?.code === 'PGRST116') {
         return {
           receptoraData: null,
           items: [],
@@ -228,8 +265,8 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
 
     if (protocoloReceptoras) {
       for (const pr of protocoloReceptoras) {
-        const protocolo: any = Array.isArray(pr.protocolos_sincronizacao) 
-          ? pr.protocolos_sincronizacao[0] 
+        const protocolo = Array.isArray(pr.protocolos_sincronizacao)
+          ? pr.protocolos_sincronizacao[0]
           : pr.protocolos_sincronizacao;
 
         if (!protocolo || !protocolo.data_inicio) continue;
@@ -284,7 +321,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
     const acasalamentoIds = new Set<string>();
     if (tesData) {
       tesData.forEach(te => {
-        const embriao: any = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
+        const embriao = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
         if (embriao?.lote_fiv_acasalamento_id) {
           acasalamentoIds.add(embriao.lote_fiv_acasalamento_id);
         }
@@ -304,9 +341,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
           `)
           .in('id', acasalamentoIdsArray);
 
-        if (acasalamentosError) {
-          console.error('Erro ao buscar acasalamentos:', acasalamentosError);
-        } else if (acasalamentosData) {
+        if (!acasalamentosError && acasalamentosData) {
           const aspiracaoIds = acasalamentosData.map(a => a.aspiracao_doadora_id).filter(Boolean);
           const doseIds = acasalamentosData.map(a => a.dose_semen_id).filter(Boolean);
 
@@ -350,7 +385,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
               .in('id', doseIds);
 
             if (dosesData) {
-              dosesData.forEach((d: any) => {
+              dosesData.forEach((d: DoseQueryLocal) => {
                 const touro = d.touro;
                 tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
               });
@@ -388,7 +423,7 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
           const acasalamentosInfo: string[] = [];
 
           tesRealizadas.forEach(te => {
-            const embriao: any = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
+            const embriao = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
             const identificacao = embriao?.identificacao || 'Embrião';
             embrioesInfo.push(identificacao);
 
@@ -562,8 +597,8 @@ export default function ReceptoraHistorico({ receptoraId, open, onClose, onUpdat
 
       if (dataUltimaGestacao) {
         for (const pr of protocoloReceptoras) {
-          const protocolo: any = Array.isArray(pr.protocolos_sincronizacao) 
-            ? pr.protocolos_sincronizacao[0] 
+          const protocolo = Array.isArray(pr.protocolos_sincronizacao)
+            ? pr.protocolos_sincronizacao[0]
             : pr.protocolos_sincronizacao;
 
           if (!protocolo) continue;

@@ -156,10 +156,7 @@ export default function PacoteAspiracaoDetail() {
         .select('fazenda_destino_id')
         .eq('pacote_aspiracao_id', id);
 
-      if (fazendasDestinoError) {
-        // Se der erro (tabela pode não existir), usar legacy
-        console.warn('Erro ao carregar fazendas destino:', fazendasDestinoError);
-      }
+      // Se der erro (tabela pode não existir), usar legacy
 
       // Se não houver na tabela de relacionamento, usar a fazenda_destino_id legacy
       if (!fazendasDestinoData || fazendasDestinoData.length === 0) {
@@ -215,6 +212,7 @@ export default function PacoteAspiracaoDetail() {
 
       if (aspiracoesError) throw aspiracoesError;
 
+
       if (!aspiracoesData || aspiracoesData.length === 0) {
         setAspiracoes([]);
         return;
@@ -241,8 +239,8 @@ export default function PacoteAspiracaoDetail() {
       });
 
       setAspiracoes(aspiracoesComNome);
-    } catch (error) {
-      console.error('Error loading aspiracoes:', error);
+    } catch {
+      // Erro silencioso
     }
   };
 
@@ -254,9 +252,7 @@ export default function PacoteAspiracaoDetail() {
         .select('doadora_id')
         .eq('pacote_aspiracao_id', id);
 
-      if (aspiracoesError) {
-        console.error('Error loading aspiracoes for filtering:', aspiracoesError);
-      }
+      // Continua mesmo com erro
 
       const doadoraIdsJaAdicionadas = new Set(aspiracoesAtuais?.map(a => a.doadora_id) || []);
 
@@ -272,8 +268,8 @@ export default function PacoteAspiracaoDetail() {
       const disponiveis = (data || []).filter(d => !doadoraIdsJaAdicionadas.has(d.id));
 
       setDoadorasDisponiveis(disponiveis);
-    } catch (error) {
-      console.error('Error loading doadoras disponiveis:', error);
+    } catch {
+      // Erro silencioso
     }
   };
 

@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Regex para validar formato YYYY-MM-DD */
+export const DATE_YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Retorna a cor de fundo Tailwind para qualidade (1=vermelho, 2=amarelo, 3=verde) */
+export function getQualidadeColor(num: 1 | 2 | 3): string {
+  const colors = { 1: 'bg-red-500', 2: 'bg-yellow-500', 3: 'bg-green-500' };
+  return colors[num];
+}
+
 /**
  * Formata uma data para exibição em pt-BR
  * Trata a data como string YYYY-MM-DD para evitar problemas de timezone
@@ -13,7 +22,7 @@ export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '-';
   
   // Se já é string no formato YYYY-MM-DD, usar diretamente
-  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (typeof date === 'string' && DATE_YYYY_MM_DD.test(date)) {
     const [year, month, day] = date.split('-');
     return `${day}/${month}/${year}`;
   }
@@ -31,7 +40,7 @@ export function normalizeDateForDB(date: string | Date | null | undefined): stri
   if (!date) return null;
   
   // Se já é string YYYY-MM-DD, retornar diretamente
-  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (typeof date === 'string' && DATE_YYYY_MM_DD.test(date)) {
     return date;
   }
   
@@ -52,7 +61,7 @@ export function extractDateOnly(dateStr: string | null | undefined): string | nu
   if (!dateStr) return null;
   
   // Se já é YYYY-MM-DD, retornar diretamente
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+  if (DATE_YYYY_MM_DD.test(dateStr)) {
     return dateStr;
   }
   
@@ -67,7 +76,7 @@ export function extractDateOnly(dateStr: string | null | undefined): string | nu
  * Exemplo: addDays('2026-01-05', 8) => '2026-01-13'
  */
 export function addDays(dateStr: string, days: number): string {
-  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+  if (!dateStr || !DATE_YYYY_MM_DD.test(dateStr)) {
     throw new Error('Data deve estar no formato YYYY-MM-DD');
   }
   

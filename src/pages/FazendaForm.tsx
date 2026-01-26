@@ -30,6 +30,7 @@ export default function FazendaForm() {
   const [formData, setFormData] = useState({
     cliente_id: '',
     nome: '',
+    sigla: '',
     localizacao: '',
     responsavel: '',
     contato_responsavel: '',
@@ -51,7 +52,6 @@ export default function FazendaForm() {
         .order('nome', { ascending: true });
 
       if (error) {
-        console.error('Erro ao buscar clientes:', error);
         // Se o erro for relacionado à ordenação, tentar sem ordenação
         if (error.message?.includes('order') || error.code === 'PGRST116') {
           const { data: dataWithoutOrder, error: errorWithoutOrder } = await supabase
@@ -82,7 +82,6 @@ export default function FazendaForm() {
         });
       }
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
       toast({
         title: 'Erro ao carregar clientes',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -104,6 +103,7 @@ export default function FazendaForm() {
       setFormData({
         cliente_id: data.cliente_id || '',
         nome: data.nome || '',
+        sigla: data.sigla || '',
         localizacao: data.localizacao || '',
         responsavel: data.responsavel || '',
         contato_responsavel: data.contato_responsavel || '',
@@ -141,17 +141,22 @@ export default function FazendaForm() {
     try {
       setLoading(true);
 
-      const fazendaData: Record<string, string> = {
+      const fazendaData: Record<string, string | null> = {
         cliente_id: formData.cliente_id,
         nome: formData.nome,
       };
+
+      // Sigla: normalizar para maiúsculas ou null se vazio
+      if (formData.sigla.trim()) {
+        fazendaData.sigla = formData.sigla.trim().toUpperCase();
+      } else {
+        fazendaData.sigla = null;
+      }
 
       if (formData.localizacao.trim()) fazendaData.localizacao = formData.localizacao;
       if (formData.responsavel.trim()) fazendaData.responsavel = formData.responsavel;
       if (formData.contato_responsavel.trim())
         fazendaData.contato_responsavel = formData.contato_responsavel;
-
-      console.log('Fazenda payload:', fazendaData);
 
       if (id) {
         // Update
@@ -173,8 +178,6 @@ export default function FazendaForm() {
 
         if (error) throw error;
 
-        console.log('Fazenda created:', data);
-
         toast({
           title: 'Fazenda criada',
           description: 'Fazenda criada com sucesso',
@@ -183,7 +186,6 @@ export default function FazendaForm() {
 
       navigate('/fazendas');
     } catch (error) {
-      console.error('Error saving fazenda:', error);
       toast({
         title: 'Erro ao salvar fazenda',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -246,6 +248,24 @@ export default function FazendaForm() {
                 placeholder="Nome da fazenda"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sigla">Sigla (2-3 letras)</Label>
+              <Input
+                id="sigla"
+                value={formData.sigla}
+                onChange={(e) => {
+                  const valor = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+                  setFormData({ ...formData, sigla: valor });
+                }}
+                placeholder="Ex: SC, BV, FE"
+                maxLength={3}
+                className="w-24 uppercase"
+              />
+              <p className="text-xs text-muted-foreground">
+                Usada para identificar embriões desta fazenda (ex: SC-2401-001)
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -30,14 +30,12 @@ export async function atualizarStatusReceptora(
       .eq('id', receptoraId);
 
     if (error) {
-      console.error('Error updating receptora status:', error);
       return { error };
     }
 
     return { error: null };
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Erro desconhecido');
-    console.error('Error updating receptora status:', err);
     return { error: err };
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { Cliente, Fazenda, DoseSemen, Embriao } from '@/lib/types';
+import type { Cliente, Fazenda, DoseSemen, Embriao, EmbriaoComRelacionamentos, DoseSemenComTouro, LoteFIV } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -27,7 +27,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Edit, Home, Dna, Plus, MapPin, Navigation, Snowflake } from 'lucide-react';
+import { ArrowLeft, Edit, Home, Dna, Plus, Navigation, Snowflake } from 'lucide-react';
 
 export default function ClienteDetail() {
   const { id } = useParams();
@@ -36,17 +36,20 @@ export default function ClienteDetail() {
   const [loading, setLoading] = useState(true);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [doses, setDoses] = useState<DoseSemen[]>([]);
-  const [embrioesCongelados, setEmbrioesCongelados] = useState<Embriao[]>([]);
-  const [embriaoDetalhe, setEmbriaoDetalhe] = useState<Embriao | null>(null);
+  const [doses, setDoses] = useState<DoseSemenComTouro[]>([]);
+  const [embrioesCongelados, setEmbrioesCongelados] = useState<EmbriaoComRelacionamentos[]>([]);
+  const [embriaoDetalhe, setEmbriaoDetalhe] = useState<EmbriaoComRelacionamentos | null>(null);
 
-  const DialogDetalheContent = ({ embriao }: { embriao: Embriao }) => {
-    const acasalamento = (embriao as any).acasalamento;
+  const DialogDetalheContent = ({ embriao }: { embriao: EmbriaoComRelacionamentos }) => {
+    const acasalamento = embriao.acasalamento as EmbriaoComRelacionamentos['acasalamento'] & {
+      dose_semen?: DoseSemenComTouro & { touro?: { nome?: string; registro?: string; raca?: string } };
+      aspiracao?: { doadora?: { nome?: string; registro?: string } };
+    };
     const dose = acasalamento?.dose_semen;
     const touro = dose?.touro;
     const aspiracao = acasalamento?.aspiracao;
     const doadora = aspiracao?.doadora;
-    const loteFiv = (embriao as any).lote_fiv;
+    const loteFiv = embriao.lote_fiv;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -133,6 +136,7 @@ export default function ClienteDetail() {
 
   const [fazendaForm, setFazendaForm] = useState({
     nome: '',
+    sigla: '',
     localizacao: '',
     latitude: '',
     longitude: '',
@@ -220,26 +224,40 @@ export default function ClienteDetail() {
     }
   };
 
-  const getMapsLink = (fazenda: Fazenda) => {
+  const handleNavigate = (fazenda: Fazenda) => {
     if (fazenda.latitude && fazenda.longitude) {
-      return `https://www.google.com/maps?q=${fazenda.latitude},${fazenda.longitude}`;
+      // geo: URI - abre o app de mapas padrão do dispositivo
+      const geoUri = `geo:${fazenda.latitude},${fazenda.longitude}?q=${fazenda.latitude},${fazenda.longitude}`;
+      window.location.href = geoUri;
     } else if (fazenda.localizacao) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fazenda.localizacao)}`;
+      // Fallback para busca por endereço
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fazenda.localizacao)}`;
+      window.open(mapsUrl, '_blank');
     }
-    return null;
   };
 
-  const getWazeLink = (fazenda: Fazenda) => {
-    if (fazenda.latitude && fazenda.longitude) {
-      return `https://waze.com/ul?ll=${fazenda.latitude},${fazenda.longitude}&navigate=yes`;
-    } else if (fazenda.localizacao) {
-      // Fallback to Google Maps for Waze if no coordinates
-      return getMapsLink(fazenda);
-    }
-    return null;
+  const hasLocation = (fazenda: Fazenda) => {
+    return (fazenda.latitude && fazenda.longitude) || fazenda.localizacao;
   };
 
-  const handleCreateFazenda = async (e: React.FormEvent) => {
+  // Estado para edição de fazenda
+  const [editingFazenda, setEditingFazenda] = useState<Fazenda | null>(null);
+
+  const handleEditFazenda = (fazenda: Fazenda) => {
+    setFazendaForm({
+      nome: fazenda.nome || '',
+      sigla: fazenda.sigla || '',
+      localizacao: fazenda.localizacao || '',
+      latitude: fazenda.latitude?.toString() || '',
+      longitude: fazenda.longitude?.toString() || '',
+      responsavel: fazenda.responsavel || '',
+      contato_responsavel: fazenda.contato_responsavel || '',
+    });
+    setEditingFazenda(fazenda);
+    setShowFazendaDialog(true);
+  };
+
+  const handleSaveFazenda = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!fazendaForm.nome.trim()) {
@@ -255,8 +273,8 @@ export default function ClienteDetail() {
       setSubmitting(true);
 
       const fazendaData: Record<string, string | number | null> = {
-        cliente_id: id!,
         nome: fazendaForm.nome,
+        sigla: fazendaForm.sigla.trim().toUpperCase() || null,
         localizacao: fazendaForm.localizacao.trim() || null,
         latitude: fazendaForm.latitude ? parseFloat(fazendaForm.latitude) : null,
         longitude: fazendaForm.longitude ? parseFloat(fazendaForm.longitude) : null,
@@ -264,18 +282,38 @@ export default function ClienteDetail() {
         contato_responsavel: fazendaForm.contato_responsavel.trim() || null,
       };
 
-      const { error } = await supabase.from('fazendas').insert([fazendaData]);
+      if (editingFazenda) {
+        // Atualizar fazenda existente
+        const { error } = await supabase
+          .from('fazendas')
+          .update(fazendaData)
+          .eq('id', editingFazenda.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: 'Fazenda criada',
-        description: 'Fazenda criada com sucesso',
-      });
+        toast({
+          title: 'Fazenda atualizada',
+          description: 'Fazenda atualizada com sucesso',
+        });
+      } else {
+        // Criar nova fazenda
+        const { error } = await supabase
+          .from('fazendas')
+          .insert([{ ...fazendaData, cliente_id: id! }]);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Fazenda criada',
+          description: 'Fazenda criada com sucesso',
+        });
+      }
 
       setShowFazendaDialog(false);
+      setEditingFazenda(null);
       setFazendaForm({
         nome: '',
+        sigla: '',
         localizacao: '',
         latitude: '',
         longitude: '',
@@ -286,7 +324,7 @@ export default function ClienteDetail() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: 'Erro ao criar fazenda',
+        title: editingFazenda ? 'Erro ao atualizar fazenda' : 'Erro ao criar fazenda',
         description: errorMessage.includes('RLS') || errorMessage.includes('policy')
           ? 'RLS está bloqueando escrita. Configure políticas anon no Supabase.'
           : errorMessage,
@@ -296,6 +334,7 @@ export default function ClienteDetail() {
       setSubmitting(false);
     }
   };
+
 
   if (loading) {
     return <LoadingSpinner />;
@@ -386,7 +425,21 @@ export default function ClienteDetail() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Fazendas do Cliente</CardTitle>
-                <Dialog open={showFazendaDialog} onOpenChange={setShowFazendaDialog}>
+                <Dialog open={showFazendaDialog} onOpenChange={(open) => {
+                  setShowFazendaDialog(open);
+                  if (!open) {
+                    setEditingFazenda(null);
+                    setFazendaForm({
+                      nome: '',
+                      sigla: '',
+                      localizacao: '',
+                      latitude: '',
+                      longitude: '',
+                      responsavel: '',
+                      contato_responsavel: '',
+                    });
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button className="bg-green-600 hover:bg-green-700">
                       <Plus className="w-4 h-4 mr-2" />
@@ -395,12 +448,12 @@ export default function ClienteDetail() {
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Criar Nova Fazenda</DialogTitle>
+                      <DialogTitle>{editingFazenda ? 'Editar Fazenda' : 'Criar Nova Fazenda'}</DialogTitle>
                       <DialogDescription>
-                        Criar fazenda para {cliente.nome}
+                        {editingFazenda ? `Editando ${editingFazenda.nome}` : `Criar fazenda para ${cliente.nome}`}
                       </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleCreateFazenda} className="space-y-4">
+                    <form onSubmit={handleSaveFazenda} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="nome">Nome da Fazenda *</Label>
                         <Input
@@ -410,6 +463,24 @@ export default function ClienteDetail() {
                           placeholder="Nome da fazenda"
                           required
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="sigla">Sigla (2-3 letras)</Label>
+                        <Input
+                          id="sigla"
+                          value={fazendaForm.sigla}
+                          onChange={(e) => {
+                            const valor = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+                            setFazendaForm({ ...fazendaForm, sigla: valor });
+                          }}
+                          placeholder="Ex: SC, BV"
+                          maxLength={3}
+                          className="w-24 uppercase"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Usada para identificar embriões (ex: SC-2401-001)
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -474,7 +545,7 @@ export default function ClienteDetail() {
                           className="flex-1 bg-green-600 hover:bg-green-700"
                           disabled={submitting}
                         >
-                          {submitting ? 'Salvando...' : 'Criar Fazenda'}
+                          {submitting ? 'Salvando...' : (editingFazenda ? 'Salvar' : 'Criar Fazenda')}
                         </Button>
                         <Button
                           type="button"
@@ -495,9 +566,9 @@ export default function ClienteDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
+                    <TableHead>Sigla</TableHead>
                     <TableHead>Localização</TableHead>
                     <TableHead>Responsável</TableHead>
-                    <TableHead>Contato</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -519,29 +590,26 @@ export default function ClienteDetail() {
                             {fazenda.nome}
                           </Link>
                         </TableCell>
+                        <TableCell>{fazenda.sigla || '-'}</TableCell>
                         <TableCell>{fazenda.localizacao || '-'}</TableCell>
                         <TableCell>{fazenda.responsavel || '-'}</TableCell>
-                        <TableCell>{fazenda.contato_responsavel || '-'}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">
-                            {getMapsLink(fazenda) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditFazenda(fazenda)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {hasLocation(fazenda) && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(getMapsLink(fazenda)!, '_blank')}
-                              >
-                                <MapPin className="w-4 h-4 mr-1" />
-                                Maps
-                              </Button>
-                            )}
-                            {getWazeLink(fazenda) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => window.open(getWazeLink(fazenda)!, '_blank')}
+                                onClick={() => handleNavigate(fazenda)}
                               >
                                 <Navigation className="w-4 h-4 mr-1" />
-                                Waze
+                                Navegar
                               </Button>
                             )}
                           </div>
@@ -580,7 +648,7 @@ export default function ClienteDetail() {
                     </TableRow>
                   ) : (
                     doses.map((dose) => {
-                      const touro = (dose as any).touro;
+                      const touro = dose.touro;
                       return (
                         <TableRow key={dose.id}>
                           <TableCell className="font-medium">
@@ -627,7 +695,10 @@ export default function ClienteDetail() {
                     </TableRow>
                   ) : (
                     embrioesCongelados.map((embriao) => {
-                      const acasalamento = (embriao as any).acasalamento;
+                      const acasalamento = embriao.acasalamento as EmbriaoComRelacionamentos['acasalamento'] & {
+                        dose_semen?: DoseSemenComTouro & { touro?: { nome?: string; registro?: string; raca?: string } };
+                        aspiracao?: { doadora?: { nome?: string; registro?: string } };
+                      };
                       const dose = acasalamento?.dose_semen;
                       const touro = dose?.touro;
                       const aspiracao = acasalamento?.aspiracao;

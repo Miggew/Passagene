@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { DoseSemen, Touro } from '@/lib/types';
+import { DoseSemen, Touro, DoseSemenInsert } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -182,10 +182,10 @@ export default function DosesSemen() {
     try {
       setSubmitting(true);
 
-      const insertData: any = {
+      const insertData: DoseSemenInsert = {
         touro_id: formData.touro_id,
         cliente_id: formData.cliente_id,
-        tipo_semen: formData.tipo_semen,
+        tipo_semen: formData.tipo_semen as 'CONVENCIONAL' | 'SEXADO' | undefined,
         quantidade: parseInt(formData.quantidade) || 0,
       };
 
@@ -257,10 +257,10 @@ export default function DosesSemen() {
     try {
       setSubmitting(true);
 
-      const updateData: any = {
+      const updateData: DoseSemenInsert = {
         touro_id: editFormData.touro_id,
         cliente_id: editFormData.cliente_id,
-        tipo_semen: editFormData.tipo_semen,
+        tipo_semen: editFormData.tipo_semen as 'CONVENCIONAL' | 'SEXADO' | undefined,
         quantidade: parseInt(editFormData.quantidade) || 0,
       };
 

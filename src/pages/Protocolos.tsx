@@ -179,9 +179,7 @@ export default function Protocolos() {
         .select('protocolo_id')
         .in('protocolo_id', protocolosIds);
 
-      if (countError) {
-        console.error('Erro ao contar receptoras:', countError);
-      }
+      // Continua mesmo com erro de contagem
 
       // Agrupar contagens por protocolo_id
       const contagemPorProtocolo = (receptorasCounts || []).reduce((acc, pr) => {
@@ -225,7 +223,6 @@ export default function Protocolos() {
       setProtocolos(protocolosValidos);
       setProtocolosTotalCount(count || 0);
     } catch (error) {
-      console.error('Erro ao carregar protocolos:', error);
       handleError(error, 'Erro ao carregar protocolos');
       setProtocolos([]);
     } finally {

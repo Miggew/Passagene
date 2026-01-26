@@ -424,7 +424,6 @@ export default function Receptoras() {
         });
       }
     } catch (error) {
-      console.error('Erro ao preparar nascimento:', error);
       toast({
         title: 'Erro ao preparar nascimento',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -525,7 +524,6 @@ export default function Receptoras() {
       });
       await loadReceptoras();
     } catch (error) {
-      console.error('Erro ao registrar nascimento:', error);
       toast({
         title: 'Erro ao registrar nascimento',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -568,7 +566,6 @@ export default function Receptoras() {
         .eq('fazenda_id_atual', selectedFazendaId);
 
       if (viewError) {
-        console.error('Erro ao buscar receptoras da fazenda:', viewError);
         throw viewError;
       }
 
@@ -583,16 +580,14 @@ export default function Receptoras() {
           .ilike('identificacao', formData.identificacao.trim());
 
         if (brincoError) {
-          console.error('Erro ao verificar brinco duplicado:', brincoError);
           throw brincoError;
         }
 
         if (receptorasComBrinco && receptorasComBrinco.length > 0) {
-          const nomeReceptora = receptorasComBrinco[0].nome 
-            ? `"${receptorasComBrinco[0].nome}"` 
+          const nomeReceptora = receptorasComBrinco[0].nome
+            ? `"${receptorasComBrinco[0].nome}"`
             : 'sem nome';
           const erroMsg = `Já existe uma receptora com o brinco "${formData.identificacao.trim()}" nesta fazenda (Nome: ${nomeReceptora}).`;
-          console.error('Brinco duplicado detectado:', erroMsg, receptorasComBrinco);
           throw new Error(erroMsg);
         }
       }
@@ -606,7 +601,6 @@ export default function Receptoras() {
           .ilike('nome', formData.nome.trim());
 
         if (nomeError) {
-          console.error('Erro ao verificar nome duplicado:', nomeError);
           throw nomeError;
         }
 
@@ -646,10 +640,7 @@ export default function Receptoras() {
           data_fim: null, // vínculo ativo
         }]);
 
-      if (historicoError) {
-        console.error('Erro ao criar histórico de fazenda:', historicoError);
-        // Não falhar - a migration SQL também migra automaticamente
-      }
+      // Não falhar se erro no histórico - a migration SQL também migra automaticamente
 
       toast({
         title: 'Receptora criada',
@@ -734,17 +725,8 @@ export default function Receptoras() {
               observacoes: null,
             }]);
 
-          if (historicoError) {
-            // Se a tabela não existir (erro 42P01), apenas logar
-            if (historicoError.code === '42P01') {
-              console.warn('Tabela receptora_renomeacoes_historico não existe. Execute o script criar_tabela_historico_renomeacoes.sql');
-            } else {
-              console.error('Erro ao registrar renomeação no histórico:', historicoError);
-            }
-            // Não falhar a operação se o histórico falhar
-          }
-        } catch (error) {
-          console.error('Erro ao registrar renomeação no histórico:', error);
+          // Não falhar a operação se o histórico falhar
+        } catch {
           // Não falhar a operação se o histórico falhar
         }
       }
@@ -788,7 +770,6 @@ export default function Receptoras() {
           .eq('fazenda_id_atual', novaFazendaId);
 
         if (viewError) {
-          console.error('Erro ao verificar receptoras na fazenda destino:', viewError);
           return;
         }
 
@@ -809,9 +790,7 @@ export default function Receptoras() {
             .in('id', receptoraIdsNaFazendaDestino)
             .ilike('nome', editingReceptora.nome.trim());
 
-          if (nomeError) {
-            console.error('Erro ao verificar nome:', nomeError);
-          } else if (receptorasComNome && receptorasComNome.length > 0) {
+          if (!nomeError && receptorasComNome && receptorasComNome.length > 0) {
             // Há conflito de nome
             setTemConflitoNome(true);
           } else {
@@ -829,7 +808,6 @@ export default function Receptoras() {
           .ilike('identificacao', editingReceptora.identificacao);
 
         if (brincoError) {
-          console.error('Erro ao verificar brinco:', brincoError);
           return;
         }
 
@@ -859,7 +837,6 @@ export default function Receptoras() {
               .ilike('identificacao', novoBrinco);
 
             if (novoBrincoError) {
-              console.error('Erro ao verificar novo brinco:', novoBrincoError);
               return novoBrinco; // Retornar mesmo com erro para não bloquear
             }
 
@@ -875,8 +852,7 @@ export default function Receptoras() {
           try {
             const brincoDisponivel = await gerarBrincoDisponivel(editingReceptora.identificacao);
             setNovoBrincoProposto(brincoDisponivel);
-          } catch (error) {
-            console.error('Erro ao gerar brinco disponível:', error);
+          } catch {
             // Fallback: usar o padrão básico mesmo com possível conflito
             const dataAtual = new Date();
             const dia = String(dataAtual.getDate()).padStart(2, '0');
@@ -888,8 +864,11 @@ export default function Receptoras() {
           setTemConflitoBrinco(false);
           setNovoBrincoProposto('');
         }
-      } catch (error) {
-        console.error('Erro ao verificar conflitos:', error);
+      } catch {
+        // Se falhar a verificação de conflitos, assumir que não há conflito
+        // O usuário pode prosseguir e o banco validará na inserção
+        setTemConflitoBrinco(false);
+        setNovoBrincoProposto('');
       }
     };
 
@@ -1034,17 +1013,8 @@ export default function Receptoras() {
               observacoes: `Renomeação automática devido a conflito de brinco na fazenda destino`,
             }]);
 
-          if (historicoError) {
-            // Se a tabela não existir (erro 42P01), apenas logar
-            if (historicoError.code === '42P01') {
-              console.warn('Tabela receptora_renomeacoes_historico não existe. Execute o script criar_tabela_historico_renomeacoes.sql');
-            } else {
-              console.error('Erro ao registrar renomeação no histórico:', historicoError);
-            }
-            // Não falhar a operação se o histórico falhar
-          }
-        } catch (error) {
-          console.error('Erro ao registrar renomeação no histórico:', error);
+          // Não falhar a operação se o histórico falhar
+        } catch {
           // Não falhar a operação se o histórico falhar
         }
 
@@ -1061,13 +1031,6 @@ export default function Receptoras() {
       });
 
       if (error) {
-        console.error('Erro ao mover receptora:', error);
-        console.error('Receptora ID:', editingReceptora.id);
-        console.error('Nova Fazenda ID:', novaFazendaId);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
-        
         // Extrair mensagem de erro do PostgreSQL
         // P0001 = exceção customizada (RAISE EXCEPTION)
         let errorMessage = 'Erro ao mover receptora';
@@ -1106,7 +1069,6 @@ export default function Receptoras() {
       // Recarregar receptoras (a receptora pode ter saído da lista atual)
       loadReceptoras();
     } catch (error) {
-      console.error('Erro catch ao mover receptora:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao mover receptora';
       toast({
         title: 'Erro ao mover receptora',

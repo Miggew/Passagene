@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { ProtocoloSincronizacao, Receptora } from '@/lib/types';
+import type { ProtocoloSincronizacao, Receptora, ProtocoloReceptoraQuery } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -162,7 +162,6 @@ export default function ProtocoloDetail() {
         .map(pr => {
           const receptoraData = receptorasMap.get(pr.receptora_id);
           if (!receptoraData) {
-            console.warn(`Receptora ${pr.receptora_id} não encontrada`);
             return null;
           }
           return {
@@ -176,8 +175,8 @@ export default function ProtocoloDetail() {
         .filter((r): r is ReceptoraWithStatus => r !== null);
 
       setReceptoras(receptorasWithStatus);
-    } catch (error) {
-      console.error('Error loading receptoras:', error);
+    } catch {
+      // Erro silencioso - lista fica vazia
     }
   };
 
@@ -231,8 +230,8 @@ export default function ProtocoloDetail() {
       const disponiveis = disponiveisResults.filter((r): r is Receptora => r !== null);
 
       setReceptorasDisponiveis(disponiveis);
-    } catch (error) {
-      console.error('Error loading receptoras disponiveis:', error);
+    } catch {
+      // Erro silencioso - lista fica vazia
     }
   };
 
@@ -270,7 +269,7 @@ export default function ProtocoloDetail() {
         .eq('protocolo_id', id);
 
       if (prDataError) {
-        console.error('Erro ao verificar receptoras no protocolo:', prDataError);
+        // Continua execução mesmo com erro de verificação
       }
 
       if (prData && prData.length > 0) {
@@ -294,9 +293,7 @@ export default function ProtocoloDetail() {
           .select('id, identificacao')
           .in('id', receptoraIdsNoProtocolo);
 
-        if (receptorasError) {
-          console.error('Erro ao buscar receptoras do protocolo:', receptorasError);
-        }
+        // Continua mesmo se erro ao buscar receptoras
 
         // Verificar se já existe outra receptora com o mesmo brinco no protocolo
         const mesmoBrinco = receptorasNoProtocolo?.find(
@@ -335,14 +332,12 @@ export default function ProtocoloDetail() {
         .eq('receptora_id', addReceptoraForm.receptora_id)
         .neq('protocolos_sincronizacao.status', 'SINCRONIZADO');
 
-      if (protocolosAtivosError) {
-        console.error('Erro ao verificar protocolos ativos:', protocolosAtivosError);
-      }
+      // Continua mesmo se erro ao verificar protocolos
 
       if (protocolosAtivos && protocolosAtivos.length > 0) {
         // Verificar se está no protocolo atual
         const noProtocoloAtual = protocolosAtivos.find(
-          (pr: any) => pr.protocolo_id === id
+          (pr: ProtocoloReceptoraQuery) => pr.protocolo_id === id
         );
 
         if (noProtocoloAtual) {
@@ -360,7 +355,7 @@ export default function ProtocoloDetail() {
         // Filtrar protocolos que realmente bloqueiam:
         // - Receptoras com status APTA ou INICIADA em protocolos ativos (não fechados)
         // - Receptoras descartadas (INAPTA) NÃO bloqueiam se o protocolo estiver fechado ou aguardando 2º passo
-        const protocolosBloqueantes = protocolosAtivos.filter((pr: any) => {
+        const protocolosBloqueantes = protocolosAtivos.filter((pr: ProtocoloReceptoraQuery) => {
           const protocoloStatus = pr.protocolos_sincronizacao?.status;
           const receptoraStatus = pr.status;
           
@@ -440,11 +435,6 @@ export default function ProtocoloDetail() {
         .select();
 
       if (error) {
-        console.error('Erro ao inserir receptora:', error);
-        console.error('Dados tentados:', insertData);
-        console.error('Código do erro:', error.code);
-        console.error('Mensagem do erro:', error.message);
-        
         // Tratar erro de constraint única (receptora já no protocolo)
         if (error.code === '409' || error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
           // Buscar TODOS os registros dessa receptora (em qualquer protocolo)
@@ -465,13 +455,11 @@ export default function ProtocoloDetail() {
             `)
             .eq('receptora_id', addReceptoraForm.receptora_id);
 
-          if (searchError) {
-            console.error('Erro ao buscar protocolos da receptora:', searchError);
-          }
+          // Continua mesmo se erro na busca
 
           // Verificar se está no protocolo atual
           const noProtocoloAtual = allReceptoraProtocols?.find(
-            (pr: any) => pr.protocolo_id === id
+            (pr: ProtocoloReceptoraQuery) => pr.protocolo_id === id
           );
 
           if (noProtocoloAtual) {
@@ -483,12 +471,12 @@ export default function ProtocoloDetail() {
           } else {
             // Está em outro protocolo - listar todos
             const outrosProtocolos = allReceptoraProtocols?.filter(
-              (pr: any) => pr.protocolo_id !== id
+              (pr: ProtocoloReceptoraQuery) => pr.protocolo_id !== id
             ) || [];
 
             if (outrosProtocolos.length > 0) {
               const protocolosList = outrosProtocolos
-                .map((pr: any) => `Protocolo ${pr.protocolos_sincronizacao?.id?.substring(0, 8)} (${pr.protocolos_sincronizacao?.status || 'N/A'})`)
+                .map((pr: ProtocoloReceptoraQuery) => `Protocolo ${pr.protocolos_sincronizacao?.id?.substring(0, 8)} (${pr.protocolos_sincronizacao?.status || 'N/A'})`)
                 .join(', ');
 
               toast({
@@ -553,9 +541,7 @@ export default function ProtocoloDetail() {
         .select('id, identificacao, status_reprodutivo')
         .ilike('identificacao', createReceptoraForm.identificacao.trim());
 
-      if (brincoCheckError) {
-        console.error('Erro ao verificar receptoras com brinco:', brincoCheckError);
-      }
+      // Continua mesmo se erro ao verificar brinco
 
       // Se encontrou receptoras com esse brinco, verificar status e protocolos
       if (receptorasComBrinco && receptorasComBrinco.length > 0) {
@@ -567,9 +553,7 @@ export default function ProtocoloDetail() {
           .select('receptora_id, status')
           .eq('protocolo_id', id);
 
-        if (prDataError) {
-          console.error('Erro ao verificar receptoras no protocolo:', prDataError);
-        }
+        // Continua mesmo se erro ao verificar
 
         if (prData && prData.length > 0) {
           const receptoraIdsNoProtocolo = prData.map(pr => pr.receptora_id);
@@ -593,9 +577,7 @@ export default function ProtocoloDetail() {
             .select('id, identificacao')
             .in('id', receptoraIdsNoProtocolo);
 
-          if (receptorasError) {
-            console.error('Erro ao buscar receptoras do protocolo:', receptorasError);
-          }
+          // Continua mesmo se erro ao buscar
 
           // Verificar se alguma receptora com esse brinco já está no protocolo
           const brincoParaVerificar = createReceptoraForm.identificacao.trim();
@@ -659,9 +641,7 @@ export default function ProtocoloDetail() {
           .eq('fazenda_id', protocolo!.fazenda_id)
           .is('data_fim', null); // Apenas vínculos ativos
 
-        if (historicoError) {
-          console.error('Erro ao verificar histórico de fazendas:', historicoError);
-        }
+        // Continua mesmo se erro ao verificar histórico
 
         if (historicoFazendas && historicoFazendas.length > 0) {
           // Receptora com mesmo brinco já existe na fazenda e está VAZIA
@@ -749,9 +729,7 @@ export default function ProtocoloDetail() {
         .is('data_fim', null)
         .maybeSingle();
 
-      if (checkHistoricoError) {
-        console.error('Erro ao verificar histórico existente:', checkHistoricoError);
-      }
+      // Continua mesmo se erro ao verificar histórico
 
       // Só criar histórico se não existir
       if (!historicoExistente) {
@@ -847,9 +825,7 @@ export default function ProtocoloDetail() {
         .is('data_fim', null)
         .maybeSingle();
 
-      if (verificarHistoricoError) {
-        console.error('Erro ao verificar histórico após criação:', verificarHistoricoError);
-      }
+      // Continua mesmo se erro na verificação
 
       if (!historicoVerificado) {
         // Histórico não foi criado - remover a receptora criada

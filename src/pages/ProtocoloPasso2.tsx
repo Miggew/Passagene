@@ -189,7 +189,6 @@ export default function ProtocoloPasso2() {
   const loadReceptoras = async () => {
     try {
       if (!id) {
-        console.error('ID do protocolo não fornecido');
         toast({
           title: 'Erro',
           description: 'ID do protocolo não encontrado',
@@ -205,11 +204,6 @@ export default function ProtocoloPasso2() {
         .eq('protocolo_id', id);
 
       if (prError) {
-        console.error('Erro ao carregar receptoras do protocolo:', prError);
-        console.error('Protocolo ID:', id);
-        console.error('Código do erro:', prError.code);
-        console.error('Mensagem do erro:', prError.message);
-        console.error('Detalhes:', prError.details);
         toast({
           title: 'Erro ao carregar receptoras',
           description: prError.message || 'Erro desconhecido ao carregar receptoras do protocolo',
@@ -223,20 +217,6 @@ export default function ProtocoloPasso2() {
 
       // CRITICAL: Validar que há pelo menos 1 receptora vinculada
       if (!finalPrData || finalPrData.length === 0) {
-        console.error('Protocolo sem receptoras vinculadas - inconsistência detectada');
-        console.error('Protocolo ID:', id);
-        
-        // Tentar contar diretamente para confirmar
-        const { count, error: countError } = await supabase
-          .from('protocolo_receptoras')
-          .select('*', { count: 'exact', head: true })
-          .eq('protocolo_id', id);
-        
-        console.error('Tentativa de count direto - resultado:', count);
-        if (countError) {
-          console.error('Erro ao fazer count:', countError);
-        }
-        
         toast({
           title: 'Erro: Protocolo inconsistente',
           description: `Este protocolo não possui receptoras vinculadas (ID: ${id}). Verifique no banco de dados se há receptoras vinculadas a este protocolo.`,
@@ -256,7 +236,6 @@ export default function ProtocoloPasso2() {
           .single();
 
         if (receptoraError) {
-          console.error('Error loading receptora:', receptoraError);
           continue;
         }
 
@@ -288,7 +267,6 @@ export default function ProtocoloPasso2() {
         });
       setMotivosInapta(motivosInaptaLocal);
     } catch (error) {
-      console.error('Error loading receptoras:', error);
       toast({
         title: 'Erro ao carregar receptoras',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -436,7 +414,6 @@ export default function ProtocoloPasso2() {
             .eq('receptora_id', r.id);
 
           if (error) {
-            console.error(`Erro ao atualizar status da receptora ${r.identificacao} no protocolo:`, error);
             throw error;
           }
         }),
@@ -453,7 +430,6 @@ export default function ProtocoloPasso2() {
             .eq('receptora_id', r.id);
 
           if (error) {
-            console.error(`Erro ao atualizar status da receptora ${r.identificacao} no protocolo:`, error);
             throw error;
           }
         }),
@@ -475,7 +451,6 @@ export default function ProtocoloPasso2() {
         .eq('id', id);
 
       if (protocoloError) {
-        console.error('Erro ao atualizar status do protocolo:', protocoloError);
         throw protocoloError;
       }
 
@@ -502,7 +477,6 @@ export default function ProtocoloPasso2() {
             .eq('id', r.id);
           
           if (statusError) {
-            console.error(`Erro ao atualizar status da receptora ${r.identificacao} para SINCRONIZADA:`, statusError);
             throw statusError;
           }
         }),
@@ -515,7 +489,6 @@ export default function ProtocoloPasso2() {
             .eq('id', r.id);
           
           if (statusError) {
-            console.error(`Erro ao atualizar status da receptora ${r.identificacao} para VAZIA:`, statusError);
             throw statusError;
           }
         }),
@@ -531,7 +504,6 @@ export default function ProtocoloPasso2() {
       // Show summary modal
       setShowResumoPasso2(true);
     } catch (error) {
-      console.error('Erro ao finalizar 2º passo:', error);
       toast({
         title: 'Erro ao finalizar 2º passo',
         description: error instanceof Error ? error.message : 'Erro desconhecido',

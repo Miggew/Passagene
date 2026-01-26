@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getQualidadeColor } from '@/lib/utils';
 
 interface ClassificacoesCicloInlineProps {
   ciclandoValue: 'CL' | 'N' | null | undefined;
@@ -22,18 +22,6 @@ export default function ClassificacoesCicloInline({
 }: ClassificacoesCicloInlineProps) {
   const sizeClasses = size === 'sm' ? 'text-xs' : 'text-sm';
   const dotSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
-
-  // Cores das bolinhas
-  const getDotColor = (num: 1 | 2 | 3) => {
-    switch (num) {
-      case 1:
-        return 'bg-red-500';
-      case 2:
-        return 'bg-yellow-500';
-      case 3:
-        return 'bg-green-500';
-    }
-  };
 
   return (
     <div className="flex flex-wrap items-center gap-3 text-slate-600">
@@ -115,7 +103,7 @@ export default function ClassificacoesCicloInline({
               className={cn(
                 dotSize,
                 'rounded-full border-2 transition-all',
-                getDotColor(num),
+                getQualidadeColor(num),
                 qualidadeValue === num
                   ? 'border-slate-900 scale-110 ring-2 ring-slate-300'
                   : 'border-slate-300 opacity-50 hover:opacity-75 hover:scale-105',

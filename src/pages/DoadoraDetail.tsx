@@ -126,8 +126,8 @@ export default function DoadoraDetail() {
             // Remover JSON do texto de observações
             genealogiaTexto = genealogiaTexto.replace(/\[GENEALOGIA_JSON\].*?\[\/GENEALOGIA_JSON\]/s, '').trim();
           }
-        } catch (e) {
-          console.warn('Erro ao parsear genealogia JSON:', e);
+        } catch {
+          // Erro esperado se JSON malformado - ignora e usa valores padrão
         }
       }
       

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Fazenda } from '@/lib/types';
+import type { Fazenda, EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
+import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds, type LoteFIVQuerySimples } from '@/lib/dataEnrichment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -27,7 +28,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { Baby, Lock, CheckCircle } from 'lucide-react';
-import { atualizarStatusReceptora } from '@/lib/receptoraStatus';
+import { atualizarStatusReceptora, type StatusReceptora } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 
 interface LoteTE {
@@ -79,6 +80,8 @@ interface SexagemFormData {
 }
 
 type ResultadoSexagem = 'FEMEA' | 'MACHO' | 'SEM_SEXO' | 'VAZIA';
+
+// Tipos locais removidos - agora importados de @/lib/dataEnrichment
 
 export default function Sexagem() {
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
@@ -206,10 +209,12 @@ export default function Sexagem() {
       );
 
       const receptorasPorLote = new Map<string, Set<string>>();
+      const chaveFazendaMap = new Map<string, string>(); // Mapear chave -> fazendaId
       (teData || []).forEach(te => {
         const fazendaId = receptoraFazendaMap.get(te.receptora_id);
         if (!fazendaId) return;
-        const chave = `${fazendaId}-${te.data_te}`;
+        const chave = `${fazendaId}|${te.data_te}`; // Usar | como separador
+        chaveFazendaMap.set(chave, fazendaId);
         if (!receptorasPorLote.has(chave)) {
           receptorasPorLote.set(chave, new Set());
         }
@@ -220,7 +225,7 @@ export default function Sexagem() {
       (sexagensData || []).forEach(sex => {
         const fazendaId = receptoraFazendaMap.get(sex.receptora_id);
         if (!fazendaId) return;
-        const chave = `${fazendaId}-${sex.data_te}`;
+        const chave = `${fazendaId}|${sex.data_te}`; // Usar | como separador
         if (!sexagensPorLote.has(chave)) {
           sexagensPorLote.set(chave, new Set());
         }
@@ -231,8 +236,8 @@ export default function Sexagem() {
       receptorasPorLote.forEach((receptorasLote, chave) => {
         const sexagensLote = sexagensPorLote.get(chave)?.size || 0;
         if (sexagensLote < receptorasLote.size) {
-          const fazendaId = chave.split('-')[0];
-          fazendasAptasSet.add(fazendaId);
+          const fazendaId = chaveFazendaMap.get(chave);
+          if (fazendaId) fazendasAptasSet.add(fazendaId);
         }
       });
 
@@ -439,117 +444,18 @@ export default function Sexagem() {
         }
       }
 
-      const loteIds = [...new Set(Array.from(embrioesMap.values()).map((e: any) => e.lote_fiv_id).filter(Boolean))];
-      const acasalamentoIds = [...new Set(
-        Array.from(embrioesMap.values())
-          .map((e: any) => e.lote_fiv_acasalamento_id)
-          .filter(Boolean)
-      )];
+      // Buscar lotes FIV e dados de genealogia (doadora + touro) usando funções utilitárias
+      const embrioesList = Array.from(embrioesMap.values());
+      const loteIds = extrairLoteIds(embrioesList);
+      const acasalamentoIds = extrairAcasalamentoIds(embrioesList);
 
-      // Executar queries de lotes e acasalamentos em paralelo
-      const [lotesResult, acasalamentosResult] = await Promise.all([
-        loteIds.length > 0 
-          ? supabase
-              .from('lotes_fiv')
-              .select('id, data_abertura')
-              .in('id', loteIds)
-          : Promise.resolve({ data: null }),
-        acasalamentoIds.length > 0
-          ? supabase
-              .from('lote_fiv_acasalamentos')
-              .select('id, aspiracao_doadora_id, dose_semen_id')
-              .in('id', acasalamentoIds)
-          : Promise.resolve({ data: null }),
+      // Executar queries em paralelo
+      const [lotesMap, genealogiaResult] = await Promise.all([
+        buscarLotesFIV(loteIds),
+        buscarDadosGenealogia(acasalamentoIds),
       ]);
 
-      const lotesData = lotesResult.data || [];
-      const acasalamentosData = acasalamentosResult.data || [];
-
-      const lotesMap = new Map(lotesData.map((l: any) => [l.id, l]));
-
-      let doadorasMap = new Map<string, string>();
-      let tourosMap = new Map<string, string>();
-
-      if (acasalamentosData.length > 0) {
-        const aspiracaoIds = [...new Set(acasalamentosData.map((a: any) => a.aspiracao_doadora_id).filter(Boolean))];
-        const doseIds = [...new Set(acasalamentosData.map((a: any) => a.dose_semen_id).filter(Boolean))];
-
-        // Executar queries de aspirações e doses em paralelo
-        const [aspiracoesResult, dosesResult] = await Promise.all([
-          aspiracaoIds.length > 0
-            ? supabase
-                .from('aspiracoes_doadoras')
-                .select('id, doadora_id')
-                .in('id', aspiracaoIds)
-            : Promise.resolve({ data: null }),
-          doseIds.length > 0
-            ? supabase
-                .from('doses_semen')
-                .select(`
-                  id,
-                  touro_id,
-                  touro:touros(id, nome, registro, raca)
-                `)
-                .in('id', doseIds)
-            : Promise.resolve({ data: null }),
-        ]);
-
-        const aspiracoesData = aspiracoesResult.data || [];
-        const dosesData = dosesResult.data || [];
-
-        if (aspiracoesData.length > 0) {
-          const doadoraIds = [...new Set(aspiracoesData.map((a: any) => a.doadora_id))];
-          if (doadoraIds.length > 0) {
-            const { data: doadorasData } = await supabase
-              .from('doadoras')
-              .select('id, registro')
-              .in('id', doadoraIds);
-
-            if (doadorasData) {
-              const doadoraMap = new Map(doadorasData.map(d => [d.id, d.registro]));
-              const aspiracaoDoadoraMap = new Map(aspiracoesData.map((a: any) => [a.id, a.doadora_id]));
-              
-              // Criar mapa de doses para touros (extrair nome do touro relacionado)
-              const tourosMap = new Map<string, string>();
-              if (dosesData) {
-                (dosesData as any[]).forEach((d: any) => {
-                  const touro = d.touro;
-                  tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
-                });
-              }
-
-              acasalamentosData.forEach((ac: any) => {
-                if (ac.aspiracao_doadora_id) {
-                  const doadoraId = aspiracaoDoadoraMap.get(ac.aspiracao_doadora_id);
-                  if (doadoraId) {
-                    const registro = doadoraMap.get(doadoraId);
-                    if (registro) {
-                      doadorasMap.set(ac.id, registro);
-                    }
-                  }
-                }
-              });
-            }
-          }
-        }
-
-        if (dosesData && dosesData.length > 0) {
-          // Extrair nome do touro relacionado
-          (dosesData as any[]).forEach((d: any) => {
-            const touro = d.touro;
-            tourosMap.set(d.id, touro?.nome || 'Touro desconhecido');
-          });
-
-          acasalamentosData.forEach((ac: any) => {
-            if (ac.dose_semen_id) {
-              const touroNome = tourosMap.get(ac.dose_semen_id);
-              if (touroNome) {
-                tourosMap.set(ac.id, touroNome);
-              }
-            }
-          });
-        }
-      }
+      const { doadorasMap, tourosMap } = genealogiaResult;
 
       const diagnosticosPorReceptora = new Map<string, typeof diagnosticosData[0]>();
       diagnosticosData?.forEach(dg => {
@@ -796,8 +702,8 @@ export default function Sexagem() {
     try {
       setSubmitting(true);
 
-      const diagnosticosParaInserir: any[] = [];
-      const diagnosticosParaAtualizar: any[] = [];
+      const diagnosticosParaInserir: DiagnosticoGestacaoInsert[] = [];
+      const diagnosticosParaAtualizar: DiagnosticoGestacaoUpdate[] = [];
       const atualizacoesStatus: Array<{ receptora_id: string; status: string }> = [];
 
       receptoras.forEach(receptora => {
@@ -892,7 +798,7 @@ export default function Sexagem() {
           }
         }
 
-        const insertData: any = {
+        const insertData: DiagnosticoGestacaoInsert = {
           receptora_id: receptora.receptora_id,
           data_te: receptora.data_te,
           tipo_diagnostico: 'SEXAGEM',
@@ -900,15 +806,10 @@ export default function Sexagem() {
           resultado: resultadoFinal,
           sexagem: sexagemValue, // Valor único para constraint (FEMEA, MACHO ou null)
           numero_gestacoes: numeroGestacoes,
-          observacoes: observacoesComSexagens || null,
+          observacoes: observacoesComSexagens || undefined,
+          veterinario_responsavel: loteFormData.veterinario_responsavel?.trim() || undefined,
+          tecnico_responsavel: loteFormData.tecnico_responsavel?.trim() || undefined,
         };
-
-        if (loteFormData.veterinario_responsavel?.trim()) {
-          insertData.veterinario_responsavel = loteFormData.veterinario_responsavel.trim();
-        }
-        if (loteFormData.tecnico_responsavel?.trim()) {
-          insertData.tecnico_responsavel = loteFormData.tecnico_responsavel.trim();
-        }
 
         if (receptora.diagnostico_existente) {
           diagnosticosParaAtualizar.push({
@@ -932,7 +833,6 @@ export default function Sexagem() {
           .insert(diagnosticosParaInserir);
 
         if (insertError) {
-          console.error('Erro ao inserir sexagens:', insertError);
           throw new Error(`Erro ao inserir sexagens: ${insertError.message}`);
         }
       }
@@ -946,7 +846,6 @@ export default function Sexagem() {
             .eq('id', id);
 
           if (updateError) {
-            console.error('Erro ao atualizar sexagem:', updateError);
             throw new Error(`Erro ao atualizar sexagem: ${updateError.message}`);
           }
         }
@@ -956,7 +855,7 @@ export default function Sexagem() {
       for (const atualizacao of atualizacoesStatus) {
         const { error: statusError } = await atualizarStatusReceptora(
           atualizacao.receptora_id,
-          atualizacao.status as any
+          atualizacao.status as StatusReceptora
         );
         if (statusError) {
           throw new Error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}`);
@@ -994,7 +893,6 @@ export default function Sexagem() {
         await loadReceptorasLote(loteSelecionado);
       }
     } catch (error) {
-      console.error('Erro detalhado ao salvar lote:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: 'Erro ao salvar lote',

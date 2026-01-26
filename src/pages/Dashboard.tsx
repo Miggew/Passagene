@@ -67,8 +67,8 @@ export default function Dashboard() {
         embrioesFrescosDisponiveis: frescosCount || 0,
         embrioesCongeladosEstoque: congeladosCount || 0,
       });
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+    } catch {
+      // Erro silencioso - stats mostram 0 se falhar
     } finally {
       setLoading(false);
     }

@@ -5,7 +5,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Check, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getQualidadeColor } from '@/lib/utils';
 
 interface QualidadeSemaforoProps {
   value: 1 | 2 | 3 | null | undefined;
@@ -22,24 +22,12 @@ export default function QualidadeSemaforo({
 }: QualidadeSemaforoProps) {
   const isEditable = variant === 'row' && onChange && !disabled;
 
-  // Cores das bolinhas
-  const getColor = (num: 1 | 2 | 3) => {
-    switch (num) {
-      case 1:
-        return 'bg-red-500';
-      case 2:
-        return 'bg-yellow-500';
-      case 3:
-        return 'bg-green-500';
-    }
-  };
-
   // Renderizar uma única bolinha
   const renderSingleDot = (num: 1 | 2 | 3, isSelected: boolean) => (
     <div
       className={cn(
         'w-6 h-6 rounded-full border-2 transition-all',
-        getColor(num),
+        getQualidadeColor(num),
         isSelected ? 'border-slate-900 scale-110' : 'border-slate-300',
         isEditable && !disabled && 'cursor-pointer hover:scale-125'
       )}
@@ -58,7 +46,7 @@ export default function QualidadeSemaforo({
         <div
           className={cn(
             'w-4 h-4 rounded-full border-2',
-            getColor(value),
+            getQualidadeColor(value),
             'border-slate-300'
           )}
           title={`Qualidade ${value}`}
