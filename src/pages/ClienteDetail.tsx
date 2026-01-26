@@ -466,12 +466,12 @@ export default function ClienteDetail() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="sigla">Sigla (2-3 letras)</Label>
+                        <Label htmlFor="sigla">Sigla (2-3 caracteres)</Label>
                         <Input
                           id="sigla"
                           value={fazendaForm.sigla}
                           onChange={(e) => {
-                            const valor = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+                            const valor = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
                             setFazendaForm({ ...fazendaForm, sigla: valor });
                           }}
                           placeholder="Ex: SC, BV"
