@@ -3,17 +3,10 @@
  * Extraído de TransferenciaEmbrioes.tsx para melhor organização
  */
 
-import type { TransferenciaSessao } from '@/lib/types';
+import type { TransferenciaSessao, Fazenda, Cliente } from '@/lib/types';
 
-export interface Fazenda {
-  id: string;
-  nome: string;
-}
-
-export interface Cliente {
-  id: string;
-  nome: string;
-}
+// Re-export for convenience (tipos simplificados para queries)
+export type { Fazenda, Cliente };
 
 // Sessão persistida no banco
 export interface SessaoPersistida extends TransferenciaSessao {

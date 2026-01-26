@@ -22,21 +22,12 @@ import {
   TransferenciaComReceptora,
 } from '@/lib/types/transferenciaEmbrioes';
 
-interface UseTransferenciaEmbrioesDataProps {
+export interface UseTransferenciaEmbrioesDataProps {
   dataPasso2: string;
   incluirCioLivre: boolean;
-  origemEmbriao: 'PACOTE' | 'CONGELADO';
   filtroClienteId: string;
   filtroRaca: string;
   formData: TransferenciaFormData;
-  setFormData: React.Dispatch<React.SetStateAction<TransferenciaFormData>>;
-  camposPacote: CamposPacote;
-  setCamposPacote: React.Dispatch<React.SetStateAction<CamposPacote>>;
-  setOrigemEmbriao: React.Dispatch<React.SetStateAction<'PACOTE' | 'CONGELADO'>>;
-  setFiltroClienteId: React.Dispatch<React.SetStateAction<string>>;
-  setFiltroRaca: React.Dispatch<React.SetStateAction<string>>;
-  setDataPasso2: React.Dispatch<React.SetStateAction<string>>;
-  setIncluirCioLivre: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AUTO_RESTORE_SESSAO = true;
@@ -44,18 +35,9 @@ const AUTO_RESTORE_SESSAO = true;
 export function useTransferenciaEmbrioesData({
   dataPasso2,
   incluirCioLivre,
-  origemEmbriao,
   filtroClienteId,
   filtroRaca,
   formData,
-  setFormData,
-  camposPacote,
-  setCamposPacote,
-  setOrigemEmbriao,
-  setFiltroClienteId,
-  setFiltroRaca,
-  setDataPasso2,
-  setIncluirCioLivre,
 }: UseTransferenciaEmbrioesDataProps) {
   const { toast } = useToast();
 
@@ -126,8 +108,8 @@ export function useTransferenciaEmbrioesData({
       .eq('status', 'ABERTA');
   }, []);
 
-  // Aplicar sessão persistida
-  const aplicarSessaoPersistida = useCallback((sessao: SessaoPersistida) => {
+  // Extrair dados de sessão persistida (retorna dados para serem aplicados externamente)
+  const extrairDadosSessao = useCallback((sessao: SessaoPersistida) => {
     const transferenciasIds = Array.isArray(sessao?.transferencias_ids)
       ? sessao.transferencias_ids
       : [];
@@ -137,37 +119,42 @@ export function useTransferenciaEmbrioesData({
     const origem = sessao?.origem_embriao === 'CONGELADO' ? 'CONGELADO' : 'PACOTE';
     const dataTe = sessao?.data_te || new Date().toISOString().split('T')[0];
 
-    setTransferenciasIdsSessao(transferenciasIds);
-    setTransferenciasSessao(protocoloReceptoraIds);
-    setOrigemEmbriao(origem);
-    setFiltroClienteId(sessao?.filtro_cliente_id || '');
-    setFiltroRaca(sessao?.filtro_raca || '');
-    setDataPasso2(sessao?.data_passo2 || new Date().toISOString().split('T')[0]);
-    setIncluirCioLivre(!!sessao?.incluir_cio_livre);
-    setCamposPacote({
-      data_te: dataTe,
-      veterinario_responsavel: sessao?.veterinario_responsavel || '',
-      tecnico_responsavel: sessao?.tecnico_responsavel || '',
-    });
-    setFormData((prev) => ({
-      ...prev,
-      fazenda_id: sessao?.fazenda_id || '',
-      pacote_id: sessao?.pacote_id || '',
-      protocolo_id: sessao?.protocolo_id || '',
-      embriao_id: '',
-      receptora_id: '',
-      protocolo_receptora_id: '',
-      data_te: dataTe,
-      veterinario_responsavel: sessao?.veterinario_responsavel || '',
-      tecnico_responsavel: sessao?.tecnico_responsavel || '',
-      observacoes: '',
-    }));
-  }, [setOrigemEmbriao, setFiltroClienteId, setFiltroRaca, setDataPasso2, setIncluirCioLivre, setCamposPacote, setFormData]);
+    return {
+      transferenciasIds,
+      protocoloReceptoraIds,
+      filtros: {
+        origem_embriao: origem,
+        filtro_cliente_id: sessao?.filtro_cliente_id || '',
+        filtro_raca: sessao?.filtro_raca || '',
+        data_passo2: sessao?.data_passo2 || new Date().toISOString().split('T')[0],
+        incluir_cio_livre: !!sessao?.incluir_cio_livre,
+      },
+      camposPacote: {
+        data_te: dataTe,
+        veterinario_responsavel: sessao?.veterinario_responsavel || '',
+        tecnico_responsavel: sessao?.tecnico_responsavel || '',
+      },
+      formData: {
+        fazenda_id: sessao?.fazenda_id || '',
+        pacote_id: sessao?.pacote_id || '',
+        protocolo_id: sessao?.protocolo_id || '',
+        data_te: dataTe,
+        veterinario_responsavel: sessao?.veterinario_responsavel || '',
+        tecnico_responsavel: sessao?.tecnico_responsavel || '',
+      },
+    };
+  }, []);
 
-  // Restaurar sessão em andamento
+  // Aplicar dados da sessão internamente (para transferenciasIds e protocoloReceptoraIds)
+  const aplicarDadosSessaoInternos = useCallback((dados: { transferenciasIds: string[]; protocoloReceptoraIds: string[] }) => {
+    setTransferenciasIdsSessao(dados.transferenciasIds);
+    setTransferenciasSessao(dados.protocoloReceptoraIds);
+  }, []);
+
+  // Restaurar sessão em andamento - retorna dados da sessão para aplicação externa
   const restaurarSessaoEmAndamento = useCallback(async () => {
     try {
-      if (!AUTO_RESTORE_SESSAO) return false;
+      if (!AUTO_RESTORE_SESSAO) return null;
 
       const { data: sessoesData } = await supabase
         .from('transferencias_sessoes')
@@ -215,17 +202,23 @@ export function useTransferenciaEmbrioesData({
             .from('transferencias_sessoes')
             .update({ status: 'ENCERRADA', updated_at: new Date().toISOString() })
             .eq('id', sessao.id);
-          return false;
+          return null;
         }
 
-        aplicarSessaoPersistida(sessao);
-        return true;
+        // Extrair e retornar dados da sessão
+        const dadosSessao = extrairDadosSessao(sessao);
+        // Aplicar dados internos (IDs de transferência)
+        aplicarDadosSessaoInternos({
+          transferenciasIds: dadosSessao.transferenciasIds,
+          protocoloReceptoraIds: dadosSessao.protocoloReceptoraIds,
+        });
+        return dadosSessao;
       }
-      return false;
+      return null;
     } catch {
-      return false;
+      return null;
     }
-  }, [aplicarSessaoPersistida]);
+  }, [extrairDadosSessao, aplicarDadosSessaoInternos]);
 
   // Carregar clientes
   const loadClientes = useCallback(async () => {
@@ -892,6 +885,7 @@ export function useTransferenciaEmbrioesData({
     salvarSessaoNoBanco,
     encerrarSessaoNoBanco,
     restaurarSessaoEmAndamento,
-    aplicarSessaoPersistida,
   };
 }
+
+export type UseTransferenciaEmbrioesDataReturn = ReturnType<typeof useTransferenciaEmbrioesData>;
