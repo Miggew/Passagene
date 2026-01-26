@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
+import { extractCoordsFromMapsUrl, isShortMapsUrl, isValidCoordinates } from '@/lib/coordinates';
 
 interface Cliente {
   id: string;
@@ -32,9 +33,14 @@ export default function FazendaForm() {
     nome: '',
     sigla: '',
     localizacao: '',
+    latitude: '',
+    longitude: '',
+    mapsLink: '',
     responsavel: '',
     contato_responsavel: '',
   });
+  const [mapsLinkError, setMapsLinkError] = useState<string | null>(null);
+  const [coordsValid, setCoordsValid] = useState<boolean | null>(null);
 
   useEffect(() => {
     loadClientes();
@@ -105,6 +111,9 @@ export default function FazendaForm() {
         nome: data.nome || '',
         sigla: data.sigla || '',
         localizacao: data.localizacao || '',
+        latitude: data.latitude?.toString() || '',
+        longitude: data.longitude?.toString() || '',
+        mapsLink: '',
         responsavel: data.responsavel || '',
         contato_responsavel: data.contato_responsavel || '',
       });
@@ -114,6 +123,47 @@ export default function FazendaForm() {
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleMapsLinkChange = (value: string) => {
+    setFormData({ ...formData, mapsLink: value });
+    setMapsLinkError(null);
+
+    if (!value.trim()) {
+      return;
+    }
+
+    // Check for short URLs
+    if (isShortMapsUrl(value)) {
+      setMapsLinkError('Links curtos (goo.gl) nao sao suportados. Abra o link no navegador e copie a URL completa.');
+      return;
+    }
+
+    // Try to extract coordinates
+    const coords = extractCoordsFromMapsUrl(value);
+    if (coords) {
+      setFormData(prev => ({
+        ...prev,
+        mapsLink: value,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      }));
+      setCoordsValid(true);
+    }
+  };
+
+  const handleCoordsChange = (field: 'latitude' | 'longitude', value: string) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+
+    // Validate coordinates when both are present
+    if (newFormData.latitude && newFormData.longitude) {
+      const lat = parseFloat(newFormData.latitude);
+      const lng = parseFloat(newFormData.longitude);
+      setCoordsValid(isValidCoordinates(lat, lng));
+    } else {
+      setCoordsValid(null);
     }
   };
 
@@ -141,7 +191,7 @@ export default function FazendaForm() {
     try {
       setLoading(true);
 
-      const fazendaData: Record<string, string | null> = {
+      const fazendaData: Record<string, string | number | null> = {
         cliente_id: formData.cliente_id,
         nome: formData.nome,
       };
@@ -157,6 +207,19 @@ export default function FazendaForm() {
       if (formData.responsavel.trim()) fazendaData.responsavel = formData.responsavel;
       if (formData.contato_responsavel.trim())
         fazendaData.contato_responsavel = formData.contato_responsavel;
+
+      // Coordenadas
+      if (formData.latitude && formData.longitude) {
+        const lat = parseFloat(formData.latitude);
+        const lng = parseFloat(formData.longitude);
+        if (isValidCoordinates(lat, lng)) {
+          fazendaData.latitude = lat;
+          fazendaData.longitude = lng;
+        }
+      } else {
+        fazendaData.latitude = null;
+        fazendaData.longitude = null;
+      }
 
       if (id) {
         // Update
@@ -277,6 +340,54 @@ export default function FazendaForm() {
                 placeholder="Cidade, Estado"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mapsLink">Link do Google Maps</Label>
+              <Input
+                id="mapsLink"
+                value={formData.mapsLink}
+                onChange={(e) => handleMapsLinkChange(e.target.value)}
+                placeholder="Cole aqui o link compartilhado do Maps"
+                className={mapsLinkError ? 'border-red-500' : ''}
+              />
+              {mapsLinkError && (
+                <p className="text-xs text-red-500">{mapsLinkError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Cole um link do Google Maps para preencher as coordenadas automaticamente
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="latitude">Latitude</Label>
+                <Input
+                  id="latitude"
+                  type="number"
+                  step="any"
+                  value={formData.latitude}
+                  onChange={(e) => handleCoordsChange('latitude', e.target.value)}
+                  placeholder="-23.550520"
+                  className={coordsValid === false ? 'border-red-500' : coordsValid === true ? 'border-green-500' : ''}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="longitude">Longitude</Label>
+                <Input
+                  id="longitude"
+                  type="number"
+                  step="any"
+                  value={formData.longitude}
+                  onChange={(e) => handleCoordsChange('longitude', e.target.value)}
+                  placeholder="-46.633308"
+                  className={coordsValid === false ? 'border-red-500' : coordsValid === true ? 'border-green-500' : ''}
+                />
+              </div>
+            </div>
+            {coordsValid === false && (
+              <p className="text-xs text-red-500">Coordenadas fora do range valido (lat: -90 a 90, lng: -180 a 180)</p>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="responsavel">Responsável</Label>

@@ -64,6 +64,8 @@ interface LoteDetailViewProps {
   onDespacharEmbrioes: () => Promise<void>;
   onUpdateQuantidadeEmbrioes: (acasalamentoId: string, quantidade: string) => void;
   editQuantidadeEmbrioes: { [key: string]: string };
+  onUpdateClivados?: (acasalamentoId: string, quantidade: string) => void;
+  editClivados?: { [key: string]: string };
 }
 
 export interface AcasalamentoForm {
@@ -111,6 +113,8 @@ export function LoteDetailView({
   onDespacharEmbrioes,
   onUpdateQuantidadeEmbrioes,
   editQuantidadeEmbrioes,
+  onUpdateClivados,
+  editClivados = {},
 }: LoteDetailViewProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -374,6 +378,7 @@ export function LoteDetailView({
                   <TableHead>Doadora</TableHead>
                   <TableHead>Touro</TableHead>
                   <TableHead className="text-center">Oócitos</TableHead>
+                  <TableHead className="text-center">D3 Clivados</TableHead>
                   <TableHead className="text-center">Qtd. Embriões</TableHead>
                   <TableHead className="text-center">%</TableHead>
                   <TableHead>Observações</TableHead>
@@ -382,10 +387,21 @@ export function LoteDetailView({
               <TableBody>
                 {acasalamentos.map((acasalamento) => {
                   const quantidadeOocitos = acasalamento.viaveis || 0;
+                  // Clivados: usa valor editado, ou valor salvo, ou vazio
+                  const clivadosEditado = editClivados[acasalamento.id];
+                  const clivadosSalvo = acasalamento.embrioes_clivados_d3;
+                  const clivadosValor = clivadosEditado !== undefined ? clivadosEditado : (clivadosSalvo?.toString() ?? '');
+                  const clivadosNumero = parseInt(clivadosValor) || 0;
+
+                  // Limite para embriões: usa clivados se preenchido, senão oócitos
+                  const limiteEmbrioes = clivadosNumero > 0 ? clivadosNumero : quantidadeOocitos;
+
                   const quantidadeEmbrioes =
                     editQuantidadeEmbrioes[acasalamento.id] !== undefined
                       ? parseInt(editQuantidadeEmbrioes[acasalamento.id]) || 0
                       : acasalamento.total_embrioes_produzidos || 0;
+
+                  // Percentual sobre oócitos (original)
                   const percentual = quantidadeOocitos > 0 ? ((quantidadeEmbrioes / quantidadeOocitos) * 100).toFixed(1) : '0.0';
 
                   return (
@@ -401,10 +417,26 @@ export function LoteDetailView({
                       <TableCell>{acasalamento.dose_nome || '-'}</TableCell>
                       <TableCell className="text-center">{quantidadeOocitos}</TableCell>
                       <TableCell className="text-center">
+                        {lote.status === 'ABERTO' && diaCultivo >= 3 && onUpdateClivados ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            max={quantidadeOocitos}
+                            className="w-20 text-center"
+                            value={clivadosValor}
+                            onChange={(e) => onUpdateClivados(acasalamento.id, e.target.value)}
+                            placeholder="-"
+                          />
+                        ) : (
+                          <span>{clivadosNumero > 0 ? clivadosNumero : '-'}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
                         {lote.status === 'ABERTO' && diaAtual >= 7 ? (
                           <Input
                             type="number"
                             min="0"
+                            max={limiteEmbrioes}
                             className="w-20 text-center"
                             value={editQuantidadeEmbrioes[acasalamento.id] ?? acasalamento.total_embrioes_produzidos ?? ''}
                             onChange={(e) => onUpdateQuantidadeEmbrioes(acasalamento.id, e.target.value)}

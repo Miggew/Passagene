@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { Cliente, Fazenda, DoseSemen, Embriao, EmbriaoComRelacionamentos, DoseSemenComTouro, LoteFIV } from '@/lib/types';
+import { getGoogleMapsUrl, getGoogleMapsSearchUrl, extractCoordsFromMapsUrl, isShortMapsUrl, isValidCoordinates } from '@/lib/coordinates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -140,9 +141,12 @@ export default function ClienteDetail() {
     localizacao: '',
     latitude: '',
     longitude: '',
+    mapsLink: '',
     responsavel: '',
     contato_responsavel: '',
   });
+  const [mapsLinkError, setMapsLinkError] = useState<string | null>(null);
+  const [coordsValid, setCoordsValid] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -226,18 +230,58 @@ export default function ClienteDetail() {
 
   const handleNavigate = (fazenda: Fazenda) => {
     if (fazenda.latitude && fazenda.longitude) {
-      // geo: URI - abre o app de mapas padrão do dispositivo
-      const geoUri = `geo:${fazenda.latitude},${fazenda.longitude}?q=${fazenda.latitude},${fazenda.longitude}`;
-      window.location.href = geoUri;
+      // Abre Google Maps com as coordenadas (funciona em qualquer dispositivo)
+      const mapsUrl = getGoogleMapsUrl(fazenda.latitude, fazenda.longitude);
+      window.open(mapsUrl, '_blank');
     } else if (fazenda.localizacao) {
       // Fallback para busca por endereço
-      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fazenda.localizacao)}`;
+      const mapsUrl = getGoogleMapsSearchUrl(fazenda.localizacao);
       window.open(mapsUrl, '_blank');
     }
   };
 
   const hasLocation = (fazenda: Fazenda) => {
     return (fazenda.latitude && fazenda.longitude) || fazenda.localizacao;
+  };
+
+  const handleMapsLinkChange = (value: string) => {
+    setFazendaForm({ ...fazendaForm, mapsLink: value });
+    setMapsLinkError(null);
+
+    if (!value.trim()) {
+      return;
+    }
+
+    // Check for short URLs
+    if (isShortMapsUrl(value)) {
+      setMapsLinkError('Links curtos (goo.gl) nao sao suportados. Abra o link no navegador e copie a URL completa.');
+      return;
+    }
+
+    // Try to extract coordinates
+    const coords = extractCoordsFromMapsUrl(value);
+    if (coords) {
+      setFazendaForm(prev => ({
+        ...prev,
+        mapsLink: value,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      }));
+    }
+  };
+
+  const handleCoordsChange = (field: 'latitude' | 'longitude', value: string) => {
+    const newForm = { ...fazendaForm, [field]: value };
+    setFazendaForm(newForm);
+
+    // Validate coordinates when both are present
+    if (newForm.latitude && newForm.longitude) {
+      const lat = parseFloat(newForm.latitude);
+      const lng = parseFloat(newForm.longitude);
+      setCoordsValid(isValidCoordinates(lat, lng));
+    } else {
+      setCoordsValid(null);
+    }
   };
 
   // Estado para edição de fazenda
@@ -250,9 +294,12 @@ export default function ClienteDetail() {
       localizacao: fazenda.localizacao || '',
       latitude: fazenda.latitude?.toString() || '',
       longitude: fazenda.longitude?.toString() || '',
+      mapsLink: '',
       responsavel: fazenda.responsavel || '',
       contato_responsavel: fazenda.contato_responsavel || '',
     });
+    setMapsLinkError(null);
+    setCoordsValid(null);
     setEditingFazenda(fazenda);
     setShowFazendaDialog(true);
   };
@@ -317,9 +364,12 @@ export default function ClienteDetail() {
         localizacao: '',
         latitude: '',
         longitude: '',
+        mapsLink: '',
         responsavel: '',
         contato_responsavel: '',
       });
+      setMapsLinkError(null);
+      setCoordsValid(null);
       loadData();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -435,9 +485,12 @@ export default function ClienteDetail() {
                       localizacao: '',
                       latitude: '',
                       longitude: '',
+                      mapsLink: '',
                       responsavel: '',
                       contato_responsavel: '',
                     });
+                    setMapsLinkError(null);
+                    setCoordsValid(null);
                   }
                 }}>
                   <DialogTrigger asChild>
@@ -493,6 +546,23 @@ export default function ClienteDetail() {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <Label htmlFor="mapsLink">Link do Google Maps</Label>
+                        <Input
+                          id="mapsLink"
+                          value={fazendaForm.mapsLink}
+                          onChange={(e) => handleMapsLinkChange(e.target.value)}
+                          placeholder="Cole aqui o link compartilhado do Maps"
+                          className={mapsLinkError ? 'border-red-500' : ''}
+                        />
+                        {mapsLinkError && (
+                          <p className="text-xs text-red-500">{mapsLinkError}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Cole um link do Google Maps para preencher as coordenadas automaticamente
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="latitude">Latitude</Label>
@@ -501,8 +571,9 @@ export default function ClienteDetail() {
                             type="number"
                             step="any"
                             value={fazendaForm.latitude}
-                            onChange={(e) => setFazendaForm({ ...fazendaForm, latitude: e.target.value })}
+                            onChange={(e) => handleCoordsChange('latitude', e.target.value)}
                             placeholder="-23.550520"
+                            className={coordsValid === false ? 'border-red-500' : coordsValid === true ? 'border-green-500' : ''}
                           />
                         </div>
 
@@ -513,11 +584,15 @@ export default function ClienteDetail() {
                             type="number"
                             step="any"
                             value={fazendaForm.longitude}
-                            onChange={(e) => setFazendaForm({ ...fazendaForm, longitude: e.target.value })}
+                            onChange={(e) => handleCoordsChange('longitude', e.target.value)}
                             placeholder="-46.633308"
+                            className={coordsValid === false ? 'border-red-500' : coordsValid === true ? 'border-green-500' : ''}
                           />
                         </div>
                       </div>
+                      {coordsValid === false && (
+                        <p className="text-xs text-red-500">Coordenadas fora do range valido (lat: -90 a 90, lng: -180 a 180)</p>
+                      )}
 
                       <div className="space-y-2">
                         <Label htmlFor="responsavel">Responsável</Label>

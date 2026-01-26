@@ -355,6 +355,7 @@ export interface LoteFIVAcasalamento {
   dose_semen_id: string;
   quantidade_fracionada: number;
   quantidade_oocitos?: number;
+  embrioes_clivados_d3?: number; // D3 - embriões clivados (opcional, usado como limite para D6/D7/D8)
   quantidade_embrioes?: number;
   observacoes?: string;
   created_at?: string;

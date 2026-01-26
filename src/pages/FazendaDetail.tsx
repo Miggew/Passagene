@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatStatusLabel } from '@/lib/statusLabels';
+import { getGoogleMapsUrl, getGoogleMapsSearchUrl } from '@/lib/coordinates';
 import type { Fazenda, Doadora, DoseComTouroQuery } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -487,12 +488,12 @@ export default function FazendaDetail() {
     if (!fazenda) return;
 
     if (fazenda.latitude && fazenda.longitude) {
-      // geo: URI - abre o app de mapas padrão do dispositivo
-      const geoUri = `geo:${fazenda.latitude},${fazenda.longitude}?q=${fazenda.latitude},${fazenda.longitude}`;
-      window.location.href = geoUri;
+      // Abre Google Maps com as coordenadas (funciona em qualquer dispositivo)
+      const mapsUrl = getGoogleMapsUrl(fazenda.latitude, fazenda.longitude);
+      window.open(mapsUrl, '_blank');
     } else if (fazenda.localizacao) {
-      // Fallback para busca por endereço - abre no navegador
-      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fazenda.localizacao)}`;
+      // Fallback para busca por endereço
+      const mapsUrl = getGoogleMapsSearchUrl(fazenda.localizacao);
       window.open(mapsUrl, '_blank');
     }
   };

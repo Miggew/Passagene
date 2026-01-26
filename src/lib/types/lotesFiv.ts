@@ -34,6 +34,7 @@ export interface AcasalamentoComNomes extends LoteFIVAcasalamento {
   dose_nome?: string;
   viaveis?: number;
   total_embrioes_produzidos?: number;
+  // embrioes_clivados_d3 já vem do LoteFIVAcasalamento
 }
 
 /**

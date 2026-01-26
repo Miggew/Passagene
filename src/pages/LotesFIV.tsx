@@ -45,6 +45,7 @@ export default function LotesFIV() {
   // Estados locais (não movidos para o hook)
   const [submitting, setSubmitting] = useState(false);
   const [editQuantidadeEmbrioes, setEditQuantidadeEmbrioes] = useState<{ [key: string]: string }>({});
+  const [editClivados, setEditClivados] = useState<{ [key: string]: string }>({});
 
   // Hook de filtros (gerencia estados de filtros, persistência e lógica de filtragem)
   // Precisa ser declarado antes do hook de dados para passar setHistoricoPage
@@ -185,12 +186,18 @@ export default function LotesFIV() {
       for (const ac of acasalamentosComQuantidade) {
         const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || ac.quantidade_embrioes?.toString() || '0');
         const quantidadeOocitos = ac.quantidade_oocitos ?? 0;
+        // Usa clivados como limite se preenchido, senão usa oócitos
+        const clivadosEditado = editClivados[ac.id];
+        const clivadosSalvo = ac.embrioes_clivados_d3;
+        const clivadosNumero = parseInt(clivadosEditado ?? clivadosSalvo?.toString() ?? '') || 0;
+        const limiteEmbrioes = clivadosNumero > 0 ? clivadosNumero : quantidadeOocitos;
 
-        if (quantidade > quantidadeOocitos) {
+        if (quantidade > limiteEmbrioes) {
           const doadoraNome = ac.doadora_nome || ac.doadora_registro || 'Doadora desconhecida';
+          const tipoLimite = clivadosNumero > 0 ? 'clivados (D3)' : 'oócitos';
           toast({
             title: 'Validação de quantidade',
-            description: `O acasalamento da doadora "${doadoraNome}" possui ${quantidade} embriões, mas apenas ${quantidadeOocitos} oócitos foram usados. A quantidade de embriões não pode exceder a quantidade de oócitos disponíveis.`,
+            description: `O acasalamento da doadora "${doadoraNome}" possui ${quantidade} embriões, mas o limite de ${tipoLimite} é ${limiteEmbrioes}. A quantidade de embriões não pode exceder esse limite.`,
             variant: 'destructive',
           });
           return;
@@ -445,6 +452,19 @@ export default function LotesFIV() {
           });
         }}
         editQuantidadeEmbrioes={editQuantidadeEmbrioes}
+        onUpdateClivados={async (acasalamentoId, quantidade) => {
+          setEditClivados({
+            ...editClivados,
+            [acasalamentoId]: quantidade,
+          });
+          // Salvar no banco em background
+          const valorNumerico = parseInt(quantidade) || null;
+          await supabase
+            .from('lote_fiv_acasalamentos')
+            .update({ embrioes_clivados_d3: valorNumerico })
+            .eq('id', acasalamentoId);
+        }}
+        editClivados={editClivados}
       />
     );
   }

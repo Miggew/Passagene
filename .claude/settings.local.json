@@ -7,7 +7,9 @@
       "Bash(npm run build:*)",
       "Bash(curl:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor\\(TransferenciaEmbrioes\\): extract types and data loading hook\n\n- Create src/lib/types/transferenciaEmbrioes.ts with all interfaces\n- Create src/hooks/useTransferenciaEmbrioesData.ts with data loading logic\n- Also commit useLotesFIVData.ts from previous refactoring\n\nThis is phase 1-2 of TransferenciaEmbrioes refactoring\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor\\(TransferenciaEmbrioes\\): extract types and data loading hook\n\n- Create src/lib/types/transferenciaEmbrioes.ts with all interfaces\n- Create src/hooks/useTransferenciaEmbrioesData.ts with data loading logic\n- Also commit useLotesFIVData.ts from previous refactoring\n\nThis is phase 1-2 of TransferenciaEmbrioes refactoring\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(wc:*)",
+      "Bash(tree:*)"
     ]
   }
 }
