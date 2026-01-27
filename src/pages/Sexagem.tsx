@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Fazenda, EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
-import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds, type LoteFIVQuerySimples } from '@/lib/dataEnrichment';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
+import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds } from '@/lib/dataEnrichment';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -19,39 +18,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
-import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
-import { Baby, Lock, CheckCircle } from 'lucide-react';
 import { atualizarStatusReceptora, type StatusReceptora } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
+import {
+  type LoteTESexagem,
+  type EmbriaoTransferido,
+  type LoteFormDataBase,
+  calcularDiasGestacao,
+  getHoje,
+  validarResponsaveis,
+} from '@/lib/gestacao';
+import { useFazendasComLotes, useLotesTE } from '@/hooks/loteTE';
+import {
+  FazendaSelector,
+  LotesTable,
+  AbrirLoteForm,
+  LoteHeader,
+} from '@/components/loteTE';
 
-interface LoteTE {
-  id: string;
-  fazenda_id: string;
-  fazenda_nome: string;
-  data_te: string;
-  quantidade_receptoras: number;
-  veterinario_sexagem?: string;
-  tecnico_sexagem?: string;
-  status: 'ABERTO' | 'FECHADO';
-}
-
-interface EmbriaoTransferido {
-  te_id: string;
-  embriao_id: string;
-  embriao_identificacao?: string;
-  embriao_classificacao?: string;
-  lote_fiv_id: string;
-  lote_fiv_acasalamento_id?: string;
-  doadora_registro?: string;
-  touro_nome?: string;
-}
+// Status de receptoras prenhes para sexagem
+const STATUS_PRENHE = ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS'] as const;
 
 interface ReceptoraPrenhe {
   receptora_id: string;
@@ -61,7 +52,7 @@ interface ReceptoraPrenhe {
   embrioes: EmbriaoTransferido[];
   data_abertura_lote: string;
   dias_gestacao: number;
-  numero_gestacoes: number; // Do diagnóstico de gestação
+  numero_gestacoes: number;
   diagnostico_existente?: {
     id: string;
     data_diagnostico: string;
@@ -74,48 +65,66 @@ interface ReceptoraPrenhe {
 interface SexagemFormData {
   [receptora_id: string]: {
     data_sexagem: string;
-    sexagens: string[]; // Array de resultados: ['FEMEA', 'MACHO'], ['FEMEA', 'SEM_SEXO'], etc.
+    sexagens: string[];
     observacoes: string;
   };
 }
 
 type ResultadoSexagem = 'FEMEA' | 'MACHO' | 'SEM_SEXO' | 'VAZIA';
 
-// Tipos locais removidos - agora importados de @/lib/dataEnrichment
-
 export default function Sexagem() {
-  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
+  const { toast } = useToast();
+  const hoje = getHoje();
+
+  // State
   const [fazendaSelecionada, setFazendaSelecionada] = useState<string>('');
-  const [lotesTE, setLotesTE] = useState<LoteTE[]>([]);
-  const [loteSelecionado, setLoteSelecionado] = useState<LoteTE | null>(null);
+  const [loteSelecionado, setLoteSelecionado] = useState<LoteTESexagem | null>(null);
   const [receptoras, setReceptoras] = useState<ReceptoraPrenhe[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [abrirLote, setAbrirLote] = useState(false);
-  const { toast } = useToast();
-
   const [formData, setFormData] = useState<SexagemFormData>({});
-  const [loteFormData, setLoteFormData] = useState({
+  const [loteFormData, setLoteFormData] = useState<LoteFormDataBase>({
     veterinario_responsavel: '',
     tecnico_responsavel: '',
   });
 
-  const hoje = new Date().toISOString().split('T')[0];
+  // Hooks compartilhados
+  const { fazendas, loadFazendas } = useFazendasComLotes({
+    statusReceptoraFiltro: ['PRENHE', 'PRENHE_RETOQUE'],
+    tipoDiagnosticoFiltro: 'SEXAGEM',
+  });
 
+  const transformLote = useCallback((
+    loteBase: { id: string; fazenda_id: string; fazenda_nome: string; data_te: string; quantidade_receptoras: number; status: 'ABERTO' | 'FECHADO' },
+    diagnosticoLote: { veterinario_responsavel?: string; tecnico_responsavel?: string } | undefined
+  ): LoteTESexagem => ({
+    ...loteBase,
+    veterinario_sexagem: diagnosticoLote?.veterinario_responsavel,
+    tecnico_sexagem: diagnosticoLote?.tecnico_responsavel,
+  }), []);
+
+  const { lotesTE, loading: loadingLotes, loadLotesTE } = useLotesTE<LoteTESexagem>({
+    statusReceptoraFiltro: STATUS_PRENHE as unknown as ('SERVIDA' | 'PRENHE' | 'PRENHE_RETOQUE' | 'PRENHE_FEMEA' | 'PRENHE_MACHO' | 'PRENHE_SEM_SEXO' | 'PRENHE_2_SEXOS')[],
+    tipoDiagnosticoFiltro: 'SEXAGEM',
+    fazendas,
+    transformLote,
+  });
+
+  // Effects
   useEffect(() => {
     loadFazendas();
-  }, []);
+  }, [loadFazendas]);
 
   useEffect(() => {
     if (fazendaSelecionada) {
       loadLotesTE(fazendaSelecionada);
     } else {
-      setLotesTE([]);
       setLoteSelecionado(null);
       setReceptoras([]);
       setFormData({});
     }
-  }, [fazendaSelecionada]);
+  }, [fazendaSelecionada, loadLotesTE]);
 
   useEffect(() => {
     if (loteSelecionado) {
@@ -134,10 +143,7 @@ export default function Sexagem() {
         setAbrirLote(false);
         loadReceptorasLote(loteSelecionado);
       } else {
-        setLoteFormData({
-          veterinario_responsavel: '',
-          tecnico_responsavel: '',
-        });
+        setLoteFormData({ veterinario_responsavel: '', tecnico_responsavel: '' });
         setAbrirLote(true);
         setReceptoras([]);
         setFormData({});
@@ -149,208 +155,8 @@ export default function Sexagem() {
     }
   }, [loteSelecionado]);
 
-  const loadFazendas = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('fazendas')
-        .select('*')
-        .order('nome');
-
-      if (error) throw error;
-      const fazendasData = data || [];
-
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual');
-
-      if (viewError) throw viewError;
-
-      const receptoraIds = [...new Set((viewData || []).map(v => v.receptora_id).filter(Boolean))];
-
-      if (receptoraIds.length === 0) {
-        setFazendas([]);
-        return;
-      }
-
-      const { data: receptorasData, error: receptorasError } = await supabase
-        .from('receptoras')
-        .select('id')
-        .in('id', receptoraIds)
-        .in('status_reprodutivo', ['PRENHE', 'PRENHE_RETOQUE']);
-
-      if (receptorasError) throw receptorasError;
-
-      const prenhesIds = receptorasData?.map(r => r.id) || [];
-      if (prenhesIds.length === 0) {
-        setFazendas([]);
-        return;
-      }
-
-      const { data: teData, error: teError } = await supabase
-        .from('transferencias_embrioes')
-        .select('receptora_id, data_te')
-        .in('receptora_id', prenhesIds)
-        .eq('status_te', 'REALIZADA');
-
-      if (teError) throw teError;
-
-      const { data: sexagensData, error: sexagensError } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, data_te')
-        .in('receptora_id', prenhesIds)
-        .eq('tipo_diagnostico', 'SEXAGEM');
-
-      if (sexagensError) throw sexagensError;
-
-      const receptoraFazendaMap = new Map(
-        (viewData || [])
-          .filter(v => v.receptora_id && v.fazenda_id_atual)
-          .map(v => [v.receptora_id, v.fazenda_id_atual])
-      );
-
-      const receptorasPorLote = new Map<string, Set<string>>();
-      const chaveFazendaMap = new Map<string, string>(); // Mapear chave -> fazendaId
-      (teData || []).forEach(te => {
-        const fazendaId = receptoraFazendaMap.get(te.receptora_id);
-        if (!fazendaId) return;
-        const chave = `${fazendaId}|${te.data_te}`; // Usar | como separador
-        chaveFazendaMap.set(chave, fazendaId);
-        if (!receptorasPorLote.has(chave)) {
-          receptorasPorLote.set(chave, new Set());
-        }
-        receptorasPorLote.get(chave)!.add(te.receptora_id);
-      });
-
-      const sexagensPorLote = new Map<string, Set<string>>();
-      (sexagensData || []).forEach(sex => {
-        const fazendaId = receptoraFazendaMap.get(sex.receptora_id);
-        if (!fazendaId) return;
-        const chave = `${fazendaId}|${sex.data_te}`; // Usar | como separador
-        if (!sexagensPorLote.has(chave)) {
-          sexagensPorLote.set(chave, new Set());
-        }
-        sexagensPorLote.get(chave)!.add(sex.receptora_id);
-      });
-
-      const fazendasAptasSet = new Set<string>();
-      receptorasPorLote.forEach((receptorasLote, chave) => {
-        const sexagensLote = sexagensPorLote.get(chave)?.size || 0;
-        if (sexagensLote < receptorasLote.size) {
-          const fazendaId = chaveFazendaMap.get(chave);
-          if (fazendaId) fazendasAptasSet.add(fazendaId);
-        }
-      });
-
-      const fazendasFiltradas = fazendasData.filter(f => fazendasAptasSet.has(f.id));
-
-      setFazendas(fazendasFiltradas);
-      if (fazendaSelecionada && !fazendasAptasSet.has(fazendaSelecionada)) {
-        setFazendaSelecionada('');
-      }
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar fazendas',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const loadLotesTE = async (fazendaId: string) => {
-    try {
-      setLoading(true);
-
-      // 1. Buscar receptoras PRENHES da fazenda
-      const { data: viewData } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', fazendaId);
-
-      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
-
-      const { data: receptorasData } = await supabase
-        .from('receptoras')
-        .select('id')
-        .in('id', receptoraIds)
-        .in('status_reprodutivo', ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS']);
-
-      const prenhesIds = receptorasData?.map(r => r.id) || [];
-
-      // 2. Buscar TEs dessas receptoras prenhes
-      const { data: teData } = await supabase
-        .from('transferencias_embrioes')
-        .select('id, receptora_id, data_te')
-        .in('receptora_id', prenhesIds)
-        .eq('status_te', 'REALIZADA')
-        .order('data_te', { ascending: false });
-
-      // 3. Buscar sexagens existentes
-      const { data: sexagensData } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, data_te, veterinario_responsavel, tecnico_responsavel, data_diagnostico')
-        .in('receptora_id', prenhesIds)
-        .eq('tipo_diagnostico', 'SEXAGEM')
-        .order('data_diagnostico', { ascending: false });
-
-      // 4. Agrupar por fazenda + data_te
-      const lotesMap = new Map<string, LoteTE>();
-      const receptorasPorData = new Map<string, Set<string>>();
-
-      teData?.forEach(te => {
-        const chave = `${fazendaId}-${te.data_te}`;
-        const chaveReceptora = `${te.data_te}-${te.receptora_id}`;
-
-        if (!receptorasPorData.has(te.data_te)) {
-          receptorasPorData.set(te.data_te, new Set());
-        }
-        receptorasPorData.get(te.data_te)!.add(te.receptora_id);
-
-        if (!lotesMap.has(chave)) {
-          const sexagemLote = sexagensData?.find(s => s.data_te === te.data_te);
-          lotesMap.set(chave, {
-            id: chave,
-            fazenda_id: fazendaId,
-            fazenda_nome: fazendas.find(f => f.id === fazendaId)?.nome || '',
-            data_te: te.data_te,
-            quantidade_receptoras: 0,
-            veterinario_sexagem: sexagemLote?.veterinario_responsavel || undefined,
-            tecnico_sexagem: sexagemLote?.tecnico_responsavel || undefined,
-            status: 'ABERTO',
-          });
-        }
-      });
-
-      lotesMap.forEach((lote) => {
-        const receptorasUnicas = receptorasPorData.get(lote.data_te)?.size || 0;
-        lote.quantidade_receptoras = receptorasUnicas;
-
-        const sexagensDoLote = sexagensData?.filter(s => s.data_te === lote.data_te) || [];
-        if (sexagensDoLote.length > 0 && sexagensDoLote.length >= receptorasUnicas) {
-          lote.status = 'FECHADO';
-        }
-      });
-
-      const lotesArray = Array.from(lotesMap.values())
-        .sort((a, b) => new Date(b.data_te).getTime() - new Date(a.data_te).getTime());
-
-      const lotesFechados = lotesArray.filter(l => l.status === 'FECHADO').length;
-      const lotesAbertos = lotesArray.length - lotesFechados;
-      const lotesAbertosArray = lotesArray.filter(l => l.status === 'ABERTO');
-      setLotesTE(lotesAbertosArray);
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar lotes',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-      setLotesTE([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAbrirLote = async () => {
-    if (!loteFormData.veterinario_responsavel.trim() || !loteFormData.tecnico_responsavel.trim()) {
+    if (!validarResponsaveis(loteFormData)) {
       toast({
         title: 'Erro de validação',
         description: 'Veterinário e técnico responsáveis são obrigatórios',
@@ -361,7 +167,7 @@ export default function Sexagem() {
 
     if (!loteSelecionado) return;
 
-    const loteAtualizado: LoteTE = {
+    const loteAtualizado: LoteTESexagem = {
       ...loteSelecionado,
       veterinario_sexagem: loteFormData.veterinario_responsavel.trim(),
       tecnico_sexagem: loteFormData.tecnico_responsavel.trim(),
@@ -373,7 +179,7 @@ export default function Sexagem() {
     await loadReceptorasLote(loteAtualizado);
   };
 
-  const loadReceptorasLote = async (lote: LoteTE) => {
+  const loadReceptorasLote = async (lote: LoteTESexagem) => {
     try {
       setLoading(true);
 
@@ -388,7 +194,7 @@ export default function Sexagem() {
         .from('receptoras')
         .select('id, identificacao, nome, status_reprodutivo')
         .in('id', receptoraIds)
-        .in('status_reprodutivo', ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS']);
+        .in('status_reprodutivo', STATUS_PRENHE);
 
       const prenhesIds = receptorasData?.map(r => r.id) || [];
 
@@ -397,7 +203,7 @@ export default function Sexagem() {
         return;
       }
 
-      // Executar queries independentes em paralelo
+      // Executar queries em paralelo
       const [teResult, diagnosticosResult, sexagensResult] = await Promise.all([
         supabase
           .from('transferencias_embrioes')
@@ -444,12 +250,11 @@ export default function Sexagem() {
         }
       }
 
-      // Buscar lotes FIV e dados de genealogia (doadora + touro) usando funções utilitárias
+      // Buscar lotes FIV e dados de genealogia em paralelo
       const embrioesList = Array.from(embrioesMap.values());
       const loteIds = extrairLoteIds(embrioesList);
       const acasalamentoIds = extrairAcasalamentoIds(embrioesList);
 
-      // Executar queries em paralelo
       const [lotesMap, genealogiaResult] = await Promise.all([
         buscarLotesFIV(loteIds),
         buscarDadosGenealogia(acasalamentoIds),
@@ -484,7 +289,7 @@ export default function Sexagem() {
 
       const receptorasCompletas: ReceptoraPrenhe[] = [];
 
-      tesPorReceptora.forEach((tes, chave) => {
+      tesPorReceptora.forEach((tes) => {
         const primeiraTE = tes[0];
         const receptora = receptorasData?.find(r => r.id === primeiraTE.receptora_id);
         if (!receptora) return;
@@ -502,9 +307,7 @@ export default function Sexagem() {
 
           if (!dataAberturalote) {
             dataAberturalote = loteFiv.data_abertura;
-            const d0 = new Date(loteFiv.data_abertura);
-            const hojeDate = new Date();
-            diasGestacao = Math.floor((hojeDate.getTime() - d0.getTime()) / (1000 * 60 * 60 * 24));
+            diasGestacao = calcularDiasGestacao(loteFiv.data_abertura);
           }
 
           const doadoraRegistro = embriao.lote_fiv_acasalamento_id
@@ -529,7 +332,7 @@ export default function Sexagem() {
         if (embrioesDoGrupo.length === 0 || !dataAberturalote || diasGestacao === null) return;
 
         const diagnostico = diagnosticosPorReceptora.get(primeiraTE.receptora_id);
-        if (!diagnostico || diagnostico.resultado === 'VAZIA') return; // Só receptoras prenhes
+        if (!diagnostico || diagnostico.resultado === 'VAZIA') return;
 
         receptorasCompletas.push({
           receptora_id: primeiraTE.receptora_id,
@@ -557,40 +360,27 @@ export default function Sexagem() {
       const initialFormData: SexagemFormData = {};
       receptorasCompletas.forEach(r => {
         if (r.diagnostico_existente) {
-          // Se já tem sexagem, buscar os dados completos da sexagem para parsear
           const sexagemCompleta = sexagensPorReceptora.get(r.receptora_id);
-          
-          // Tentar recuperar as sexagens individuais
-          // As sexagens detalhadas estão salvas nas observações no formato: "SEXAGENS:FEMEA,MACHO|observações normais"
           let sexagensParsed: string[] = new Array(r.numero_gestacoes).fill('').map(() => '');
           let observacoesLimpa = r.diagnostico_existente.observacoes || '';
-          
+
           if (sexagemCompleta?.observacoes) {
-            // Procurar padrão "SEXAGENS:..." nas observações
             const matchSexagens = sexagemCompleta.observacoes.match(/SEXAGENS:([^|]+)/);
             if (matchSexagens) {
-              // Parsear sexagens separadas por vírgula
               const sexagensArray = matchSexagens[1].split(',').map(s => s.trim());
               sexagensParsed = sexagensArray;
-              
-              // Garantir que o array tenha o tamanho correto
               while (sexagensParsed.length < r.numero_gestacoes) {
                 sexagensParsed.push('');
               }
               sexagensParsed = sexagensParsed.slice(0, r.numero_gestacoes);
-              
-              // Remover "SEXAGENS:..." das observações para mostrar apenas observações normais
               observacoesLimpa = sexagemCompleta.observacoes.replace(/SEXAGENS:[^|]+\|?/, '').trim();
             }
           }
-          
-          // Se não encontrou nas observações, tentar usar a coluna sexagem (valor único)
+
           if (sexagensParsed.every(s => !s) && sexagemCompleta?.sexagem) {
-            // Se é um valor único, usar para todas as gestações
-            // Mas isso não é ideal, apenas como fallback
             sexagensParsed[0] = sexagemCompleta.sexagem;
           }
-          
+
           initialFormData[r.receptora_id] = {
             data_sexagem: r.diagnostico_existente.data_diagnostico,
             sexagens: sexagensParsed,
@@ -624,10 +414,7 @@ export default function Sexagem() {
       novasSexagens[index] = value;
       return {
         ...prev,
-        [receptoraId]: {
-          ...dados,
-          sexagens: novasSexagens,
-        },
+        [receptoraId]: { ...dados, sexagens: novasSexagens },
       };
     });
   };
@@ -635,48 +422,29 @@ export default function Sexagem() {
   const handleFieldChange = (receptoraId: string, field: 'data_sexagem' | 'observacoes', value: string) => {
     setFormData(prev => ({
       ...prev,
-      [receptoraId]: {
-        ...prev[receptoraId],
-        [field]: value,
-      },
+      [receptoraId]: { ...prev[receptoraId], [field]: value },
     }));
   };
 
-  // Calcular status final baseado nas sexagens
-  const calcularStatusFinal = (sexagens: string[], numeroGestacoes: number): 'PRENHE_FEMEA' | 'PRENHE_MACHO' | 'PRENHE_SEM_SEXO' | 'PRENHE_2_SEXOS' | 'VAZIA' => {
+  const calcularStatusFinal = (sexagens: string[]): 'PRENHE_FEMEA' | 'PRENHE_MACHO' | 'PRENHE_SEM_SEXO' | 'PRENHE_2_SEXOS' | 'VAZIA' => {
     const sexagensValidas = sexagens.filter(s => s && s !== 'VAZIA');
-    
-    if (sexagensValidas.length === 0) {
-      return 'VAZIA';
-    }
+
+    if (sexagensValidas.length === 0) return 'VAZIA';
 
     const temFemea = sexagensValidas.includes('FEMEA');
     const temMacho = sexagensValidas.includes('MACHO');
     const temSemSexo = sexagensValidas.includes('SEM_SEXO');
 
-    // Se tem apenas fêmeas
-    if (temFemea && !temMacho && !temSemSexo) {
-      return 'PRENHE_FEMEA';
-    }
-
-    // Se tem apenas machos
-    if (temMacho && !temFemea && !temSemSexo) {
-      return 'PRENHE_MACHO';
-    }
-
-    // Se tem fêmea + macho (2 sexos diferentes)
-    if (temFemea && temMacho) {
-      return 'PRENHE_2_SEXOS';
-    }
-
-    // Se tem sem sexo (não foi possível visualizar)
+    if (temFemea && !temMacho && !temSemSexo) return 'PRENHE_FEMEA';
+    if (temMacho && !temFemea && !temSemSexo) return 'PRENHE_MACHO';
+    if (temFemea && temMacho) return 'PRENHE_2_SEXOS';
     return 'PRENHE_SEM_SEXO';
   };
 
   const handleSalvarLote = async () => {
     if (!loteSelecionado) return;
 
-    if (!loteFormData.veterinario_responsavel.trim() || !loteFormData.tecnico_responsavel.trim()) {
+    if (!validarResponsaveis(loteFormData)) {
       toast({
         title: 'Erro de validação',
         description: 'Veterinário e técnico responsáveis são obrigatórios',
@@ -687,7 +455,7 @@ export default function Sexagem() {
 
     const receptorasSemResultado = receptoras.filter(r => {
       const dados = formData[r.receptora_id];
-      return !dados || !dados.data_sexagem || !dados.sexagens || dados.sexagens.length === 0 || dados.sexagens.every(s => !s);
+      return !dados || !dados.data_sexagem || !dados.sexagens || dados.sexagens.every(s => !s);
     });
 
     if (receptorasSemResultado.length > 0) {
@@ -710,87 +478,41 @@ export default function Sexagem() {
         const dados = formData[receptora.receptora_id];
         if (!dados || !dados.data_sexagem) return;
 
-        // Filtrar sexagens válidas (não vazias)
         const sexagensValidas = dados.sexagens.filter(s => s && s !== 'VAZIA');
-        const todasVazias = dados.sexagens.every(s => !s || s === 'VAZIA');
-        
-        const statusFinal = calcularStatusFinal(dados.sexagens, receptora.numero_gestacoes);
-        // Status pode ser VAZIA, PRENHE_FEMEA, PRENHE_MACHO, PRENHE_SEM_SEXO ou PRENHE_2_SEXOS
+        const statusFinal = calcularStatusFinal(dados.sexagens);
         const resultadoFinal = statusFinal === 'VAZIA' ? 'VAZIA' : 'PRENHE';
 
-        // O campo sexagem aceita apenas um valor: 'FEMEA', 'MACHO', ou 'PRENHE' (sem sexo)
-        // A constraint provavelmente exige que se numero_gestacoes > 1 e sexagem = 'PRENHE', 
-        // isso não é permitido. Então quando há múltiplas gestações com sexagens diferentes,
-        // precisamos escolher o valor mais representativo ou usar null.
         let sexagemValue: string | null = null;
         if (resultadoFinal === 'PRENHE') {
           const temApenasFemeas = sexagensValidas.every(s => s === 'FEMEA') && sexagensValidas.length > 0;
           const temApenasMachos = sexagensValidas.every(s => s === 'MACHO') && sexagensValidas.length > 0;
-          const temFemeaEMacho = sexagensValidas.includes('FEMEA') && sexagensValidas.includes('MACHO');
-          const temSemSexo = sexagensValidas.includes('SEM_SEXO');
-          
+
           if (temApenasFemeas) {
             sexagemValue = 'FEMEA';
           } else if (temApenasMachos) {
             sexagemValue = 'MACHO';
-          } else if (temFemeaEMacho) {
-            // Tem fêmea + macho: quando há 2 gestações de sexos diferentes,
-            // usar a primeira sexagem válida (FEMEA geralmente vem primeiro)
-            // A constraint pode exigir que sexagem não seja null quando resultado = 'PRENHE'
-            sexagemValue = sexagensValidas[0] || 'FEMEA';
-          } else if (temSemSexo) {
-            // Tem sem sexo: a constraint pode não permitir 'PRENHE' no campo sexagem
-            // quando tipo_diagnostico = 'SEXAGEM'. Vamos usar null ou o primeiro valor não-SEM_SEXO
-            // Se todas são SEM_SEXO, usar null (pode não ser permitido, então usar FEMEA como fallback)
-            const primeiraNaoSemSexo = sexagensValidas.find(s => s !== 'SEM_SEXO');
-            sexagemValue = primeiraNaoSemSexo || null;
-            // Se null e constraint não permitir, usar 'FEMEA' como fallback genérico
-          } else if (sexagensValidas.length > 0) {
-            // Outra combinação: usar primeira sexagem válida que seja FEMEA ou MACHO
-            // NÃO usar valores que possam violar constraint ('SEM_SEXO', 'PRENHE')
-            sexagemValue = sexagensValidas.find(s => s === 'FEMEA' || s === 'MACHO') || null;
           } else {
-            // Sem sexagens válidas: usar null
-            sexagemValue = null;
+            sexagemValue = sexagensValidas.find(s => s === 'FEMEA' || s === 'MACHO') || null;
           }
         }
 
-        // Numero de gestações: usar número de sexagens válidas (sem contar VAZIA)
-        // Se VAZIA, usar 0; se PRENHE, usar número de sexagens válidas
-        const numeroGestacoes = resultadoFinal === 'VAZIA' ? 0 : sexagensValidas.length;
-        
-        // AJUSTE CRÍTICO: A constraint diagnosticos_regras_chk NÃO permite 'PRENHE' ou 'SEM_SEXO'
-        // no campo sexagem quando tipo_diagnostico = 'SEXAGEM'
-        // O campo sexagem só aceita 'FEMEA', 'MACHO', ou null
-        // Garantir que nunca usamos valores inválidos
         if (sexagemValue === 'PRENHE' || sexagemValue === 'SEM_SEXO') {
-          // Converter valores inválidos para primeiro valor válido ou null
           const primeiraFemeaOuMacho = sexagensValidas.find(s => s === 'FEMEA' || s === 'MACHO');
           sexagemValue = primeiraFemeaOuMacho || null;
         }
-        
-        // Se resultado é PRENHE mas sexagem ainda é null (caso de apenas SEM_SEXO),
-        // a constraint pode exigir um valor. Nesse caso, não podemos usar 'PRENHE'.
-        // Vamos deixar null e ver se a constraint aceita, mas se não aceitar,
-        // pode ser necessário usar 'FEMEA' como fallback genérico
 
-        // Salvar sexagens detalhadas nas observações (formato: "SEXAGENS:FEMEA,MACHO|observações normais")
-        // Isso permite recuperar todas as sexagens individuais ao carregar depois
-        let observacoesComSexagens = dados.observacoes ? dados.observacoes.trim() : '';
-        
-        // Criar string com TODAS as sexagens (incluindo VAZIA e SEM_SEXO) para salvar
-        const todasSexagens = dados.sexagens.map(s => s || '').filter(s => s); // Remove vazios mas mantém valores
+        const numeroGestacoes = resultadoFinal === 'VAZIA' ? 0 : sexagensValidas.length;
+
+        let observacoesComSexagens = dados.observacoes?.trim() || '';
+        const todasSexagens = dados.sexagens.filter(s => s);
         const sexagensDetalhadas = todasSexagens.length > 0 ? todasSexagens.join(',') : '';
-        
+
         if (sexagensDetalhadas) {
-          // Adicionar sexagens detalhadas nas observações se não estiverem lá
-          // Formato: "SEXAGENS:FEMEA,MACHO|observações normais"
           if (!observacoesComSexagens.includes('SEXAGENS:')) {
-            observacoesComSexagens = observacoesComSexagens 
+            observacoesComSexagens = observacoesComSexagens
               ? `SEXAGENS:${sexagensDetalhadas}|${observacoesComSexagens}`
               : `SEXAGENS:${sexagensDetalhadas}`;
           } else {
-            // Se já tem SEXAGENS:, atualizar
             observacoesComSexagens = observacoesComSexagens.replace(
               /SEXAGENS:[^|]+/,
               `SEXAGENS:${sexagensDetalhadas}`
@@ -804,7 +526,7 @@ export default function Sexagem() {
           tipo_diagnostico: 'SEXAGEM',
           data_diagnostico: dados.data_sexagem,
           resultado: resultadoFinal,
-          sexagem: sexagemValue, // Valor único para constraint (FEMEA, MACHO ou null)
+          sexagem: sexagemValue,
           numero_gestacoes: numeroGestacoes,
           observacoes: observacoesComSexagens || undefined,
           veterinario_responsavel: loteFormData.veterinario_responsavel?.trim() || undefined,
@@ -812,10 +534,7 @@ export default function Sexagem() {
         };
 
         if (receptora.diagnostico_existente) {
-          diagnosticosParaAtualizar.push({
-            id: receptora.diagnostico_existente.id,
-            ...insertData,
-          });
+          diagnosticosParaAtualizar.push({ id: receptora.diagnostico_existente.id, ...insertData });
         } else {
           diagnosticosParaInserir.push(insertData);
         }
@@ -826,7 +545,6 @@ export default function Sexagem() {
         });
       });
 
-      // Inserir/atualizar diagnósticos (lógica similar ao DG)
       if (diagnosticosParaInserir.length > 0) {
         const { error: insertError } = await supabase
           .from('diagnosticos_gestacao')
@@ -837,37 +555,31 @@ export default function Sexagem() {
         }
       }
 
-      if (diagnosticosParaAtualizar.length > 0) {
-        for (const dg of diagnosticosParaAtualizar) {
-          const { id, ...updateData } = dg;
-          const { error: updateError } = await supabase
-            .from('diagnosticos_gestacao')
-            .update(updateData)
-            .eq('id', id);
+      for (const dg of diagnosticosParaAtualizar) {
+        const { id, ...updateData } = dg;
+        const { error: updateError } = await supabase
+          .from('diagnosticos_gestacao')
+          .update(updateData)
+          .eq('id', id);
 
-          if (updateError) {
-            throw new Error(`Erro ao atualizar sexagem: ${updateError.message}`);
-          }
+        if (updateError) {
+          throw new Error(`Erro ao atualizar sexagem: ${updateError.message}`);
         }
       }
 
-      // Atualizar status das receptoras
       for (const atualizacao of atualizacoesStatus) {
         const { error: statusError } = await atualizarStatusReceptora(
           atualizacao.receptora_id,
           atualizacao.status as StatusReceptora
         );
         if (statusError) {
-          throw new Error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}`);
+          throw new Error(`Erro ao atualizar status da receptora`);
         }
         if (atualizacao.status === 'VAZIA') {
-          const { error: dataPartoError } = await supabase
+          await supabase
             .from('receptoras')
             .update({ data_provavel_parto: null })
             .eq('id', atualizacao.receptora_id);
-          if (dataPartoError) {
-            throw new Error(`Erro ao limpar data provável de parto da receptora ${atualizacao.receptora_id}`);
-          }
         }
       }
 
@@ -893,10 +605,9 @@ export default function Sexagem() {
         await loadReceptorasLote(loteSelecionado);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: 'Erro ao salvar lote',
-        description: errorMessage,
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
     } finally {
@@ -916,183 +627,56 @@ export default function Sexagem() {
         description="Registrar sexagem fetal por lote de receptoras prenhes"
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Selecionar Fazenda</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="fazenda">Fazenda *</Label>
-            <Select
-              value={fazendaSelecionada}
-              onValueChange={setFazendaSelecionada}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a fazenda" />
-              </SelectTrigger>
-              <SelectContent>
-                {fazendas.map((fazenda) => (
-                  <SelectItem key={fazenda.id} value={fazenda.id}>
-                    {fazenda.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <FazendaSelector
+        fazendas={fazendas}
+        fazendaSelecionada={fazendaSelecionada}
+        onFazendaChange={setFazendaSelecionada}
+      />
 
       {fazendaSelecionada && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Lotes de Receptoras Prenhes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <LoadingSpinner />
-            ) : lotesTE.length === 0 ? (
-              <EmptyState
-                title="Nenhum lote de receptoras prenhes encontrado"
-                description="Selecione outra fazenda ou verifique se há receptoras prenhes registradas."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data TE</TableHead>
-                    <TableHead>Quantidade</TableHead>
-                    <TableHead>Vet. Sexagem</TableHead>
-                    <TableHead>Téc. Sexagem</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lotesTE.map((lote) => (
-                    <TableRow
-                      key={lote.id}
-                      className={loteSelecionado?.id === lote.id ? 'bg-blue-50' : ''}
-                    >
-                      <TableCell className="font-medium">
-                        {new Date(lote.data_te).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell>{lote.quantidade_receptoras} receptoras</TableCell>
-                      <TableCell>{lote.veterinario_sexagem || '-'}</TableCell>
-                      <TableCell>{lote.tecnico_sexagem || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => setLoteSelecionado(lote)}
-                          variant={loteSelecionado?.id === lote.id ? 'default' : 'outline'}
-                        >
-                          {loteSelecionado?.id === lote.id ? 'Selecionado' : 'Selecionar'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <LotesTable
+          title="Lotes de Receptoras Prenhes"
+          emptyTitle="Nenhum lote de receptoras prenhes encontrado"
+          emptyDescription="Selecione outra fazenda ou verifique se há receptoras prenhes registradas."
+          lotesTE={lotesTE}
+          loteSelecionado={loteSelecionado}
+          loading={loadingLotes}
+          veterinarioLabel="Vet. Sexagem"
+          tecnicoLabel="Téc. Sexagem"
+          getVeterinario={(l) => l.veterinario_sexagem}
+          getTecnico={(l) => l.tecnico_sexagem}
+          onSelectLote={setLoteSelecionado}
+        />
       )}
 
       {loteSelecionado && abrirLote && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Abrir Lote de Sexagem</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-slate-600">
-              Lote de TE em {new Date(loteSelecionado.data_te).toLocaleDateString('pt-BR')} - {loteSelecionado.quantidade_receptoras} receptoras prenhes
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="veterinario">Veterinário Responsável *</Label>
-                <Input
-                  id="veterinario"
-                  value={loteFormData.veterinario_responsavel}
-                  onChange={(e) => setLoteFormData({ ...loteFormData, veterinario_responsavel: e.target.value })}
-                  placeholder="Nome do veterinário"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tecnico">Técnico Responsável *</Label>
-                <Input
-                  id="tecnico"
-                  value={loteFormData.tecnico_responsavel}
-                  onChange={(e) => setLoteFormData({ ...loteFormData, tecnico_responsavel: e.target.value })}
-                  placeholder="Nome do técnico"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleAbrirLote}
-                className="bg-green-600 hover:bg-green-700"
-                disabled={!loteFormData.veterinario_responsavel.trim() || !loteFormData.tecnico_responsavel.trim()}
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Abrir Lote
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAbrirLote(false);
-                  setLoteSelecionado(null);
-                }}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <AbrirLoteForm
+          title="Abrir Lote de Sexagem"
+          loteSelecionado={loteSelecionado}
+          loteFormData={loteFormData}
+          onFormChange={setLoteFormData}
+          onAbrirLote={handleAbrirLote}
+          onCancelar={() => {
+            setAbrirLote(false);
+            setLoteSelecionado(null);
+          }}
+        />
       )}
 
       {loteSelecionado && !abrirLote && receptoras.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <CardTitle>
-                  Receptoras Prenhes do Lote - {receptoras.length} {receptoras.length === 1 ? 'receptora' : 'receptoras'}
-                  {loteSelecionado.status === 'FECHADO' && (
-                    <span className="ml-2 text-sm text-slate-500">(Lote Fechado - Somente Leitura)</span>
-                  )}
-                </CardTitle>
-                {loteSelecionado.status === 'ABERTO' && (
-                  <Button
-                    onClick={handleSalvarLote}
-                    disabled={!todasReceptorasComSexagem || submitting}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Lock className="w-4 h-4 mr-2" />
-                    {submitting ? 'Salvando...' : 'Salvar Lote Completo'}
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                <div className="space-y-2">
-                  <Label htmlFor="veterinario_sexagem">Veterinário Responsável (Sexagem) *</Label>
-                  <Input
-                    id="veterinario_sexagem"
-                    value={loteFormData.veterinario_responsavel}
-                    onChange={(e) => setLoteFormData({ ...loteFormData, veterinario_responsavel: e.target.value })}
-                    placeholder="Nome do veterinário"
-                    disabled={loteSelecionado.status === 'FECHADO'}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tecnico_sexagem">Técnico Responsável (Sexagem) *</Label>
-                  <Input
-                    id="tecnico_sexagem"
-                    value={loteFormData.tecnico_responsavel}
-                    onChange={(e) => setLoteFormData({ ...loteFormData, tecnico_responsavel: e.target.value })}
-                    placeholder="Nome do técnico"
-                    disabled={loteSelecionado.status === 'FECHADO'}
-                  />
-                </div>
-              </div>
-            </div>
+            <LoteHeader
+              loteSelecionado={loteSelecionado}
+              receptorasCount={receptoras.length}
+              loteFormData={loteFormData}
+              onFormChange={setLoteFormData}
+              veterinarioLabel="Veterinário Responsável (Sexagem)"
+              tecnicoLabel="Técnico Responsável (Sexagem)"
+              onSalvarLote={handleSalvarLote}
+              submitting={submitting}
+              canSave={todasReceptorasComSexagem}
+            />
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -1154,7 +738,7 @@ export default function Sexagem() {
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              {receptora.embrioes.map((embriao, idx) => (
+                              {receptora.embrioes.map((embriao) => (
                                 <div key={embriao.te_id} className="text-sm">
                                   <div>
                                     <span className="font-medium">{embriao.doadora_registro || '-'}</span>
@@ -1180,14 +764,8 @@ export default function Sexagem() {
                             <div className="flex gap-2">
                               {Array.from({ length: receptora.numero_gestacoes }, (_, index) => {
                                 const valorAtual = dados.sexagens[index] || '';
-                                const temValor = valorAtual !== '';
-                                // Só mostrar número se houver mais de uma gestação
-                                const placeholder = temValor 
-                                  ? undefined 
-                                  : receptora.numero_gestacoes > 1 
-                                    ? `Gest. ${index + 1}` 
-                                    : 'Selecione';
-                                
+                                const placeholder = receptora.numero_gestacoes > 1 ? `Gest. ${index + 1}` : 'Selecione';
+
                                 return (
                                   <Select
                                     key={index}

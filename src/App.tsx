@@ -16,7 +16,7 @@ const SignUp = lazy(() => import('./pages/SignUp'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 // Paginas do app
-const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Home = lazy(() => import('./pages/Home'));
 const Clientes = lazy(() => import('./pages/Clientes'));
 const ClienteForm = lazy(() => import('./pages/ClienteForm'));
 const ClienteDetail = lazy(() => import('./pages/ClienteDetail'));
@@ -24,7 +24,7 @@ const Fazendas = lazy(() => import('./pages/Fazendas'));
 const FazendaDetail = lazy(() => import('./pages/FazendaDetail'));
 const Doadoras = lazy(() => import('./pages/Doadoras'));
 const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
-const Receptoras = lazy(() => import('./pages/Receptoras'));
+// Receptoras agora fica dentro de FazendaDetail
 const ReceptoraHistorico = lazy(() => import('./pages/ReceptoraHistorico'));
 const Protocolos = lazy(() => import('./pages/Protocolos'));
 const ProtocoloFormWizard = lazy(() => import('./pages/ProtocoloFormWizard'));
@@ -39,9 +39,13 @@ const Touros = lazy(() => import('./pages/Touros'));
 const TouroDetail = lazy(() => import('./pages/TouroDetail'));
 const LotesFIV = lazy(() => import('./pages/LotesFIV'));
 const Embrioes = lazy(() => import('./pages/Embrioes'));
+const EmbrioesCongelados = lazy(() => import('./pages/EmbrioesCongelados'));
 const TransferenciaEmbrioes = lazy(() => import('./pages/TransferenciaEmbrioes'));
 const DiagnosticoGestacao = lazy(() => import('./pages/DiagnosticoGestacao'));
 const Sexagem = lazy(() => import('./pages/Sexagem'));
+const SemAcesso = lazy(() => import('./pages/SemAcesso'));
+const Usuarios = lazy(() => import('./pages/Usuarios'));
+const Portal = lazy(() => import('./pages/Portal'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient({
@@ -99,15 +103,23 @@ const AppRoutes = () => {
           <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
-          {/* Rotas protegidas (app principal) */}
+          {/* Página de sem acesso (protegida, mas sem layout) */}
+          <Route path="/sem-acesso" element={<ProtectedRoute><SemAcesso /></ProtectedRoute>} />
+
+          {/* Página inicial - seleção de hubs (protegida, sem MainLayout) */}
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+
+          {/* Rotas protegidas (app principal com MainLayout) */}
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Dashboard />} />
 
             {/* Clientes */}
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/clientes/novo" element={<ClienteForm />} />
             <Route path="/clientes/:id" element={<ClienteDetail />} />
             <Route path="/clientes/:id/editar" element={<ClienteForm />} />
+
+            {/* Usuarios (admin only) */}
+            <Route path="/usuarios" element={<Usuarios />} />
 
             {/* Fazendas */}
             <Route path="/fazendas" element={<Fazendas />} />
@@ -117,8 +129,7 @@ const AppRoutes = () => {
             <Route path="/doadoras" element={<Doadoras />} />
             <Route path="/doadoras/:id" element={<DoadoraDetail />} />
 
-            {/* Receptoras */}
-            <Route path="/receptoras" element={<Receptoras />} />
+            {/* Receptoras - agora fica dentro de FazendaDetail, só histórico tem rota própria */}
             <Route path="/receptoras/:id/historico" element={<ReceptoraHistorico />} />
 
             {/* Protocolos */}
@@ -147,6 +158,7 @@ const AppRoutes = () => {
 
             {/* Embrioes */}
             <Route path="/embrioes" element={<Embrioes />} />
+            <Route path="/embrioes-congelados" element={<EmbrioesCongelados />} />
 
             {/* Transferencia de Embrioes */}
             <Route path="/transferencia" element={<TransferenciaEmbrioes />} />
@@ -156,6 +168,9 @@ const AppRoutes = () => {
 
             {/* Sexagem */}
             <Route path="/sexagem" element={<Sexagem />} />
+
+            {/* Portal do Cliente */}
+            <Route path="/portal" element={<Portal />} />
           </Route>
 
           {/* Rota 404 */}

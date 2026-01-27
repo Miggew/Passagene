@@ -1,65 +1,101 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
-  LayoutDashboard,
   Users,
   Home,
-  Beef,
+  Dna,
   Syringe,
   TestTube,
-  Dna,
   ArrowRightLeft,
   Stethoscope,
   Activity,
   Sparkles,
   LogOut,
+  FlaskConical,
+  FileBox,
+  Shield,
+  LayoutDashboard,
+  Snowflake,
 } from 'lucide-react';
 
-const menuItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/clientes', label: 'Clientes', icon: Users },
-  { path: '/fazendas', label: 'Fazendas', icon: Home },
-  { path: '/doadoras', label: 'Doadoras', icon: Dna },
-  { path: '/receptoras', label: 'Receptoras', icon: Beef },
-  { path: '/protocolos', label: 'Protocolos', icon: Syringe },
-  { path: '/aspiracoes', label: 'Aspirações', icon: TestTube },
-  { path: '/touros', label: 'Catálogo de Touros', icon: Sparkles },
-  { path: '/doses-semen', label: 'Doses de Sêmen', icon: Dna },
-  { path: '/lotes-fiv', label: 'Lotes FIV', icon: TestTube },
-  { path: '/embrioes', label: 'Embriões/Estoque', icon: Dna },
-  { path: '/transferencia', label: 'Transferência (TE)', icon: ArrowRightLeft },
-  { path: '/dg', label: 'DG', icon: Stethoscope },
-  { path: '/sexagem', label: 'Sexagem', icon: Activity },
-];
+// Mapeamento de ícones por rota
+const routeIcons: Record<string, React.ElementType> = {
+  '/clientes': Users,
+  '/fazendas': Home,
+  '/usuarios': Shield,
+  '/portal': LayoutDashboard,
+  '/doadoras': Dna,
+  '/touros': Sparkles,
+  '/lotes-fiv': TestTube,
+  '/embrioes': FileBox,
+  '/embrioes-congelados': Snowflake,
+  '/doses-semen': FlaskConical,
+  '/protocolos': Syringe,
+  '/aspiracoes': TestTube,
+  '/transferencia': ArrowRightLeft,
+  '/dg': Stethoscope,
+  '/sexagem': Activity,
+};
+
+// Labels das rotas
+const routeLabels: Record<string, string> = {
+  '/clientes': 'Clientes',
+  '/fazendas': 'Fazendas',
+  '/usuarios': 'Usuários',
+  '/portal': 'Meu Portal',
+  '/doadoras': 'Doadoras',
+  '/touros': 'Catálogo de Touros',
+  '/lotes-fiv': 'Lotes FIV',
+  '/embrioes': 'Embriões/Estoque',
+  '/embrioes-congelados': 'Embriões Congelados',
+  '/doses-semen': 'Doses de Sêmen',
+  '/protocolos': 'Protocolos',
+  '/aspiracoes': 'Aspirações',
+  '/transferencia': 'Transferência (TE)',
+  '/dg': 'Diagnóstico Gestação',
+  '/sexagem': 'Sexagem',
+};
 
 export default function Sidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { getHubForRoute, profile } = usePermissions();
+
+  // Encontra o hub atual baseado na rota
+  const currentHub = getHubForRoute(location.pathname);
 
   const isRouteActive = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/';
-    }
     return location.pathname.startsWith(path);
   };
 
+  // Se não há hub atual, não mostra nada (ou mostra vazio)
+  if (!currentHub) {
+    return null;
+  }
+
   return (
-    <div className="w-64 bg-slate-900 text-white min-h-screen p-4 flex flex-col">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-green-400">FIV/TE Bovina</h1>
-        <p className="text-sm text-slate-400">Sistema de Controle</p>
+    <div className="w-64 bg-slate-900 text-white min-h-full flex flex-col">
+      {/* Header do hub atual */}
+      <div className="p-4 border-b border-slate-800">
+        <h2 className="text-lg font-semibold text-white">{currentHub.name}</h2>
+        {currentHub.description && (
+          <p className="text-xs text-slate-400 mt-1">{currentHub.description}</p>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-1">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = isRouteActive(item.path);
+      {/* Menu de navegação do hub */}
+      <nav className="flex-1 p-4 space-y-1">
+        {currentHub.routes.map((route) => {
+          const Icon = routeIcons[route] || Home;
+          const label = routeLabels[route] || route;
+          const isActive = isRouteActive(route);
 
           return (
             <Link
-              key={item.path}
-              to={item.path}
+              key={route}
+              to={route}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                 isActive
@@ -68,19 +104,24 @@ export default function Sidebar() {
               )}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-sm font-medium">{item.label}</span>
+              <span className="text-sm font-medium">{label}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* Area do usuario e logout */}
-      <div className="pt-4 border-t border-slate-800 space-y-3">
-        {/* Email do usuario logado */}
-        {user?.email && (
-          <p className="text-xs text-slate-400 truncate px-1" title={user.email}>
-            {user.email}
-          </p>
+      <div className="p-4 border-t border-slate-800 space-y-3">
+        {/* Nome e email do usuario logado */}
+        {profile && (
+          <div className="px-1">
+            <p className="text-sm text-white font-medium truncate" title={profile.nome}>
+              {profile.nome}
+            </p>
+            <p className="text-xs text-slate-400 truncate" title={user?.email}>
+              {user?.email}
+            </p>
+          </div>
         )}
 
         {/* Botao de logout */}

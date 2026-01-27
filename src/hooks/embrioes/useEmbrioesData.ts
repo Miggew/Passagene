@@ -422,16 +422,9 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
         };
       });
 
-      // Filter by fazenda destino if selected
-      const embriosFiltrados = selectedFazendaDestinoId
-        ? embrioesCompletos.filter((e) => e.fazenda_destino_id === selectedFazendaDestinoId)
-        : embrioesCompletos;
-
-      setEmbrioes(embriosFiltrados);
-
-      // Group into packages
+      // Group into packages FIRST (before filtering)
       const pacotesMap = new Map<string, PacoteEmbrioes>();
-      embriosFiltrados.forEach((embriao) => {
+      embrioesCompletos.forEach((embriao) => {
         if (!embriao.lote_fiv_id) return;
         const dataDespacho = embriao.created_at?.split('T')[0] || '';
         const pacoteKey = `${embriao.lote_fiv_id}_${dataDespacho}`;
@@ -478,8 +471,15 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
         }
       });
 
+      // Filter packages by fazenda destino if selected
+      const pacotesFiltrados = selectedFazendaDestinoId
+        ? Array.from(pacotesMap.values()).filter((pacote) =>
+            pacote.fazendas_destino_ids.includes(selectedFazendaDestinoId)
+          )
+        : Array.from(pacotesMap.values());
+
       // Sort packages
-      const pacotesArray = Array.from(pacotesMap.values()).sort((a, b) => {
+      const pacotesArray = pacotesFiltrados.sort((a, b) => {
         const dateA = new Date(a.data_despacho).getTime();
         const dateB = new Date(b.data_despacho).getTime();
         return dateB - dateA;
@@ -490,6 +490,16 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
         pacote.disponivel_para_transferencia = pacote.todos_classificados && pacote.frescos > 0;
       });
 
+      // Set filtered embrioes based on filtered pacotes
+      const pacoteKeysFiltrados = new Set(pacotesArray.map(p => p.id));
+      const embriosFiltrados = embrioesCompletos.filter((e) => {
+        if (!e.lote_fiv_id) return false;
+        const dataDespacho = e.created_at?.split('T')[0] || '';
+        const pacoteKey = `${e.lote_fiv_id}_${dataDespacho}`;
+        return pacoteKeysFiltrados.has(pacoteKey);
+      });
+
+      setEmbrioes(embriosFiltrados);
       setPacotes(pacotesArray);
     } catch (error) {
       handleError(error, 'Erro ao carregar embriões');

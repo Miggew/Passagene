@@ -1,4 +1,50 @@
+// ========================================
+// Tipos para Sistema de Hubs e Permissões
+// ========================================
+
+export interface Hub {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  routes: string[];
+  display_order: number;
+  created_at?: string;
+}
+
+export type UserType = 'admin' | 'cliente' | 'operacional';
+
+export interface UserProfile {
+  id: string;
+  nome: string;
+  email: string;
+  user_type: UserType;
+  cliente_id?: string;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserHubPermission {
+  id: string;
+  user_id: string;
+  hub_code: string;
+  can_access: boolean;
+  created_at?: string;
+}
+
+export interface UserPermissions {
+  profile: UserProfile;
+  allowedHubs: string[];
+  isAdmin: boolean;
+  isCliente: boolean;
+}
+
+// ========================================
 // Database Types
+// ========================================
+
 export interface Cliente {
   id: string;
   nome: string;

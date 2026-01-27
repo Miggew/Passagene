@@ -31,3 +31,9 @@ export type {
   ProtocolosFiltros,
   UseProtocolosDataReturn,
 } from './useProtocolosData';
+
+export { useProtocoloData, type ReceptoraWithStatus } from './useProtocoloData';
+export { useAddReceptoraProtocolo } from './useAddReceptoraProtocolo';
+export type { AddReceptoraFormData as AddReceptoraProtocoloFormData } from './useAddReceptoraProtocolo';
+export { useCreateReceptoraProtocolo } from './useCreateReceptoraProtocolo';
+export type { CreateReceptoraFormData as CreateReceptoraProtocoloFormData } from './useCreateReceptoraProtocolo';

@@ -107,3 +107,35 @@ export function validarTransicaoStatus(
       return { valido: false, mensagem: 'Ação desconhecida' };
   }
 }
+
+/**
+ * Mapa de motivos para status de receptora não disponível
+ */
+export const receptoraStatusMotivoMap: Record<string, string> = {
+  'EM SINCRONIZAÇÃO': 'Já está em protocolo em andamento.',
+  'SINCRONIZADA': 'Já está sincronizada aguardando TE.',
+  'SERVIDA': 'Já recebeu embrião e aguarda diagnóstico/sexagem.',
+  'PRENHE': 'Está prenhe.',
+  'PRENHE_RETOQUE': 'Está prenhe, mas precisa de retoque/confirmação.',
+  'PRENHE (RETOQUE)': 'Está prenhe, mas precisa de retoque/confirmação.',
+  'PRENHE_FEMEA': 'Está prenhe de fêmea.',
+  'PRENHE (FÊMEA)': 'Está prenhe de fêmea.',
+  'PRENHE_MACHO': 'Está prenhe de macho.',
+  'PRENHE (MACHO)': 'Está prenhe de macho.',
+  'PRENHE_SEM_SEXO': 'Está prenhe, sem sexo definido.',
+  'PRENHE (SEM SEXO)': 'Está prenhe, sem sexo definido.',
+};
+
+/**
+ * Verifica se o status da receptora permite uso em protocolo
+ */
+export function isReceptoraDisponivel(status: string | null | undefined): boolean {
+  return !status || status === 'VAZIA';
+}
+
+/**
+ * Retorna o motivo pelo qual a receptora não está disponível
+ */
+export function getReceptoraIndisponivelMotivo(status: string): string {
+  return receptoraStatusMotivoMap[status] || `Status: ${status}`;
+}

@@ -22,6 +22,8 @@ export interface UseProtocoloWizardSubmitReturn {
   submitting: boolean;
   showConfirmExit: boolean;
   setShowConfirmExit: (show: boolean) => void;
+  showResumo: boolean;
+  setShowResumo: (show: boolean) => void;
 
   // Actions
   handleFinalizarPasso1: () => Promise<void>;
@@ -41,6 +43,7 @@ export function useProtocoloWizardSubmit({
   // States
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
+  const [showResumo, setShowResumo] = useState(false);
   const isFinalizingRef = useRef(false);
 
   // Validate protocol form
@@ -193,13 +196,8 @@ export function useProtocoloWizardSubmit({
         throw new Error('Erro ao atualizar status das receptoras. Tente novamente.');
       }
 
-      toast({
-        title: 'Protocolo criado com sucesso',
-        description: `${receptorasLocais.length} receptoras adicionadas ao protocolo`,
-      });
-
-      // Navigate after success
-      navigate('/protocolos');
+      // Show resumo dialog instead of navigating directly
+      setShowResumo(true);
     } catch (error) {
       const errorMessage = error instanceof Error
         ? error.message
@@ -227,6 +225,8 @@ export function useProtocoloWizardSubmit({
     submitting,
     showConfirmExit,
     setShowConfirmExit,
+    showResumo,
+    setShowResumo,
 
     // Actions
     handleFinalizarPasso1,

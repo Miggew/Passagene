@@ -216,41 +216,49 @@ export default function LotesFIV() {
         return;
       }
 
-      let siglaFazenda = '';
-      let prefixoIdentificacao = '';
+      // Gerar prefixo de identificação para rastreabilidade
+      let siglaFazenda = 'EMB'; // Fallback padrão
+      const dataAsp = dataAspiracaoStr || '';
+      const ddmm = dataAsp.slice(8, 10) + dataAsp.slice(5, 7);
 
       if (pacote?.fazenda_id) {
         const { data: fazendaOrigem, error: fazendaError } = await supabase
           .from('fazendas')
-          .select('sigla')
+          .select('sigla, nome')
           .eq('id', pacote.fazenda_id)
           .single();
 
-        if (!fazendaError && fazendaOrigem?.sigla) {
-          siglaFazenda = fazendaOrigem.sigla;
-          const dataAsp = dataAspiracaoStr || '';
-          const ddmm = dataAsp.slice(8, 10) + dataAsp.slice(5, 7);
-          prefixoIdentificacao = `${siglaFazenda}-${ddmm}`;
+        if (!fazendaError && fazendaOrigem) {
+          if (fazendaOrigem.sigla) {
+            siglaFazenda = fazendaOrigem.sigla;
+          } else if (fazendaOrigem.nome) {
+            // Usar primeiras 3 letras do nome da fazenda como fallback
+            siglaFazenda = fazendaOrigem.nome
+              .replace(/[^a-zA-Z]/g, '')
+              .substring(0, 3)
+              .toUpperCase() || 'EMB';
+          }
         }
       }
 
-      let proximoNumero = 1;
-      if (prefixoIdentificacao) {
-        const { count, error: countError } = await supabase
-          .from('embrioes')
-          .select('*', { count: 'exact', head: true })
-          .like('identificacao', `${prefixoIdentificacao}-%`);
+      const prefixoIdentificacao = `${siglaFazenda}-${ddmm}`;
 
-        if (!countError && count !== null) {
-          proximoNumero = count + 1;
-        }
+      // Buscar próximo número sequencial
+      let proximoNumero = 1;
+      const { count, error: countError } = await supabase
+        .from('embrioes')
+        .select('*', { count: 'exact', head: true })
+        .like('identificacao', `${prefixoIdentificacao}-%`);
+
+      if (!countError && count !== null) {
+        proximoNumero = count + 1;
       }
 
       const embrioesParaCriar: Array<{
         lote_fiv_id: string;
         lote_fiv_acasalamento_id: string;
         status_atual: string;
-        identificacao?: string;
+        identificacao: string;
       }> = [];
       const acasalamentosDespachados: Array<{ acasalamento_id: string; quantidade: number; doadora?: string; dose?: string }> = [];
 
@@ -260,21 +268,13 @@ export default function LotesFIV() {
 
         if (quantidade > 0) {
           for (let i = 0; i < quantidade; i++) {
-            const embriao: {
-              lote_fiv_id: string;
-              lote_fiv_acasalamento_id: string;
-              status_atual: string;
-              identificacao?: string;
-            } = {
+            const numeroStr = String(proximoNumero + contadorEmbriao).padStart(3, '0');
+            const embriao = {
               lote_fiv_id: selectedLote.id,
               lote_fiv_acasalamento_id: acasalamento.id,
               status_atual: 'FRESCO',
+              identificacao: `${prefixoIdentificacao}-${numeroStr}`,
             };
-
-            if (prefixoIdentificacao) {
-              const numeroStr = String(proximoNumero + contadorEmbriao).padStart(3, '0');
-              embriao.identificacao = `${prefixoIdentificacao}-${numeroStr}`;
-            }
 
             embrioesParaCriar.push(embriao);
             contadorEmbriao++;

@@ -1,3 +1,8 @@
+/**
+ * Página do 1º Passo do Protocolo de Sincronização
+ * Criação do protocolo e adição de receptoras
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -34,16 +39,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Table,
   TableBody,
   TableCell,
@@ -52,12 +47,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import PageHeader from '@/components/shared/PageHeader';
-import { ArrowLeft, Plus, UserPlus, Lock, X, Search } from 'lucide-react';
+import { Plus, UserPlus, Lock, X, Search } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 import ClassificacoesCicloInline from '@/components/shared/ClassificacoesCicloInline';
 import DatePickerBR from '@/components/shared/DatePickerBR';
+
+// Components
+import {
+  ProtocoloStepHeader,
+  ProtocoloInfoCard,
+  ProtocoloResumoDialog,
+  ConfirmExitDialog,
+} from '@/components/protocolos';
 
 // Hooks
 import {
@@ -87,12 +89,6 @@ export default function ProtocoloFormWizard() {
   } = useProtocoloWizardData();
 
   // Receptoras hook
-  const selectedIds = useMemo(
-    () => getSelectedIds(receptorasLocais),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [receptorasLocais]
-  );
-
   const {
     receptorasLocais,
     setReceptorasLocais,
@@ -120,7 +116,7 @@ export default function ProtocoloFormWizard() {
     fazendaId: protocoloData.fazenda_id,
     allReceptoras,
     receptorasComStatus,
-    selectedIds: getSelectedIds([]), // Will be recalculated
+    selectedIds: getSelectedIds([]),
     onReceptorasReload: () => loadAllReceptoras(protocoloData.fazenda_id),
   });
 
@@ -129,6 +125,8 @@ export default function ProtocoloFormWizard() {
     submitting: submitSubmitting,
     showConfirmExit,
     setShowConfirmExit,
+    showResumo,
+    setShowResumo,
     handleFinalizarPasso1,
     handleConfirmExit,
     validateProtocoloForm,
@@ -137,7 +135,6 @@ export default function ProtocoloFormWizard() {
     receptorasLocais,
   });
 
-  // Combined submitting state
   const submitting = receptorasSubmitting || submitSubmitting;
 
   // Recalculate selectedIds with actual data
@@ -164,14 +161,13 @@ export default function ProtocoloFormWizard() {
     }
   }, [currentStep, protocoloData.fazenda_id, loadAllReceptoras]);
 
-  // Continue to receptoras step
+  // Handlers
   const handleContinueToReceptoras = () => {
     if (validateProtocoloForm()) {
       setCurrentStep('receptoras');
     }
   };
 
-  // Navigation handlers
   const handleVoltar = () => {
     if (currentStep === 'form') {
       navigate('/protocolos');
@@ -188,23 +184,26 @@ export default function ProtocoloFormWizard() {
     }
   };
 
+  const handleCloseResumo = () => {
+    setShowResumo(false);
+    navigate('/protocolos');
+  };
+
   // Step 1: Form
   if (currentStep === 'form') {
     return (
       <div className="space-y-6">
-        <PageHeader
+        <ProtocoloStepHeader
+          currentStep={1}
           title="Novo Protocolo"
-          description="Primeira visita - Cadastrar novo protocolo de sincronização"
-          actions={
-            <Button variant="outline" size="icon" onClick={handleSair}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          }
+          subtitle="Primeira visita - Cadastrar protocolo de sincronização"
+          onBack={handleSair}
+          onExit={handleSair}
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>Informações do Protocolo</CardTitle>
+            <CardTitle className="text-base">Informações do Protocolo</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -283,18 +282,10 @@ export default function ProtocoloFormWizard() {
               <div className="flex gap-4 pt-4">
                 <Button
                   onClick={handleContinueToReceptoras}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-blue-600 hover:bg-blue-700"
                   disabled={loading}
                 >
                   Continuar para Receptoras
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSair}
-                  disabled={loading}
-                >
-                  Sair
                 </Button>
               </div>
             </div>
@@ -305,6 +296,8 @@ export default function ProtocoloFormWizard() {
           open={showConfirmExit}
           onOpenChange={setShowConfirmExit}
           onConfirm={handleConfirmExit}
+          title="Sair sem finalizar?"
+          description="Se você sair agora, nenhum protocolo será criado. Todos os dados serão perdidos."
         />
       </div>
     );
@@ -313,54 +306,29 @@ export default function ProtocoloFormWizard() {
   // Step 2: Receptoras
   return (
     <div className="space-y-6">
-      <PageHeader
+      <ProtocoloStepHeader
+        currentStep={1}
         title="Adicionar Receptoras"
-        description="Selecione as receptoras para este protocolo"
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handleVoltar}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" onClick={handleSair}>
-              <X className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
-          </div>
-        }
+        subtitle="Selecione as receptoras para este protocolo"
+        onBack={handleVoltar}
+        onExit={handleSair}
       />
 
       {/* Protocol Info Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações do Protocolo</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Fazenda</p>
-            <p className="text-base text-slate-900">
-              {getFazendaNome(protocoloData.fazenda_id)}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Data Início</p>
-            <p className="text-base text-slate-900">{protocoloData.data_inicio}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Veterinário</p>
-            <p className="text-base text-slate-900">{protocoloData.veterinario}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Técnico</p>
-            <p className="text-base text-slate-900">{protocoloData.tecnico}</p>
-          </div>
-        </CardContent>
-      </Card>
+      <ProtocoloInfoCard
+        fazendaNome={getFazendaNome(protocoloData.fazenda_id)}
+        dataInicio={protocoloData.data_inicio}
+        veterinario={protocoloData.veterinario}
+        tecnico={protocoloData.tecnico}
+      />
 
       {/* Receptoras List */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Receptoras do Protocolo ({receptorasLocais.length})</CardTitle>
+            <CardTitle className="text-base">
+              Receptoras do Protocolo ({receptorasLocais.length})
+            </CardTitle>
             <div className="flex gap-2">
               {/* Add Existing Receptora Dialog */}
               <Dialog
@@ -380,8 +348,7 @@ export default function ProtocoloFormWizard() {
                   <DialogHeader>
                     <DialogTitle>Adicionar Receptora ao Protocolo</DialogTitle>
                     <DialogDescription>
-                      Busque por identificação ou nome. Receptoras adequadas aparecerão como
-                      disponíveis.
+                      Busque por identificação ou nome.
                     </DialogDescription>
                   </DialogHeader>
                   <AddReceptoraForm
@@ -417,8 +384,7 @@ export default function ProtocoloFormWizard() {
                   <DialogHeader>
                     <DialogTitle>Cadastrar Nova Receptora</DialogTitle>
                     <DialogDescription>
-                      Preencha os dados da nova receptora para cadastrá-la e adicioná-la ao
-                      protocolo.
+                      Preencha os dados da nova receptora.
                     </DialogDescription>
                   </DialogHeader>
                   <CreateReceptoraForm
@@ -449,17 +415,18 @@ export default function ProtocoloFormWizard() {
       </Card>
 
       {/* Action Buttons */}
-      <div className="flex gap-4">
+      <div className="flex items-center justify-between">
+        <Button variant="outline" onClick={handleVoltar} disabled={submitting}>
+          Voltar
+        </Button>
         <Button
           onClick={handleFinalizarPasso1}
           disabled={receptorasLocais.length === 0 || submitting}
           className="bg-blue-600 hover:bg-blue-700"
+          size="lg"
         >
           <Lock className="w-4 h-4 mr-2" />
           {submitting ? 'Finalizando...' : 'Finalizar 1º Passo'}
-        </Button>
-        <Button variant="outline" onClick={handleVoltar} disabled={submitting}>
-          Voltar
         </Button>
       </div>
 
@@ -467,38 +434,24 @@ export default function ProtocoloFormWizard() {
         open={showConfirmExit}
         onOpenChange={setShowConfirmExit}
         onConfirm={handleConfirmExit}
+        title="Sair sem finalizar?"
+        description="Se você sair agora, nenhum protocolo será criado. Todos os dados serão perdidos."
+      />
+
+      <ProtocoloResumoDialog
+        open={showResumo}
+        onClose={handleCloseResumo}
+        step={1}
+        fazendaNome={getFazendaNome(protocoloData.fazenda_id)}
+        dataInicio={protocoloData.data_inicio}
+        totalReceptoras={receptorasLocais.length}
+        receptorasConfirmadas={receptorasLocais.length}
       />
     </div>
   );
 }
 
 // Sub-components
-
-interface ConfirmExitDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-}
-
-function ConfirmExitDialog({ open, onOpenChange, onConfirm }: ConfirmExitDialogProps) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Sair sem finalizar?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Se você sair agora, nenhum protocolo será criado. Todos os dados preenchidos serão
-            perdidos.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Sim, sair</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
 
 interface AddReceptoraFormProps {
   addReceptoraForm: {
@@ -557,7 +510,6 @@ function AddReceptoraForm({
               role="combobox"
               aria-expanded={popoverAberto}
               className="w-full justify-between"
-              onClick={() => setPopoverAberto(!popoverAberto)}
             >
               {addReceptoraForm.receptora_id
                 ? (() => {
@@ -596,12 +548,10 @@ function AddReceptoraForm({
                       const rId = r.id ? String(r.id).trim() : '';
                       if (!rId) return null;
 
-                      const displayText = `${r.identificacao} ${r.nome || ''}`.trim();
-
                       return (
                         <CommandItem
                           key={r.id}
-                          value={`${displayText} ${rId}`}
+                          value={`${r.identificacao} ${r.nome || ''} ${rId}`}
                           onSelect={() => {
                             if (r.disponivel) {
                               setAddReceptoraForm({ ...addReceptoraForm, receptora_id: rId });
@@ -618,27 +568,21 @@ function AddReceptoraForm({
                                 {r.identificacao}
                                 {r.nome ? ` - ${r.nome}` : ''}
                               </span>
-                              {r.disponivel ? (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-green-50 text-green-700 border-green-200 shrink-0"
-                                >
-                                  Disponível
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-red-50 text-red-700 border-red-200 shrink-0"
-                                >
-                                  Indisponível
-                                </Badge>
-                              )}
+                              <Badge
+                                variant="outline"
+                                className={
+                                  r.disponivel
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-red-50 text-red-700 border-red-200'
+                                }
+                              >
+                                {r.disponivel ? 'Disponível' : 'Indisponível'}
+                              </Badge>
                             </div>
                             {!r.disponivel && (
                               <span className="text-xs text-red-600 mt-1">
                                 {r.motivoIndisponivel?.includes('Status atual:')
-                                  ? r.motivoIndisponivel.split('Status atual:')[1]?.trim() ||
-                                    r.status
+                                  ? r.motivoIndisponivel.split('Status atual:')[1]?.trim() || r.status
                                   : r.status}
                               </span>
                             )}
@@ -720,10 +664,7 @@ function CreateReceptoraForm({
         <Input
           value={createReceptoraForm.identificacao}
           onChange={(e) =>
-            setCreateReceptoraForm({
-              ...createReceptoraForm,
-              identificacao: e.target.value,
-            })
+            setCreateReceptoraForm({ ...createReceptoraForm, identificacao: e.target.value })
           }
           placeholder="Número do brinco"
         />
@@ -756,10 +697,7 @@ function CreateReceptoraForm({
         <Textarea
           value={createReceptoraForm.observacoes}
           onChange={(e) =>
-            setCreateReceptoraForm({
-              ...createReceptoraForm,
-              observacoes: e.target.value,
-            })
+            setCreateReceptoraForm({ ...createReceptoraForm, observacoes: e.target.value })
           }
           placeholder="Observações sobre a receptora"
           rows={2}
@@ -798,49 +736,51 @@ function ReceptorasTable({
   onUpdateQualidade,
 }: ReceptorasTableProps) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Brinco</TableHead>
-          <TableHead>Nome</TableHead>
-          <TableHead>Ciclando</TableHead>
-          <TableHead>Qualidade</TableHead>
-          <TableHead>Observações</TableHead>
-          <TableHead className="text-right">Ações</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {receptorasLocais.map((r, index) => {
-          const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
+    <div className="rounded-lg border overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50">
+            <TableHead className="font-semibold">Brinco</TableHead>
+            <TableHead className="font-semibold">Nome</TableHead>
+            <TableHead className="font-semibold">Ciclando</TableHead>
+            <TableHead className="font-semibold">Qualidade</TableHead>
+            <TableHead className="font-semibold">Observações</TableHead>
+            <TableHead className="text-right font-semibold">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {receptorasLocais.map((r, index) => {
+            const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
 
-          return (
-            <TableRow key={rowKey}>
-              <TableCell className="font-medium">{r.identificacao}</TableCell>
-              <TableCell>{r.nome || '-'}</TableCell>
-              <TableCell>
-                <CiclandoBadge
-                  value={r.ciclando_classificacao}
-                  onChange={(value) => onUpdateCiclando(index, value)}
-                  variant="editable"
-                />
-              </TableCell>
-              <TableCell>
-                <QualidadeSemaforo
-                  value={r.qualidade_semaforo}
-                  onChange={(value) => onUpdateQualidade(index, value)}
-                  variant="row"
-                />
-              </TableCell>
-              <TableCell>{r.observacoes || '-'}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm" onClick={() => onRemove(index)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+            return (
+              <TableRow key={rowKey} className="hover:bg-slate-50/50">
+                <TableCell className="font-medium">{r.identificacao}</TableCell>
+                <TableCell className="text-slate-600">{r.nome || '-'}</TableCell>
+                <TableCell>
+                  <CiclandoBadge
+                    value={r.ciclando_classificacao}
+                    onChange={(value) => onUpdateCiclando(index, value)}
+                    variant="editable"
+                  />
+                </TableCell>
+                <TableCell>
+                  <QualidadeSemaforo
+                    value={r.qualidade_semaforo}
+                    onChange={(value) => onUpdateQualidade(index, value)}
+                    variant="row"
+                  />
+                </TableCell>
+                <TableCell className="text-slate-600">{r.observacoes || '-'}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="sm" onClick={() => onRemove(index)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

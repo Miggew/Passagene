@@ -75,6 +75,18 @@ export function useReceptorasData({ selectedFazendaId }: UseReceptorasDataProps)
     filterReceptoras();
   }, [filterReceptoras]);
 
+  // Auto-load fazendas on mount
+  useEffect(() => {
+    loadFazendas();
+  }, []);
+
+  // Auto-load receptoras when fazenda changes
+  useEffect(() => {
+    if (selectedFazendaId) {
+      loadReceptoras();
+    }
+  }, [selectedFazendaId]);
+
   // Load fazendas
   const loadFazendas = useCallback(async () => {
     try {

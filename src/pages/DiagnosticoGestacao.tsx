@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Fazenda, EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
+import type { EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
 import { buscarDadosGenealogia, extrairAcasalamentoIds } from '@/lib/dataEnrichment';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -20,38 +19,29 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
-import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
-import { Stethoscope, Save, Lock, CheckCircle } from 'lucide-react';
-import { atualizarStatusReceptora, validarTransicaoStatus } from '@/lib/receptoraStatus';
+import { validarTransicaoStatus } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
-
-interface LoteTE {
-  id: string; // chave: fazenda_id-data_te
-  fazenda_id: string;
-  fazenda_nome: string;
-  data_te: string;
-  quantidade_receptoras: number;
-  veterinario_dg?: string; // Veterinário responsável pelo DG
-  tecnico_dg?: string; // Técnico responsável pelo DG
-  status: 'ABERTO' | 'FECHADO'; // Status do lote de DG (não da TE)
-}
-
-interface EmbriaoTransferido {
-  te_id: string;
-  embriao_id: string;
-  embriao_identificacao?: string;
-  embriao_classificacao?: string;
-  lote_fiv_id: string;
-  lote_fiv_acasalamento_id?: string;
-  doadora_registro?: string;
-  touro_nome?: string;
-}
+import {
+  type LoteTEDiagnostico,
+  type EmbriaoTransferido,
+  type LoteFormDataBase,
+  calcularDiasGestacao,
+  calcularDataProvavelParto,
+  getHoje,
+  validarResponsaveis,
+} from '@/lib/gestacao';
+import { useFazendasComLotes, useLotesTE } from '@/hooks/loteTE';
+import {
+  FazendaSelector,
+  LotesTable,
+  AbrirLoteForm,
+  LoteHeader,
+} from '@/components/loteTE';
 
 interface ReceptoraServida {
   receptora_id: string;
@@ -59,9 +49,9 @@ interface ReceptoraServida {
   nome?: string;
   status_reprodutivo?: string | null;
   data_te: string;
-  embrioes: EmbriaoTransferido[]; // Array de embriões (1 ou 2)
-  data_abertura_lote: string; // d0 (sempre o mesmo para todos os embriões do grupo)
-  dias_gestacao: number; // d0 até hoje
+  embrioes: EmbriaoTransferido[];
+  data_abertura_lote: string;
+  dias_gestacao: number;
   diagnostico_existente?: {
     id: string;
     data_diagnostico: string;
@@ -81,44 +71,62 @@ interface DiagnosticoFormData {
 }
 
 export default function DiagnosticoGestacao() {
-  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
+  const { toast } = useToast();
+  const hoje = getHoje();
+
+  // State
   const [fazendaSelecionada, setFazendaSelecionada] = useState<string>('');
-  const [lotesTE, setLotesTE] = useState<LoteTE[]>([]);
-  const [loteSelecionado, setLoteSelecionado] = useState<LoteTE | null>(null);
+  const [loteSelecionado, setLoteSelecionado] = useState<LoteTEDiagnostico | null>(null);
   const [receptoras, setReceptoras] = useState<ReceptoraServida[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [abrirLote, setAbrirLote] = useState(false);
-  const { toast } = useToast();
-
   const [formData, setFormData] = useState<DiagnosticoFormData>({});
-  const [loteFormData, setLoteFormData] = useState({
+  const [loteFormData, setLoteFormData] = useState<LoteFormDataBase>({
     veterinario_responsavel: '',
     tecnico_responsavel: '',
   });
 
-  const hoje = new Date().toISOString().split('T')[0];
+  // Hooks compartilhados
+  const { fazendas, loadFazendas } = useFazendasComLotes({
+    statusReceptoraFiltro: 'SERVIDA',
+    tipoDiagnosticoFiltro: 'DG',
+  });
 
+  const transformLote = useCallback((
+    loteBase: { id: string; fazenda_id: string; fazenda_nome: string; data_te: string; quantidade_receptoras: number; status: 'ABERTO' | 'FECHADO' },
+    diagnosticoLote: { veterinario_responsavel?: string; tecnico_responsavel?: string } | undefined
+  ): LoteTEDiagnostico => ({
+    ...loteBase,
+    veterinario_dg: diagnosticoLote?.veterinario_responsavel,
+    tecnico_dg: diagnosticoLote?.tecnico_responsavel,
+  }), []);
+
+  const { lotesTE, loading: loadingLotes, loadLotesTE } = useLotesTE<LoteTEDiagnostico>({
+    statusReceptoraFiltro: 'SERVIDA',
+    tipoDiagnosticoFiltro: 'DG',
+    fazendas,
+    transformLote,
+  });
+
+  // Effects
   useEffect(() => {
     loadFazendas();
-  }, []);
+  }, [loadFazendas]);
 
   useEffect(() => {
     if (fazendaSelecionada) {
       loadLotesTE(fazendaSelecionada);
     } else {
-      setLotesTE([]);
       setLoteSelecionado(null);
       setReceptoras([]);
       setFormData({});
     }
-  }, [fazendaSelecionada]);
+  }, [fazendaSelecionada, loadLotesTE]);
 
   useEffect(() => {
     if (loteSelecionado) {
-      // Verificar se lote está FECHADO
       if (loteSelecionado.status === 'FECHADO') {
-        // Lote fechado: apenas visualizar, não permitir edição
         setLoteFormData({
           veterinario_responsavel: loteSelecionado.veterinario_dg || '',
           tecnico_responsavel: loteSelecionado.tecnico_dg || '',
@@ -126,7 +134,6 @@ export default function DiagnosticoGestacao() {
         setAbrirLote(false);
         loadReceptorasLote(loteSelecionado);
       } else if (loteSelecionado.veterinario_dg && loteSelecionado.tecnico_dg) {
-        // Lote aberto com veterinário/técnico já definidos
         setLoteFormData({
           veterinario_responsavel: loteSelecionado.veterinario_dg,
           tecnico_responsavel: loteSelecionado.tecnico_dg,
@@ -134,11 +141,7 @@ export default function DiagnosticoGestacao() {
         setAbrirLote(false);
         loadReceptorasLote(loteSelecionado);
       } else {
-        // Lote aberto sem veterinário/técnico: precisa abrir o lote primeiro
-        setLoteFormData({
-          veterinario_responsavel: '',
-          tecnico_responsavel: '',
-        });
+        setLoteFormData({ veterinario_responsavel: '', tecnico_responsavel: '' });
         setAbrirLote(true);
         setReceptoras([]);
         setFormData({});
@@ -150,235 +153,8 @@ export default function DiagnosticoGestacao() {
     }
   }, [loteSelecionado]);
 
-  const loadFazendas = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('fazendas')
-        .select('*')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-      const fazendasData = data || [];
-
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual');
-
-      if (viewError) throw viewError;
-
-      const receptoraIds = [...new Set((viewData || []).map(v => v.receptora_id).filter(Boolean))];
-
-      if (receptoraIds.length === 0) {
-        setFazendas([]);
-        return;
-      }
-
-      const { data: receptorasData, error: receptorasError } = await supabase
-        .from('receptoras')
-        .select('id')
-        .in('id', receptoraIds)
-        .eq('status_reprodutivo', 'SERVIDA');
-
-      if (receptorasError) throw receptorasError;
-
-      const servidasIds = receptorasData?.map(r => r.id) || [];
-      if (servidasIds.length === 0) {
-        setFazendas([]);
-        return;
-      }
-
-      const { data: teData, error: teError } = await supabase
-        .from('transferencias_embrioes')
-        .select('receptora_id, data_te')
-        .in('receptora_id', servidasIds)
-        .eq('status_te', 'REALIZADA');
-
-      if (teError) throw teError;
-
-      const { data: diagnosticosData, error: diagnosticosError } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, data_te')
-        .in('receptora_id', servidasIds)
-        .eq('tipo_diagnostico', 'DG');
-
-      if (diagnosticosError) throw diagnosticosError;
-
-      const receptoraFazendaMap = new Map(
-        (viewData || [])
-          .filter(v => v.receptora_id && v.fazenda_id_atual)
-          .map(v => [v.receptora_id, v.fazenda_id_atual])
-      );
-
-      const receptorasPorLote = new Map<string, Set<string>>();
-      const chaveFazendaMap = new Map<string, string>(); // Mapear chave -> fazendaId
-      (teData || []).forEach(te => {
-        const fazendaId = receptoraFazendaMap.get(te.receptora_id);
-        if (!fazendaId) return;
-        const chave = `${fazendaId}|${te.data_te}`; // Usar | como separador
-        chaveFazendaMap.set(chave, fazendaId);
-        if (!receptorasPorLote.has(chave)) {
-          receptorasPorLote.set(chave, new Set());
-        }
-        receptorasPorLote.get(chave)!.add(te.receptora_id);
-      });
-
-      const diagnosticosPorLote = new Map<string, Set<string>>();
-      (diagnosticosData || []).forEach(dg => {
-        const fazendaId = receptoraFazendaMap.get(dg.receptora_id);
-        if (!fazendaId) return;
-        const chave = `${fazendaId}|${dg.data_te}`; // Usar | como separador
-        if (!diagnosticosPorLote.has(chave)) {
-          diagnosticosPorLote.set(chave, new Set());
-        }
-        diagnosticosPorLote.get(chave)!.add(dg.receptora_id);
-      });
-
-      const fazendasAptasSet = new Set<string>();
-      receptorasPorLote.forEach((receptorasLote, chave) => {
-        const diagnosticosLote = diagnosticosPorLote.get(chave)?.size || 0;
-        if (diagnosticosLote < receptorasLote.size) {
-          const fazendaId = chaveFazendaMap.get(chave);
-          if (fazendaId) fazendasAptasSet.add(fazendaId);
-        }
-      });
-
-      const fazendasFiltradas = fazendasData.filter(f => fazendasAptasSet.has(f.id));
-
-      setFazendas(fazendasFiltradas);
-      if (fazendaSelecionada && !fazendasAptasSet.has(fazendaSelecionada)) {
-        setFazendaSelecionada('');
-      }
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar fazendas',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const loadLotesTE = async (fazendaId: string) => {
-    try {
-      setLoading(true);
-
-      // 1. Buscar receptoras SERVIDAS da fazenda
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', fazendaId);
-
-      if (viewError) throw viewError;
-
-      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
-      
-      if (receptoraIds.length === 0) {
-        setLotesTE([]);
-        return;
-      }
-
-      // 2. Verificar quais estão SERVIDAS
-      const { data: receptorasData } = await supabase
-        .from('receptoras')
-        .select('id, status_reprodutivo')
-        .in('id', receptoraIds)
-        .eq('status_reprodutivo', 'SERVIDA');
-
-      const servidasIds = receptorasData?.map(r => r.id) || [];
-
-      if (servidasIds.length === 0) {
-        setLotesTE([]);
-        return;
-      }
-
-      // 3. Buscar TEs realizadas agrupadas por data_te
-      const { data: teData, error: teError } = await supabase
-        .from('transferencias_embrioes')
-        .select('id, receptora_id, data_te')
-        .in('receptora_id', servidasIds)
-        .eq('status_te', 'REALIZADA')
-        .order('data_te', { ascending: false });
-
-      if (teError) throw teError;
-
-      // 4. Buscar diagnósticos existentes para verificar status e veterinário/técnico do DG
-      const { data: diagnosticosData } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, data_te, veterinario_responsavel, tecnico_responsavel, data_diagnostico')
-        .in('receptora_id', servidasIds)
-        .eq('tipo_diagnostico', 'DG')
-        .order('data_diagnostico', { ascending: false });
-
-      // 5. Agrupar por fazenda + data_te
-      const lotesMap = new Map<string, LoteTE>();
-      
-      // Agrupar TEs por receptora+data para contar receptoras únicas
-      const receptorasPorData = new Map<string, Set<string>>();
-
-      teData?.forEach(te => {
-        const chave = `${fazendaId}-${te.data_te}`;
-        const chaveReceptora = `${te.data_te}-${te.receptora_id}`;
-        
-        // Contar receptoras únicas por data
-        if (!receptorasPorData.has(te.data_te)) {
-          receptorasPorData.set(te.data_te, new Set());
-        }
-        receptorasPorData.get(te.data_te)!.add(te.receptora_id);
-        
-        if (!lotesMap.has(chave)) {
-          // Buscar veterinário/técnico do DG do primeiro diagnóstico encontrado deste lote
-          const dgLote = diagnosticosData?.find(dg => dg.data_te === te.data_te);
-          
-          lotesMap.set(chave, {
-            id: chave,
-            fazenda_id: fazendaId,
-            fazenda_nome: fazendas.find(f => f.id === fazendaId)?.nome || '',
-            data_te: te.data_te,
-            quantidade_receptoras: 0, // Será calculado depois
-            veterinario_dg: dgLote?.veterinario_responsavel || undefined,
-            tecnico_dg: dgLote?.tecnico_responsavel || undefined,
-            status: 'ABERTO', // Será calculado depois
-          });
-        }
-      });
-
-      // Calcular quantidade de receptoras únicas e status para cada lote
-      lotesMap.forEach((lote, chave) => {
-        // Contar receptoras únicas desta data
-        const receptorasUnicas = receptorasPorData.get(lote.data_te)?.size || 0;
-        lote.quantidade_receptoras = receptorasUnicas;
-        
-        // Buscar diagnósticos desta data
-        const diagnosticosDoLote = diagnosticosData?.filter(dg => dg.data_te === lote.data_te) || [];
-        
-        // Se todas as receptoras têm diagnóstico, o lote está FECHADO
-        if (diagnosticosDoLote.length > 0 && diagnosticosDoLote.length >= receptorasUnicas) {
-          lote.status = 'FECHADO';
-        } else {
-          lote.status = 'ABERTO';
-        }
-      });
-
-      const lotesArray = Array.from(lotesMap.values())
-        .sort((a, b) => new Date(b.data_te).getTime() - new Date(a.data_te).getTime());
-
-      const lotesFechados = lotesArray.filter(l => l.status === 'FECHADO').length;
-      const lotesAbertos = lotesArray.length - lotesFechados;
-      const lotesAbertosArray = lotesArray.filter(l => l.status === 'ABERTO');
-      setLotesTE(lotesAbertosArray);
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar lotes',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-      setLotesTE([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAbrirLote = async () => {
-    if (!loteFormData.veterinario_responsavel.trim() || !loteFormData.tecnico_responsavel.trim()) {
+    if (!validarResponsaveis(loteFormData)) {
       toast({
         title: 'Erro de validação',
         description: 'Veterinário e técnico responsáveis são obrigatórios',
@@ -389,8 +165,7 @@ export default function DiagnosticoGestacao() {
 
     if (!loteSelecionado) return;
 
-    // Apenas atualizar o lote local (veterinário/técnico do DG não são salvos em TEs)
-    const loteAtualizado: LoteTE = {
+    const loteAtualizado: LoteTEDiagnostico = {
       ...loteSelecionado,
       veterinario_dg: loteFormData.veterinario_responsavel.trim(),
       tecnico_dg: loteFormData.tecnico_responsavel.trim(),
@@ -399,12 +174,10 @@ export default function DiagnosticoGestacao() {
 
     setLoteSelecionado(loteAtualizado);
     setAbrirLote(false);
-
-    // Carregar receptoras do lote
     await loadReceptorasLote(loteAtualizado);
   };
 
-  const loadReceptorasLote = async (lote: LoteTE) => {
+  const loadReceptorasLote = async (lote: LoteTEDiagnostico) => {
     try {
       setLoading(true);
 
@@ -417,42 +190,43 @@ export default function DiagnosticoGestacao() {
       if (viewError) throw viewError;
 
       const receptoraIds = viewData?.map(v => v.receptora_id) || [];
-      
       if (receptoraIds.length === 0) {
         setReceptoras([]);
         return;
       }
 
-      // 2. Verificar quais estão SERVIDAS
-      const { data: receptorasData, error: receptorasError } = await supabase
-        .from('receptoras')
-        .select('id, identificacao, nome, status_reprodutivo')
-        .in('id', receptoraIds)
-        .eq('status_reprodutivo', 'SERVIDA');
+      // 2. Buscar receptoras SERVIDAS e TEs em paralelo
+      const [receptorasResult, teResult] = await Promise.all([
+        supabase
+          .from('receptoras')
+          .select('id, identificacao, nome, status_reprodutivo')
+          .in('id', receptoraIds)
+          .eq('status_reprodutivo', 'SERVIDA'),
+        supabase
+          .from('transferencias_embrioes')
+          .select('id, receptora_id, embriao_id, data_te')
+          .in('receptora_id', receptoraIds)
+          .eq('data_te', lote.data_te)
+          .eq('status_te', 'REALIZADA'),
+      ]);
 
-      if (receptorasError) throw receptorasError;
+      if (receptorasResult.error) throw receptorasResult.error;
+      if (teResult.error) throw teResult.error;
 
-      const servidasIds = receptorasData?.map(r => r.id) || [];
-
-      // 3. Buscar TEs do lote (mesma data_te)
-      const { data: teData, error: teError } = await supabase
-        .from('transferencias_embrioes')
-        .select('id, receptora_id, embriao_id, data_te')
-        .in('receptora_id', servidasIds)
-        .eq('data_te', lote.data_te)
-        .eq('status_te', 'REALIZADA');
-
-      if (teError) throw teError;
+      const receptorasData = receptorasResult.data;
+      const teData = teResult.data;
 
       if (!teData || teData.length === 0) {
         setReceptoras([]);
         return;
       }
 
-      // 4. Buscar embriões
+      const servidasIds = receptorasData?.map(r => r.id) || [];
+
+      // 3. Buscar embriões
       const embriaoIds = teData.map(t => t.embriao_id).filter(Boolean);
-      
       let embrioesMap = new Map();
+
       if (embriaoIds.length > 0) {
         const { data: embrioesData, error: embrioesError } = await supabase
           .from('embrioes')
@@ -463,44 +237,37 @@ export default function DiagnosticoGestacao() {
         embrioesMap = new Map(embrioesData?.map(e => [e.id, e]) || []);
       }
 
-      // 5. Buscar lotes FIV para obter d0
+      // 4. Buscar lotes FIV e genealogia em paralelo
       const loteIds = [...new Set(Array.from(embrioesMap.values()).map((e: EmbriaoQuery) => e.lote_fiv_id).filter(Boolean))];
-      
-      let lotesMap = new Map();
-      if (loteIds.length > 0) {
-        const { data: lotesData, error: lotesError } = await supabase
-          .from('lotes_fiv')
-          .select('id, data_abertura')
-          .in('id', loteIds);
-
-        if (lotesError) throw lotesError;
-        lotesMap = new Map(lotesData?.map(l => [l.id, l]) || []);
-      }
-
-      // 6. Buscar dados dos acasalamentos
-      // 6. Buscar dados de genealogia (doadora + touro) usando função utilitária
       const acasalamentoIds = extrairAcasalamentoIds(Array.from(embrioesMap.values()));
-      const { doadorasMap, tourosMap } = await buscarDadosGenealogia(acasalamentoIds);
 
-      // 7. Buscar diagnósticos existentes
-      const { data: diagnosticosData } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('*')
-        .in('receptora_id', servidasIds)
-        .eq('tipo_diagnostico', 'DG')
-        .eq('data_te', lote.data_te)
-        .order('data_diagnostico', { ascending: false });
+      const [lotesResult, genealogiaResult, diagnosticosResult] = await Promise.all([
+        loteIds.length > 0
+          ? supabase.from('lotes_fiv').select('id, data_abertura').in('id', loteIds)
+          : Promise.resolve({ data: [], error: null }),
+        buscarDadosGenealogia(acasalamentoIds),
+        supabase
+          .from('diagnosticos_gestacao')
+          .select('*')
+          .in('receptora_id', servidasIds)
+          .eq('tipo_diagnostico', 'DG')
+          .eq('data_te', lote.data_te)
+          .order('data_diagnostico', { ascending: false }),
+      ]);
 
-      const diagnosticosPorReceptora = new Map<string, typeof diagnosticosData[0]>();
-      diagnosticosData?.forEach(dg => {
+      if (lotesResult.error) throw lotesResult.error;
+      const lotesMap = new Map(lotesResult.data?.map(l => [l.id, l]) || []);
+      const { doadorasMap, tourosMap } = genealogiaResult;
+
+      const diagnosticosPorReceptora = new Map<string, typeof diagnosticosResult.data[0]>();
+      diagnosticosResult.data?.forEach(dg => {
         if (!diagnosticosPorReceptora.has(dg.receptora_id)) {
           diagnosticosPorReceptora.set(dg.receptora_id, dg);
         }
       });
 
-      // 8. Agrupar TEs por receptora_id + data_te (mesma data sempre)
+      // 5. Agrupar TEs por receptora
       const tesPorReceptora = new Map<string, typeof teData>();
-      
       teData.forEach(te => {
         const chave = `${te.receptora_id}-${te.data_te}`;
         if (!tesPorReceptora.has(chave)) {
@@ -509,16 +276,14 @@ export default function DiagnosticoGestacao() {
         tesPorReceptora.get(chave)!.push(te);
       });
 
-      // 9. Montar lista de receptoras agrupadas
+      // 6. Montar lista de receptoras
       const receptorasCompletas: ReceptoraServida[] = [];
 
-      tesPorReceptora.forEach((tes, chave) => {
-        // Todas as TEs do grupo têm a mesma receptora_id e data_te
+      tesPorReceptora.forEach((tes) => {
         const primeiraTE = tes[0];
         const receptora = receptorasData?.find(r => r.id === primeiraTE.receptora_id);
         if (!receptora) return;
 
-        // Processar todos os embriões do grupo
         const embrioesDoGrupo: EmbriaoTransferido[] = [];
         let dataAberturalote: string | null = null;
         let diasGestacao: number | null = null;
@@ -530,19 +295,16 @@ export default function DiagnosticoGestacao() {
           const loteFiv = lotesMap.get(embriao.lote_fiv_id);
           if (!loteFiv) return;
 
-          // Usar o primeiro D0 encontrado (todos devem ser iguais)
           if (!dataAberturalote) {
             dataAberturalote = loteFiv.data_abertura;
-            const d0 = new Date(loteFiv.data_abertura);
-            const hojeDate = new Date();
-            diasGestacao = Math.floor((hojeDate.getTime() - d0.getTime()) / (1000 * 60 * 60 * 24));
+            diasGestacao = calcularDiasGestacao(loteFiv.data_abertura);
           }
 
-          const doadoraRegistro = embriao.lote_fiv_acasalamento_id 
-            ? doadorasMap.get(embriao.lote_fiv_acasalamento_id) 
+          const doadoraRegistro = embriao.lote_fiv_acasalamento_id
+            ? doadorasMap.get(embriao.lote_fiv_acasalamento_id)
             : undefined;
-          const touroNome = embriao.lote_fiv_acasalamento_id 
-            ? tourosMap.get(embriao.lote_fiv_acasalamento_id) 
+          const touroNome = embriao.lote_fiv_acasalamento_id
+            ? tourosMap.get(embriao.lote_fiv_acasalamento_id)
             : undefined;
 
           embrioesDoGrupo.push({
@@ -559,7 +321,6 @@ export default function DiagnosticoGestacao() {
 
         if (embrioesDoGrupo.length === 0 || !dataAberturalote || diasGestacao === null) return;
 
-        // Buscar diagnóstico existente (único por receptora + data_te)
         const diagnosticoExistente = diagnosticosPorReceptora.get(primeiraTE.receptora_id);
 
         receptorasCompletas.push({
@@ -582,7 +343,6 @@ export default function DiagnosticoGestacao() {
       });
 
       receptorasCompletas.sort((a, b) => a.brinco.localeCompare(b.brinco));
-
       setReceptoras(receptorasCompletas);
 
       // Inicializar formData
@@ -590,10 +350,9 @@ export default function DiagnosticoGestacao() {
       receptorasCompletas.forEach(r => {
         if (r.diagnostico_existente) {
           const resultado = r.diagnostico_existente.resultado as 'PRENHE' | 'VAZIA' | 'RETOQUE';
-          // Se já tem diagnóstico PRENHE ou RETOQUE mas não tem número de gestações, preencher com "1"
-          const numeroGestacoes = r.diagnostico_existente.numero_gestacoes?.toString() || 
+          const numeroGestacoes = r.diagnostico_existente.numero_gestacoes?.toString() ||
             ((resultado === 'PRENHE' || resultado === 'RETOQUE') ? '1' : '');
-          
+
           initialFormData[r.receptora_id] = {
             resultado,
             numero_gestacoes: numeroGestacoes,
@@ -625,17 +384,14 @@ export default function DiagnosticoGestacao() {
   const handleResultadoChange = (receptoraId: string, resultado: 'PRENHE' | 'VAZIA' | 'RETOQUE' | '') => {
     setFormData(prev => {
       const dadosAtuais = prev[receptoraId] || {};
-      
-      // Se resultado é PRENHE ou RETOQUE e não tem número de gestações definido, preencher com "1"
-      // Se já tem valor, manter o valor existente
       let numeroGestacoes = dadosAtuais.numero_gestacoes || '';
-      
+
       if ((resultado === 'PRENHE' || resultado === 'RETOQUE') && !numeroGestacoes) {
         numeroGestacoes = '1';
       } else if (resultado === 'VAZIA' || resultado === '') {
         numeroGestacoes = '';
       }
-      
+
       return {
         ...prev,
         [receptoraId]: {
@@ -660,8 +416,7 @@ export default function DiagnosticoGestacao() {
   const handleSalvarLote = async () => {
     if (!loteSelecionado) return;
 
-    // Validar veterinário e técnico
-    if (!loteFormData.veterinario_responsavel.trim() || !loteFormData.tecnico_responsavel.trim()) {
+    if (!validarResponsaveis(loteFormData)) {
       toast({
         title: 'Erro de validação',
         description: 'Veterinário e técnico responsáveis são obrigatórios',
@@ -670,7 +425,6 @@ export default function DiagnosticoGestacao() {
       return;
     }
 
-    // Validar que todas as receptoras têm resultado
     const receptorasSemResultado = receptoras.filter(r => {
       const dados = formData[r.receptora_id];
       return !dados || !dados.resultado || !dados.data_diagnostico;
@@ -688,11 +442,11 @@ export default function DiagnosticoGestacao() {
     try {
       setSubmitting(true);
 
-      // Validar todas as receptoras antes de salvar
+      // Validar transições de status
       for (const receptora of receptoras) {
         const statusAtual = receptora.status_reprodutivo || 'VAZIA';
         const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_DG');
-        
+
         if (!validacao.valido) {
           toast({
             title: 'Erro de validação',
@@ -703,19 +457,14 @@ export default function DiagnosticoGestacao() {
         }
       }
 
-      // Preparar dados para inserção/atualização em lote
+      // Preparar dados
       const diagnosticosParaInserir: DiagnosticoGestacaoInsert[] = [];
       const diagnosticosParaAtualizar: DiagnosticoGestacaoUpdate[] = [];
       const atualizacoesStatus: Array<{ receptora_id: string; status: string; dataParto: string | null }> = [];
 
       receptoras.forEach(receptora => {
         const dados = formData[receptora.receptora_id];
-        if (!dados || !dados.resultado) return;
-
-        // Validar campos obrigatórios
-        if (!dados.data_diagnostico) {
-          return;
-        }
+        if (!dados || !dados.resultado || !dados.data_diagnostico) return;
 
         const insertData: DiagnosticoGestacaoInsert = {
           receptora_id: receptora.receptora_id,
@@ -723,26 +472,15 @@ export default function DiagnosticoGestacao() {
           tipo_diagnostico: 'DG',
           data_diagnostico: dados.data_diagnostico,
           resultado: dados.resultado,
-          observacoes: dados.observacoes ? dados.observacoes.trim() || undefined : undefined,
+          observacoes: dados.observacoes?.trim() || undefined,
         };
-        
-        // Número de gestações só é adicionado se resultado for PRENHE ou RETOQUE
-        // Se for VAZIA, não enviar o campo (ou enviar 0 se a coluna for NOT NULL)
+
         if (dados.resultado === 'PRENHE' || dados.resultado === 'RETOQUE') {
-          if (dados.numero_gestacoes) {
-            insertData.numero_gestacoes = parseInt(dados.numero_gestacoes);
-          } else {
-            // Se não tem número de gestações definido mas está prenhe, usar 1 como padrão
-            insertData.numero_gestacoes = 1;
-          }
+          insertData.numero_gestacoes = dados.numero_gestacoes ? parseInt(dados.numero_gestacoes) : 1;
         } else {
-          // Para VAZIA, não enviar o campo ou enviar 0 se necessário
-          // (dependendo da constraint do banco)
           insertData.numero_gestacoes = 0;
         }
-        
-        // Adicionar campos de veterinário/técnico apenas se não estiverem vazios
-        // (esses campos podem não existir na tabela ainda - usuário precisa executar script SQL)
+
         if (loteFormData.veterinario_responsavel?.trim()) {
           insertData.veterinario_responsavel = loteFormData.veterinario_responsavel.trim();
         }
@@ -751,34 +489,23 @@ export default function DiagnosticoGestacao() {
         }
 
         if (receptora.diagnostico_existente) {
-          diagnosticosParaAtualizar.push({
-            id: receptora.diagnostico_existente.id,
-            ...insertData,
-          });
+          diagnosticosParaAtualizar.push({ id: receptora.diagnostico_existente.id, ...insertData });
         } else {
           diagnosticosParaInserir.push(insertData);
         }
 
-        // Preparar atualização de status
+        // Status e data de parto
         let novoStatus: 'PRENHE' | 'PRENHE_RETOQUE' | 'VAZIA';
         let dataParto: string | null = null;
 
         if (dados.resultado === 'PRENHE') {
           novoStatus = 'PRENHE';
-          const d0 = new Date(receptora.data_abertura_lote);
-          const dataPartoDate = new Date(d0);
-          dataPartoDate.setDate(dataPartoDate.getDate() + 275);
-          dataParto = dataPartoDate.toISOString().split('T')[0];
+          dataParto = calcularDataProvavelParto(receptora.data_abertura_lote);
         } else if (dados.resultado === 'RETOQUE') {
           novoStatus = 'PRENHE_RETOQUE';
-          const d0 = new Date(receptora.data_abertura_lote);
-          const dataPartoDate = new Date(d0);
-          dataPartoDate.setDate(dataPartoDate.getDate() + 275);
-          dataParto = dataPartoDate.toISOString().split('T')[0];
+          dataParto = calcularDataProvavelParto(receptora.data_abertura_lote);
         } else {
           novoStatus = 'VAZIA';
-          // Limpar número de gestações se resultado for VAZIA
-          dados.numero_gestacoes = '';
         }
 
         atualizacoesStatus.push({
@@ -788,112 +515,67 @@ export default function DiagnosticoGestacao() {
         });
       });
 
-      // Inserir novos diagnósticos (otimizado - uma query para verificar todos)
+      // Inserir novos diagnósticos
       if (diagnosticosParaInserir.length > 0) {
-        // Buscar todos os diagnósticos existentes de uma vez (otimização)
-        const chavesParaVerificar = diagnosticosParaInserir.map(dg => 
-          `${dg.receptora_id}-${dg.data_te}-${dg.tipo_diagnostico}`
-        );
-        
-        const { data: existentes, error: checkError } = await supabase
+        const { data: existentes } = await supabase
           .from('diagnosticos_gestacao')
           .select('id, receptora_id, data_te, tipo_diagnostico')
           .in('receptora_id', [...new Set(diagnosticosParaInserir.map(dg => dg.receptora_id))])
           .eq('tipo_diagnostico', 'DG');
 
-        // Continua mesmo se erro ao verificar
-
-        // Mapear diagnósticos existentes para facilitar busca
         const existentesMap = new Map<string, string>();
         existentes?.forEach(dg => {
           const chave = `${dg.receptora_id}-${dg.data_te}-${dg.tipo_diagnostico}`;
           existentesMap.set(chave, dg.id);
         });
 
-        // Separar em inserir e atualizar
         const diagnosticosParaInserirFinal: DiagnosticoGestacaoInsert[] = [];
-        
+
         diagnosticosParaInserir.forEach(dg => {
           const chave = `${dg.receptora_id}-${dg.data_te}-${dg.tipo_diagnostico}`;
           const existingId = existentesMap.get(chave);
-          
+
           if (existingId) {
-            // Se existe, adicionar à lista de atualização
-            diagnosticosParaAtualizar.push({
-              id: existingId,
-              ...dg,
-            });
+            diagnosticosParaAtualizar.push({ id: existingId, ...dg });
           } else {
-            // Se não existe, adicionar à lista de inserção
             diagnosticosParaInserirFinal.push(dg);
           }
         });
 
-        // Inserir apenas os que realmente não existem
         if (diagnosticosParaInserirFinal.length > 0) {
           const { error: insertError } = await supabase
             .from('diagnosticos_gestacao')
             .insert(diagnosticosParaInserirFinal);
 
           if (insertError) {
-            // Se erro relacionado a coluna não existir, tentar sem os campos veterinário/técnico
             if (insertError.message?.includes('column') || insertError.code === '42703') {
-              
-              // Remover campos veterinário/técnico de todos os registros
               const insertDataSemCampos = diagnosticosParaInserirFinal.map(({ veterinario_responsavel, tecnico_responsavel, ...rest }) => rest);
-              
-              const { error: retryError } = await supabase
-                .from('diagnosticos_gestacao')
-                .insert(insertDataSemCampos);
-              
-              if (retryError) {
-                throw new Error(`Erro ao inserir diagnósticos: ${retryError.message}. Verifique se os campos estão corretos no banco de dados.`);
-              }
-            } else if (insertError.code === '23505' || insertError.message?.includes('unique')) {
-              // Erro de unicidade - já deve ter sido tratado acima, mas se chegou aqui, buscar e atualizar
-              throw new Error('Erro de duplicação: alguns diagnósticos já existem. Recarregue a página e tente novamente.');
+              const { error: retryError } = await supabase.from('diagnosticos_gestacao').insert(insertDataSemCampos);
+              if (retryError) throw new Error(`Erro ao inserir diagnósticos: ${retryError.message}`);
             } else {
-              throw new Error(`Erro ao inserir diagnósticos: ${insertError.message || insertError.code || 'Erro desconhecido'}`);
+              throw new Error(`Erro ao inserir diagnósticos: ${insertError.message}`);
             }
           }
         }
       }
 
-      // Atualizar diagnósticos existentes (otimizado - atualizar em lote se possível)
-      if (diagnosticosParaAtualizar.length > 0) {
-        // Tentar atualizar em lote primeiro (Supabase permite via RPC ou individual)
-        for (const dg of diagnosticosParaAtualizar) {
-          const { id, ...updateData } = dg;
-          let { error: updateError } = await supabase
-            .from('diagnosticos_gestacao')
-            .update(updateData)
-            .eq('id', id);
+      // Atualizar diagnósticos existentes
+      for (const dg of diagnosticosParaAtualizar) {
+        const { id, ...updateData } = dg;
+        let { error: updateError } = await supabase.from('diagnosticos_gestacao').update(updateData).eq('id', id);
 
-          // Se erro relacionado a coluna não existir, tentar sem os campos veterinário/técnico
-          if (updateError && (updateError.message?.includes('column') || updateError.code === '42703')) {
-            
-            const { veterinario_responsavel, tecnico_responsavel, ...updateDataSemCampos } = updateData;
-            
-            const { error: retryError } = await supabase
-              .from('diagnosticos_gestacao')
-              .update(updateDataSemCampos)
-              .eq('id', id);
-            
-            if (retryError) {
-              throw new Error(`Erro ao atualizar diagnóstico ${id}: ${retryError.message}`);
-            }
-          } else if (updateError) {
-            throw new Error(`Erro ao atualizar diagnóstico ${id}: ${updateError.message || updateError.code || 'Erro desconhecido'}`);
-          }
+        if (updateError && (updateError.message?.includes('column') || updateError.code === '42703')) {
+          const { veterinario_responsavel, tecnico_responsavel, ...updateDataSemCampos } = updateData;
+          const { error: retryError } = await supabase.from('diagnosticos_gestacao').update(updateDataSemCampos).eq('id', id);
+          if (retryError) throw new Error(`Erro ao atualizar diagnóstico: ${retryError.message}`);
+        } else if (updateError) {
+          throw new Error(`Erro ao atualizar diagnóstico: ${updateError.message}`);
         }
       }
 
       // Atualizar status das receptoras
       for (const atualizacao of atualizacoesStatus) {
-        const updateData: Record<string, string | null> = {
-          status_reprodutivo: atualizacao.status,
-        };
-
+        const updateData: Record<string, string | null> = { status_reprodutivo: atualizacao.status };
         if (atualizacao.dataParto) {
           updateData.data_provavel_parto = atualizacao.dataParto;
         } else if (atualizacao.status === 'VAZIA') {
@@ -905,18 +587,14 @@ export default function DiagnosticoGestacao() {
           .update(updateData)
           .eq('id', atualizacao.receptora_id);
 
-        if (statusError) {
-          throw new Error(`Erro ao atualizar status da receptora ${atualizacao.receptora_id}`);
-        }
+        if (statusError) throw new Error(`Erro ao atualizar status da receptora`);
       }
 
-      // Verificar se todas as receptoras têm diagnóstico (lote deve ser fechado)
       const todasComDiagnostico = receptoras.every(r => {
         const dados = formData[r.receptora_id];
         return dados && dados.resultado && dados.data_diagnostico;
       });
 
-      // Atualizar lote local
       setLoteSelecionado({
         ...loteSelecionado,
         veterinario_dg: loteFormData.veterinario_responsavel.trim(),
@@ -926,34 +604,19 @@ export default function DiagnosticoGestacao() {
 
       toast({
         title: 'Lote salvo com sucesso',
-        description: todasComDiagnostico 
+        description: todasComDiagnostico
           ? `${receptoras.length} diagnóstico(s) registrado(s). Lote fechado.`
           : `${receptoras.length} diagnóstico(s) registrado(s)`,
       });
 
-      // Recarregar dados
       await loadLotesTE(fazendaSelecionada);
       if (loteSelecionado) {
         await loadReceptorasLote(loteSelecionado);
       }
     } catch (error) {
-      let errorMessage = 'Erro desconhecido';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        
-        // Mensagens de erro mais amigáveis
-        if (error.message.includes('column') && error.message.includes('does not exist')) {
-          errorMessage = 'Os campos veterinario_responsavel e tecnico_responsavel não existem na tabela. Execute o script SQL add_veterinario_tecnico_dg.sql primeiro.';
-        } else if (error.message.includes('unique') || error.message.includes('duplicate')) {
-          errorMessage = 'Já existe um diagnóstico para esta receptora nesta data. Tente recarregar a página.';
-        } else if (error.message.includes('foreign key') || error.message.includes('constraint')) {
-          errorMessage = 'Erro de integridade dos dados. Verifique se todas as informações estão corretas.';
-        }
-      }
-      
       toast({
         title: 'Erro ao salvar lote',
-        description: errorMessage,
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
     } finally {
@@ -973,183 +636,56 @@ export default function DiagnosticoGestacao() {
         description="Registrar diagnósticos de gestação por lote de TE"
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Selecionar Fazenda</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="fazenda">Fazenda *</Label>
-            <Select
-              value={fazendaSelecionada}
-              onValueChange={setFazendaSelecionada}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a fazenda" />
-              </SelectTrigger>
-              <SelectContent>
-                {fazendas.map((fazenda) => (
-                  <SelectItem key={fazenda.id} value={fazenda.id}>
-                    {fazenda.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <FazendaSelector
+        fazendas={fazendas}
+        fazendaSelecionada={fazendaSelecionada}
+        onFazendaChange={setFazendaSelecionada}
+      />
 
       {fazendaSelecionada && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Lotes de Transferência de Embriões</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <LoadingSpinner />
-            ) : lotesTE.length === 0 ? (
-              <EmptyState
-                title="Nenhum lote de TE encontrado"
-                description="Selecione outra fazenda ou verifique se há transferências registradas."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data TE</TableHead>
-                    <TableHead>Quantidade</TableHead>
-                    <TableHead>Vet. DG</TableHead>
-                    <TableHead>Téc. DG</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lotesTE.map((lote) => (
-                    <TableRow 
-                      key={lote.id}
-                      className={loteSelecionado?.id === lote.id ? 'bg-blue-50' : ''}
-                    >
-                      <TableCell className="font-medium">
-                        {new Date(lote.data_te).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell>{lote.quantidade_receptoras} receptoras</TableCell>
-                      <TableCell>{lote.veterinario_dg || '-'}</TableCell>
-                      <TableCell>{lote.tecnico_dg || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => setLoteSelecionado(lote)}
-                          variant={loteSelecionado?.id === lote.id ? 'default' : 'outline'}
-                        >
-                          {loteSelecionado?.id === lote.id ? 'Selecionado' : 'Selecionar'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <LotesTable
+          title="Lotes de Transferência de Embriões"
+          emptyTitle="Nenhum lote de TE encontrado"
+          emptyDescription="Selecione outra fazenda ou verifique se há transferências registradas."
+          lotesTE={lotesTE}
+          loteSelecionado={loteSelecionado}
+          loading={loadingLotes}
+          veterinarioLabel="Vet. DG"
+          tecnicoLabel="Téc. DG"
+          getVeterinario={(l) => l.veterinario_dg}
+          getTecnico={(l) => l.tecnico_dg}
+          onSelectLote={setLoteSelecionado}
+        />
       )}
 
       {loteSelecionado && abrirLote && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Abrir Lote de DG</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-slate-600">
-              Lote de TE em {new Date(loteSelecionado.data_te).toLocaleDateString('pt-BR')} - {loteSelecionado.quantidade_receptoras} receptoras
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="veterinario">Veterinário Responsável *</Label>
-                <Input
-                  id="veterinario"
-                  value={loteFormData.veterinario_responsavel}
-                  onChange={(e) => setLoteFormData({ ...loteFormData, veterinario_responsavel: e.target.value })}
-                  placeholder="Nome do veterinário"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tecnico">Técnico Responsável *</Label>
-                <Input
-                  id="tecnico"
-                  value={loteFormData.tecnico_responsavel}
-                  onChange={(e) => setLoteFormData({ ...loteFormData, tecnico_responsavel: e.target.value })}
-                  placeholder="Nome do técnico"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleAbrirLote}
-                className="bg-green-600 hover:bg-green-700"
-                disabled={!loteFormData.veterinario_responsavel.trim() || !loteFormData.tecnico_responsavel.trim()}
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Abrir Lote
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAbrirLote(false);
-                  setLoteSelecionado(null);
-                }}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <AbrirLoteForm
+          title="Abrir Lote de DG"
+          loteSelecionado={loteSelecionado}
+          loteFormData={loteFormData}
+          onFormChange={setLoteFormData}
+          onAbrirLote={handleAbrirLote}
+          onCancelar={() => {
+            setAbrirLote(false);
+            setLoteSelecionado(null);
+          }}
+        />
       )}
 
       {loteSelecionado && !abrirLote && receptoras.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <CardTitle>
-                  Receptoras do Lote - {receptoras.length} {receptoras.length === 1 ? 'receptora' : 'receptoras'}
-                  {loteSelecionado.status === 'FECHADO' && (
-                    <span className="ml-2 text-sm text-slate-500">(Lote Fechado - Somente Leitura)</span>
-                  )}
-                </CardTitle>
-                {loteSelecionado.status === 'ABERTO' && (
-                  <Button
-                    onClick={handleSalvarLote}
-                    disabled={!todasReceptorasComResultado || submitting}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Lock className="w-4 h-4 mr-2" />
-                    {submitting ? 'Salvando...' : 'Salvar Lote Completo'}
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                <div className="space-y-2">
-                  <Label htmlFor="veterinario_dg">Veterinário Responsável (DG) *</Label>
-                  <Input
-                    id="veterinario_dg"
-                    value={loteFormData.veterinario_responsavel}
-                    onChange={(e) => setLoteFormData({ ...loteFormData, veterinario_responsavel: e.target.value })}
-                    placeholder="Nome do veterinário"
-                    disabled={loteSelecionado.status === 'FECHADO'}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tecnico_dg">Técnico Responsável (DG) *</Label>
-                  <Input
-                    id="tecnico_dg"
-                    value={loteFormData.tecnico_responsavel}
-                    onChange={(e) => setLoteFormData({ ...loteFormData, tecnico_responsavel: e.target.value })}
-                    placeholder="Nome do técnico"
-                    disabled={loteSelecionado.status === 'FECHADO'}
-                  />
-                </div>
-              </div>
-            </div>
+            <LoteHeader
+              loteSelecionado={loteSelecionado}
+              receptorasCount={receptoras.length}
+              loteFormData={loteFormData}
+              onFormChange={setLoteFormData}
+              veterinarioLabel="Veterinário Responsável (DG)"
+              tecnicoLabel="Técnico Responsável (DG)"
+              onSalvarLote={handleSalvarLote}
+              submitting={submitting}
+              canSave={todasReceptorasComResultado}
+            />
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -1187,8 +723,8 @@ export default function DiagnosticoGestacao() {
                               <span className="text-slate-500 text-sm ml-2">({receptora.nome})</span>
                             )}
                             {temDiagnostico && (
-                              <StatusBadge 
-                                status={receptora.diagnostico_existente?.resultado || ''} 
+                              <StatusBadge
+                                status={receptora.diagnostico_existente?.resultado || ''}
                                 className="ml-2"
                               />
                             )}
@@ -1212,7 +748,7 @@ export default function DiagnosticoGestacao() {
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              {receptora.embrioes.map((embriao, idx) => (
+                              {receptora.embrioes.map((embriao) => (
                                 <div key={embriao.te_id} className="text-sm">
                                   <div>
                                     <span className="font-medium">{embriao.doadora_registro || '-'}</span>
