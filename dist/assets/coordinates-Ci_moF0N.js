@@ -1,0 +1,6 @@
+import{c as p}from"./index-CWtHucPz.js";/**
+ * @license lucide-react v0.462.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const u=p("Navigation",[["polygon",{points:"3 11 22 2 13 21 11 13 3 11",key:"1ltx0t"}]]);function f(t,n){return!isNaN(t)&&!isNaN(n)&&t>=-90&&t<=90&&n>=-180&&n<=180}function m(t){if(!t||typeof t!="string"||t.includes("goo.gl/maps")||t.includes("maps.app.goo.gl"))return null;try{const n=/@(-?\d+\.?\d*),(-?\d+\.?\d*)/,a=t.match(n);if(a)return{lat:a[1],lng:a[2]};const r=/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,o=t.match(r);if(o)return{lat:o[1],lng:o[2]};const i=/\/dir\/.*?\/(-?\d+\.?\d*),(-?\d+\.?\d*)/,e=t.match(i);if(e)return{lat:e[1],lng:e[2]};const d=/[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,c=t.match(d);if(c)return{lat:c[1],lng:c[2]};const l=/\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/,s=t.match(l);return s?{lat:s[1],lng:s[2]}:null}catch{return null}}function h(t){return!t||typeof t!="string"?!1:t.includes("goo.gl/maps")||t.includes("maps.app.goo.gl")}function M(t,n){return`https://www.google.com/maps?q=${t},${n}`}function N(t){return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}`}export{u as N,N as a,f as b,m as e,M as g,h as i};

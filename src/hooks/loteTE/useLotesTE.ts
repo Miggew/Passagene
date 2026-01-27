@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Fazenda } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import type { LoteTEBase } from '@/lib/gestacao';
 import type { StatusReceptoraFiltro, TipoDiagnosticoFiltro } from './useFazendasComLotes';
@@ -8,7 +7,6 @@ import type { StatusReceptoraFiltro, TipoDiagnosticoFiltro } from './useFazendas
 interface UseLotesTEProps<T extends LoteTEBase> {
   statusReceptoraFiltro: StatusReceptoraFiltro | StatusReceptoraFiltro[];
   tipoDiagnosticoFiltro: TipoDiagnosticoFiltro;
-  fazendas: Fazenda[];
   transformLote: (
     loteBase: LoteTEBase,
     diagnosticoLote: { veterinario_responsavel?: string; tecnico_responsavel?: string } | undefined
@@ -18,7 +16,7 @@ interface UseLotesTEProps<T extends LoteTEBase> {
 interface UseLotesTEReturn<T extends LoteTEBase> {
   lotesTE: T[];
   loading: boolean;
-  loadLotesTE: (fazendaId: string) => Promise<void>;
+  loadLotesTE: (fazendaId: string, fazendaNome?: string) => Promise<void>;
 }
 
 /**
@@ -27,14 +25,13 @@ interface UseLotesTEReturn<T extends LoteTEBase> {
 export function useLotesTE<T extends LoteTEBase>({
   statusReceptoraFiltro,
   tipoDiagnosticoFiltro,
-  fazendas,
   transformLote,
 }: UseLotesTEProps<T>): UseLotesTEReturn<T> {
   const { toast } = useToast();
   const [lotesTE, setLotesTE] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadLotesTE = useCallback(async (fazendaId: string) => {
+  const loadLotesTE = useCallback(async (fazendaId: string, fazendaNome?: string) => {
     try {
       setLoading(true);
 
@@ -118,7 +115,7 @@ export function useLotesTE<T extends LoteTEBase>({
           lotesMap.set(chave, {
             id: chave,
             fazenda_id: fazendaId,
-            fazenda_nome: fazendas.find(f => f.id === fazendaId)?.nome || '',
+            fazenda_nome: fazendaNome || '',
             data_te: te.data_te,
             quantidade_receptoras: 0,
             status: 'ABERTO',
@@ -160,7 +157,7 @@ export function useLotesTE<T extends LoteTEBase>({
     } finally {
       setLoading(false);
     }
-  }, [statusReceptoraFiltro, tipoDiagnosticoFiltro, fazendas, transformLote, toast]);
+  }, [statusReceptoraFiltro, tipoDiagnosticoFiltro, transformLote, toast]);
 
   return {
     lotesTE,

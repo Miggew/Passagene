@@ -6,6 +6,8 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Embriao, Fazenda, Cliente } from '@/lib/types';
 import { handleError } from '@/lib/error-handler';
+import { useFazendas, useClientes } from '@/api';
+import { todayISO, diffDays } from '@/lib/dateUtils';
 
 export interface EmbrioCompleto extends Embriao {
   doadora_registro?: string;
@@ -66,19 +68,10 @@ const carregarFiltrosEmbrioes = (): EmbrioesFiltrosPersistidos => {
   }
 };
 
-// Calcular dia do embrião
+// Calcular dia do embrião (usando dateUtils)
 export const calcularDiaEmbriao = (dataFecundacao: string | undefined): number | null => {
   if (!dataFecundacao) return null;
-  const hoje = new Date();
-  const hojeStr = hoje.getFullYear() + '-' +
-    String(hoje.getMonth() + 1).padStart(2, '0') + '-' +
-    String(hoje.getDate()).padStart(2, '0');
-  const [anoHoje, mesHoje, diaHoje] = hojeStr.split('-').map(Number);
-  const [anoFec, mesFec, diaFec] = dataFecundacao.split('-').map(Number);
-  const dataHojeMs = Date.UTC(anoHoje, mesHoje - 1, diaHoje);
-  const dataFecMs = Date.UTC(anoFec, mesFec - 1, diaFec);
-  const diffDays = Math.floor((dataHojeMs - dataFecMs) / (1000 * 60 * 60 * 24));
-  return diffDays;
+  return diffDays(dataFecundacao, todayISO());
 };
 
 export interface UseEmbrioesDataReturn {
@@ -125,9 +118,11 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
   // Data state
   const [embrioes, setEmbrioes] = useState<EmbrioCompleto[]>([]);
   const [pacotes, setPacotes] = useState<PacoteEmbrioes[]>([]);
-  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // React Query hooks for fazendas and clientes
+  const { data: fazendas = [], refetch: refetchFazendas } = useFazendas();
+  const { data: clientes = [], refetch: refetchClientes } = useClientes();
 
   // Filter state
   const [selectedFazendaDestinoId, setSelectedFazendaDestinoId] = useState<string>(
@@ -202,35 +197,15 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
     };
   }, [getClassificacaoAtual]);
 
-  // Load fazendas
+  // Load fazendas - using React Query (backward compatibility)
   const loadFazendas = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('fazendas')
-        .select('id, nome')
-        .order('nome', { ascending: true });
+    await refetchFazendas();
+  }, [refetchFazendas]);
 
-      if (error) throw error;
-      setFazendas(data || []);
-    } catch (error) {
-      handleError(error, 'Erro ao carregar fazendas');
-    }
-  }, []);
-
-  // Load clientes
+  // Load clientes - using React Query (backward compatibility)
   const loadClientes = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('id, nome')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-      setClientes(data || []);
-    } catch (error) {
-      handleError(error, 'Erro ao carregar clientes');
-    }
-  }, []);
+    await refetchClientes();
+  }, [refetchClientes]);
 
   // Main data loading
   const loadData = useCallback(async () => {

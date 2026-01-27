@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { DoseSemen } from '@/lib/types';
-import { AcasalamentoComNomes } from '@/lib/types/lotesFiv';
+import { AcasalamentoComNomes, LoteFIVComNomes, PacoteComNomes } from '@/lib/types/lotesFiv';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NovoLoteDialog } from '@/components/lotes/NovoLoteDialog';
 import { LoteDetailView, AcasalamentoForm } from '@/components/lotes/LoteDetailView';
 import { LotesHistoricoTab } from '@/components/lotes/LotesHistoricoTab';
+import { carregarFiltrosLotesFiv } from '@/lib/lotesFivUtils';
 
 export default function LotesFIV() {
   const { id } = useParams();
@@ -47,9 +48,42 @@ export default function LotesFIV() {
   const [editQuantidadeEmbrioes, setEditQuantidadeEmbrioes] = useState<{ [key: string]: string }>({});
   const [editClivados, setEditClivados] = useState<{ [key: string]: string }>({});
 
-  // Hook de filtros (gerencia estados de filtros, persistência e lógica de filtragem)
-  // Precisa ser declarado antes do hook de dados para passar setHistoricoPage
-  const filtrosHook = useLotesFiltros({
+  // Estado local de paginação do histórico para quebrar dependência circular
+  const [historicoPageLocal, setHistoricoPageLocal] = useState<number>(() => {
+    const filtrosPersistidos = carregarFiltrosLotesFiv();
+    return filtrosPersistidos.historicoPage ?? 1;
+  });
+
+  // Callback estável para setHistoricoPage
+  const handleSetHistoricoPage = useCallback((page: number) => {
+    setHistoricoPageLocal(page);
+  }, []);
+
+  // Hook de filtros - chamado UMA ÚNICA VEZ com valores iniciais vazios
+  // Os dados serão passados depois que carregarem
+  const {
+    filtroFazendaAspiracao,
+    setFiltroFazendaAspiracao,
+    filtroFazendaAspiracaoBusca,
+    setFiltroFazendaAspiracaoBusca,
+    filtroDiaCultivo,
+    setFiltroDiaCultivo,
+    showFazendaBusca,
+    setShowFazendaBusca,
+    filtroHistoricoDataInicio,
+    setFiltroHistoricoDataInicio,
+    filtroHistoricoDataFim,
+    setFiltroHistoricoDataFim,
+    filtroHistoricoFazenda,
+    setFiltroHistoricoFazenda,
+    filtroHistoricoFazendaBusca,
+    setFiltroHistoricoFazendaBusca,
+    showFazendaBuscaHistorico,
+    setShowFazendaBuscaHistorico,
+    abaAtiva,
+    setAbaAtiva,
+    HISTORICO_PAGE_SIZE,
+  } = useLotesFiltros({
     lotes: [],
     pacotesParaFiltro: [],
     fazendasAspiracaoUnicas: [],
@@ -91,46 +125,27 @@ export default function LotesFIV() {
     handleExpandirLote,
   } = useLotesFIVData({
     id,
-    filtroHistoricoDataInicio: filtrosHook.filtroHistoricoDataInicio,
-    filtroHistoricoDataFim: filtrosHook.filtroHistoricoDataFim,
-    filtroHistoricoFazenda: filtrosHook.filtroHistoricoFazenda,
-    setHistoricoPage: filtrosHook.setHistoricoPage,
+    filtroHistoricoDataInicio,
+    filtroHistoricoDataFim,
+    filtroHistoricoFazenda,
+    setHistoricoPage: handleSetHistoricoPage,
   });
 
-  // Reinicializar o hook de filtros com os dados carregados
-  const {
-    filtroFazendaAspiracao,
-    setFiltroFazendaAspiracao,
-    filtroFazendaAspiracaoBusca,
-    setFiltroFazendaAspiracaoBusca,
-    filtroDiaCultivo,
-    setFiltroDiaCultivo,
-    showFazendaBusca,
-    setShowFazendaBusca,
-    fazendasFiltradas,
-    lotesFiltrados,
-    limparFiltrosAtivos,
-    filtroHistoricoDataInicio,
-    setFiltroHistoricoDataInicio,
-    filtroHistoricoDataFim,
-    setFiltroHistoricoDataFim,
-    filtroHistoricoFazenda,
-    setFiltroHistoricoFazenda,
-    filtroHistoricoFazendaBusca,
-    setFiltroHistoricoFazendaBusca,
-    showFazendaBuscaHistorico,
-    setShowFazendaBuscaHistorico,
-    abaAtiva,
-    setAbaAtiva,
-    historicoPage,
-    setHistoricoPage,
-    HISTORICO_PAGE_SIZE,
-  } = useLotesFiltros({
-    lotes,
-    pacotesParaFiltro,
-    fazendasAspiracaoUnicas,
-    lotesHistoricos,
-  });
+  // Computar lotes filtrados e fazendas filtradas com os dados carregados
+  const lotesFiltrados = useLotesFiltradosComputed(lotes, pacotesParaFiltro, filtroFazendaAspiracao, filtroDiaCultivo);
+  const fazendasFiltradas = useFazendasFiltradasComputed(fazendasAspiracaoUnicas, filtroFazendaAspiracaoBusca);
+
+  // Limpar filtros ativos
+  const limparFiltrosAtivos = useCallback(() => {
+    setFiltroFazendaAspiracao('');
+    setFiltroFazendaAspiracaoBusca('');
+    setFiltroDiaCultivo('');
+    setShowFazendaBusca(false);
+  }, [setFiltroFazendaAspiracao, setFiltroFazendaAspiracaoBusca, setFiltroDiaCultivo, setShowFazendaBusca]);
+
+  // Usar o estado local de paginação
+  const historicoPage = historicoPageLocal;
+  const setHistoricoPage = handleSetHistoricoPage;
 
   // Despachar embriões no D7
   const despacharEmbrioes = async () => {
@@ -157,7 +172,7 @@ export default function LotesFIV() {
       }
 
       const hojeStr = getTodayDateString();
-      const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(hojeStr, dataAspiracaoStr)) : 0;
+      const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(dataAspiracaoStr, hojeStr)) : 0;
 
       if (diaAtual > 9) {
         toast({
@@ -684,5 +699,58 @@ export default function LotesFIV() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Função helper para computar lotes filtrados
+function useLotesFiltradosComputed(
+  lotes: LoteFIVComNomes[],
+  pacotesParaFiltro: PacoteComNomes[],
+  filtroFazendaAspiracao: string,
+  filtroDiaCultivo: string
+) {
+  return useMemo(() => {
+    let filtrados = [...lotes];
+
+    // Filtro base: excluir lotes fechados ou que passaram do D8
+    filtrados = filtrados.filter((l) => {
+      if (l.status === 'FECHADO') return false;
+      if (l.dia_atual !== undefined && l.dia_atual > 9) return false;
+      return l.dia_atual !== undefined && l.dia_atual <= 9;
+    });
+
+    // Filtrar por fazenda da aspiração
+    if (filtroFazendaAspiracao) {
+      filtrados = filtrados.filter((l) => {
+        const pacote = pacotesParaFiltro.find((p) => p.id === l.pacote_aspiracao_id);
+        return pacote?.fazenda_id === filtroFazendaAspiracao;
+      });
+    }
+
+    // Filtrar por dia do cultivo
+    if (filtroDiaCultivo !== '') {
+      const diaFiltro = parseInt(filtroDiaCultivo);
+      filtrados = filtrados.filter((l) => {
+        if (l.dia_atual === undefined || l.dia_atual === null) return false;
+        const diaCultivo = l.dia_atual === 0 ? -1 : l.dia_atual - 1;
+        return diaCultivo === diaFiltro;
+      });
+    }
+
+    return filtrados;
+  }, [lotes, filtroFazendaAspiracao, filtroDiaCultivo, pacotesParaFiltro]);
+}
+
+// Função helper para computar fazendas filtradas para busca
+function useFazendasFiltradasComputed(
+  fazendasAspiracaoUnicas: { id: string; nome: string }[],
+  filtroFazendaAspiracaoBusca: string
+) {
+  return useMemo(
+    () =>
+      fazendasAspiracaoUnicas.filter((f) =>
+        f.nome.toLowerCase().includes(filtroFazendaAspiracaoBusca.toLowerCase())
+      ),
+    [fazendasAspiracaoUnicas, filtroFazendaAspiracaoBusca]
   );
 }

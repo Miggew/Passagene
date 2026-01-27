@@ -302,12 +302,11 @@ export function useTransferenciaEmbrioesData({
   // Carregar pacotes de embriões
   const loadPacotes = useCallback(async () => {
     try {
-      const hojeLocal = getTodayDateString();
-      const hojeUtc = new Date().toISOString().slice(0, 10);
-
-      const deveDescartar = hojeLocal === hojeUtc;
-      if (deveDescartar) {
-        await supabase.rpc('descartar_embrioes_d9');
+      // Tentar descartar embriões expirados (D9+) via RPC
+      // Se a função não existir ou falhar, ignorar silenciosamente
+      const { error: rpcError } = await supabase.rpc('descartar_embrioes_d9');
+      if (rpcError) {
+        console.warn('RPC descartar_embrioes_d9 não disponível:', rpcError.message);
       }
 
       const [transferenciasResult, frescosResult] = await Promise.all([
@@ -618,7 +617,7 @@ export function useTransferenciaEmbrioesData({
   const carregarReceptorasCioLivre = useCallback(async (fazendaId: string): Promise<{ receptoras: ReceptoraSincronizada[]; receptorasDisponiveis: number }> => {
     try {
       const { data: cioLivreData, error: cioLivreError } = await supabase
-        .from('cio_livre')
+        .from('receptoras_cio_livre')
         .select('receptora_id, data_cio')
         .eq('status', 'DISPONIVEL')
         .eq('fazenda_id', fazendaId);

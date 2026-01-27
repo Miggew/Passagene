@@ -105,7 +105,6 @@ export default function DiagnosticoGestacao() {
   const { lotesTE, loading: loadingLotes, loadLotesTE } = useLotesTE<LoteTEDiagnostico>({
     statusReceptoraFiltro: 'SERVIDA',
     tipoDiagnosticoFiltro: 'DG',
-    fazendas,
     transformLote,
   });
 
@@ -116,13 +115,15 @@ export default function DiagnosticoGestacao() {
 
   useEffect(() => {
     if (fazendaSelecionada) {
-      loadLotesTE(fazendaSelecionada);
+      const fazendaNome = fazendas.find(f => f.id === fazendaSelecionada)?.nome;
+      loadLotesTE(fazendaSelecionada, fazendaNome);
     } else {
       setLoteSelecionado(null);
       setReceptoras([]);
       setFormData({});
     }
-  }, [fazendaSelecionada, loadLotesTE]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fazendaSelecionada]);
 
   useEffect(() => {
     if (loteSelecionado) {
@@ -609,7 +610,8 @@ export default function DiagnosticoGestacao() {
           : `${receptoras.length} diagnóstico(s) registrado(s)`,
       });
 
-      await loadLotesTE(fazendaSelecionada);
+      const fazendaNome = fazendas.find(f => f.id === fazendaSelecionada)?.nome;
+      await loadLotesTE(fazendaSelecionada, fazendaNome);
       if (loteSelecionado) {
         await loadReceptorasLote(loteSelecionado);
       }

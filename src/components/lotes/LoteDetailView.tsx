@@ -149,7 +149,7 @@ export function LoteDetailView({
   }
 
   const hojeStr = getTodayDateString();
-  const diaAtual = Math.max(0, diffDays(hojeStr, dataAspiracaoStr));
+  const diaAtual = Math.max(0, diffDays(dataAspiracaoStr, hojeStr));
   const diaCultivo = getDiaCultivo(diaAtual);
   const dataD7Str = addDays(dataAspiracaoStr, 8);
   const dataD7Formatada = formatDateString(dataD7Str);

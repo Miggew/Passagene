@@ -199,7 +199,7 @@ export function useLotesFIVListData(): UseLotesFIVListDataReturn {
         }
 
         const hojeStr = getTodayDateString();
-        const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(hojeStr, dataAspiracaoStr)) : 0;
+        const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(dataAspiracaoStr, hojeStr)) : 0;
 
         return {
           ...l,
@@ -218,19 +218,25 @@ export function useLotesFIVListData(): UseLotesFIVListDataReturn {
 
       if (lotesParaFechar.length > 0) {
         const lotesIdsParaFechar = lotesParaFechar.map(l => l.id);
-        supabase
+        const { error: fechamentoError } = await supabase
           .from('lotes_fiv')
           .update({ status: 'FECHADO' })
-          .in('id', lotesIdsParaFechar)
-          .then(({ error }) => {
-            if (error) {
-              toast({
-                title: 'Aviso',
-                description: 'Não foi possível fechar automaticamente alguns lotes expirados. Recarregue a página.',
-                variant: 'destructive',
-              });
-            }
+          .in('id', lotesIdsParaFechar);
+
+        if (fechamentoError) {
+          toast({
+            title: 'Aviso',
+            description: 'Não foi possível fechar automaticamente alguns lotes expirados. Recarregue a página.',
+            variant: 'destructive',
           });
+        }
+
+        // Atualizar o status nos lotes locais após fechamento bem-sucedido
+        if (!fechamentoError) {
+          lotesParaFechar.forEach(l => {
+            l.status = 'FECHADO';
+          });
+        }
       }
 
       setLotes(lotesComNomes);

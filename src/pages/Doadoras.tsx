@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,9 +30,12 @@ import { Label } from '@/components/ui/label';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Pencil, Search, History, Star, Gem } from 'lucide-react';
+import FazendaSelector from '@/components/shared/FazendaSelector';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { Plus, Pencil, History, Star, Gem } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
-import { formatDate } from '@/lib/utils';
+import { formatDateBR } from '@/lib/dateUtils';
 import { Badge } from '@/components/ui/badge';
 
 // Hooks
@@ -41,7 +44,6 @@ import {
   useDoadorasForm,
   racasPredefinidas,
   type DoadoraComAspiracao,
-  type Fazenda,
 } from '@/hooks/doadoras';
 
 export default function Doadoras() {
@@ -92,7 +94,8 @@ export default function Doadoras() {
       <FazendaSelector
         fazendas={fazendas}
         selectedFazendaId={selectedFazendaId}
-        setSelectedFazendaId={setSelectedFazendaId}
+        onFazendaChange={setSelectedFazendaId}
+        placeholder="Selecione uma fazenda para visualizar doadoras"
       />
 
       {!selectedFazendaId ? (
@@ -103,7 +106,13 @@ export default function Doadoras() {
       ) : (
         <>
           <div className="flex items-center justify-between">
-            <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+            <div className="flex-1 max-w-md">
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Buscar por nome ou registro..."
+              />
+            </div>
             <DoadoraFormDialog
               showDialog={showDialog}
               handleDialogClose={handleDialogClose}
@@ -122,9 +131,11 @@ export default function Doadoras() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="py-8">
-                  <LoadingSpinner />
-                </div>
+                <TableSkeleton
+                  columns={8}
+                  rows={6}
+                  headers={['Registro', 'Nome', 'Ultima Aspiracao', 'Oocitos', 'Estado', 'Raca', 'Classificacao', 'Acoes']}
+                />
               ) : (
                 <DoadorasTable
                   doadoras={filteredDoadoras}
@@ -155,61 +166,6 @@ export default function Doadoras() {
 }
 
 // Sub-components
-
-interface FazendaSelectorProps {
-  fazendas: Fazenda[];
-  selectedFazendaId: string;
-  setSelectedFazendaId: (id: string) => void;
-}
-
-function FazendaSelector({
-  fazendas,
-  selectedFazendaId,
-  setSelectedFazendaId,
-}: FazendaSelectorProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Selecione a Fazenda</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Select value={selectedFazendaId} onValueChange={setSelectedFazendaId}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecione uma fazenda para visualizar doadoras" />
-          </SelectTrigger>
-          <SelectContent>
-            {fazendas.map((fazenda) => (
-              <SelectItem key={fazenda.id} value={fazenda.id}>
-                {fazenda.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface SearchBarProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-}
-
-function SearchBar({ searchTerm, setSearchTerm }: SearchBarProps) {
-  return (
-    <div className="flex items-center gap-4 flex-1">
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-        <Input
-          placeholder="Buscar por nome ou registro..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-    </div>
-  );
-}
 
 interface DoadoraFormDialogProps {
   showDialog: boolean;
@@ -373,7 +329,8 @@ interface DoadoraRowProps {
   setHistoricoDoadoraId: (id: string | null) => void;
 }
 
-function DoadoraRow({ doadora, navigate, setHistoricoDoadoraId }: DoadoraRowProps) {
+// Memoized row component to prevent unnecessary re-renders
+const DoadoraRow = memo(function DoadoraRow({ doadora, navigate, setHistoricoDoadoraId }: DoadoraRowProps) {
   const camposRaca = getCamposRaca(doadora);
 
   return (
@@ -384,7 +341,7 @@ function DoadoraRow({ doadora, navigate, setHistoricoDoadoraId }: DoadoraRowProp
       <TableCell className="font-medium">{doadora.registro}</TableCell>
       <TableCell>{doadora.nome || '-'}</TableCell>
       <TableCell>
-        {doadora.ultima_aspiracao_data ? formatDate(doadora.ultima_aspiracao_data) : '-'}
+        {doadora.ultima_aspiracao_data ? formatDateBR(doadora.ultima_aspiracao_data) : '-'}
       </TableCell>
       <TableCell>{doadora.ultima_aspiracao_total_oocitos ?? '-'}</TableCell>
       <TableCell>
@@ -427,7 +384,7 @@ function DoadoraRow({ doadora, navigate, setHistoricoDoadoraId }: DoadoraRowProp
       </TableCell>
     </TableRow>
   );
-}
+});
 
 // Helper functions
 

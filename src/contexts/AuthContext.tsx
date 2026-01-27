@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { UserPermissions, Hub } from '@/lib/types';
@@ -49,17 +49,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Carrega o perfil e permissões do usuário
-  const loadUserPermissions = useCallback(async (userId: string): Promise<UserPermissions | null> => {
+  const loadUserPermissions = useCallback(async (userId: string, userEmail?: string): Promise<UserPermissions | null> => {
     try {
-      // Busca o perfil do usuário
-      const { data: profile, error: profileError } = await supabase
+      // Primeiro tenta buscar pelo ID (usuário já vinculado)
+      let { data: profile } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profile) {
-        console.error('[Auth] Erro ao carregar perfil:', profileError);
+      // Se não encontrou pelo ID, tenta buscar pelo email (perfil criado por admin)
+      if (!profile && userEmail) {
+        console.log('[Auth] Buscando perfil pelo email:', userEmail.toLowerCase());
+
+        const { data: profileByEmail } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('email', userEmail.toLowerCase())
+          .maybeSingle();
+
+        if (profileByEmail) {
+          console.log('[Auth] Perfil encontrado pelo email:', profileByEmail);
+          // Usa o perfil encontrado pelo email (sem tentar atualizar o ID)
+          profile = profileByEmail;
+        }
+      }
+
+      // Se ainda não existe perfil, o usuário precisa ser cadastrado por um admin
+      if (!profile) {
+        console.log('[Auth] Nenhum perfil encontrado para:', userEmail);
+        // Não cria automaticamente - admin precisa criar o perfil primeiro
         return null;
       }
 
@@ -78,11 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Se for cliente, acesso apenas ao portal
+      // Se for cliente, acesso apenas ao hub cliente (Meu Portal)
       if (profile.user_type === 'cliente') {
         return {
           profile,
-          allowedHubs: ['portal'],
+          allowedHubs: ['cliente'],
           isAdmin: false,
           isCliente: true,
         };
@@ -114,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissionsLoading(true);
     try {
       await loadHubs();
-      const perms = await loadUserPermissions(user.id);
+      const perms = await loadUserPermissions(user.id, user.email);
       setPermissions(perms);
     } finally {
       setPermissionsLoading(false);
@@ -180,19 +199,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions(null);
   };
 
+  // Memoizar o value do contexto para evitar re-renders desnecessários em toda a app
+  const contextValue = useMemo(() => ({
+    user,
+    session,
+    loading,
+    permissions,
+    permissionsLoading,
+    hubs,
+    signOut,
+    refreshPermissions,
+    hasAccessToHub,
+    hasAccessToRoute,
+  }), [
+    user,
+    session,
+    loading,
+    permissions,
+    permissionsLoading,
+    hubs,
+    signOut,
+    refreshPermissions,
+    hasAccessToHub,
+    hasAccessToRoute,
+  ]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      permissions,
-      permissionsLoading,
-      hubs,
-      signOut,
-      refreshPermissions,
-      hasAccessToHub,
-      hasAccessToRoute,
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,7 +3,7 @@
  */
 
 import { Calendar, Syringe, Activity, Baby, MapPin, UserPlus, Tag } from 'lucide-react';
-import { createElement } from 'react';
+import { extractDateOnly, formatDateBR } from './dateUtils';
 
 export interface HistoricoItem {
   data: string;
@@ -26,43 +26,19 @@ export interface Estatisticas {
 
 /**
  * Normaliza uma string de data para o formato YYYY-MM-DD
+ * @deprecated Use extractDateOnly from @/lib/dateUtils
  */
 export const normalizarData = (dataString: string): string => {
   if (!dataString) return dataString;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dataString)) {
-    return dataString;
-  }
-
-  const match = dataString.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) {
-    return match[1];
-  }
-
-  try {
-    const date = new Date(dataString);
-    if (isNaN(date.getTime())) {
-      return dataString;
-    }
-
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  } catch {
-    return dataString;
-  }
+  return extractDateOnly(dataString) || dataString;
 };
 
 /**
  * Formata uma data para exibição no formato brasileiro
+ * @deprecated Use formatDateBR from @/lib/dateUtils
  */
 export const formatarData = (data: string): string => {
-  try {
-    return new Date(data + 'T12:00:00').toLocaleDateString('pt-BR');
-  } catch {
-    return data;
-  }
+  return formatDateBR(data);
 };
 
 /**

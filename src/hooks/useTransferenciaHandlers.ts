@@ -87,7 +87,7 @@ export function useTransferenciaHandlers({
 
       if (origemReceptora === 'CIO_LIVRE') {
         const { error: cioLivreError } = await supabase
-          .from('cio_livre')
+          .from('receptoras_cio_livre')
           .update({ status: 'DESCARTADA' })
           .eq('receptora_id', formData.receptora_id)
           .eq('status', 'DISPONIVEL');

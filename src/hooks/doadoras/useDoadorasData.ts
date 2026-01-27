@@ -1,24 +1,21 @@
 /**
  * Hook para gerenciar dados e filtros da lista de doadoras
- * - Carregamento de fazendas e doadoras
- * - Filtragem por busca
- * - Enriquecimento com dados de aspiracao
+ * - Usa React Query para caching automático
+ * - Usa useListFilter para filtragem genérica
+ * - Carregamento de fazendas e doadoras com JOIN (sem N+1)
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Doadora } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import { useFazendas, useDoadorasByFazenda } from '@/api';
+import { useListFilter } from '@/hooks/core';
+import type { DoadoraComUltimaAspiracao } from '@/api/supabaseQueries';
 
 export interface Fazenda {
   id: string;
   nome: string;
 }
 
-export interface DoadoraComAspiracao extends Doadora {
-  ultima_aspiracao_total_oocitos?: number;
-  ultima_aspiracao_data?: string;
-}
+export type DoadoraComAspiracao = DoadoraComUltimaAspiracao;
 
 export interface UseDoadorasDataReturn {
   // Loading state
@@ -36,6 +33,8 @@ export interface UseDoadorasDataReturn {
   // Filters
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  clearFilters: () => void;
+  hasActiveFilters: boolean;
 
   // Historico dialog
   historicoDoadoraId: string | null;
@@ -46,144 +45,65 @@ export interface UseDoadorasDataReturn {
   loadDoadoras: () => Promise<void>;
 }
 
+// Função de busca para doadoras
+const searchDoadora = (doadora: DoadoraComAspiracao, term: string): boolean =>
+  doadora.nome?.toLowerCase().includes(term) ||
+  doadora.registro?.toLowerCase().includes(term) ||
+  doadora.raca?.toLowerCase().includes(term) ||
+  false;
+
 export function useDoadorasData(): UseDoadorasDataReturn {
-  const { toast } = useToast();
-
-  // Loading state
-  const [loading, setLoading] = useState(true);
-
-  // Data
-  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [doadoras, setDoadoras] = useState<DoadoraComAspiracao[]>([]);
-  const [filteredDoadoras, setFilteredDoadoras] = useState<DoadoraComAspiracao[]>([]);
-
   // Selection
   const [selectedFazendaId, setSelectedFazendaId] = useState<string>('');
-
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('');
 
   // Historico dialog
   const [historicoDoadoraId, setHistoricoDoadoraId] = useState<string | null>(null);
 
-  // Filter doadoras based on search term
-  const filterDoadoras = useCallback(() => {
-    if (!searchTerm.trim()) {
-      setFilteredDoadoras(doadoras);
-      return;
-    }
+  // React Query hooks - caching automático
+  const {
+    data: fazendas = [],
+    isLoading: loadingFazendas,
+    refetch: refetchFazendas,
+  } = useFazendas();
 
-    const term = searchTerm.toLowerCase();
-    const filtered = doadoras.filter(
-      (d) =>
-        d.nome?.toLowerCase().includes(term) ||
-        d.registro?.toLowerCase().includes(term) ||
-        d.raca?.toLowerCase().includes(term)
-    );
-    setFilteredDoadoras(filtered);
-  }, [doadoras, searchTerm]);
+  const {
+    data: doadoras = [],
+    isLoading: loadingDoadoras,
+    refetch: refetchDoadoras,
+  } = useDoadorasByFazenda(selectedFazendaId || undefined);
 
-  // Apply filters when dependencies change
-  useEffect(() => {
-    filterDoadoras();
-  }, [filterDoadoras]);
+  // Filtragem genérica com useListFilter
+  const {
+    filtered: filteredDoadoras,
+    searchTerm,
+    setSearchTerm,
+    clearFilters,
+    hasActiveFilters,
+  } = useListFilter({
+    data: doadoras,
+    searchFn: searchDoadora,
+  });
 
-  // Load fazendas from database
-  const loadFazendas = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data: fazendasData, error: fazendasError } = await supabase
-        .from('fazendas')
-        .select('id, nome')
-        .order('nome', { ascending: true });
+  // Compatibilidade com código existente
+  const loadFazendas = async () => {
+    await refetchFazendas();
+  };
 
-      if (fazendasError) throw fazendasError;
-      setFazendas(fazendasData || []);
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar fazendas',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  // Load doadoras from database with aspiration data
-  const loadDoadoras = useCallback(async () => {
-    if (!selectedFazendaId) {
-      setDoadoras([]);
-      setFilteredDoadoras([]);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const { data: doadorasData, error: doadorasError } = await supabase
-        .from('doadoras')
-        .select('*')
-        .eq('fazenda_id', selectedFazendaId)
-        .order('created_at', { ascending: false });
-
-      if (doadorasError) throw doadorasError;
-
-      // Fetch last aspiration for each doadora
-      const doadorasComAspiracao: DoadoraComAspiracao[] = await Promise.all(
-        (doadorasData || []).map(async (doadora) => {
-          const { data: aspiracoesData, error } = await supabase
-            .from('aspiracoes_doadoras')
-            .select('total_oocitos, data_aspiracao')
-            .eq('doadora_id', doadora.id)
-            .order('data_aspiracao', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (error || !aspiracoesData) {
-            return {
-              ...doadora,
-              ultima_aspiracao_total_oocitos: undefined,
-              ultima_aspiracao_data: undefined,
-            };
-          }
-
-          return {
-            ...doadora,
-            ultima_aspiracao_total_oocitos: aspiracoesData.total_oocitos,
-            ultima_aspiracao_data: aspiracoesData.data_aspiracao,
-          };
-        })
-      );
-
-      setDoadoras(doadorasComAspiracao);
-      setFilteredDoadoras(doadorasComAspiracao);
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar doadoras',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedFazendaId, toast]);
-
-  // Load doadoras when fazenda changes
-  useEffect(() => {
+  const loadDoadoras = async () => {
     if (selectedFazendaId) {
-      loadDoadoras();
-    } else {
-      setDoadoras([]);
-      setFilteredDoadoras([]);
+      await refetchDoadoras();
     }
-  }, [selectedFazendaId, loadDoadoras]);
+  };
+
+  // Loading combinado
+  const loading = loadingFazendas || (selectedFazendaId ? loadingDoadoras : false);
 
   return {
     // Loading state
     loading,
 
     // Data
-    fazendas,
+    fazendas: fazendas as Fazenda[],
     doadoras,
     filteredDoadoras,
 
@@ -194,6 +114,8 @@ export function useDoadorasData(): UseDoadorasDataReturn {
     // Filters
     searchTerm,
     setSearchTerm,
+    clearFilters,
+    hasActiveFilters,
 
     // Historico dialog
     historicoDoadoraId,

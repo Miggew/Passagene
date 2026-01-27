@@ -1,11 +1,18 @@
 /**
- * Hook para gerenciar carregamento de dados e filtros de receptoras
+ * Hook para gerenciar dados e filtros da lista de receptoras
+ * - Usa React Query para caching automático
+ * - Filtragem por busca e status
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Fazenda, ReceptoraComStatus } from '@/lib/types';
-import { handleError } from '@/lib/error-handler';
+import { useState, useMemo, useCallback } from 'react';
+import { useFazendas, useReceptorasComStatusByFazenda, useInvalidateQueries } from '@/api';
+import type { ReceptoraComStatus } from '@/api/supabaseQueries';
+import { useDebounce } from '@/hooks/core';
+
+export interface Fazenda {
+  id: string;
+  nome: string;
+}
 
 export interface UseReceptorasDataProps {
   selectedFazendaId: string;
@@ -37,199 +44,105 @@ export interface UseReceptorasDataReturn {
 }
 
 export function useReceptorasData({ selectedFazendaId }: UseReceptorasDataProps): UseReceptorasDataReturn {
-  // Data state
-  const [fazendas, setFazendas] = useState<Fazenda[]>([]);
-  const [receptoras, setReceptoras] = useState<ReceptoraComStatus[]>([]);
-  const [filteredReceptoras, setFilteredReceptoras] = useState<ReceptoraComStatus[]>([]);
-  const [statusDisponiveis, setStatusDisponiveis] = useState<string[]>([]);
-
-  // Loading state
-  const [loadingFazendas, setLoadingFazendas] = useState(true);
-  const [loadingReceptoras, setLoadingReceptoras] = useState(false);
-
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<string>('all');
 
-  // Filter receptoras when search or status changes
-  const filterReceptoras = useCallback(() => {
+  // Debounce para evitar filtragens excessivas durante digitação
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Local state for optimistic updates
+  const [localUpdates, setLocalUpdates] = useState<Map<string, Partial<ReceptoraComStatus>>>(new Map());
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+
+  // React Query hooks - caching automático
+  const {
+    data: fazendas = [],
+    isLoading: loadingFazendas,
+    refetch: refetchFazendas,
+  } = useFazendas();
+
+  const {
+    data: receptorasRaw = [],
+    isLoading: loadingReceptoras,
+    refetch: refetchReceptoras,
+  } = useReceptorasComStatusByFazenda(selectedFazendaId || undefined);
+
+  const { invalidateReceptoras } = useInvalidateQueries();
+
+  // Apply local updates and removals
+  const receptoras = useMemo(() => {
+    return receptorasRaw
+      .filter(r => !removedIds.has(r.id))
+      .map(r => {
+        const updates = localUpdates.get(r.id);
+        return updates ? { ...r, ...updates } : r;
+      });
+  }, [receptorasRaw, localUpdates, removedIds]);
+
+  // Extract unique statuses for filter
+  const statusDisponiveis = useMemo(() => {
+    return Array.from(new Set(receptoras.map(r => r.status_calculado)))
+      .filter(s => s)
+      .sort();
+  }, [receptoras]);
+
+  // Filtragem com useMemo (usando searchTerm debounced para evitar lag durante digitação)
+  const filteredReceptoras = useMemo(() => {
     let filtered = receptoras;
 
     if (filtroStatus !== 'all') {
-      filtered = filtered.filter((r) => r.status_calculado === filtroStatus);
+      filtered = filtered.filter(r => r.status_calculado === filtroStatus);
     }
 
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+    if (debouncedSearchTerm.trim()) {
+      const term = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(
-        (r) =>
+        r =>
           r.identificacao.toLowerCase().includes(term) ||
           r.nome?.toLowerCase().includes(term)
       );
     }
 
-    setFilteredReceptoras(filtered);
-  }, [receptoras, filtroStatus, searchTerm]);
+    return filtered;
+  }, [receptoras, filtroStatus, debouncedSearchTerm]);
 
-  useEffect(() => {
-    filterReceptoras();
-  }, [filterReceptoras]);
+  // Compatibilidade com código existente
+  const loadFazendas = async () => {
+    await refetchFazendas();
+  };
 
-  // Auto-load fazendas on mount
-  useEffect(() => {
-    loadFazendas();
-  }, []);
-
-  // Auto-load receptoras when fazenda changes
-  useEffect(() => {
+  const loadReceptoras = async () => {
     if (selectedFazendaId) {
-      loadReceptoras();
+      // Clear local state on reload
+      setLocalUpdates(new Map());
+      setRemovedIds(new Set());
+      await refetchReceptoras();
     }
-  }, [selectedFazendaId]);
+  };
 
-  // Load fazendas
-  const loadFazendas = useCallback(async () => {
-    try {
-      setLoadingFazendas(true);
-      const { data, error } = await supabase
-        .from('fazendas')
-        .select('id, nome, cliente_id')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-      setFazendas(data || []);
-    } catch (error) {
-      handleError(error, 'Erro ao carregar fazendas');
-    } finally {
-      setLoadingFazendas(false);
-    }
-  }, []);
-
-  // Load receptoras for selected fazenda
-  const loadReceptoras = useCallback(async () => {
-    if (!selectedFazendaId) {
-      setReceptoras([]);
-      setFilteredReceptoras([]);
-      setStatusDisponiveis([]);
-      return;
-    }
-
-    try {
-      setLoadingReceptoras(true);
-
-      // Get receptora IDs from view
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_nome_atual')
-        .eq('fazenda_id_atual', selectedFazendaId);
-
-      if (viewError) throw viewError;
-
-      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
-
-      if (receptoraIds.length === 0) {
-        setReceptoras([]);
-        setFilteredReceptoras([]);
-        setStatusDisponiveis([]);
-        return;
-      }
-
-      // Get full receptora data
-      const { data, error } = await supabase
-        .from('receptoras')
-        .select('*')
-        .in('id', receptoraIds)
-        .order('identificacao', { ascending: true });
-
-      if (error) throw error;
-
-      const fazendaMap = new Map(viewData?.map(v => [v.receptora_id, v.fazenda_nome_atual]) || []);
-
-      const receptorasData = (data || []).map(r => ({
-        ...r,
-        fazenda_nome_atual: fazendaMap.get(r.id),
-      }));
-
-      const receptorasComStatus: ReceptoraComStatus[] = receptorasData.map(r => ({
-        ...r,
-        status_calculado: r.status_reprodutivo || 'VAZIA',
-      }));
-
-      // Get pregnancy count for pregnant receptoras
-      const statusPrenhes = ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS'];
-      const receptorasPrenhes = receptorasComStatus.filter(r =>
-        statusPrenhes.includes(r.status_calculado) ||
-        r.status_calculado.includes('PRENHE')
-      );
-
-      if (receptorasPrenhes.length > 0) {
-        const prenhesIds = receptorasPrenhes.map(r => r.id);
-
-        const { data: diagnosticosData, error: diagnosticosError } = await supabase
-          .from('diagnosticos_gestacao')
-          .select('receptora_id, numero_gestacoes')
-          .in('receptora_id', prenhesIds)
-          .in('resultado', ['PRENHE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS'])
-          .not('numero_gestacoes', 'is', null);
-
-        if (!diagnosticosError && diagnosticosData) {
-          const gestacoesMap = new Map<string, number>();
-
-          diagnosticosData.forEach(dg => {
-            if (dg.numero_gestacoes && dg.numero_gestacoes > 1) {
-              const atual = gestacoesMap.get(dg.receptora_id) || 0;
-              if (dg.numero_gestacoes > atual) {
-                gestacoesMap.set(dg.receptora_id, dg.numero_gestacoes);
-              }
-            }
-          });
-
-          receptorasComStatus.forEach(r => {
-            const numGestacoes = gestacoesMap.get(r.id);
-            if (numGestacoes && numGestacoes > 1) {
-              r.numero_gestacoes = numGestacoes;
-            }
-          });
-        }
-      }
-
-      // Extract unique statuses for filter
-      const statusUnicos = Array.from(new Set(receptorasComStatus.map(r => r.status_calculado)))
-        .filter(s => s)
-        .sort();
-
-      setStatusDisponiveis(statusUnicos);
-      setReceptoras(receptorasComStatus);
-      setFilteredReceptoras(receptorasComStatus);
-      setFiltroStatus('all');
-    } catch (error) {
-      handleError(error, 'Erro ao carregar receptoras');
-    } finally {
-      setLoadingReceptoras(false);
-    }
-  }, [selectedFazendaId]);
-
-  // Reload receptoras
-  const reloadReceptoras = useCallback(async () => {
+  const reloadReceptoras = async () => {
     await loadReceptoras();
-  }, [loadReceptoras]);
+  };
 
-  // Update a single receptora in the list
+  // Optimistic update for a single receptora
   const updateReceptoraInList = useCallback((receptoraId: string, updates: Partial<ReceptoraComStatus>) => {
-    setReceptoras(prev => prev.map(r =>
-      r.id === receptoraId ? { ...r, ...updates } : r
-    ));
+    setLocalUpdates(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(receptoraId) || {};
+      newMap.set(receptoraId, { ...existing, ...updates });
+      return newMap;
+    });
   }, []);
 
-  // Remove a receptora from the list
+  // Optimistic removal of a receptora
   const removeReceptoraFromList = useCallback((receptoraId: string) => {
-    setReceptoras(prev => prev.filter(r => r.id !== receptoraId));
-    setFilteredReceptoras(prev => prev.filter(r => r.id !== receptoraId));
+    setRemovedIds(prev => new Set(prev).add(receptoraId));
   }, []);
 
   return {
     // Data
-    fazendas,
+    fazendas: fazendas as Fazenda[],
     receptoras,
     filteredReceptoras,
     statusDisponiveis,

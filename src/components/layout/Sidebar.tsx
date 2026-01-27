@@ -67,7 +67,9 @@ export default function Sidebar() {
   const currentHub = getHubForRoute(location.pathname);
 
   const isRouteActive = (path: string) => {
-    return location.pathname.startsWith(path);
+    // Verifica match exato ou se é uma sub-rota (ex: /embrioes/123)
+    // Evita que /embrioes-congelados ative /embrioes
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   // Se não há hub atual, não mostra nada (ou mostra vazio)

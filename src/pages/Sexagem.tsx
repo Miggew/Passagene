@@ -107,7 +107,6 @@ export default function Sexagem() {
   const { lotesTE, loading: loadingLotes, loadLotesTE } = useLotesTE<LoteTESexagem>({
     statusReceptoraFiltro: STATUS_PRENHE as unknown as ('SERVIDA' | 'PRENHE' | 'PRENHE_RETOQUE' | 'PRENHE_FEMEA' | 'PRENHE_MACHO' | 'PRENHE_SEM_SEXO' | 'PRENHE_2_SEXOS')[],
     tipoDiagnosticoFiltro: 'SEXAGEM',
-    fazendas,
     transformLote,
   });
 
@@ -118,13 +117,15 @@ export default function Sexagem() {
 
   useEffect(() => {
     if (fazendaSelecionada) {
-      loadLotesTE(fazendaSelecionada);
+      const fazendaNome = fazendas.find(f => f.id === fazendaSelecionada)?.nome;
+      loadLotesTE(fazendaSelecionada, fazendaNome);
     } else {
       setLoteSelecionado(null);
       setReceptoras([]);
       setFormData({});
     }
-  }, [fazendaSelecionada, loadLotesTE]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fazendaSelecionada]);
 
   useEffect(() => {
     if (loteSelecionado) {
@@ -600,7 +601,8 @@ export default function Sexagem() {
         description: `${receptoras.length} sexagem(ns) registrada(s)`,
       });
 
-      await loadLotesTE(fazendaSelecionada);
+      const fazendaNome = fazendas.find(f => f.id === fazendaSelecionada)?.nome;
+      await loadLotesTE(fazendaSelecionada, fazendaNome);
       if (loteSelecionado) {
         await loadReceptorasLote(loteSelecionado);
       }

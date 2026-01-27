@@ -1,13 +1,13 @@
 /**
  * Hook para gerenciar dados e filtros da lista de touros
- * - Carregamento de touros
- * - Filtragem por busca e raça
+ * - Usa React Query para caching automático
+ * - Usa useListFilter para filtragem genérica
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useMemo } from 'react';
+import { useTouros, useInvalidateQueries } from '@/api';
+import { useListFilter } from '@/hooks/core';
 import type { Touro } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
 
 export const racasBovinas = [
   'Holandesa',
@@ -32,6 +32,7 @@ export const racasBovinas = [
 export interface UseTourosDataReturn {
   // Loading state
   loading: boolean;
+  error: Error | null;
 
   // Data
   touros: Touro[];
@@ -42,77 +43,59 @@ export interface UseTourosDataReturn {
   setSearchTerm: (term: string) => void;
   filtroRaca: string;
   setFiltroRaca: (raca: string) => void;
+  clearFilters: () => void;
+  hasActiveFilters: boolean;
 
   // Actions
   loadTouros: () => Promise<void>;
+  refetch: () => void;
 }
 
+// Função de busca para touros
+const searchTouro = (touro: Touro, term: string): boolean =>
+  touro.nome?.toLowerCase().includes(term) ||
+  touro.registro?.toLowerCase().includes(term) ||
+  touro.raca?.toLowerCase().includes(term) ||
+  false;
+
+// Filtros extras
+const extraFilters = {
+  raca: (touro: Touro, raca: string) => touro.raca === raca,
+};
+
 export function useTourosData(): UseTourosDataReturn {
-  const { toast } = useToast();
+  // React Query hook - caching automático
+  const { data: touros = [], isLoading, error, refetch } = useTouros();
+  const { invalidateTouros } = useInvalidateQueries();
 
-  // Loading state
-  const [loading, setLoading] = useState(true);
+  // Filtragem genérica com useListFilter
+  const {
+    filtered: filteredTouros,
+    searchTerm,
+    setSearchTerm,
+    filterValues,
+    setFilterValue,
+    clearFilters,
+    hasActiveFilters,
+  } = useListFilter({
+    data: touros,
+    searchFn: searchTouro,
+    extraFilters,
+  });
 
-  // Data
-  const [touros, setTouros] = useState<Touro[]>([]);
-  const [filteredTouros, setFilteredTouros] = useState<Touro[]>([]);
+  // Wrapper para filtro de raça (compatibilidade)
+  const filtroRaca = filterValues.raca || '';
+  const setFiltroRaca = (raca: string) => setFilterValue('raca', raca);
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filtroRaca, setFiltroRaca] = useState('');
-
-  // Filter touros based on search and race
-  const filterTouros = useCallback(() => {
-    let filtered = [...touros];
-
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (t) =>
-          t.nome?.toLowerCase().includes(term) ||
-          t.registro?.toLowerCase().includes(term) ||
-          t.raca?.toLowerCase().includes(term)
-      );
-    }
-
-    if (filtroRaca) {
-      filtered = filtered.filter((t) => t.raca === filtroRaca);
-    }
-
-    setFilteredTouros(filtered);
-  }, [touros, searchTerm, filtroRaca]);
-
-  // Apply filters when dependencies change
-  useEffect(() => {
-    filterTouros();
-  }, [filterTouros]);
-
-  // Load touros from database
-  const loadTouros = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data: tourosData, error: tourosError } = await supabase
-        .from('touros')
-        .select('*')
-        .order('nome', { ascending: true });
-
-      if (tourosError) throw tourosError;
-      setTouros(tourosData || []);
-      setFilteredTouros(tourosData || []);
-    } catch (error) {
-      toast({
-        title: 'Erro ao carregar touros',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  // Compatibilidade com código existente
+  const loadTouros = async () => {
+    await refetch();
+  };
 
   return {
     // Loading state
-    loading,
+    loading: isLoading,
+    error: error as Error | null,
 
     // Data
     touros,
@@ -123,9 +106,12 @@ export function useTourosData(): UseTourosDataReturn {
     setSearchTerm,
     filtroRaca,
     setFiltroRaca,
+    clearFilters,
+    hasActiveFilters,
 
     // Actions
     loadTouros,
+    refetch: () => refetch(),
   };
 }
 
