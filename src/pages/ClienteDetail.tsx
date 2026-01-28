@@ -341,20 +341,20 @@ export default function ClienteDetail() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-slate-500">Nome</p>
-            <p className="text-base text-slate-900">{cliente.nome}</p>
+            <p className="text-sm font-medium text-muted-foreground">Nome</p>
+            <p className="text-base text-foreground">{cliente.nome}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Telefone</p>
-            <p className="text-base text-slate-900">{cliente.telefone || '-'}</p>
+            <p className="text-sm font-medium text-muted-foreground">Telefone</p>
+            <p className="text-base text-foreground">{cliente.telefone || '-'}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Endereço</p>
-            <p className="text-base text-slate-900">{cliente.endereco || '-'}</p>
+            <p className="text-sm font-medium text-muted-foreground">Endereço</p>
+            <p className="text-base text-foreground">{cliente.endereco || '-'}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Cadastrado em</p>
-            <p className="text-base text-slate-900">
+            <p className="text-sm font-medium text-muted-foreground">Cadastrado em</p>
+            <p className="text-base text-foreground">
               {cliente.created_at
                 ? new Date(cliente.created_at).toLocaleDateString('pt-BR')
                 : '-'}
@@ -403,7 +403,7 @@ export default function ClienteDetail() {
                   }
                 }}>
                   <DialogTrigger asChild>
-                    <Button className="bg-green-600 hover:bg-green-700">
+                    <Button>
                       <Plus className="w-4 h-4 mr-2" />
                       Nova Fazenda
                     </Button>
@@ -526,7 +526,7 @@ export default function ClienteDetail() {
                       <div className="flex gap-2 pt-2">
                         <Button
                           type="submit"
-                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          className="flex-1"
                           disabled={submitting}
                         >
                           {submitting ? 'Salvando...' : (editingFazenda ? 'Salvar' : 'Criar Fazenda')}
@@ -559,7 +559,7 @@ export default function ClienteDetail() {
                 <TableBody>
                   {fazendas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-slate-500">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
                         Nenhuma fazenda cadastrada
                       </TableCell>
                     </TableRow>
@@ -569,7 +569,7 @@ export default function ClienteDetail() {
                         <TableCell className="font-medium">
                           <Link
                             to={`/fazendas/${fazenda.id}`}
-                            className="text-green-600 hover:text-green-700 hover:underline"
+                            className="text-primary hover:text-primary/80 hover:underline"
                           >
                             {fazenda.nome}
                           </Link>

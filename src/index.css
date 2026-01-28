@@ -4,89 +4,130 @@
 
 @layer base {
   :root {
+    /* Design Tokens PassaGene - Light Mode */
+    /* Cores baseadas na logo real: #09C972 (vibrante), #049357 (escuro), #666666 (texto) */
+
+    /* Background & Foreground */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 40%; /* #666666 da logo */
 
+    /* Cards */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 40%;
 
+    /* Popovers */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 40%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Verde vibrante da logo (#09C972) → hsl(153, 93%, 41%) */
+    --primary: 153 93% 41%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Primary Dark - Verde escuro da logo (#049357) → hsl(156, 94%, 30%) */
+    --primary-dark: 156 94% 30%;
+    --primary-dark-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Primary Light - Derivado mais claro (#5EDFA3) */
+    --primary-light: 153 65% 62%;
+    --primary-light-foreground: 156 94% 20%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Primary Subtle - Fundo sutil (#D0F5E3) */
+    --primary-subtle: 153 65% 89%;
+    --primary-subtle-foreground: 156 94% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Secondary - Neutro claro */
+    --secondary: 150 20% 97%;
+    --secondary-foreground: 0 0% 40%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Muted */
+    --muted: 150 15% 96%;
+    --muted-foreground: 0 0% 50%;
 
+    /* Accent - Entre primary e dark (#07B566) */
+    --accent: 154 94% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 150 15% 88%;
+    --input: 150 15% 88%;
+    --ring: 153 93% 41%;
+
+    /* Radius base */
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar - Tema claro */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 40%;
+    --sidebar-primary: 153 93% 41%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 153 65% 92%;
+    --sidebar-accent-foreground: 156 94% 30%;
+    --sidebar-border: 150 15% 90%;
+    --sidebar-ring: 153 93% 41%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Design Tokens PassaGene - Dark Mode */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    /* Background & Foreground */
+    --background: 160 15% 8%;
+    --foreground: 150 15% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    /* Cards */
+    --card: 160 15% 11%;
+    --card-foreground: 150 15% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Popovers */
+    --popover: 160 15% 11%;
+    --popover-foreground: 150 15% 95%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Primary - Verde vibrante (mais saturado no dark) */
+    --primary: 153 93% 45%;
+    --primary-foreground: 160 15% 8%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --primary-dark: 156 94% 30%;
+    --primary-dark-foreground: 0 0% 100%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --primary-light: 153 65% 62%;
+    --primary-light-foreground: 160 15% 8%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --primary-subtle: 153 40% 18%;
+    --primary-subtle-foreground: 153 65% 75%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Secondary */
+    --secondary: 160 15% 16%;
+    --secondary-foreground: 150 15% 95%;
+
+    /* Muted */
+    --muted: 160 15% 16%;
+    --muted-foreground: 150 15% 65%;
+
+    /* Accent */
+    --accent: 154 94% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 160 15% 18%;
+    --input: 160 15% 18%;
+    --ring: 153 93% 45%;
+
+    /* Sidebar - Dark */
+    --sidebar-background: 160 15% 6%;
+    --sidebar-foreground: 150 15% 95%;
+    --sidebar-primary: 153 93% 45%;
+    --sidebar-primary-foreground: 160 15% 8%;
+    --sidebar-accent: 160 15% 14%;
+    --sidebar-accent-foreground: 150 15% 95%;
+    --sidebar-border: 160 15% 14%;
+    --sidebar-ring: 153 93% 45%;
   }
 }
 
@@ -97,5 +138,6 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

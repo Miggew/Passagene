@@ -214,8 +214,8 @@ export default function PacoteAspiracaoForm() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Nova Aspiração</h1>
-          <p className="text-slate-600 mt-1">Criar nova aspiração</p>
+          <h1 className="text-3xl font-bold text-foreground">Nova Aspiração</h1>
+          <p className="text-muted-foreground mt-1">Criar nova aspiração</p>
         </div>
       </div>
 
@@ -273,7 +273,7 @@ export default function PacoteAspiracaoForm() {
                           {!buscaDestinoAtiva ? (
                             <CommandEmpty>Digite pelo menos 2 letras para buscar</CommandEmpty>
                           ) : loadingDestino ? (
-                            <div className="p-2 text-sm text-slate-500">Buscando...</div>
+                            <div className="p-2 text-sm text-muted-foreground">Buscando...</div>
                           ) : fazendasDestinoFiltradas.length === 0 ? (
                             <CommandEmpty>Nenhuma fazenda encontrada</CommandEmpty>
                           ) : (
@@ -320,7 +320,7 @@ export default function PacoteAspiracaoForm() {
                                 fazendas_destino_ids: formData.fazendas_destino_ids.filter((id) => id !== fazendaId),
                               });
                             }}
-                            className="ml-1 hover:bg-slate-200 rounded-full p-0.5"
+                            className="ml-1 hover:bg-muted rounded-full p-0.5"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -330,7 +330,7 @@ export default function PacoteAspiracaoForm() {
                   </div>
                 )}
                 {formData.fazendas_destino_ids.length === 0 && (
-                  <p className="text-sm text-slate-500">Selecione pelo menos uma fazenda destino</p>
+                  <p className="text-sm text-muted-foreground">Selecione pelo menos uma fazenda destino</p>
                 )}
               </div>
 
@@ -392,7 +392,7 @@ export default function PacoteAspiracaoForm() {
             <div className="flex gap-4 pt-4">
               <Button
                 type="submit"
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1"
                 disabled={submitting}
               >
                 {submitting ? 'Criando...' : 'Criar Aspiração'}

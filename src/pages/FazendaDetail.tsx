@@ -331,27 +331,27 @@ export default function FazendaDetail() {
         {fazenda.sigla && (
           <Card>
             <CardContent className="pt-4 flex items-center gap-3">
-              <div className="p-2 bg-slate-100 rounded-lg">
-                <ClipboardList className="w-4 h-4 text-slate-600" />
+              <div className="p-2 bg-muted rounded-lg">
+                <ClipboardList className="w-4 h-4 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-xs text-slate-500">Sigla</p>
+                <p className="text-xs text-muted-foreground">Sigla</p>
                 <p className="font-semibold">{fazenda.sigla}</p>
               </div>
             </CardContent>
           </Card>
         )}
         {fazenda.localizacao && (
-          <Card className="cursor-pointer hover:bg-slate-50" onClick={handleNavigate}>
+          <Card className="cursor-pointer hover:bg-secondary" onClick={handleNavigate}>
             <CardContent className="pt-4 flex items-center gap-3">
               <div className="p-2 bg-green-100 rounded-lg">
-                <MapPin className="w-4 h-4 text-green-600" />
+                <MapPin className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-500">Localização</p>
+                <p className="text-xs text-muted-foreground">Localização</p>
                 <p className="font-medium truncate">{fazenda.localizacao}</p>
               </div>
-              <Navigation className="w-4 h-4 text-slate-400" />
+              <Navigation className="w-4 h-4 text-muted-foreground" />
             </CardContent>
           </Card>
         )}
@@ -362,7 +362,7 @@ export default function FazendaDetail() {
                 <User className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-slate-500">Responsável</p>
+                <p className="text-xs text-muted-foreground">Responsável</p>
                 <p className="font-medium">{fazenda.responsavel}</p>
               </div>
             </CardContent>
@@ -375,7 +375,7 @@ export default function FazendaDetail() {
                 <Phone className="w-4 h-4 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs text-slate-500">Contato</p>
+                <p className="text-xs text-muted-foreground">Contato</p>
                 <p className="font-medium">{fazenda.contato_responsavel}</p>
               </div>
             </CardContent>
@@ -427,7 +427,7 @@ export default function FazendaDetail() {
                   {pendencias.passo2Pendente > 0 && (
                     <Link to="/protocolos" className="flex items-center justify-between p-3 bg-white rounded-lg border hover:border-green-300 transition-colors">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-500" />
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">2º Passo</span>
                       </div>
                       <Badge>{pendencias.passo2Pendente}</Badge>
@@ -436,7 +436,7 @@ export default function FazendaDetail() {
                   {pendencias.tePendente > 0 && (
                     <Link to="/transferencia" className="flex items-center justify-between p-3 bg-white rounded-lg border hover:border-green-300 transition-colors">
                       <div className="flex items-center gap-2">
-                        <Syringe className="w-4 h-4 text-slate-500" />
+                        <Syringe className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">TE</span>
                       </div>
                       <Badge>{pendencias.tePendente}</Badge>
@@ -445,7 +445,7 @@ export default function FazendaDetail() {
                   {pendencias.dgPendente > 0 && (
                     <Link to="/dg" className="flex items-center justify-between p-3 bg-white rounded-lg border hover:border-green-300 transition-colors">
                       <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-slate-500" />
+                        <Activity className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">DG</span>
                       </div>
                       <Badge>{pendencias.dgPendente}</Badge>
@@ -454,7 +454,7 @@ export default function FazendaDetail() {
                   {pendencias.sexagemPendente > 0 && (
                     <Link to="/sexagem" className="flex items-center justify-between p-3 bg-white rounded-lg border hover:border-green-300 transition-colors">
                       <div className="flex items-center gap-2">
-                        <Baby className="w-4 h-4 text-slate-500" />
+                        <Baby className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">Sexagem</span>
                       </div>
                       <Badge>{pendencias.sexagemPendente}</Badge>
@@ -480,18 +480,18 @@ export default function FazendaDetail() {
               </CardHeader>
               <CardContent>
                 {receptoraStats.porStatus.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhuma receptora</p>
+                  <p className="text-sm text-muted-foreground">Nenhuma receptora</p>
                 ) : (
                   <div className="space-y-2">
                     {receptoraStats.porStatus.slice(0, 5).map(item => (
                       <div key={item.status} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">{formatStatusLabel(item.status)}</span>
+                        <span className="text-muted-foreground">{formatStatusLabel(item.status)}</span>
                         <Badge variant="outline">{item.total}</Badge>
                       </div>
                     ))}
                     {pendencias.prenhesProximoParto && (
                       <div className="pt-2 mt-2 border-t text-sm">
-                        <span className="text-slate-500">Próximo parto: </span>
+                        <span className="text-muted-foreground">Próximo parto: </span>
                         <span className="font-medium">{formatDate(pendencias.prenhesProximoParto)}</span>
                       </div>
                     )}
@@ -510,16 +510,16 @@ export default function FazendaDetail() {
               </CardHeader>
               <CardContent>
                 {doadoraStats.total === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhuma doadora</p>
+                  <p className="text-sm text-muted-foreground">Nenhuma doadora</p>
                 ) : (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="p-2 bg-slate-50 rounded">
-                        <p className="text-slate-500">Aspirações (30d)</p>
+                      <div className="p-2 bg-secondary rounded">
+                        <p className="text-muted-foreground">Aspirações (30d)</p>
                         <p className="font-semibold">{doadoraStats.aspiracoes30d}</p>
                       </div>
-                      <div className="p-2 bg-slate-50 rounded">
-                        <p className="text-slate-500">Oócitos (30d)</p>
+                      <div className="p-2 bg-secondary rounded">
+                        <p className="text-muted-foreground">Oócitos (30d)</p>
                         <p className="font-semibold">{doadoraStats.oocitos30d}</p>
                       </div>
                     </div>

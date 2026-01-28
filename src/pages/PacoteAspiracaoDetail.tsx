@@ -269,7 +269,6 @@ export default function PacoteAspiracaoDetail() {
               <Button
                 onClick={() => setShowFinalizarDialog(true)}
                 disabled={submittingPacote || aspiracoes.length === 0}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Lock className="w-4 h-4 mr-2" />
                 {submittingPacote ? 'Finalizando...' : 'Finalizar Pacote'}
@@ -295,11 +294,11 @@ export default function PacoteAspiracaoDetail() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-slate-500">Fazenda da Aspiração</Label>
+              <Label className="text-muted-foreground">Fazenda da Aspiração</Label>
               <p className="font-medium">{fazendaNome}</p>
             </div>
             <div className="col-span-2">
-              <Label className="text-slate-500">Fazendas Destino</Label>
+              <Label className="text-muted-foreground">Fazendas Destino</Label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {fazendasDestinoNomes.length > 0 ? (
                   fazendasDestinoNomes.map((nome, index) => (
@@ -308,28 +307,28 @@ export default function PacoteAspiracaoDetail() {
                     </Badge>
                   ))
                 ) : (
-                  <p className="font-medium text-slate-400">-</p>
+                  <p className="font-medium text-muted-foreground">-</p>
                 )}
               </div>
             </div>
             <div>
-              <Label className="text-slate-500">Data da Aspiração</Label>
+              <Label className="text-muted-foreground">Data da Aspiração</Label>
               <p className="font-medium">{formatDate(pacote.data_aspiracao)}</p>
             </div>
             <div>
-              <Label className="text-slate-500">Horário de Início</Label>
+              <Label className="text-muted-foreground">Horário de Início</Label>
               <p className="font-medium">{pacote.horario_inicio || '-'}</p>
             </div>
             <div>
-              <Label className="text-slate-500">Veterinário Responsável</Label>
+              <Label className="text-muted-foreground">Veterinário Responsável</Label>
               <p className="font-medium">{pacote.veterinario_responsavel || '-'}</p>
             </div>
             <div>
-              <Label className="text-slate-500">Técnico Responsável</Label>
+              <Label className="text-muted-foreground">Técnico Responsável</Label>
               <p className="font-medium">{pacote.tecnico_responsavel || '-'}</p>
             </div>
             <div>
-              <Label className="text-slate-500">Status</Label>
+              <Label className="text-muted-foreground">Status</Label>
               <div>
                 <Badge variant={isFinalizado ? 'default' : 'secondary'}>
                   {isFinalizado ? 'FINALIZADO' : 'EM ANDAMENTO'}
@@ -337,7 +336,7 @@ export default function PacoteAspiracaoDetail() {
               </div>
             </div>
             <div>
-              <Label className="text-slate-500">Total de Oócitos</Label>
+              <Label className="text-muted-foreground">Total de Oócitos</Label>
               <p className="font-medium text-lg">{totalOocitos}</p>
             </div>
           </div>
@@ -361,7 +360,7 @@ export default function PacoteAspiracaoDetail() {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button className="bg-green-600 hover:bg-green-700">
+                  <Button>
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Doadora
                   </Button>
@@ -392,7 +391,7 @@ export default function PacoteAspiracaoDetail() {
                           </SelectTrigger>
                           <SelectContent>
                             {doadorasDisponiveis.length === 0 ? (
-                              <div className="p-2 text-sm text-slate-500">
+                              <div className="p-2 text-sm text-muted-foreground">
                                 Nenhuma doadora disponível nesta fazenda
                               </div>
                             ) : (
@@ -452,7 +451,7 @@ export default function PacoteAspiracaoDetail() {
 
                       <Button
                         onClick={addDoadoraHook.handleAddDoadora}
-                        className="w-full bg-green-600 hover:bg-green-700"
+                        className="w-full"
                         disabled={addDoadoraHook.submitting || doadorasDisponiveis.length === 0}
                       >
                         {addDoadoraHook.submitting ? 'Adicionando...' : 'Adicionar'}
@@ -551,7 +550,7 @@ export default function PacoteAspiracaoDetail() {
 
                       <Button
                         onClick={createDoadoraHook.handleCreateDoadora}
-                        className="w-full bg-green-600 hover:bg-green-700"
+                        className="w-full"
                         disabled={createDoadoraHook.submitting}
                       >
                         {createDoadoraHook.submitting ? 'Criando...' : 'Criar e Adicionar'}
@@ -580,7 +579,7 @@ export default function PacoteAspiracaoDetail() {
             <TableBody>
               {aspiracoes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isFinalizado ? 7 : 8} className="text-center text-slate-500">
+                  <TableCell colSpan={isFinalizado ? 7 : 8} className="text-center text-muted-foreground">
                     Nenhuma doadora adicionada à aspiração
                   </TableCell>
                 </TableRow>
@@ -677,7 +676,6 @@ export default function PacoteAspiracaoDetail() {
               </Button>
               <Button
                 onClick={editAspiracaoHook.handleSave}
-                className="bg-blue-600 hover:bg-blue-700"
                 disabled={editAspiracaoHook.submitting}
               >
                 {editAspiracaoHook.submitting ? 'Salvando...' : 'Salvar Alterações'}
@@ -741,7 +739,7 @@ export default function PacoteAspiracaoDetail() {
               <Button variant="outline" onClick={() => setShowEditPacote(false)} disabled={submittingPacote}>
                 Cancelar
               </Button>
-              <Button onClick={handleSaveEditPacote} className="bg-blue-600 hover:bg-blue-700" disabled={submittingPacote}>
+              <Button onClick={handleSaveEditPacote} disabled={submittingPacote}>
                 {submittingPacote ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
@@ -767,7 +765,6 @@ export default function PacoteAspiracaoDetail() {
             <AlertDialogAction
               onClick={handleFinalizar}
               disabled={submittingPacote}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               {submittingPacote ? 'Finalizando...' : 'Finalizar Aspiração'}
             </AlertDialogAction>

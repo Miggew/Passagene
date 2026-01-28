@@ -176,7 +176,7 @@ export function CongelarDialog({
           <div className="flex gap-2 pt-2">
             <Button
               onClick={onSubmit}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Congelando...' : 'Congelar'}
@@ -301,7 +301,7 @@ export function DirecionarClienteDialog({
           <div className="flex gap-2 pt-2">
             <Button
               onClick={onSubmit}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Direcionando...' : 'Direcionar'}

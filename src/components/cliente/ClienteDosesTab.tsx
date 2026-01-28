@@ -292,7 +292,7 @@ export function ClienteDosesTab({ clienteId, clienteNome, doses, onReload }: Cli
 
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={handleOpenDialog}>
+            <Button onClick={handleOpenDialog}>
               <Plus className="w-4 h-4 mr-2" />
               Adicionar Doses
             </Button>
@@ -353,7 +353,7 @@ export function ClienteDosesTab({ clienteId, clienteNome, doses, onReload }: Cli
               <div className="flex gap-2 pt-2">
                 <Button
                   type="submit"
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1"
                   disabled={submitting}
                 >
                   {submitting ? 'Salvando...' : 'Adicionar'}

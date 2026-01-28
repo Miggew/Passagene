@@ -1,20 +1,29 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Building2, Dna, FlaskConical, Tractor, Home } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Building2, Dna, FlaskConical, LogOut, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import logoSimples from '@/assets/logosimples.svg';
+import React from 'react';
+import { CowIcon } from '@/components/icons/CowIcon';
 
 // Mapeamento de ícones por código do hub
 const hubIcons: Record<string, React.ElementType> = {
   administrativo: Building2,
   genetica: Dna,
   laboratorio: FlaskConical,
-  campo: Tractor,
+  campo: CowIcon,
 };
 
 export default function HubTabs() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getAccessibleHubs, getHubForRoute } = usePermissions();
+  const { getAccessibleHubs, getHubForRoute, profile } = usePermissions();
+  const { signOut } = useAuth();
+  const [isDark, setIsDark] = React.useState(() =>
+    document.documentElement.classList.contains('dark')
+  );
 
   const accessibleHubs = getAccessibleHubs();
   const currentHub = getHubForRoute(location.pathname);
@@ -23,42 +32,85 @@ export default function HubTabs() {
     navigate(firstRoute);
   };
 
+  const toggleDarkMode = () => {
+    document.documentElement.classList.toggle('dark');
+    setIsDark(!isDark);
+  };
+
   return (
-    <div className="bg-slate-800 border-b border-slate-700">
-      <div className="flex items-center">
-        {/* Botão Home (logo) */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-4 py-3 text-green-400 hover:bg-slate-700 transition-colors border-r border-slate-700"
-          title="Voltar para os hubs"
-        >
-          <Home className="w-5 h-5" />
-        </button>
+    <header className="bg-card border-b border-border">
+      <div className="flex items-center justify-between">
+        {/* Lado esquerdo: Logo + Tabs */}
+        <div className="flex items-center">
+          {/* Logo PassaGene - Volta para Home */}
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center px-4 py-3 hover:bg-muted transition-colors border-r border-border"
+            title="PassaGene - Voltar para Home"
+          >
+            <img
+              src={logoSimples}
+              alt="PassaGene"
+              className="h-8 w-auto"
+            />
+          </button>
 
-        {/* Tabs dos hubs */}
-        <div className="flex items-center overflow-x-auto">
-          {accessibleHubs.map((hub) => {
-            const Icon = hubIcons[hub.code] || Building2;
-            const isActive = currentHub?.code === hub.code;
+          {/* Tabs dos hubs */}
+          <nav className="flex items-center overflow-x-auto">
+            {accessibleHubs.map((hub) => {
+              const Icon = hubIcons[hub.code] || Building2;
+              const isActive = currentHub?.code === hub.code;
 
-            return (
-              <button
-                key={hub.code}
-                onClick={() => handleHubClick(hub.code, hub.routes[0])}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
-                  isActive
-                    ? 'bg-slate-900 text-white border-b-2 border-green-500'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{hub.name}</span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={hub.code}
+                  onClick={() => handleHubClick(hub.code, hub.routes[0])}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap border-b-2',
+                    isActive
+                      ? 'bg-primary/5 text-primary border-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
+                  )}
+                >
+                  <Icon className={cn('w-4 h-4', isActive && 'text-primary')} />
+                  <span>{hub.name}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Lado direito: User info + Dark mode + Logout */}
+        <div className="flex items-center gap-2 px-4">
+          {/* Dark mode toggle */}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleDarkMode}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+
+          {/* User info */}
+          {profile && (
+            <span className="hidden md:inline text-sm text-muted-foreground px-2">
+              <span className="text-foreground font-medium">{profile.nome}</span>
+            </span>
+          )}
+
+          {/* Logout */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Sair</span>
+          </Button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

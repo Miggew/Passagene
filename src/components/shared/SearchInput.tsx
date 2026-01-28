@@ -30,7 +30,7 @@ export function SearchInput({
     <div className={`space-y-2 ${className}`}>
       {label && <Label htmlFor={id}>{label}</Label>}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
         <Input
           id={id}
           placeholder={placeholder}
@@ -43,10 +43,10 @@ export function SearchInput({
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-slate-100"
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted"
             onClick={() => onChange('')}
           >
-            <X className="w-4 h-4 text-slate-400" />
+            <X className="w-4 h-4 text-muted-foreground" />
           </Button>
         )}
       </div>

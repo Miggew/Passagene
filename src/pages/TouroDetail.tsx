@@ -482,7 +482,7 @@ export default function TouroDetail() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="disponivel">Disponível no Catálogo</Label>
-                <p className="text-sm text-slate-500">Indica se o touro está disponível no catálogo</p>
+                <p className="text-sm text-muted-foreground">Indica se o touro está disponível no catálogo</p>
               </div>
               <Switch
                 id="disponivel"
@@ -517,7 +517,6 @@ export default function TouroDetail() {
           </Button>
           <Button
             type="submit"
-            className="bg-green-600 hover:bg-green-700"
             disabled={saving}
           >
             <Save className="w-4 h-4 mr-2" />

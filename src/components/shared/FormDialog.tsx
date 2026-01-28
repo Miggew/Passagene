@@ -73,7 +73,7 @@ export function FormDialog({
   submitLabel = 'Salvar',
   cancelLabel = 'Cancelar',
   submittingLabel = 'Salvando...',
-  submitClassName = 'bg-green-600 hover:bg-green-700',
+  submitClassName = '',
   maxWidth = 'md',
   onCancel,
 }: FormDialogProps) {

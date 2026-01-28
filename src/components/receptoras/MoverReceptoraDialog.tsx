@@ -128,7 +128,7 @@ export function MoverReceptoraDialog({
           <div className="flex gap-2 pt-2">
             <Button
               type="button"
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               onClick={onConfirmar}
               disabled={submitting || !canSubmit}
             >

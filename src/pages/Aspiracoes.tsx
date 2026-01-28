@@ -237,7 +237,6 @@ export default function Aspiracoes() {
         actions={
           <Button
             onClick={() => navigate('/aspiracoes/novo')}
-            className="bg-green-600 hover:bg-green-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             Nova Aspiração
@@ -302,7 +301,7 @@ export default function Aspiracoes() {
           {/* Botão de Buscar e Atalhos rápidos de data */}
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-wrap gap-2 flex-1">
-              <Label className="w-full text-sm font-medium text-slate-700">Atalhos rápidos:</Label>
+              <Label className="w-full text-sm font-medium text-muted-foreground">Atalhos rápidos:</Label>
               <Button
                 type="button"
                 variant="outline"
@@ -357,7 +356,6 @@ export default function Aspiracoes() {
               type="button"
               onClick={handleBuscar}
               disabled={!filtroDataInicio || !filtroDataFim || loading}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               <Search className="w-4 h-4 mr-2" />
               Buscar
@@ -389,9 +387,9 @@ export default function Aspiracoes() {
             <TableBody>
               {!dadosCarregados && pacotesFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-slate-500 py-12">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-12">
                     <div className="flex flex-col items-center gap-2">
-                      <Filter className="w-8 h-8 text-slate-400" />
+                      <Filter className="w-8 h-8 text-muted-foreground" />
                       <p className="text-lg font-medium">Aplique filtros para visualizar as aspirações</p>
                       <p className="text-sm">Preencha a data inicial e data final, depois clique em "Buscar"</p>
                     </div>
@@ -399,13 +397,13 @@ export default function Aspiracoes() {
                 </TableRow>
               ) : loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-slate-500 py-12">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-12">
                     <LoadingSpinner />
                   </TableCell>
                 </TableRow>
               ) : pacotesFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-slate-500 py-12">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-12">
                     <EmptyState
                       title="Nenhuma aspiração encontrada"
                       description="Ajuste os filtros ou tente outro período."
@@ -416,7 +414,7 @@ export default function Aspiracoes() {
                 pacotesFiltrados.map((pacote) => (
                   <TableRow
                     key={pacote.id}
-                    className="cursor-pointer hover:bg-slate-50"
+                    className="cursor-pointer hover:bg-muted"
                     onClick={() => navigate(`/aspiracoes/${pacote.id}`)}
                   >
                     <TableCell>{formatDate(pacote.data_aspiracao)}</TableCell>
@@ -430,7 +428,7 @@ export default function Aspiracoes() {
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </div>
                     </TableCell>

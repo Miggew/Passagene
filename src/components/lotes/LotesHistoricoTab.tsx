@@ -185,7 +185,6 @@ export function LotesHistoricoTab({
           <Button
             onClick={onLoadHistorico}
             disabled={loadingHistorico}
-            className="bg-blue-600 hover:bg-blue-700"
           >
             <Search className="w-4 h-4 mr-2" />
             Buscar

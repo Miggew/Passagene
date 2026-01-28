@@ -288,7 +288,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
   return (
     <Dialog open={showDialog} onOpenChange={setShowDialog}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button>
           <Plus className="w-4 h-4 mr-2" />
           Novo Lote
         </Button>
@@ -416,7 +416,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
           <div className="flex gap-2 pt-2">
             <Button
               type="submit"
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Criando...' : 'Criar Lote'}

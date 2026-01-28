@@ -15,7 +15,10 @@
       "Bash(find:*)",
       "Bash(powershell -Command:*)",
       "Bash(npm ls:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "WebSearch"
     ]
   }
 }

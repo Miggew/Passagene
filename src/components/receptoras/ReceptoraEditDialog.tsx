@@ -68,7 +68,7 @@ export function ReceptoraEditDialog({
           <div className="flex gap-2 pt-2">
             <Button
               type="submit"
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Salvando...' : 'Salvar Alteracoes'}

@@ -244,7 +244,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
 
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700">
+            <Button>
               <Plus className="w-4 h-4 mr-2" />
               Nova Doadora
             </Button>
@@ -300,7 +300,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
               <div className="flex gap-2 pt-2">
                 <Button
                   type="submit"
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1"
                   disabled={submitting}
                 >
                   {submitting ? 'Salvando...' : 'Criar Doadora'}

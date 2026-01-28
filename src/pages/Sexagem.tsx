@@ -712,7 +712,7 @@ export default function Sexagem() {
                           <TableCell className="font-medium">
                             {receptora.brinco}
                             {receptora.nome && (
-                              <span className="text-slate-500 text-sm ml-2">({receptora.nome})</span>
+                              <span className="text-muted-foreground text-sm ml-2">({receptora.nome})</span>
                             )}
                             {temSexagem && (
                               <StatusBadge
@@ -731,7 +731,7 @@ export default function Sexagem() {
                                   <div className="font-medium">
                                     {embriao.embriao_identificacao || `Embrião ${idx + 1}`}
                                     {embriao.embriao_classificacao && (
-                                      <span className="text-slate-500 ml-2">({embriao.embriao_classificacao})</span>
+                                      <span className="text-muted-foreground ml-2">({embriao.embriao_classificacao})</span>
                                     )}
                                   </div>
                                 </div>

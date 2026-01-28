@@ -240,7 +240,7 @@ export function PacoteCard({
                     <Button
                       size="sm"
                       onClick={onDespachar}
-                      className="bg-green-600 hover:bg-green-700 text-white h-8"
+                      className="h-8"
                     >
                       <Truck className="w-4 h-4 mr-2" />
                       Despachar

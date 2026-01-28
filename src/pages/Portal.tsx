@@ -193,7 +193,7 @@ export default function Portal() {
         'PRENHE_FEMEA': { label: 'Prenhe de Fêmea', proximo: 'PARTO', proximoLabel: 'Parto', cor: 'bg-green-500' },
         'PRENHE_MACHO': { label: 'Prenhe de Macho', proximo: 'PARTO', proximoLabel: 'Parto', cor: 'bg-green-500' },
         'PRENHE_SEM_SEXO': { label: 'Prenhe (sem sexo)', proximo: 'PARTO', proximoLabel: 'Parto', cor: 'bg-green-400' },
-        'PRENHE_2_SEXOS': { label: 'Prenhe de Gêmeos', proximo: 'PARTO', proximoLabel: 'Parto', cor: 'bg-green-600' },
+        'PRENHE_2_SEXOS': { label: 'Prenhe de Gêmeos', proximo: 'PARTO', proximoLabel: 'Parto', cor: 'bg-primary' },
       };
 
       // Ordem desejada do pipeline (do início ao fim)
@@ -421,8 +421,8 @@ export default function Portal() {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">{selectedFazenda.nome}</h1>
-              <p className="text-slate-500">
+              <h1 className="text-2xl font-bold text-foreground">{selectedFazenda.nome}</h1>
+              <p className="text-muted-foreground">
                 {selectedFazenda.receptoras.length} receptoras
                 {selectedFazenda.localizacao && ` • ${selectedFazenda.localizacao}`}
               </p>
@@ -480,7 +480,7 @@ export default function Portal() {
                     <div className="flex items-center gap-2">
                       <Beef className="w-5 h-5 text-orange-600" />
                       <div>
-                        <p className="text-xs text-slate-500">Receptoras</p>
+                        <p className="text-xs text-muted-foreground">Receptoras</p>
                         <p className="text-2xl font-bold">{selectedFazenda.receptoras.length}</p>
                       </div>
                     </div>
@@ -491,7 +491,7 @@ export default function Portal() {
                     <div className="flex items-center gap-2">
                       <GitBranch className="w-5 h-5 text-blue-600" />
                       <div>
-                        <p className="text-xs text-slate-500">Em Servico</p>
+                        <p className="text-xs text-muted-foreground">Em Servico</p>
                         <p className="text-2xl font-bold">{fazendaEmServico}</p>
                       </div>
                     </div>
@@ -500,9 +500,9 @@ export default function Portal() {
                 <Card>
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Baby className="w-5 h-5 text-green-600" />
+                      <Baby className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs text-slate-500">Prenhes</p>
+                        <p className="text-xs text-muted-foreground">Prenhes</p>
                         <p className="text-2xl font-bold">{fazendaPrenhes}</p>
                       </div>
                     </div>
@@ -513,7 +513,7 @@ export default function Portal() {
                     <div className="flex items-center gap-2">
                       <Dna className="w-5 h-5 text-pink-600" />
                       <div>
-                        <p className="text-xs text-slate-500">Doadoras</p>
+                        <p className="text-xs text-muted-foreground">Doadoras</p>
                         <p className="text-2xl font-bold">{doadorasDaFazenda.length}</p>
                       </div>
                     </div>
@@ -526,7 +526,7 @@ export default function Portal() {
                 {selectedFazenda.sigla && (
                   <Card>
                     <CardContent className="pt-4">
-                      <p className="text-xs text-slate-500">Sigla</p>
+                      <p className="text-xs text-muted-foreground">Sigla</p>
                       <p className="font-semibold text-lg">{selectedFazenda.sigla}</p>
                     </CardContent>
                   </Card>
@@ -534,9 +534,9 @@ export default function Portal() {
                 {selectedFazenda.localizacao && (
                   <Card>
                     <CardContent className="pt-4 flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-green-600 mt-0.5" />
+                      <MapPin className="w-4 h-4 text-primary mt-0.5" />
                       <div>
-                        <p className="text-xs text-slate-500">Localizacao</p>
+                        <p className="text-xs text-muted-foreground">Localizacao</p>
                         <p className="font-medium">{selectedFazenda.localizacao}</p>
                       </div>
                     </CardContent>
@@ -547,7 +547,7 @@ export default function Portal() {
                     <CardContent className="pt-4 flex items-start gap-2">
                       <User className="w-4 h-4 text-blue-600 mt-0.5" />
                       <div>
-                        <p className="text-xs text-slate-500">Responsavel</p>
+                        <p className="text-xs text-muted-foreground">Responsavel</p>
                         <p className="font-medium">{selectedFazenda.responsavel}</p>
                       </div>
                     </CardContent>
@@ -558,7 +558,7 @@ export default function Portal() {
                     <CardContent className="pt-4 flex items-start gap-2">
                       <Phone className="w-4 h-4 text-purple-600 mt-0.5" />
                       <div>
-                        <p className="text-xs text-slate-500">Contato</p>
+                        <p className="text-xs text-muted-foreground">Contato</p>
                         <p className="font-medium">{selectedFazenda.contato_responsavel}</p>
                       </div>
                     </CardContent>
@@ -691,12 +691,12 @@ export default function Portal() {
                         </div>
 
                         {/* Seta */}
-                        <ChevronRight className="w-6 h-6 text-slate-300 hidden sm:block" />
+                        <ChevronRight className="w-6 h-6 text-muted-foreground hidden sm:block" />
 
                         {/* Proximo servico */}
                         <div className="flex items-center gap-2">
                           <div className="text-right sm:text-left">
-                            <p className="text-xs text-slate-500 uppercase">Proximo</p>
+                            <p className="text-xs text-muted-foreground uppercase">Proximo</p>
                             <Badge
                               className={`text-sm ${
                                 item.proximoServico === '2_PASSO' ? 'bg-yellow-100 text-yellow-800' :
@@ -720,7 +720,7 @@ export default function Portal() {
                       {/* Mostrar datas de parto previstas se for status de parto */}
                       {item.proximoServico === 'PARTO' && item.receptoras.some(r => r.data_provavel_parto) && (
                         <div className="mt-3 pt-3 border-t">
-                          <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             Previsoes de Parto
                           </p>
@@ -740,7 +740,7 @@ export default function Portal() {
 
                       {/* Lista de receptoras */}
                       <div className="mt-3 pt-3 border-t">
-                        <p className="text-xs text-slate-500 mb-2">Receptoras</p>
+                        <p className="text-xs text-muted-foreground mb-2">Receptoras</p>
                         <div className="flex flex-wrap gap-1">
                           {item.receptoras.slice(0, 10).map(r => (
                             <Badge key={r.id} variant="secondary" className="text-xs font-mono">
@@ -748,7 +748,7 @@ export default function Portal() {
                             </Badge>
                           ))}
                           {item.receptoras.length > 10 && (
-                            <Badge variant="secondary" className="text-xs bg-slate-100">
+                            <Badge variant="secondary" className="text-xs bg-muted">
                               +{item.receptoras.length - 10} mais
                             </Badge>
                           )}
@@ -771,8 +771,8 @@ export default function Portal() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Ola, {clienteNome}</h1>
-        <p className="text-slate-500">Bem-vindo ao seu portal</p>
+        <h1 className="text-2xl font-bold text-foreground">Ola, {clienteNome}</h1>
+        <p className="text-muted-foreground">Bem-vindo ao seu portal</p>
       </div>
 
       {/* Cards de resumo */}
@@ -780,9 +780,9 @@ export default function Portal() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Home className="w-5 h-5 text-green-600" />
+              <Home className="w-5 h-5 text-primary" />
               <div>
-                <p className="text-xs text-slate-500">Fazendas</p>
+                <p className="text-xs text-muted-foreground">Fazendas</p>
                 <p className="text-2xl font-bold">{resumo.totalFazendas}</p>
               </div>
             </div>
@@ -793,7 +793,7 @@ export default function Portal() {
             <div className="flex items-center gap-2">
               <Beef className="w-5 h-5 text-orange-600" />
               <div>
-                <p className="text-xs text-slate-500">Receptoras</p>
+                <p className="text-xs text-muted-foreground">Receptoras</p>
                 <p className="text-2xl font-bold">{resumo.totalReceptoras}</p>
               </div>
             </div>
@@ -804,7 +804,7 @@ export default function Portal() {
             <div className="flex items-center gap-2">
               <GitBranch className="w-5 h-5 text-blue-600" />
               <div>
-                <p className="text-xs text-slate-500">Em Servico</p>
+                <p className="text-xs text-muted-foreground">Em Servico</p>
                 <p className="text-2xl font-bold">{resumo.totalEmServico}</p>
               </div>
             </div>
@@ -813,9 +813,9 @@ export default function Portal() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Baby className="w-5 h-5 text-green-600" />
+              <Baby className="w-5 h-5 text-primary" />
               <div>
-                <p className="text-xs text-slate-500">Prenhes</p>
+                <p className="text-xs text-muted-foreground">Prenhes</p>
                 <p className="text-2xl font-bold">{resumo.totalPrenhes}</p>
               </div>
             </div>
@@ -859,14 +859,14 @@ export default function Portal() {
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Home className="w-5 h-5 text-green-600" />
+                        <Home className="w-5 h-5 text-primary" />
                         {fazenda.nome}
                         {fazenda.sigla && (
                           <Badge variant="outline" className="ml-auto">{fazenda.sigla}</Badge>
                         )}
                       </CardTitle>
                       {fazenda.localizacao && (
-                        <p className="text-sm text-slate-500 flex items-center gap-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
                           {fazenda.localizacao}
                         </p>
@@ -876,22 +876,22 @@ export default function Portal() {
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
                           <p className="text-2xl font-bold text-orange-600">{fazenda.receptoras.length}</p>
-                          <p className="text-xs text-slate-500">Receptoras</p>
+                          <p className="text-xs text-muted-foreground">Receptoras</p>
                         </div>
                         <div>
                           <p className="text-2xl font-bold text-blue-600">{emServico}</p>
-                          <p className="text-xs text-slate-500">Em Servico</p>
+                          <p className="text-xs text-muted-foreground">Em Servico</p>
                         </div>
                         <div>
-                          <p className="text-2xl font-bold text-green-600">{prenhes}</p>
-                          <p className="text-xs text-slate-500">Prenhes</p>
+                          <p className="text-2xl font-bold text-primary">{prenhes}</p>
+                          <p className="text-xs text-muted-foreground">Prenhes</p>
                         </div>
                       </div>
 
                       {/* Mini pipeline preview */}
                       {fazenda.pipeline.length > 0 && (
                         <div className="mt-3 pt-3 border-t">
-                          <p className="text-xs text-slate-500 mb-2">Proximos servicos:</p>
+                          <p className="text-xs text-muted-foreground mb-2">Proximos servicos:</p>
                           <div className="flex flex-wrap gap-1">
                             {fazenda.pipeline.slice(0, 3).map(p => (
                               <Badge
@@ -926,7 +926,7 @@ export default function Portal() {
                 <Container className="w-5 h-5" />
                 Botijao - Estoque Criopreservado
               </CardTitle>
-              <p className="text-sm text-slate-500">Embrioes congelados e doses de semen armazenados</p>
+              <p className="text-sm text-muted-foreground">Embrioes congelados e doses de semen armazenados</p>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="embrioes" className="w-full">
@@ -945,7 +945,7 @@ export default function Portal() {
                 <TabsContent value="embrioes" className="mt-0">
                   <div className="flex flex-col sm:flex-row gap-4 justify-between mb-4">
                     <div className="relative max-w-xs">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Buscar embriao..."
                         value={searchEmbrioes}
@@ -1002,7 +1002,7 @@ export default function Portal() {
                               <TableCell>{doadora?.registro || doadora?.nome || '-'}</TableCell>
                               <TableCell>
                                 {touro?.nome || '-'}
-                                {touro?.registro && <span className="text-slate-500 text-xs ml-1">({touro.registro})</span>}
+                                {touro?.registro && <span className="text-muted-foreground text-xs ml-1">({touro.registro})</span>}
                               </TableCell>
                               <TableCell>{formatDate(embriao.data_congelamento)}</TableCell>
                               <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
@@ -1018,7 +1018,7 @@ export default function Portal() {
                 <TabsContent value="doses" className="mt-0">
                   <div className="flex flex-col sm:flex-row gap-4 justify-between mb-4">
                     <div className="relative max-w-xs">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Buscar touro..."
                         value={searchDoses}
@@ -1048,7 +1048,7 @@ export default function Portal() {
                           <TableRow key={dose.id}>
                             <TableCell className="font-medium">
                               {dose.touro?.nome || 'Touro desconhecido'}
-                              {dose.touro?.registro && <span className="text-slate-500 ml-2">({dose.touro.registro})</span>}
+                              {dose.touro?.registro && <span className="text-muted-foreground ml-2">({dose.touro.registro})</span>}
                             </TableCell>
                             <TableCell>{dose.touro?.raca || '-'}</TableCell>
                             <TableCell>

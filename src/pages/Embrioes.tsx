@@ -312,7 +312,7 @@ export default function Embrioes() {
             </SelectContent>
           </Select>
         </div>
-        <div className="text-sm text-slate-500">
+        <div className="text-sm text-muted-foreground">
           {pacotes.length} pacote(s) encontrado(s)
         </div>
       </div>

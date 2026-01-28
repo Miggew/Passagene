@@ -378,7 +378,7 @@ export default function Usuarios() {
         title="Administração de Usuários"
         description="Gerencie perfis e permissões de acesso"
         actions={
-          <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleOpenDialog()}>
+          <Button onClick={() => handleOpenDialog()}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Usuário
           </Button>
@@ -390,9 +390,9 @@ export default function Usuarios() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-slate-500" />
+              <Users className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-sm text-slate-500">Total</p>
+                <p className="text-sm text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{users.length}</p>
               </div>
             </div>
@@ -400,19 +400,19 @@ export default function Usuarios() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-slate-500">Admins</p>
+            <p className="text-sm text-muted-foreground">Admins</p>
             <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'admin').length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-slate-500">Operacionais</p>
+            <p className="text-sm text-muted-foreground">Operacionais</p>
             <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'operacional').length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-slate-500">Clientes</p>
+            <p className="text-sm text-muted-foreground">Clientes</p>
             <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'cliente').length}</p>
           </CardContent>
         </Card>
@@ -421,7 +421,7 @@ export default function Usuarios() {
       {/* Filtros */}
       <div className="flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome ou email..."
             value={searchTerm}
@@ -486,7 +486,7 @@ export default function Usuarios() {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-slate-400 text-sm">Nenhum</span>
+                        <span className="text-muted-foreground text-sm">Nenhum</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -638,7 +638,7 @@ export default function Usuarios() {
             <div className="flex gap-2 pt-2">
               <Button
                 type="submit"
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1"
                 disabled={submitting}
               >
                 {submitting ? 'Salvando...' : (editingUser ? 'Salvar' : 'Criar Usuário')}

@@ -287,7 +287,7 @@ export default function ProtocoloPasso2() {
       {/* Action Button */}
       {!isFinalized && (
         <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-muted-foreground">
             {!canFinalize && (
               <span>
                 {!passo2Form.data || !passo2Form.tecnico.trim()
@@ -299,7 +299,6 @@ export default function ProtocoloPasso2() {
           <Button
             onClick={handleFinalizarPasso2}
             disabled={!canFinalize || submitting}
-            className="bg-blue-600 hover:bg-blue-700"
             size="lg"
           >
             <Lock className="w-4 h-4 mr-2" />

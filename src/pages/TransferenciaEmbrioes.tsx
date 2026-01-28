@@ -337,7 +337,7 @@ export default function TransferenciaEmbrioes() {
                 <Button
                   type="button"
                   onClick={visualizarRelatorioSessao}
-                  className="bg-slate-600 hover:bg-slate-700"
+                  className="bg-muted-foreground hover:bg-muted-foreground/90"
                   disabled={submitting}
                   variant="default"
                   title="Visualizar relatório da sessão atual sem encerrar"
@@ -348,7 +348,6 @@ export default function TransferenciaEmbrioes() {
                 <Button
                   type="button"
                   onClick={handleEncerrarSessao}
-                  className="bg-blue-600 hover:bg-blue-700"
                   disabled={submitting}
                   variant="default"
                 >
@@ -421,7 +420,7 @@ export default function TransferenciaEmbrioes() {
                       type="button"
                       variant={origemEmbriao === 'PACOTE' ? 'default' : 'outline'}
                       onClick={() => setOrigemEmbriao('PACOTE')}
-                      className={origemEmbriao === 'PACOTE' ? 'bg-green-600 hover:bg-green-700' : ''}
+                      className={origemEmbriao === 'PACOTE' ? '' : ''}
                     >
                       Pacote (Frescos)
                     </Button>
@@ -429,7 +428,7 @@ export default function TransferenciaEmbrioes() {
                       type="button"
                       variant={origemEmbriao === 'CONGELADO' ? 'default' : 'outline'}
                       onClick={() => setOrigemEmbriao('CONGELADO')}
-                      className={origemEmbriao === 'CONGELADO' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                      className={origemEmbriao === 'CONGELADO' ? '' : ''}
                     >
                       Congelados
                     </Button>
@@ -588,7 +587,6 @@ export default function TransferenciaEmbrioes() {
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700"
                   disabled={submitting}
                 >
                   {submitting ? 'Registrando...' : 'Registrar Transferência'}

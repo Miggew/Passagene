@@ -193,7 +193,7 @@ function DoadoraFormDialog({
   return (
     <Dialog open={showDialog} onOpenChange={handleDialogClose}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button>
           <Plus className="w-4 h-4 mr-2" />
           Nova Doadora
         </Button>
@@ -250,7 +250,7 @@ function DoadoraFormDialog({
           <div className="flex gap-2 pt-2">
             <Button
               type="submit"
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Salvando...' : 'Criar Doadora'}
@@ -301,7 +301,7 @@ function DoadorasTable({
         <TableBody>
           {doadoras.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-slate-500">
+              <TableCell colSpan={8} className="text-center text-muted-foreground">
                 {searchTerm
                   ? 'Nenhuma doadora encontrada'
                   : 'Nenhuma doadora cadastrada nesta fazenda'}
@@ -335,7 +335,7 @@ const DoadoraRow = memo(function DoadoraRow({ doadora, navigate, setHistoricoDoa
 
   return (
     <TableRow
-      className="cursor-pointer hover:bg-slate-50"
+      className="cursor-pointer hover:bg-muted"
       onClick={() => navigate(`/doadoras/${doadora.id}`)}
     >
       <TableCell className="font-medium">{doadora.registro}</TableCell>
@@ -352,7 +352,7 @@ const DoadoraRow = memo(function DoadoraRow({ doadora, navigate, setHistoricoDoa
       <TableCell>
         <div className="flex flex-col gap-1">
           <span>{doadora.raca || '-'}</span>
-          {camposRaca && <span className="text-xs text-slate-500">{camposRaca}</span>}
+          {camposRaca && <span className="text-xs text-muted-foreground">{camposRaca}</span>}
         </div>
       </TableCell>
       <TableCell>{renderClassificacaoGenetica(doadora.classificacao_genetica)}</TableCell>

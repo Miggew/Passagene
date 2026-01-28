@@ -134,7 +134,7 @@ function TourosFilters({
         <div className="space-y-2">
           <Label>Buscar Touro</Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="Buscar por nome, registro ou raca..."
               value={searchTerm}
@@ -189,7 +189,7 @@ function TourosTable({ touros, navigate }: TourosTableProps) {
       <TableBody>
         {touros.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="text-center text-slate-500">
+            <TableCell colSpan={7} className="text-center text-muted-foreground">
               <EmptyState
                 title="Nenhum touro cadastrado"
                 description="Cadastre o primeiro touro para comecar."
@@ -269,7 +269,7 @@ function TouroFormDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button>
           <Plus className="w-4 h-4 mr-2" />
           Novo Touro
         </Button>
@@ -472,7 +472,7 @@ function TouroFormDialog({
           <div className="flex gap-2 pt-2">
             <Button
               type="submit"
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Salvando...' : 'Cadastrar Touro'}

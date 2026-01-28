@@ -371,7 +371,7 @@ export default function ProtocoloRelatorioFechado() {
   if (!protocolo) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-600">Protocolo não encontrado</p>
+        <p className="text-muted-foreground">Protocolo não encontrado</p>
         <Button onClick={() => navigate('/protocolos')} className="mt-4">
           Voltar para Protocolos
         </Button>
@@ -388,8 +388,8 @@ export default function ProtocoloRelatorioFechado() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Relatório do Protocolo</h1>
-            <p className="text-slate-600 mt-1">Visualização somente leitura</p>
+            <h1 className="text-3xl font-bold text-foreground">Relatório do Protocolo</h1>
+            <p className="text-muted-foreground mt-1">Visualização somente leitura</p>
           </div>
         </div>
         <Button onClick={handlePrint} variant="outline">
@@ -407,18 +407,18 @@ export default function ProtocoloRelatorioFechado() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-slate-500">Fazenda</p>
-              <p className="text-base text-slate-900 mt-1">{fazendaNome || '—'}</p>
+              <p className="text-sm font-medium text-muted-foreground">Fazenda</p>
+              <p className="text-base text-foreground mt-1">{fazendaNome || '—'}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Data de Início</p>
-              <p className="text-base text-slate-900 mt-1">
+              <p className="text-sm font-medium text-muted-foreground">Data de Início</p>
+              <p className="text-base text-foreground mt-1">
                 {protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}
               </p>
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Status</p>
-              <p className="text-base text-slate-900 mt-1">
+              <p className="text-sm font-medium text-muted-foreground">Status</p>
+              <p className="text-base text-foreground mt-1">
                 {protocolo.status === 'SINCRONIZADO' && (
                   <Badge variant="default" className="bg-green-600">Sincronizado</Badge>
                 )}
@@ -440,14 +440,14 @@ export default function ProtocoloRelatorioFechado() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-slate-500">Veterinário Responsável</p>
-              <p className="text-base text-slate-900 mt-1">
+              <p className="text-sm font-medium text-muted-foreground">Veterinário Responsável</p>
+              <p className="text-base text-foreground mt-1">
                 {parseResponsavelInicio(protocolo.responsavel_inicio).veterinario || '—'}
               </p>
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Técnico Responsável</p>
-              <p className="text-base text-slate-900 mt-1">
+              <p className="text-sm font-medium text-muted-foreground">Técnico Responsável</p>
+              <p className="text-base text-foreground mt-1">
                 {parseResponsavelInicio(protocolo.responsavel_inicio).tecnico || '—'}
               </p>
             </div>
@@ -461,14 +461,14 @@ export default function ProtocoloRelatorioFechado() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-slate-500">Data de Realização</p>
-              <p className="text-base text-slate-900 mt-1">
+              <p className="text-sm font-medium text-muted-foreground">Data de Realização</p>
+              <p className="text-base text-foreground mt-1">
                 {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '—'}
               </p>
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Técnico Responsável</p>
-              <p className="text-base text-slate-900 mt-1">
+              <p className="text-sm font-medium text-muted-foreground">Técnico Responsável</p>
+              <p className="text-base text-foreground mt-1">
                 {protocolo.passo2_tecnico_responsavel || '—'}
               </p>
             </div>
@@ -484,24 +484,24 @@ export default function ProtocoloRelatorioFechado() {
             <CardContent className="space-y-4">
               {teInfo.data_te && (
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Data da TE</p>
-                  <p className="text-base text-slate-900 mt-1">
+                  <p className="text-sm font-medium text-muted-foreground">Data da TE</p>
+                  <p className="text-base text-foreground mt-1">
                     {formatDate(teInfo.data_te)}
                   </p>
                 </div>
               )}
               {teInfo.veterinario_responsavel && (
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Veterinário Responsável</p>
-                  <p className="text-base text-slate-900 mt-1">
+                  <p className="text-sm font-medium text-muted-foreground">Veterinário Responsável</p>
+                  <p className="text-base text-foreground mt-1">
                     {teInfo.veterinario_responsavel}
                   </p>
                 </div>
               )}
               {teInfo.tecnico_responsavel && (
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Técnico Responsável</p>
-                  <p className="text-base text-slate-900 mt-1">
+                  <p className="text-sm font-medium text-muted-foreground">Técnico Responsável</p>
+                  <p className="text-base text-foreground mt-1">
                     {teInfo.tecnico_responsavel}
                   </p>
                 </div>
@@ -518,7 +518,7 @@ export default function ProtocoloRelatorioFechado() {
             <CardTitle className="text-base">Total Iniciaram</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-slate-900">{resumo.totalIniciaram}</p>
+            <p className="text-3xl font-bold text-foreground">{resumo.totalIniciaram}</p>
           </CardContent>
         </Card>
         <Card>
@@ -526,7 +526,7 @@ export default function ProtocoloRelatorioFechado() {
             <CardTitle className="text-base">Confirmadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{resumo.totalConfirmadas}</p>
+            <p className="text-3xl font-bold text-primary">{resumo.totalConfirmadas}</p>
           </CardContent>
         </Card>
         <Card>
@@ -559,7 +559,7 @@ export default function ProtocoloRelatorioFechado() {
         </CardHeader>
         <CardContent>
           {receptorasFinal.length === 0 ? (
-            <p className="text-slate-500 text-center py-4">Nenhuma receptora no protocolo</p>
+            <p className="text-muted-foreground text-center py-4">Nenhuma receptora no protocolo</p>
           ) : (
             <Table>
               <TableHeader>
@@ -609,7 +609,7 @@ export default function ProtocoloRelatorioFechado() {
             <CardTitle>Observações</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-slate-700 whitespace-pre-wrap">{protocolo.observacoes}</p>
+            <p className="text-muted-foreground whitespace-pre-wrap">{protocolo.observacoes}</p>
           </CardContent>
         </Card>
       )}

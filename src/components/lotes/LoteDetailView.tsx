@@ -324,7 +324,6 @@ export function LoteDetailView({
                   size="sm"
                   onClick={onDespacharEmbrioes}
                   disabled={submitting}
-                  className="bg-green-600 hover:bg-green-700"
                 >
                   <Package className="w-4 h-4 mr-2" />
                   {submitting ? 'Despachando...' : 'Despachar Todos os Embriões'}
@@ -347,7 +346,6 @@ export function LoteDetailView({
               <Button
                 size="sm"
                 onClick={() => setShowAddAcasalamento(true)}
-                className="bg-green-600 hover:bg-green-700"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Acasalamento
@@ -595,7 +593,7 @@ export function LoteDetailView({
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700" disabled={submitting}>
+              <Button type="submit" className="flex-1" disabled={submitting}>
                 {submitting ? 'Adicionando...' : 'Adicionar'}
               </Button>
               <Button

@@ -253,15 +253,15 @@ export default function EmbrioesCongelados() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-slate-500">Identificação</p>
+          <p className="text-muted-foreground">Identificação</p>
           <p className="font-medium">{embriao.identificacao || '-'}</p>
         </div>
         <div>
-          <p className="text-slate-500">Cliente</p>
+          <p className="text-muted-foreground">Cliente</p>
           <p className="font-medium">{embriao.cliente?.nome || '-'}</p>
         </div>
         <div>
-          <p className="text-slate-500">Classificação</p>
+          <p className="text-muted-foreground">Classificação</p>
           <p className="font-medium">
             {embriao.classificacao ? (
               <Badge variant="secondary">{embriao.classificacao}</Badge>
@@ -269,7 +269,7 @@ export default function EmbrioesCongelados() {
           </p>
         </div>
         <div>
-          <p className="text-slate-500">Status</p>
+          <p className="text-muted-foreground">Status</p>
           <p className="font-medium">
             <Badge className="bg-cyan-100 text-cyan-800">
               <Snowflake className="w-3 h-3 mr-1" />
@@ -278,56 +278,56 @@ export default function EmbrioesCongelados() {
           </p>
         </div>
         <div>
-          <p className="text-slate-500">Data de Congelamento</p>
+          <p className="text-muted-foreground">Data de Congelamento</p>
           <p className="font-medium">{formatDate(embriao.data_congelamento)}</p>
         </div>
         <div>
-          <p className="text-slate-500">Localização</p>
+          <p className="text-muted-foreground">Localização</p>
           <p className="font-medium">{embriao.localizacao_atual || '-'}</p>
         </div>
         <div>
-          <p className="text-slate-500">Tipo</p>
+          <p className="text-muted-foreground">Tipo</p>
           <p className="font-medium">{embriao.tipo_embriao || '-'}</p>
         </div>
 
         <div className="col-span-2 border-t pt-4 mt-2">
-          <p className="text-slate-500 font-medium mb-2">Origem</p>
+          <p className="text-muted-foreground font-medium mb-2">Origem</p>
         </div>
 
         <div>
-          <p className="text-slate-500">Doadora</p>
+          <p className="text-muted-foreground">Doadora</p>
           <p className="font-medium">
             {doadora?.registro || doadora?.nome || '-'}
-            {doadora?.raca && <span className="text-slate-500 ml-1">({doadora.raca})</span>}
+            {doadora?.raca && <span className="text-muted-foreground ml-1">({doadora.raca})</span>}
           </p>
         </div>
         <div>
-          <p className="text-slate-500">Touro</p>
+          <p className="text-muted-foreground">Touro</p>
           <p className="font-medium">
             {touro?.nome || '-'}
-            {touro?.registro && <span className="text-slate-500 ml-1">({touro.registro})</span>}
+            {touro?.registro && <span className="text-muted-foreground ml-1">({touro.registro})</span>}
           </p>
         </div>
         <div>
-          <p className="text-slate-500">Raça do Touro</p>
+          <p className="text-muted-foreground">Raça do Touro</p>
           <p className="font-medium">{touro?.raca || '-'}</p>
         </div>
         <div>
-          <p className="text-slate-500">Data D0 (Lote FIV)</p>
+          <p className="text-muted-foreground">Data D0 (Lote FIV)</p>
           <p className="font-medium">{formatDate(loteFiv?.data_abertura)}</p>
         </div>
         <div>
-          <p className="text-slate-500">Data de Aspiração</p>
+          <p className="text-muted-foreground">Data de Aspiração</p>
           <p className="font-medium">{formatDate(aspiracao?.data_aspiracao)}</p>
         </div>
         <div>
-          <p className="text-slate-500">Hora de Aspiração</p>
+          <p className="text-muted-foreground">Hora de Aspiração</p>
           <p className="font-medium">{aspiracao?.horario_aspiracao || '-'}</p>
         </div>
 
         {embriao.observacoes && (
           <div className="col-span-2 border-t pt-4 mt-2">
-            <p className="text-slate-500">Observações</p>
+            <p className="text-muted-foreground">Observações</p>
             <p className="font-medium">{embriao.observacoes}</p>
           </div>
         )}
@@ -359,7 +359,7 @@ export default function EmbrioesCongelados() {
             <div className="flex items-center gap-2">
               <Snowflake className="w-5 h-5 text-cyan-500" />
               <div>
-                <p className="text-sm text-slate-500">Total Congelados</p>
+                <p className="text-sm text-muted-foreground">Total Congelados</p>
                 <p className="text-2xl font-bold">{estatisticas.totalGeral}</p>
               </div>
             </div>
@@ -367,19 +367,19 @@ export default function EmbrioesCongelados() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-slate-500">Filtrados</p>
+            <p className="text-sm text-muted-foreground">Filtrados</p>
             <p className="text-2xl font-bold">{estatisticas.total}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-slate-500">Clientes</p>
+            <p className="text-sm text-muted-foreground">Clientes</p>
             <p className="text-2xl font-bold">{estatisticas.porCliente.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-slate-500">Classificações</p>
+            <p className="text-sm text-muted-foreground">Classificações</p>
             <p className="text-2xl font-bold">{estatisticas.porClassificacao.length}</p>
           </CardContent>
         </Card>
@@ -394,7 +394,7 @@ export default function EmbrioesCongelados() {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {estatisticas.porClassificacao.map(([classificacao, quantidade]) => (
-                <div key={classificacao} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+                <div key={classificacao} className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
                   <Badge variant="secondary">{classificacao}</Badge>
                   <span className="font-semibold text-sm">{quantidade}</span>
                 </div>
@@ -407,7 +407,7 @@ export default function EmbrioesCongelados() {
       {/* Filtros */}
       <div className="flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar..."
             value={searchTerm}
@@ -516,7 +516,7 @@ export default function EmbrioesCongelados() {
                       <TableCell>
                         {touro?.nome || '-'}
                         {touro?.registro && (
-                          <span className="text-slate-500 text-xs ml-1">({touro.registro})</span>
+                          <span className="text-muted-foreground text-xs ml-1">({touro.registro})</span>
                         )}
                       </TableCell>
                       <TableCell>{raca || '-'}</TableCell>

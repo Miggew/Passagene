@@ -120,10 +120,10 @@ export default function ClienteForm() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">
+          <h1 className="text-3xl font-bold text-foreground">
             {id ? 'Editar Cliente' : 'Novo Cliente'}
           </h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             {id ? 'Atualizar informações do cliente' : 'Cadastrar novo cliente'}
           </p>
         </div>
@@ -170,7 +170,6 @@ export default function ClienteForm() {
             <div className="flex gap-4 pt-4">
               <Button
                 type="submit"
-                className="bg-green-600 hover:bg-green-700"
                 disabled={loading}
               >
                 {loading ? 'Salvando...' : 'Salvar'}

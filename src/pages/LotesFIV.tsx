@@ -548,7 +548,7 @@ export default function LotesFIV() {
                         {fazendasFiltradas.map((fazenda) => (
                           <div
                             key={fazenda.id}
-                            className="px-4 py-2 hover:bg-slate-100 cursor-pointer"
+                            className="px-4 py-2 hover:bg-muted cursor-pointer"
                             onClick={() => {
                               setFiltroFazendaAspiracao(fazenda.id);
                               setFiltroFazendaAspiracaoBusca(fazenda.nome);
@@ -561,7 +561,7 @@ export default function LotesFIV() {
                       </div>
                     )}
                     {showFazendaBusca && filtroFazendaAspiracaoBusca && fazendasFiltradas.length === 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-sm text-slate-500">
+                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-sm text-muted-foreground">
                         Nenhuma fazenda encontrada
                       </div>
                     )}
@@ -632,7 +632,7 @@ export default function LotesFIV() {
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-slate-400">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </div>
                         </TableCell>
@@ -650,7 +650,7 @@ export default function LotesFIV() {
                               })()}
                             </Badge>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell>{lote.quantidade_acasalamentos ?? 0}</TableCell>

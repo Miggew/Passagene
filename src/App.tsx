@@ -47,6 +47,7 @@ const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Usuarios = lazy(() => import('./pages/Usuarios'));
 const Portal = lazy(() => import('./pages/Portal'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const StyleGuide = lazy(() => import('./components/StyleGuide'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,6 +103,9 @@ const AppRoutes = () => {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+
+          {/* Style Guide (público para testes) */}
+          <Route path="/style-guide" element={<StyleGuide />} />
 
           {/* Página de sem acesso (protegida, mas sem layout) */}
           <Route path="/sem-acesso" element={<ProtectedRoute><SemAcesso /></ProtectedRoute>} />

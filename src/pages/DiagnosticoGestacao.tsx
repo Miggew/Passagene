@@ -722,7 +722,7 @@ export default function DiagnosticoGestacao() {
                           <TableCell className="font-medium">
                             {receptora.brinco}
                             {receptora.nome && (
-                              <span className="text-slate-500 text-sm ml-2">({receptora.nome})</span>
+                              <span className="text-muted-foreground text-sm ml-2">({receptora.nome})</span>
                             )}
                             {temDiagnostico && (
                               <StatusBadge
@@ -741,7 +741,7 @@ export default function DiagnosticoGestacao() {
                                   <div className="font-medium">
                                     {embriao.embriao_identificacao || `Embrião ${idx + 1}`}
                                     {embriao.embriao_classificacao && (
-                                      <span className="text-slate-500 ml-2">({embriao.embriao_classificacao})</span>
+                                      <span className="text-muted-foreground ml-2">({embriao.embriao_classificacao})</span>
                                     )}
                                   </div>
                                 </div>
@@ -798,7 +798,7 @@ export default function DiagnosticoGestacao() {
                                 disabled={loteSelecionado.status === 'FECHADO'}
                               />
                             ) : (
-                              <span className="text-slate-400">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell>

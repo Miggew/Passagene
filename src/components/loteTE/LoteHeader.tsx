@@ -43,7 +43,6 @@ export function LoteHeader<T extends LoteTEBase>({
           <Button
             onClick={onSalvarLote}
             disabled={!canSave || submitting}
-            className="bg-green-600 hover:bg-green-700"
           >
             <Lock className="w-4 h-4 mr-2" />
             {submitting ? 'Salvando...' : 'Salvar Lote Completo'}

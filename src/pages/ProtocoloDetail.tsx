@@ -241,7 +241,7 @@ export default function ProtocoloDetail() {
                   }}
                 >
                   <DialogTrigger asChild>
-                    <Button className="bg-green-600 hover:bg-green-700">
+                    <Button>
                       <Plus className="w-4 h-4 mr-2" />
                       Adicionar Receptora
                     </Button>
@@ -272,7 +272,7 @@ export default function ProtocoloDetail() {
                             </SelectTrigger>
                             <SelectContent>
                               {receptorasDisponiveis.length === 0 ? (
-                                <div className="p-2 text-sm text-slate-500">
+                                <div className="p-2 text-sm text-muted-foreground">
                                   Nenhuma receptora VAZIA disponível nesta fazenda
                                 </div>
                               ) : (
@@ -298,7 +298,7 @@ export default function ProtocoloDetail() {
 
                         <Button
                           onClick={addReceptoraHook.handleAddReceptora}
-                          className="w-full bg-green-600 hover:bg-green-700"
+                          className="w-full"
                           disabled={addReceptoraHook.submitting || receptorasDisponiveis.length === 0}
                         >
                           {addReceptoraHook.submitting ? 'Adicionando...' : 'Adicionar'}
@@ -337,7 +337,7 @@ export default function ProtocoloDetail() {
 
                         <Button
                           onClick={createReceptoraHook.handleCreateReceptora}
-                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          className="w-full"
                           disabled={createReceptoraHook.submitting}
                         >
                           <UserPlus className="w-4 h-4 mr-2" />
@@ -351,7 +351,6 @@ export default function ProtocoloDetail() {
                 <Button
                   onClick={handleFinalizarPasso1}
                   disabled={receptoras.length === 0 || submitting}
-                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Lock className="w-4 h-4 mr-2" />
                   {submitting ? 'Finalizando...' : 'Finalizar 1º Passo'}
@@ -396,20 +395,20 @@ export default function ProtocoloDetail() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-sm font-medium text-slate-500">Fazenda</p>
-            <p className="text-base text-slate-900">{fazendaNome}</p>
+            <p className="text-sm font-medium text-muted-foreground">Fazenda</p>
+            <p className="text-base text-foreground">{fazendaNome}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Data Início</p>
-            <p className="text-base text-slate-900">{formatDate(protocolo.data_inicio)}</p>
+            <p className="text-sm font-medium text-muted-foreground">Data Início</p>
+            <p className="text-base text-foreground">{formatDate(protocolo.data_inicio)}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Responsável</p>
-            <p className="text-base text-slate-900">{protocolo.responsavel_inicio}</p>
+            <p className="text-sm font-medium text-muted-foreground">Responsável</p>
+            <p className="text-base text-foreground">{protocolo.responsavel_inicio}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Status</p>
-            <div className="text-base text-slate-900">
+            <p className="text-sm font-medium text-muted-foreground">Status</p>
+            <div className="text-base text-foreground">
               {isPasso1Aberto ? (
                 <Badge variant="default">1º Passo</Badge>
               ) : (
@@ -438,7 +437,7 @@ export default function ProtocoloDetail() {
             <TableBody>
               {receptoras.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-slate-500">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
                     Nenhuma receptora adicionada ao protocolo
                   </TableCell>
                 </TableRow>
@@ -466,33 +465,33 @@ export default function ProtocoloDetail() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+              <CheckCircle className="w-6 h-6 text-primary" />
               Resumo do 1º Passo
             </DialogTitle>
             <DialogDescription>1º passo concluído com sucesso</DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+            <div className="grid grid-cols-2 gap-4 p-4 bg-secondary rounded-lg">
               <div>
-                <p className="text-sm font-medium text-slate-500">Fazenda</p>
-                <p className="text-base text-slate-900">{fazendaNome}</p>
+                <p className="text-sm font-medium text-muted-foreground">Fazenda</p>
+                <p className="text-base text-foreground">{fazendaNome}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500">Data do 1º Passo</p>
-                <p className="text-base text-slate-900">{formatDate(protocolo.data_inicio)}</p>
+                <p className="text-sm font-medium text-muted-foreground">Data do 1º Passo</p>
+                <p className="text-base text-foreground">{formatDate(protocolo.data_inicio)}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500">Responsável</p>
-                <p className="text-base text-slate-900">{protocolo.responsavel_inicio}</p>
+                <p className="text-sm font-medium text-muted-foreground">Responsável</p>
+                <p className="text-base text-foreground">{protocolo.responsavel_inicio}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500">Total de Receptoras</p>
-                <p className="text-base text-slate-900 font-bold">{receptoras.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total de Receptoras</p>
+                <p className="text-base text-foreground font-bold">{receptoras.length}</p>
               </div>
             </div>
 
             <div>
-              <p className="text-sm font-medium text-slate-700 mb-2">Receptoras em Sincronização:</p>
+              <p className="text-sm font-medium text-foreground mb-2">Receptoras em Sincronização:</p>
               <div className="max-h-60 overflow-y-auto border rounded-lg">
                 <Table>
                   <TableHeader>
@@ -522,7 +521,7 @@ export default function ProtocoloDetail() {
 
             <Button
               onClick={handleCloseResumoPasso1}
-              className="w-full bg-green-600 hover:bg-green-700"
+              className="w-full"
             >
               OK - Voltar para Protocolos
             </Button>

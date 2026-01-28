@@ -27,7 +27,7 @@ export function ProtocoloStepHeader({
       {/* Step Indicator */}
       <div className="flex items-center justify-center gap-4">
         <StepIndicator step={1} currentStep={currentStep} label="1º Passo" />
-        <div className="w-16 h-0.5 bg-slate-200" />
+        <div className="w-16 h-0.5 bg-border" />
         <StepIndicator step={2} currentStep={currentStep} label="2º Passo" />
       </div>
 
@@ -38,8 +38,8 @@ export function ProtocoloStepHeader({
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-            {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
         </div>
         {showExit && onExit && (
@@ -70,16 +70,16 @@ function StepIndicator({ step, currentStep, label }: StepIndicatorProps) {
           w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
           transition-colors
           ${isActive
-            ? 'bg-blue-600 text-white'
+            ? 'bg-primary text-primary-foreground'
             : isCompleted
-              ? 'bg-green-600 text-white'
-              : 'bg-slate-200 text-slate-500'
+              ? 'bg-primary-dark text-primary-foreground'
+              : 'bg-muted text-muted-foreground'
           }
         `}
       >
         {isCompleted ? '✓' : step}
       </div>
-      <span className={`text-sm font-medium ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
+      <span className={`text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
         {label}
       </span>
     </div>

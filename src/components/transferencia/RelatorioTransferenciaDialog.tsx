@@ -119,7 +119,6 @@ export default function RelatorioTransferenciaDialog({
                 onFechar();
                 await onConfirmarEncerrar();
               }}
-              className="bg-blue-600 hover:bg-blue-700"
               disabled={submitting}
             >
               {submitting ? 'Encerrando...' : 'Confirmar e Encerrar Sessão'}

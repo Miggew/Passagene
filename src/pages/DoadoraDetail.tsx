@@ -363,7 +363,7 @@ export default function DoadoraDetail() {
                 )}
                 {/* Preparação para campos específicos por raça */}
                 {racaSelecionada && racaSelecionada !== 'Outra' && (
-                  <div className="mt-2 text-xs text-slate-500">
+                  <div className="mt-2 text-xs text-muted-foreground">
                     {/* Aqui serão adicionados campos específicos por raça no futuro */}
                   </div>
                 )}
@@ -464,7 +464,7 @@ export default function DoadoraDetail() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="disponivel_aspiracao">Disponível para Aspiração</Label>
-                <p className="text-sm text-slate-500">Indica se a doadora está disponível para aspiração</p>
+                <p className="text-sm text-muted-foreground">Indica se a doadora está disponível para aspiração</p>
               </div>
               <Switch
                 id="disponivel_aspiracao"
@@ -496,7 +496,7 @@ export default function DoadoraDetail() {
                   <SelectItem value="diamante">Diamante</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-slate-500">Classificação opcional do preço da genética</p>
+              <p className="text-xs text-muted-foreground">Classificação opcional do preço da genética</p>
             </div>
 
             <div className="space-y-2">
@@ -523,7 +523,6 @@ export default function DoadoraDetail() {
           </Button>
           <Button
             type="submit"
-            className="bg-green-600 hover:bg-green-700"
             disabled={saving}
           >
             <Save className="w-4 h-4 mr-2" />

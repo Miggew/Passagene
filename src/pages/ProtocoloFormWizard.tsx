@@ -282,7 +282,6 @@ export default function ProtocoloFormWizard() {
               <div className="flex gap-4 pt-4">
                 <Button
                   onClick={handleContinueToReceptoras}
-                  className="bg-blue-600 hover:bg-blue-700"
                   disabled={loading}
                 >
                   Continuar para Receptoras
@@ -339,7 +338,7 @@ export default function ProtocoloFormWizard() {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button className="bg-green-600 hover:bg-green-700">
+                  <Button>
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Receptora
                   </Button>
@@ -400,7 +399,7 @@ export default function ProtocoloFormWizard() {
         </CardHeader>
         <CardContent>
           {receptorasLocais.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-muted-foreground">
               Nenhuma receptora adicionada. Adicione pelo menos uma antes de finalizar.
             </div>
           ) : (
@@ -422,7 +421,6 @@ export default function ProtocoloFormWizard() {
         <Button
           onClick={handleFinalizarPasso1}
           disabled={receptorasLocais.length === 0 || submitting}
-          className="bg-blue-600 hover:bg-blue-700"
           size="lg"
         >
           <Lock className="w-4 h-4 mr-2" />
@@ -533,7 +531,7 @@ function AddReceptoraForm({
               />
               <CommandList>
                 {loadingReceptoras ? (
-                  <div className="p-4 text-sm text-center text-slate-500">
+                  <div className="p-4 text-sm text-center text-muted-foreground">
                     Carregando receptoras...
                   </div>
                 ) : receptorasFiltradas.length === 0 ? (
@@ -623,7 +621,7 @@ function AddReceptoraForm({
       </div>
       <Button
         onClick={onAdd}
-        className="w-full bg-green-600 hover:bg-green-700"
+        className="w-full"
         disabled={loadingReceptoras || !addReceptoraForm.receptora_id}
       >
         Adicionar
@@ -705,7 +703,7 @@ function CreateReceptoraForm({
       </div>
       <Button
         onClick={onCreate}
-        className="w-full bg-blue-600 hover:bg-blue-700"
+        className="w-full"
         disabled={submitting}
       >
         <UserPlus className="w-4 h-4 mr-2" />
@@ -739,7 +737,7 @@ function ReceptorasTable({
     <div className="rounded-lg border overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50">
+          <TableRow className="bg-secondary">
             <TableHead className="font-semibold">Brinco</TableHead>
             <TableHead className="font-semibold">Nome</TableHead>
             <TableHead className="font-semibold">Ciclando</TableHead>
@@ -753,9 +751,9 @@ function ReceptorasTable({
             const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
 
             return (
-              <TableRow key={rowKey} className="hover:bg-slate-50/50">
+              <TableRow key={rowKey} className="hover:bg-secondary/50">
                 <TableCell className="font-medium">{r.identificacao}</TableCell>
-                <TableCell className="text-slate-600">{r.nome || '-'}</TableCell>
+                <TableCell className="text-muted-foreground">{r.nome || '-'}</TableCell>
                 <TableCell>
                   <CiclandoBadge
                     value={r.ciclando_classificacao}
@@ -770,7 +768,7 @@ function ReceptorasTable({
                     variant="row"
                   />
                 </TableCell>
-                <TableCell className="text-slate-600">{r.observacoes || '-'}</TableCell>
+                <TableCell className="text-muted-foreground">{r.observacoes || '-'}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="sm" onClick={() => onRemove(index)}>
                     <X className="w-4 h-4" />

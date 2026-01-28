@@ -122,7 +122,7 @@ export function FilterBar({
           {/* Date Shortcuts */}
           {shortcuts.length > 0 && onDateShortcut && (
             <div className="flex flex-wrap gap-2 flex-1">
-              <Label className="w-full text-sm font-medium text-slate-700">
+              <Label className="w-full text-sm font-medium text-muted-foreground">
                 Atalhos rapidos:
               </Label>
               {shortcuts.map((shortcut) => (
@@ -151,7 +151,6 @@ export function FilterBar({
                 type="button"
                 onClick={onSearch}
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Search className="w-4 h-4 mr-2" />
                 Buscar
@@ -222,7 +221,7 @@ function SearchFilter({ filter }: { filter: SearchFilterConfig }) {
     <div className="space-y-2">
       <Label>{filter.label}</Label>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
         <Input
           placeholder={filter.placeholder}
           value={filter.value}

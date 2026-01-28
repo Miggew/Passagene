@@ -345,7 +345,7 @@ export default function DosesSemen() {
         actions={
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-green-600 hover:bg-green-700">
+              <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Dose
               </Button>
@@ -427,7 +427,7 @@ export default function DosesSemen() {
               <div className="flex gap-2 pt-2">
                 <Button
                   type="submit"
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1"
                   disabled={submitting}
                 >
                   {submitting ? 'Salvando...' : 'Salvar'}
@@ -500,7 +500,7 @@ export default function DosesSemen() {
             <TableBody>
               {dosesFiltradas.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-slate-500">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     <EmptyState
                       title="Nenhuma dose cadastrada"
                       description="Cadastre a primeira dose para começar."
@@ -622,7 +622,7 @@ export default function DosesSemen() {
             <div className="flex gap-2 pt-2">
               <Button
                 type="submit"
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1"
                 disabled={submitting}
               >
                 {submitting ? 'Salvando...' : 'Salvar Alterações'}

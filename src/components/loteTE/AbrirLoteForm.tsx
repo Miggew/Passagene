@@ -63,7 +63,6 @@ export function AbrirLoteForm<T extends LoteTEBase>({
         <div className="flex gap-2">
           <Button
             onClick={onAbrirLote}
-            className="bg-green-600 hover:bg-green-700"
             disabled={!isValid}
           >
             <CheckCircle className="w-4 h-4 mr-2" />

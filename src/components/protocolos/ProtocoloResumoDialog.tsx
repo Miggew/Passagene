@@ -96,7 +96,7 @@ export function ProtocoloResumoDialog({
             </p>
           </div>
 
-          <Button onClick={onClose} className="w-full bg-green-600 hover:bg-green-700">
+          <Button onClick={onClose} className="w-full">
             OK - Voltar para Protocolos
           </Button>
         </div>

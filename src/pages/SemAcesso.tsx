@@ -2,6 +2,7 @@ import { ShieldX, ArrowLeft, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/usePermissions';
+import logoEscrito from '@/assets/logoescrito.svg';
 
 export default function SemAcesso() {
   const navigate = useNavigate();
@@ -17,22 +18,25 @@ export default function SemAcesso() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 px-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-secondary px-4">
       <div className="text-center max-w-md">
+        {/* Logo */}
+        <img src={logoEscrito} alt="PassaGene" className="h-12 w-auto mx-auto mb-6" />
+
         <div className="flex justify-center mb-6">
-          <div className="p-4 bg-red-100 rounded-full">
-            <ShieldX className="h-16 w-16 text-red-600" />
+          <div className="p-4 bg-destructive/10 rounded-full">
+            <ShieldX className="h-16 w-16 text-destructive" />
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">
+        <h1 className="font-heading text-2xl font-bold text-foreground mb-2">
           Acesso Negado
         </h1>
 
-        <p className="text-slate-600 mb-6">
+        <p className="text-muted-foreground mb-6">
           {profile ? (
             <>
-              Olá, <strong>{profile.nome}</strong>. Você não tem permissão para acessar esta área.
+              Olá, <strong className="text-foreground">{profile.nome}</strong>. Você não tem permissão para acessar esta área.
               Entre em contato com o administrador se precisar de acesso.
             </>
           ) : (
@@ -52,7 +56,7 @@ export default function SemAcesso() {
 
           <Button
             onClick={handleGoHome}
-            className="gap-2 bg-green-600 hover:bg-green-700"
+            className="gap-2"
           >
             <Home className="h-4 w-4" />
             Ir para o início

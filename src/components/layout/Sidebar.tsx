@@ -1,42 +1,40 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   Users,
   Home,
-  Dna,
   Syringe,
   TestTube,
   ArrowRightLeft,
-  Stethoscope,
-  Activity,
+  ThumbsUp,
   Sparkles,
-  LogOut,
-  FlaskConical,
-  FileBox,
   Shield,
-  LayoutDashboard,
   Snowflake,
 } from 'lucide-react';
+import { GenderIcon } from '@/components/icons/GenderIcon';
+import { ClipboardIcon } from '@/components/icons/ClipboardIcon';
+import { SpermIcon } from '@/components/icons/SpermIcon';
+import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
+import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 
 // Mapeamento de ícones por rota
 const routeIcons: Record<string, React.ElementType> = {
   '/clientes': Users,
   '/fazendas': Home,
   '/usuarios': Shield,
-  '/portal': LayoutDashboard,
-  '/doadoras': Dna,
+  '/portal': ClipboardIcon,
+  '/doadoras': DonorCowIcon,
   '/touros': Sparkles,
   '/lotes-fiv': TestTube,
-  '/embrioes': FileBox,
+  '/embrioes': EmbryoIcon,
   '/embrioes-congelados': Snowflake,
-  '/doses-semen': FlaskConical,
+  '/doses-semen': SpermIcon,
   '/protocolos': Syringe,
   '/aspiracoes': TestTube,
   '/transferencia': ArrowRightLeft,
-  '/dg': Stethoscope,
-  '/sexagem': Activity,
+  '/dg': ThumbsUp,
+  '/sexagem': GenderIcon,
 };
 
 // Labels das rotas
@@ -60,8 +58,7 @@ const routeLabels: Record<string, string> = {
 
 export default function Sidebar() {
   const location = useLocation();
-  const { user, signOut } = useAuth();
-  const { getHubForRoute, profile } = usePermissions();
+  const { getHubForRoute } = usePermissions();
 
   // Encontra o hub atual baseado na rota
   const currentHub = getHubForRoute(location.pathname);
@@ -72,23 +69,23 @@ export default function Sidebar() {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
-  // Se não há hub atual, não mostra nada (ou mostra vazio)
+  // Se não há hub atual, não mostra nada
   if (!currentHub) {
     return null;
   }
 
   return (
-    <div className="w-64 bg-slate-900 text-white min-h-full flex flex-col">
+    <aside className="w-64 bg-card border-r border-border min-h-full flex flex-col">
       {/* Header do hub atual */}
-      <div className="p-4 border-b border-slate-800">
-        <h2 className="text-lg font-semibold text-white">{currentHub.name}</h2>
+      <div className="p-4 border-b border-border">
+        <h2 className="font-heading text-lg font-semibold text-foreground">{currentHub.name}</h2>
         {currentHub.description && (
-          <p className="text-xs text-slate-400 mt-1">{currentHub.description}</p>
+          <p className="text-xs text-muted-foreground mt-1">{currentHub.description}</p>
         )}
       </div>
 
       {/* Menu de navegação do hub */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 space-y-1">
         {currentHub.routes.map((route) => {
           const Icon = routeIcons[route] || Home;
           const label = routeLabels[route] || route;
@@ -99,42 +96,18 @@ export default function Sidebar() {
               key={route}
               to={route}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
                 isActive
-                  ? 'bg-green-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary -ml-px pl-[11px]'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm font-medium">{label}</span>
+              <Icon className={cn('w-5 h-5', isActive ? 'text-primary' : '')} />
+              <span className="text-sm">{label}</span>
             </Link>
           );
         })}
       </nav>
-
-      {/* Area do usuario e logout */}
-      <div className="p-4 border-t border-slate-800 space-y-3">
-        {/* Nome e email do usuario logado */}
-        {profile && (
-          <div className="px-1">
-            <p className="text-sm text-white font-medium truncate" title={profile.nome}>
-              {profile.nome}
-            </p>
-            <p className="text-xs text-slate-400 truncate" title={user?.email}>
-              {user?.email}
-            </p>
-          </div>
-        )}
-
-        {/* Botao de logout */}
-        <button
-          onClick={signOut}
-          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-300 hover:bg-red-600/20 hover:text-red-400 rounded-lg transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Sair
-        </button>
-      </div>
-    </div>
+    </aside>
   );
 }

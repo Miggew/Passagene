@@ -95,10 +95,10 @@ export default function Fazendas() {
                 {fazendas.map((fazenda) => (
                   <TableRow
                     key={fazenda.id}
-                    className="cursor-pointer hover:bg-slate-50"
+                    className="cursor-pointer hover:bg-muted"
                     onClick={() => navigate(`/fazendas/${fazenda.id}`)}
                   >
-                    <TableCell className="font-medium text-green-600">
+                    <TableCell className="font-medium text-primary">
                       {fazenda.nome}
                     </TableCell>
                     <TableCell>{fazenda.cliente_nome || '-'}</TableCell>

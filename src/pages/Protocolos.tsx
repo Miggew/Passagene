@@ -106,7 +106,6 @@ export default function Protocolos() {
         actions={
           <Button
             onClick={() => navigate('/protocolos/novo')}
-            className="bg-green-600 hover:bg-green-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             Novo Protocolo (1º Passo)
@@ -173,7 +172,7 @@ export default function Protocolos() {
           {/* Date Shortcuts and Search Button */}
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-wrap gap-2 flex-1">
-              <Label className="w-full text-sm font-medium text-slate-700">
+              <Label className="w-full text-sm font-medium text-foreground">
                 Atalhos rápidos:
               </Label>
               <Button
@@ -205,7 +204,6 @@ export default function Protocolos() {
               type="button"
               onClick={handleBuscar}
               disabled={loadingProtocolos}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               <Search className="w-4 h-4 mr-2" />
               Buscar
@@ -235,7 +233,6 @@ export default function Protocolos() {
                   </Button>
                   <Button
                     onClick={() => navigate('/protocolos/novo')}
-                    className="bg-green-600 hover:bg-green-700"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Protocolo
@@ -249,7 +246,7 @@ export default function Protocolos() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between pt-4 border-t">
-                <div className="text-sm text-slate-600">
+                <div className="text-sm text-muted-foreground">
                   Página {protocolosPage} - Mostrando {protocolos.length} protocolos
                 </div>
                 <div className="flex gap-2">
@@ -378,7 +375,7 @@ function ProtocoloStatusBadge({
 }: ProtocoloStatusBadgeProps) {
   if (isFechado) {
     return (
-      <Badge variant="secondary" className="bg-slate-500 hover:bg-slate-600 text-white">
+      <Badge variant="secondary" className="bg-muted-foreground hover:bg-muted-foreground/90 text-white">
         Fechado
       </Badge>
     );
@@ -386,7 +383,7 @@ function ProtocoloStatusBadge({
 
   if (isSincronizado) {
     return (
-      <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white">
+      <Badge variant="default" className="bg-primary hover:bg-primary-dark text-primary-foreground">
         Sincronizado
       </Badge>
     );

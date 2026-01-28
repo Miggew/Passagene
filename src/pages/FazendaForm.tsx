@@ -414,7 +414,6 @@ export default function FazendaForm() {
             <div className="flex gap-4 pt-4">
               <Button
                 type="submit"
-                className="bg-green-600 hover:bg-green-700"
                 disabled={loading}
               >
                 {loading ? 'Salvando...' : id ? 'Atualizar' : 'Criar Fazenda'}

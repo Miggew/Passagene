@@ -84,7 +84,7 @@ export function PaginatedTable<T>({
   loadingComponent,
   onRowClick,
   isRowSelected,
-  selectedRowClassName = 'bg-blue-50',
+  selectedRowClassName = 'bg-primary-subtle',
   showPagination = true,
   showPaginationInfo = true,
   className = '',
@@ -132,7 +132,7 @@ export function PaginatedTable<T>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="text-center text-slate-500 py-8"
+                  className="text-center text-muted-foreground py-8"
                 >
                   {emptyMessage}
                 </TableCell>
@@ -147,7 +147,7 @@ export function PaginatedTable<T>({
                   <TableRow
                     key={key}
                     className={`
-                      ${clickable ? 'cursor-pointer hover:bg-slate-50' : ''}
+                      ${clickable ? 'cursor-pointer hover:bg-muted' : ''}
                       ${selected ? selectedRowClassName : ''}
                     `}
                     onClick={clickable ? () => onRowClick(row) : undefined}
@@ -171,7 +171,7 @@ export function PaginatedTable<T>({
       {showPagination && totalPages > 1 && (
         <div className="flex items-center justify-between px-2">
           {showPaginationInfo && (
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-muted-foreground">
               Mostrando {startIndex + 1}-{actualEndIndex} de {actualTotalItems}
             </div>
           )}
@@ -197,7 +197,7 @@ export function PaginatedTable<T>({
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <span className="px-3 text-sm text-slate-600">
+            <span className="px-3 text-sm text-muted-foreground">
               Página {currentPage} de {totalPages}
             </span>
 

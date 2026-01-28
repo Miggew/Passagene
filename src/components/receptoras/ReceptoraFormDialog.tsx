@@ -40,7 +40,7 @@ export function ReceptoraFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button>
           <Plus className="w-4 h-4 mr-2" />
           Nova Receptora
         </Button>
@@ -73,7 +73,7 @@ export function ReceptoraFormDialog({
           <div className="flex gap-2 pt-2">
             <Button
               type="submit"
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1"
               disabled={submitting}
             >
               {submitting ? 'Salvando...' : 'Salvar'}

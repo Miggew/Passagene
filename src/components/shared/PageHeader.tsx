@@ -13,8 +13,8 @@ export default function PageHeader({ title, description, actions, className }: P
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
-        {description ? <p className="text-slate-600 mt-1">{description}</p> : null}
+        <h1 className="font-heading text-3xl font-bold text-foreground">{title}</h1>
+        {description ? <p className="text-muted-foreground mt-1">{description}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
