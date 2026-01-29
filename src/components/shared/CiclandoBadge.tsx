@@ -14,9 +14,9 @@ interface CiclandoBadgeProps {
   variant?: 'display' | 'editable';
 }
 
-export default function CiclandoBadge({ 
-  value, 
-  onChange, 
+export default function CiclandoBadge({
+  value,
+  onChange,
   disabled = false,
   variant = 'display'
 }: CiclandoBadgeProps) {
@@ -26,13 +26,13 @@ export default function CiclandoBadge({
   // Display mode (read-only)
   if (!isEditable) {
     if (value === 'N') {
-      return <Badge variant="outline" className="bg-slate-100 text-slate-700 text-xs">N</Badge>;
+      return <Badge variant="outline" className="bg-muted text-muted-foreground text-xs">N</Badge>;
     }
     if (value === 'CL') {
-      return <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">CL</Badge>;
+      return <Badge variant="outline" className="bg-primary/10 text-primary text-xs">CL</Badge>;
     }
     // Se value é null/undefined, mostrar vazio ou "—" discreto
-    return <span className="text-slate-300 text-xs">—</span>;
+    return <span className="text-muted-foreground/50 text-xs">—</span>;
   }
 
   // Editable mode
@@ -42,21 +42,21 @@ export default function CiclandoBadge({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 px-3"
+          className="h-7 px-3 min-w-[90px]"
           disabled={disabled}
         >
           {value === 'N' && (
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-0">N</Badge>
+            <Badge variant="outline" className="bg-muted text-muted-foreground border-0">N</Badge>
           )}
           {value === 'CL' && (
-            <Badge variant="outline" className="bg-blue-100 text-blue-700 border-0">CL</Badge>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-0">CL</Badge>
           )}
           {!value && (
-            <span className="text-slate-400 text-sm">Selecionar</span>
+            <span className="text-muted-foreground text-sm">Selecionar</span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" align="start">
+      <PopoverContent className="w-auto p-2" align="start" sideOffset={4}>
         <div className="flex flex-col gap-2">
           <Button
             variant={value === 'N' ? 'default' : 'outline'}
@@ -64,7 +64,7 @@ export default function CiclandoBadge({
             className="justify-start"
             onClick={() => onChange!('N')}
           >
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-0 mr-2">N</Badge>
+            <Badge variant="outline" className="bg-muted text-muted-foreground border-0 mr-2">N</Badge>
             {value === 'N' && <Check className="w-4 h-4 ml-auto" />}
           </Button>
           <Button
@@ -73,14 +73,14 @@ export default function CiclandoBadge({
             className="justify-start"
             onClick={() => onChange!('CL')}
           >
-            <Badge variant="outline" className="bg-blue-100 text-blue-700 border-0 mr-2">CL</Badge>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-0 mr-2">CL</Badge>
             {value === 'CL' && <Check className="w-4 h-4 ml-auto" />}
           </Button>
           {value && (
             <Button
               variant="ghost"
               size="sm"
-              className="justify-start text-slate-500"
+              className="justify-start text-muted-foreground"
               onClick={() => onChange!(null)}
             >
               <X className="w-4 h-4 mr-2" />

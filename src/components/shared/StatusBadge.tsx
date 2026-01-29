@@ -14,7 +14,7 @@ const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destruc
   INICIADA: { variant: 'secondary', className: 'bg-blue-500 hover:bg-blue-600 text-white' },
   UTILIZADA: { variant: 'outline', className: 'bg-purple-100 text-purple-800 border-purple-300' },
   NAO_UTILIZADA: { variant: 'outline', className: 'bg-gray-100 text-gray-800' },
-  SINCRONIZANDO: { variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
+  SINCRONIZANDO: { variant: 'outline', className: 'border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
   SINCRONIZADA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
   // Status de protocolos
   SINCRONIZADO: { variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 text-white' },
@@ -24,7 +24,7 @@ const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destruc
   EM_TE: { variant: 'secondary', className: 'bg-slate-500 hover:bg-slate-600 text-white' }, // Status antigo, será migrado
   // Estados reprodutivos
   VAZIA: { variant: 'outline', className: 'bg-gray-100 text-gray-800 border-gray-300' },
-  EM_SINCRONIZACAO: { variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
+  EM_SINCRONIZACAO: { variant: 'outline', className: 'border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
   SERVIDA: { variant: 'secondary', className: 'bg-blue-500 hover:bg-blue-600 text-white' },
   PRENHE: { variant: 'default', className: 'bg-green-600 hover:bg-green-700 text-white' },
   PRENHE_RETOQUE: { variant: 'secondary', className: 'bg-orange-500 hover:bg-orange-600 text-white' },

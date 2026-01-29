@@ -426,7 +426,7 @@ export default function ProtocoloRelatorioFechado() {
                   <Badge variant="default" className="bg-slate-600">Fechado</Badge>
                 )}
                 {protocolo.status === 'PASSO1_FECHADO' && (
-                  <Badge variant="default" className="bg-yellow-600">Aguardando 2º Passo</Badge>
+                  <Badge variant="outline" className="border-emerald-500 bg-emerald-50 text-emerald-700">Aguardando 2º Passo</Badge>
                 )}
               </p>
             </div>

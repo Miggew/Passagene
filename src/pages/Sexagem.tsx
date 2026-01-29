@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
 import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds } from '@/lib/dataEnrichment';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -19,9 +19,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
-import StatusBadge from '@/components/shared/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { atualizarStatusReceptora, type StatusReceptora } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
@@ -32,17 +35,22 @@ import {
   calcularDiasGestacao,
   getHoje,
   validarResponsaveis,
+  DIAS_MINIMOS,
 } from '@/lib/gestacao';
 import { useFazendasComLotes, useLotesTE } from '@/hooks/loteTE';
 import {
-  FazendaSelector,
-  LotesTable,
-  AbrirLoteForm,
-  LoteHeader,
-} from '@/components/loteTE';
-
-// Status de receptoras prenhes para sexagem
-const STATUS_PRENHE = ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO', 'PRENHE_SEM_SEXO', 'PRENHE_2_SEXOS'] as const;
+  Baby,
+  Clock,
+  Search,
+  Filter,
+  Building2,
+  CalendarDays,
+  RefreshCw,
+  Users,
+  TrendingDown,
+  Save,
+  AlertTriangle,
+} from 'lucide-react';
 
 interface ReceptoraPrenhe {
   receptora_id: string;
@@ -72,27 +80,54 @@ interface SexagemFormData {
 
 type ResultadoSexagem = 'FEMEA' | 'MACHO' | 'SEM_SEXO' | 'VAZIA';
 
+interface HistoricoSexagem {
+  id: string;
+  receptora_id: string;
+  receptora_brinco: string;
+  receptora_nome?: string;
+  fazenda_nome: string;
+  data_te: string;
+  data_diagnostico: string;
+  resultado: string;
+  sexagem?: string;
+  numero_gestacoes?: number;
+  observacoes?: string;
+  veterinario_responsavel?: string;
+  tecnico_responsavel?: string;
+  data_provavel_parto?: string;
+}
+
 export default function Sexagem() {
   const { toast } = useToast();
   const hoje = getHoje();
 
-  // State
+  // State - Nova Sessão
   const [fazendaSelecionada, setFazendaSelecionada] = useState<string>('');
   const [loteSelecionado, setLoteSelecionado] = useState<LoteTESexagem | null>(null);
   const [receptoras, setReceptoras] = useState<ReceptoraPrenhe[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [abrirLote, setAbrirLote] = useState(false);
   const [formData, setFormData] = useState<SexagemFormData>({});
   const [loteFormData, setLoteFormData] = useState<LoteFormDataBase>({
     veterinario_responsavel: '',
     tecnico_responsavel: '',
   });
 
+  // State - Histórico
+  const [historico, setHistorico] = useState<HistoricoSexagem[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [filtroFazenda, setFiltroFazenda] = useState<string>('todos');
+  const [filtroSexagem, setFiltroSexagem] = useState<string>('todos');
+  const [filtroBusca, setFiltroBusca] = useState('');
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
+  const [filtroDataPartoDe, setFiltroDataPartoDe] = useState('');
+  const [filtroDataPartoAte, setFiltroDataPartoAte] = useState('');
+  const [todasFazendas, setTodasFazendas] = useState<{id: string; nome: string}[]>([]);
+
   // Hooks compartilhados
   const { fazendas, loadFazendas } = useFazendasComLotes({
     statusReceptoraFiltro: ['PRENHE', 'PRENHE_RETOQUE'],
-    tipoDiagnosticoFiltro: 'SEXAGEM',
   });
 
   const transformLote = useCallback((
@@ -105,14 +140,14 @@ export default function Sexagem() {
   }), []);
 
   const { lotesTE, loading: loadingLotes, loadLotesTE } = useLotesTE<LoteTESexagem>({
-    statusReceptoraFiltro: STATUS_PRENHE as unknown as ('SERVIDA' | 'PRENHE' | 'PRENHE_RETOQUE' | 'PRENHE_FEMEA' | 'PRENHE_MACHO' | 'PRENHE_SEM_SEXO' | 'PRENHE_2_SEXOS')[],
-    tipoDiagnosticoFiltro: 'SEXAGEM',
+    statusReceptoraFiltro: ['PRENHE', 'PRENHE_RETOQUE'],
     transformLote,
   });
 
   // Effects
   useEffect(() => {
     loadFazendas();
+    loadTodasFazendas();
   }, [loadFazendas]);
 
   useEffect(() => {
@@ -129,55 +164,139 @@ export default function Sexagem() {
 
   useEffect(() => {
     if (loteSelecionado) {
-      if (loteSelecionado.status === 'FECHADO') {
+      // Se o lote tem vet/tec salvos, usa esses valores
+      if (loteSelecionado.veterinario_sexagem || loteSelecionado.tecnico_sexagem) {
         setLoteFormData({
-          veterinario_responsavel: loteSelecionado.veterinario_sexagem || '',
-          tecnico_responsavel: loteSelecionado.tecnico_sexagem || '',
+          veterinario_responsavel: loteSelecionado.veterinario_sexagem || loteFormData.veterinario_responsavel,
+          tecnico_responsavel: loteSelecionado.tecnico_sexagem || loteFormData.tecnico_responsavel,
         });
-        setAbrirLote(false);
-        loadReceptorasLote(loteSelecionado);
-      } else if (loteSelecionado.veterinario_sexagem && loteSelecionado.tecnico_sexagem) {
-        setLoteFormData({
-          veterinario_responsavel: loteSelecionado.veterinario_sexagem,
-          tecnico_responsavel: loteSelecionado.tecnico_sexagem,
-        });
-        setAbrirLote(false);
-        loadReceptorasLote(loteSelecionado);
-      } else {
-        setLoteFormData({ veterinario_responsavel: '', tecnico_responsavel: '' });
-        setAbrirLote(true);
-        setReceptoras([]);
-        setFormData({});
       }
+      // Se não tem, mantém os valores que o usuário já digitou (não reseta)
+
+      // Sempre carrega as receptoras quando seleciona um lote
+      loadReceptorasLote(loteSelecionado);
     } else {
       setReceptoras([]);
       setFormData({});
-      setAbrirLote(false);
     }
   }, [loteSelecionado]);
 
-  const handleAbrirLote = async () => {
-    if (!validarResponsaveis(loteFormData)) {
+  const loadTodasFazendas = async () => {
+    const { data } = await supabase
+      .from('fazendas')
+      .select('id, nome')
+      .order('nome');
+    setTodasFazendas(data || []);
+  };
+
+  const loadHistorico = async () => {
+    try {
+      setLoadingHistorico(true);
+
+      // 1. Buscar diagnósticos de SEXAGEM
+      let query = supabase
+        .from('diagnosticos_gestacao')
+        .select('*')
+        .eq('tipo_diagnostico', 'SEXAGEM')
+        .order('data_diagnostico', { ascending: false })
+        .limit(500);
+
+      if (filtroDataInicio) {
+        query = query.gte('data_diagnostico', filtroDataInicio);
+      }
+      if (filtroDataFim) {
+        query = query.lte('data_diagnostico', filtroDataFim);
+      }
+      if (filtroSexagem && filtroSexagem !== 'todos') {
+        query = query.eq('sexagem', filtroSexagem);
+      }
+
+      const { data: diagnosticosData, error: diagnosticosError } = await query;
+
+      if (diagnosticosError) {
+        console.error('Erro ao buscar diagnósticos:', diagnosticosError);
+        throw new Error(diagnosticosError.message || 'Erro ao buscar diagnósticos');
+      }
+
+      if (!diagnosticosData || diagnosticosData.length === 0) {
+        setHistorico([]);
+        return;
+      }
+
+      // 2. Buscar receptoras relacionadas (incluindo data_provavel_parto)
+      const receptoraIds = [...new Set(diagnosticosData.map(dg => dg.receptora_id).filter(Boolean))];
+
+      const { data: receptorasData, error: receptorasError } = await supabase
+        .from('receptoras')
+        .select('id, identificacao, nome, data_provavel_parto')
+        .in('id', receptoraIds);
+
+      if (receptorasError) {
+        console.error('Erro ao buscar receptoras:', receptorasError);
+        throw new Error(receptorasError.message || 'Erro ao buscar receptoras');
+      }
+
+      const receptorasMap = new Map(
+        (receptorasData || []).map(r => [r.id, r])
+      );
+
+      // Mapa de data_provavel_parto por receptora
+      const dataPartoMap = new Map(
+        (receptorasData || []).map(r => [r.id, r.data_provavel_parto])
+      );
+
+      // 3. Buscar fazenda atual das receptoras via view
+      const { data: viewData, error: viewError } = await supabase
+        .from('vw_receptoras_fazenda_atual')
+        .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
+        .in('receptora_id', receptoraIds);
+
+      if (viewError) {
+        console.error('Erro ao buscar view receptoras:', viewError);
+      }
+
+      const fazendaMap = new Map(
+        (viewData || []).map(v => [v.receptora_id, v.fazenda_nome_atual])
+      );
+
+      // 4. Montar histórico formatado
+      const historicoFormatado: HistoricoSexagem[] = diagnosticosData
+        .map(dg => {
+          const receptora = receptorasMap.get(dg.receptora_id);
+          return {
+            id: dg.id,
+            receptora_id: dg.receptora_id,
+            receptora_brinco: receptora?.identificacao || '-',
+            receptora_nome: receptora?.nome,
+            fazenda_nome: fazendaMap.get(dg.receptora_id) || '-',
+            data_te: dg.data_te,
+            data_diagnostico: dg.data_diagnostico,
+            resultado: dg.resultado,
+            sexagem: dg.sexagem,
+            numero_gestacoes: dg.numero_gestacoes,
+            observacoes: dg.observacoes,
+            veterinario_responsavel: dg.veterinario_responsavel,
+            tecnico_responsavel: dg.tecnico_responsavel,
+            data_provavel_parto: dataPartoMap.get(dg.receptora_id) || undefined,
+          };
+        });
+
+      setHistorico(historicoFormatado);
+    } catch (error) {
+      console.error('Erro no loadHistorico:', error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : 'Erro desconhecido';
       toast({
-        title: 'Erro de validação',
-        description: 'Veterinário e técnico responsáveis são obrigatórios',
+        title: 'Erro ao carregar histórico',
+        description: errorMessage,
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setLoadingHistorico(false);
     }
-
-    if (!loteSelecionado) return;
-
-    const loteAtualizado: LoteTESexagem = {
-      ...loteSelecionado,
-      veterinario_sexagem: loteFormData.veterinario_responsavel.trim(),
-      tecnico_sexagem: loteFormData.tecnico_responsavel.trim(),
-      status: 'ABERTO',
-    };
-
-    setLoteSelecionado(loteAtualizado);
-    setAbrirLote(false);
-    await loadReceptorasLote(loteAtualizado);
   };
 
   const loadReceptorasLote = async (lote: LoteTESexagem) => {
@@ -191,11 +310,12 @@ export default function Sexagem() {
 
       const receptoraIds = viewData?.map(v => v.receptora_id) || [];
 
+      // Filtrar apenas receptoras PRENHE ou PRENHE_RETOQUE (que ainda não fizeram sexagem)
       const { data: receptorasData } = await supabase
         .from('receptoras')
         .select('id, identificacao, nome, status_reprodutivo')
         .in('id', receptoraIds)
-        .in('status_reprodutivo', STATUS_PRENHE);
+        .in('status_reprodutivo', ['PRENHE', 'PRENHE_RETOQUE']);
 
       const prenhesIds = receptorasData?.map(r => r.id) || [];
 
@@ -448,7 +568,7 @@ export default function Sexagem() {
     if (!validarResponsaveis(loteFormData)) {
       toast({
         title: 'Erro de validação',
-        description: 'Veterinário e técnico responsáveis são obrigatórios',
+        description: 'Veterinário responsável é obrigatório',
         variant: 'destructive',
       });
       return;
@@ -546,42 +666,67 @@ export default function Sexagem() {
         });
       });
 
+      // Executar operações em paralelo para melhor performance
+      const operacoes: Promise<void>[] = [];
+
+      // 1. Inserir novos diagnósticos (batch)
       if (diagnosticosParaInserir.length > 0) {
-        const { error: insertError } = await supabase
-          .from('diagnosticos_gestacao')
-          .insert(diagnosticosParaInserir);
-
-        if (insertError) {
-          throw new Error(`Erro ao inserir sexagens: ${insertError.message}`);
-        }
-      }
-
-      for (const dg of diagnosticosParaAtualizar) {
-        const { id, ...updateData } = dg;
-        const { error: updateError } = await supabase
-          .from('diagnosticos_gestacao')
-          .update(updateData)
-          .eq('id', id);
-
-        if (updateError) {
-          throw new Error(`Erro ao atualizar sexagem: ${updateError.message}`);
-        }
-      }
-
-      for (const atualizacao of atualizacoesStatus) {
-        const { error: statusError } = await atualizarStatusReceptora(
-          atualizacao.receptora_id,
-          atualizacao.status as StatusReceptora
+        operacoes.push(
+          supabase
+            .from('diagnosticos_gestacao')
+            .insert(diagnosticosParaInserir)
+            .then(({ error }) => {
+              if (error) throw new Error(`Erro ao inserir sexagens: ${error.message}`);
+            })
         );
-        if (statusError) {
-          throw new Error(`Erro ao atualizar status da receptora`);
+      }
+
+      // 2. Atualizar diagnósticos existentes (em paralelo)
+      diagnosticosParaAtualizar.forEach(dg => {
+        const { id, ...updateData } = dg;
+        operacoes.push(
+          supabase
+            .from('diagnosticos_gestacao')
+            .update(updateData)
+            .eq('id', id)
+            .then(({ error }) => {
+              if (error) throw new Error(`Erro ao atualizar sexagem: ${error.message}`);
+            })
+        );
+      });
+
+      // Executar operações de diagnósticos
+      await Promise.all(operacoes);
+
+      // 3. Atualizar status das receptoras - agrupar por status
+      const statusGroups = new Map<string, string[]>();
+      atualizacoesStatus.forEach(({ receptora_id, status }) => {
+        if (!statusGroups.has(status)) {
+          statusGroups.set(status, []);
         }
-        if (atualizacao.status === 'VAZIA') {
-          await supabase
-            .from('receptoras')
-            .update({ data_provavel_parto: null })
-            .eq('id', atualizacao.receptora_id);
+        statusGroups.get(status)!.push(receptora_id);
+      });
+
+      // Atualizar status em batch por grupo
+      for (const [status, receptoraIds] of statusGroups.entries()) {
+        const updateData: { status_reprodutivo: string; data_provavel_parto?: null } = {
+          status_reprodutivo: status
+        };
+        if (status === 'VAZIA') {
+          updateData.data_provavel_parto = null;
         }
+
+        const { error } = await supabase
+          .from('receptoras')
+          .update(updateData)
+          .in('id', receptoraIds);
+
+        if (error) {
+          console.error('Erro ao atualizar status:', error, 'Status:', status, 'IDs:', receptoraIds);
+          throw new Error(`Erro ao atualizar status das receptoras: ${error.message}`);
+        }
+
+        console.log(`Status atualizado para ${status}:`, receptoraIds);
       }
 
       const todasComSexagem = receptoras.every(r => {
@@ -589,22 +734,33 @@ export default function Sexagem() {
         return dados && dados.data_sexagem && dados.sexagens && dados.sexagens.some(s => s);
       });
 
-      setLoteSelecionado({
-        ...loteSelecionado,
-        veterinario_sexagem: loteFormData.veterinario_responsavel.trim(),
-        tecnico_sexagem: loteFormData.tecnico_responsavel.trim(),
-        status: todasComSexagem ? 'FECHADO' : 'ABERTO',
-      });
-
       toast({
         title: 'Lote salvo com sucesso',
-        description: `${receptoras.length} sexagem(ns) registrada(s)`,
+        description: todasComSexagem
+          ? `${receptoras.length} sexagem(ns) registrada(s). Lote fechado.`
+          : `${receptoras.length} sexagem(ns) registrada(s)`,
       });
 
+      if (todasComSexagem) {
+        // Se fechou o lote, limpa a seleção para permitir novo trabalho
+        setLoteSelecionado(null);
+        setReceptoras([]);
+        setFormData({});
+      } else {
+        // Se não fechou, atualiza o lote atual localmente (sem reload)
+        setLoteSelecionado({
+          ...loteSelecionado,
+          veterinario_sexagem: loteFormData.veterinario_responsavel.trim(),
+          tecnico_sexagem: loteFormData.tecnico_responsavel.trim(),
+          status: 'ABERTO',
+        });
+      }
+
+      // Recarrega fazendas e lotes em paralelo (em background)
       const fazendaNome = fazendas.find(f => f.id === fazendaSelecionada)?.nome;
-      await loadLotesTE(fazendaSelecionada, fazendaNome);
-      if (loteSelecionado) {
-        await loadReceptorasLote(loteSelecionado);
+      loadFazendas();
+      if (fazendaSelecionada) {
+        loadLotesTE(fazendaSelecionada, fazendaNome);
       }
     } catch (error) {
       toast({
@@ -622,193 +778,563 @@ export default function Sexagem() {
     return dados && dados.data_sexagem && dados.sexagens && dados.sexagens.some(s => s);
   });
 
+  const formatarData = (data: string) => {
+    if (!data) return '-';
+    const [ano, mes, dia] = data.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+
+  const historicoFiltrado = historico.filter(h => {
+    const matchesBusca = !filtroBusca ||
+      h.receptora_brinco.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+      h.receptora_nome?.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+      h.fazenda_nome.toLowerCase().includes(filtroBusca.toLowerCase());
+    const matchesFazenda = filtroFazenda === 'todos' || h.fazenda_nome === filtroFazenda;
+    const matchesDataPartoDe = !filtroDataPartoDe || (h.data_provavel_parto && h.data_provavel_parto >= filtroDataPartoDe);
+    const matchesDataPartoAte = !filtroDataPartoAte || (h.data_provavel_parto && h.data_provavel_parto <= filtroDataPartoAte);
+    return matchesBusca && matchesFazenda && matchesDataPartoDe && matchesDataPartoAte;
+  });
+
+  const estatisticasHistorico = {
+    total: historicoFiltrado.length,
+    femeas: historicoFiltrado.filter(h => h.sexagem === 'FEMEA').length,
+    machos: historicoFiltrado.filter(h => h.sexagem === 'MACHO').length,
+    vazias: historicoFiltrado.filter(h => h.resultado === 'VAZIA').length,
+  };
+
+  const taxaPerda = estatisticasHistorico.total > 0
+    ? Math.round((estatisticasHistorico.vazias / estatisticasHistorico.total) * 100)
+    : 0;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Sexagem"
+        title="Sexagem Fetal"
         description="Registrar sexagem fetal por lote de receptoras prenhes"
       />
 
-      <FazendaSelector
-        fazendas={fazendas}
-        fazendaSelecionada={fazendaSelecionada}
-        onFazendaChange={setFazendaSelecionada}
-      />
+      <Tabs defaultValue="nova-sessao" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="nova-sessao" className="gap-2">
+            <Baby className="h-4 w-4" />
+            Nova Sessão
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="gap-2" onClick={() => loadHistorico()}>
+            <Clock className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
 
-      {fazendaSelecionada && (
-        <LotesTable
-          title="Lotes de Receptoras Prenhes"
-          emptyTitle="Nenhum lote de receptoras prenhes encontrado"
-          emptyDescription="Selecione outra fazenda ou verifique se há receptoras prenhes registradas."
-          lotesTE={lotesTE}
-          loteSelecionado={loteSelecionado}
-          loading={loadingLotes}
-          veterinarioLabel="Vet. Sexagem"
-          tecnicoLabel="Téc. Sexagem"
-          getVeterinario={(l) => l.veterinario_sexagem}
-          getTecnico={(l) => l.tecnico_sexagem}
-          onSelectLote={setLoteSelecionado}
-        />
-      )}
+        <TabsContent value="nova-sessao" className="mt-4">
+          {/* Barra de controles compacta */}
+          <Card className="mb-4">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-wrap items-end gap-3">
+                {/* Veterinário */}
+                <div className="flex-1 min-w-[180px] max-w-[220px]">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Veterinário
+                  </label>
+                  <Input
+                    placeholder="Nome do veterinário"
+                    value={loteFormData.veterinario_responsavel}
+                    onChange={(e) => setLoteFormData(prev => ({ ...prev, veterinario_responsavel: e.target.value }))}
+                    className="h-9"
+                  />
+                </div>
 
-      {loteSelecionado && abrirLote && (
-        <AbrirLoteForm
-          title="Abrir Lote de Sexagem"
-          loteSelecionado={loteSelecionado}
-          loteFormData={loteFormData}
-          onFormChange={setLoteFormData}
-          onAbrirLote={handleAbrirLote}
-          onCancelar={() => {
-            setAbrirLote(false);
-            setLoteSelecionado(null);
-          }}
-        />
-      )}
+                {/* Técnico */}
+                <div className="flex-1 min-w-[180px] max-w-[220px]">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Técnico
+                  </label>
+                  <Input
+                    placeholder="Nome do técnico"
+                    value={loteFormData.tecnico_responsavel}
+                    onChange={(e) => setLoteFormData(prev => ({ ...prev, tecnico_responsavel: e.target.value }))}
+                    className="h-9"
+                  />
+                </div>
 
-      {loteSelecionado && !abrirLote && receptoras.length > 0 && (
-        <Card>
-          <CardHeader>
-            <LoteHeader
-              loteSelecionado={loteSelecionado}
-              receptorasCount={receptoras.length}
-              loteFormData={loteFormData}
-              onFormChange={setLoteFormData}
-              veterinarioLabel="Veterinário Responsável (Sexagem)"
-              tecnicoLabel="Técnico Responsável (Sexagem)"
-              onSalvarLote={handleSalvarLote}
-              submitting={submitting}
-              canSave={todasReceptorasComSexagem}
-            />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <LoadingSpinner />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Receptora</TableHead>
-                      <TableHead>Dias Gestação</TableHead>
-                      <TableHead>Embrião(ões)</TableHead>
-                      <TableHead>Doadora / Touro</TableHead>
-                      <TableHead>Nº Gest.</TableHead>
-                      <TableHead>Data Sexagem</TableHead>
-                      <TableHead>Sexagens</TableHead>
-                      <TableHead>Observações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {receptoras.map((receptora) => {
-                      const dados = formData[receptora.receptora_id] || {
-                        data_sexagem: hoje,
-                        sexagens: new Array(receptora.numero_gestacoes).fill('').map(() => ''),
-                        observacoes: '',
-                      };
-                      const temSexagem = !!receptora.diagnostico_existente;
+                {/* Fazenda */}
+                <div className="flex-1 min-w-[180px] max-w-[220px]">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Fazenda
+                  </label>
+                  <Select
+                    value={fazendaSelecionada}
+                    onValueChange={setFazendaSelecionada}
+                    disabled={!loteFormData.veterinario_responsavel}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecione a fazenda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fazendas.map((fazenda) => (
+                        <SelectItem key={fazenda.id} value={fazenda.id}>
+                          {fazenda.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                      return (
-                        <TableRow key={receptora.receptora_id}>
-                          <TableCell className="font-medium">
-                            {receptora.brinco}
-                            {receptora.nome && (
-                              <span className="text-muted-foreground text-sm ml-2">({receptora.nome})</span>
-                            )}
-                            {temSexagem && (
-                              <StatusBadge
-                                status={receptora.diagnostico_existente?.resultado || ''}
-                                className="ml-2"
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold">{receptora.dias_gestacao}</span> dias
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {receptora.embrioes.map((embriao, idx) => (
-                                <div key={embriao.te_id} className="text-sm">
-                                  <div className="font-medium">
-                                    {embriao.embriao_identificacao || `Embrião ${idx + 1}`}
+                {/* Lote TE */}
+                <div className="flex-1 min-w-[200px] max-w-[280px]">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Lote TE
+                  </label>
+                  <Select
+                    value={loteSelecionado?.id || ''}
+                    onValueChange={(value) => {
+                      const lote = lotesTE.find(l => l.id === value);
+                      setLoteSelecionado(lote || null);
+                    }}
+                    disabled={!fazendaSelecionada || loadingLotes}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder={loadingLotes ? 'Carregando...' : 'Selecione o lote'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lotesTE.map((lote) => {
+                        const diasInsuficientes = lote.dias_gestacao !== undefined && lote.dias_gestacao < DIAS_MINIMOS.SEXAGEM;
+                        return (
+                          <SelectItem key={lote.id} value={lote.id}>
+                            <span className={diasInsuficientes ? 'text-amber-600' : ''}>
+                              {formatarData(lote.data_te)} • {lote.dias_gestacao ?? '?'}d • {lote.quantidade_receptoras} rec.
+                              {diasInsuficientes && ' ⚠️'}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Botão Salvar */}
+                <Button
+                  onClick={handleSalvarLote}
+                  disabled={
+                    !loteSelecionado ||
+                    !todasReceptorasComSexagem ||
+                    submitting ||
+                    loteSelecionado?.status === 'FECHADO' ||
+                    (loteSelecionado?.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.SEXAGEM)
+                  }
+                  className="h-9 bg-primary hover:bg-primary-dark"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {submitting ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+
+              {/* Mensagem de ajuda */}
+              {!loteFormData.veterinario_responsavel ? (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Preencha o veterinário para selecionar a fazenda
+                </p>
+              ) : !fazendaSelecionada ? (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Selecione uma fazenda para ver os lotes disponíveis
+                </p>
+              ) : lotesTE.length === 0 && !loadingLotes ? (
+                <p className="text-xs text-amber-600 mt-2">
+                  Nenhum lote de receptoras prenhes pendente nesta fazenda
+                </p>
+              ) : loteSelecionado && loteSelecionado.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.SEXAGEM ? (
+                <div className="flex items-center gap-2 mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                  <p className="text-xs text-amber-700">
+                    <strong>Atenção:</strong> Este lote está com {loteSelecionado.dias_gestacao} dias de gestação.
+                    A Sexagem só pode ser realizada a partir de <strong>{DIAS_MINIMOS.SEXAGEM} dias</strong>.
+                    Faltam <strong>{DIAS_MINIMOS.SEXAGEM - loteSelecionado.dias_gestacao} dias</strong>.
+                  </p>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          {/* Tabela de Receptoras */}
+          {loading ? (
+            <Card>
+              <CardContent className="py-8">
+                <LoadingSpinner />
+              </CardContent>
+            </Card>
+          ) : loteSelecionado && receptoras.length > 0 ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <CardTitle className="text-base">
+                        Receptoras do Lote
+                      </CardTitle>
+                      <CardDescription>
+                        {receptoras.length} receptora(s) • TE em {formatarData(loteSelecionado.data_te)}
+                      </CardDescription>
+                    </div>
+                    {loteSelecionado.status === 'FECHADO' && (
+                      <Badge variant="secondary">Lote Fechado</Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Receptora</TableHead>
+                        <TableHead>Dias Gest.</TableHead>
+                        <TableHead>Embrião</TableHead>
+                        <TableHead>Doadora × Touro</TableHead>
+                        <TableHead>Nº Gest.</TableHead>
+                        <TableHead>Data Sexagem</TableHead>
+                        <TableHead>Sexagem(ns)</TableHead>
+                        <TableHead>Obs.</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {receptoras.map((receptora) => {
+                        const dados = formData[receptora.receptora_id] || {
+                          data_sexagem: hoje,
+                          sexagens: new Array(receptora.numero_gestacoes).fill('').map(() => ''),
+                          observacoes: '',
+                        };
+                        const isDisabled = loteSelecionado.status === 'FECHADO';
+
+                        return (
+                          <TableRow key={receptora.receptora_id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {receptora.brinco}
+                                {receptora.nome && (
+                                  <span className="text-muted-foreground text-xs">({receptora.nome})</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono">
+                                {receptora.dias_gestacao}d
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-0.5">
+                                {receptora.embrioes.map((embriao, idx) => (
+                                  <div key={embriao.te_id} className="text-sm">
+                                    {embriao.embriao_identificacao || `#${idx + 1}`}
                                     {embriao.embriao_classificacao && (
-                                      <span className="text-muted-foreground ml-2">({embriao.embriao_classificacao})</span>
+                                      <span className="text-muted-foreground text-xs ml-1">
+                                        ({embriao.embriao_classificacao})
+                                      </span>
                                     )}
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {receptora.embrioes.map((embriao) => (
-                                <div key={embriao.te_id} className="text-sm">
-                                  <div>
-                                    <span className="font-medium">{embriao.doadora_registro || '-'}</span>
-                                    {embriao.doadora_registro && embriao.touro_nome && ' × '}
-                                    <span className="font-medium">{embriao.touro_nome || ''}</span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-0.5 text-sm">
+                                {receptora.embrioes.map((embriao) => (
+                                  <div key={embriao.te_id}>
+                                    {embriao.doadora_registro || '-'}
+                                    {embriao.touro_nome && ` × ${embriao.touro_nome}`}
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium text-center">
-                            {receptora.numero_gestacoes}
-                          </TableCell>
-                          <TableCell>
-                            <DatePickerBR
-                              value={dados.data_sexagem}
-                              onChange={(value) => handleFieldChange(receptora.receptora_id, 'data_sexagem', value || '')}
-                              className="w-36"
-                              disabled={loteSelecionado.status === 'FECHADO'}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              {Array.from({ length: receptora.numero_gestacoes }, (_, index) => {
-                                const valorAtual = dados.sexagens[index] || '';
-                                const placeholder = receptora.numero_gestacoes > 1 ? `Gest. ${index + 1}` : 'Selecione';
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-medium">
+                              {receptora.numero_gestacoes}
+                            </TableCell>
+                            <TableCell>
+                              <DatePickerBR
+                                value={dados.data_sexagem}
+                                onChange={(value) => handleFieldChange(receptora.receptora_id, 'data_sexagem', value || '')}
+                                className="w-32"
+                                disabled={isDisabled}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {Array.from({ length: receptora.numero_gestacoes }, (_, index) => {
+                                  const valorAtual = dados.sexagens[index] || '';
+                                  const placeholder = receptora.numero_gestacoes > 1 ? `G${index + 1}` : '--';
 
-                                return (
-                                  <Select
-                                    key={index}
-                                    value={valorAtual}
-                                    onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
-                                    disabled={loteSelecionado.status === 'FECHADO'}
-                                  >
-                                    <SelectTrigger className="w-28">
-                                      <SelectValue placeholder={placeholder} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="FEMEA">Fêmea</SelectItem>
-                                      <SelectItem value="MACHO">Macho</SelectItem>
-                                      <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
-                                      <SelectItem value="VAZIA">Vazia</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                );
-                              })}
-                            </div>
+                                  return (
+                                    <Select
+                                      key={index}
+                                      value={valorAtual}
+                                      onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
+                                      disabled={isDisabled}
+                                    >
+                                      <SelectTrigger className="w-24 h-9">
+                                        <SelectValue placeholder={placeholder} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="FEMEA">Fêmea</SelectItem>
+                                        <SelectItem value="MACHO">Macho</SelectItem>
+                                        <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
+                                        <SelectItem value="VAZIA">Vazia</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  );
+                                })}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={dados.observacoes}
+                                onChange={(e) => handleFieldChange(receptora.receptora_id, 'observacoes', e.target.value)}
+                                placeholder="Obs."
+                                className="w-32 h-9"
+                                disabled={isDisabled}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ) : loteSelecionado && receptoras.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhuma receptora prenhe encontrada neste lote
+              </CardContent>
+            </Card>
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="historico" className="space-y-6 mt-6">
+          {/* Cards de estatísticas */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="bg-card">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total de Sexagens</p>
+                    <p className="text-2xl font-bold">{estatisticasHistorico.total}</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <CalendarDays className="h-6 w-6 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Fêmeas</p>
+                    <p className="text-2xl font-bold text-pink-600">{estatisticasHistorico.femeas}</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-pink-500/10 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-pink-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Machos</p>
+                    <p className="text-2xl font-bold text-blue-600">{estatisticasHistorico.machos}</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Taxa de Perda</p>
+                    <p className="text-2xl font-bold text-red-600">{taxaPerda}%</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                    <TrendingDown className="h-6 w-6 text-red-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filtros */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filtros
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Buscar</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Brinco, nome, fazenda..."
+                      value={filtroBusca}
+                      onChange={(e) => setFiltroBusca(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fazenda</label>
+                  <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as fazendas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas as fazendas</SelectItem>
+                      {todasFazendas.map(f => (
+                        <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sexagem</label>
+                  <Select value={filtroSexagem} onValueChange={setFiltroSexagem}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="FEMEA">Fêmea</SelectItem>
+                      <SelectItem value="MACHO">Macho</SelectItem>
+                      <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data Início</label>
+                  <DatePickerBR
+                    value={filtroDataInicio}
+                    onChange={(value) => setFiltroDataInicio(value || '')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data Fim</label>
+                  <DatePickerBR
+                    value={filtroDataFim}
+                    onChange={(value) => setFiltroDataFim(value || '')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data Parto De</label>
+                  <DatePickerBR
+                    value={filtroDataPartoDe}
+                    onChange={(value) => setFiltroDataPartoDe(value || '')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data Parto Até</label>
+                  <DatePickerBR
+                    value={filtroDataPartoAte}
+                    onChange={(value) => setFiltroDataPartoAte(value || '')}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={loadHistorico}
+                className="mt-4 bg-primary hover:bg-primary-dark"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Tabela de histórico */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Histórico de Sexagens</CardTitle>
+              <CardDescription>
+                {historicoFiltrado.length} registro(s) encontrado(s)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingHistorico ? (
+                <LoadingSpinner />
+              ) : historicoFiltrado.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma sexagem encontrada. Clique em "Atualizar" para carregar os dados.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Receptora</TableHead>
+                        <TableHead>Fazenda</TableHead>
+                        <TableHead>Data TE</TableHead>
+                        <TableHead>Data Sexagem</TableHead>
+                        <TableHead>Data Parto</TableHead>
+                        <TableHead>Sexagem</TableHead>
+                        <TableHead>Nº Gest.</TableHead>
+                        <TableHead>Veterinário</TableHead>
+                        <TableHead>Técnico</TableHead>
+                        <TableHead>Observações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historicoFiltrado.map((h) => (
+                        <TableRow key={h.id}>
+                          <TableCell className="font-medium">
+                            {h.receptora_brinco}
+                            {h.receptora_nome && (
+                              <span className="text-muted-foreground text-sm ml-2">({h.receptora_nome})</span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <Textarea
-                              value={dados.observacoes}
-                              onChange={(e) => handleFieldChange(receptora.receptora_id, 'observacoes', e.target.value)}
-                              placeholder="Observações"
-                              rows={2}
-                              className="w-48"
-                              disabled={loteSelecionado.status === 'FECHADO'}
-                            />
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              {h.fazenda_nome}
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatarData(h.data_te)}</TableCell>
+                          <TableCell>{formatarData(h.data_diagnostico)}</TableCell>
+                          <TableCell>{h.data_provavel_parto ? formatarData(h.data_provavel_parto) : '-'}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                h.sexagem === 'FEMEA'
+                                  ? 'bg-pink-500/10 text-pink-600 border-pink-500/30'
+                                  : h.sexagem === 'MACHO'
+                                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
+                                  : 'bg-gray-500/10 text-gray-600 border-gray-500/30'
+                              }
+                            >
+                              {h.sexagem === 'FEMEA' ? 'Fêmea' :
+                               h.sexagem === 'MACHO' ? 'Macho' :
+                               h.sexagem === 'SEM_SEXO' ? 'Sem sexo' : '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">{h.numero_gestacoes || '-'}</TableCell>
+                          <TableCell>{h.veterinario_responsavel || '-'}</TableCell>
+                          <TableCell>{h.tecnico_responsavel || '-'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">
+                            {h.observacoes?.replace(/SEXAGENS:[^|]+\|?/, '').trim() || '-'}
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

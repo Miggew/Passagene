@@ -20,11 +20,19 @@ export interface ReceptoraLocal {
   ciclando_classificacao?: 'N' | 'CL' | null;
   qualidade_semaforo?: 1 | 2 | 3 | null;
   isNew?: boolean;
+  historicoStats?: ReceptoraHistoricoStats;
+}
+
+export interface ReceptoraHistoricoStats {
+  totalProtocolos: number;
+  gestacoes: number;
+  protocolosDesdeUltimaGestacao: number;
 }
 
 export interface ReceptoraComStatus extends Receptora {
   status: string;
   motivoIndisponivel?: string;
+  historicoStats?: ReceptoraHistoricoStats;
 }
 
 export interface ReceptoraFiltrada extends ReceptoraComStatus {
@@ -112,6 +120,73 @@ export function useProtocoloWizardData(): UseProtocoloWizardDataReturn {
     }
   }, [toast]);
 
+  // Load historico stats for multiple receptoras at once
+  const loadHistoricoStats = useCallback(async (receptoraIds: string[]): Promise<Map<string, ReceptoraHistoricoStats>> => {
+    const statsMap = new Map<string, ReceptoraHistoricoStats>();
+
+    if (receptoraIds.length === 0) return statsMap;
+
+    try {
+      // Buscar todos os protocolos das receptoras
+      const { data: protocolosData } = await supabase
+        .from('protocolo_receptoras')
+        .select('receptora_id, created_at')
+        .in('receptora_id', receptoraIds)
+        .order('created_at', { ascending: false });
+
+      // Buscar todos os diagnósticos com resultado PRENHE
+      const { data: diagnosticosData } = await supabase
+        .from('diagnosticos_gestacao')
+        .select('receptora_id, data_diagnostico')
+        .in('receptora_id', receptoraIds)
+        .in('resultado', ['PRENHE', 'PRENHE_IA'])
+        .order('data_diagnostico', { ascending: false });
+
+      // Processar dados por receptora
+      const protocolosPorReceptora = new Map<string, string[]>();
+      (protocolosData || []).forEach(p => {
+        const list = protocolosPorReceptora.get(p.receptora_id) || [];
+        list.push(p.created_at);
+        protocolosPorReceptora.set(p.receptora_id, list);
+      });
+
+      const gestacoesPorReceptora = new Map<string, string[]>();
+      (diagnosticosData || []).forEach(d => {
+        const list = gestacoesPorReceptora.get(d.receptora_id) || [];
+        list.push(d.data_diagnostico);
+        gestacoesPorReceptora.set(d.receptora_id, list);
+      });
+
+      // Calcular stats para cada receptora
+      receptoraIds.forEach(id => {
+        const protocolos = protocolosPorReceptora.get(id) || [];
+        const gestacoes = gestacoesPorReceptora.get(id) || [];
+
+        const totalProtocolos = protocolos.length;
+        const totalGestacoes = gestacoes.length;
+
+        // Calcular protocolos desde última gestação
+        let protocolosDesdeUltimaGestacao = totalProtocolos;
+        if (gestacoes.length > 0 && protocolos.length > 0) {
+          const ultimaGestacao = new Date(gestacoes[0]);
+          protocolosDesdeUltimaGestacao = protocolos.filter(
+            p => new Date(p) > ultimaGestacao
+          ).length;
+        }
+
+        statsMap.set(id, {
+          totalProtocolos,
+          gestacoes: totalGestacoes,
+          protocolosDesdeUltimaGestacao,
+        });
+      });
+    } catch (error) {
+      console.error('Erro ao carregar histórico stats:', error);
+    }
+
+    return statsMap;
+  }, []);
+
   // Load all receptoras from fazenda with status
   const loadAllReceptoras = useCallback(async (fazendaId: string) => {
     try {
@@ -133,26 +208,28 @@ export function useProtocoloWizardData(): UseProtocoloWizardDataReturn {
         return;
       }
 
-      // Fetch complete receptora data
-      const { data, error } = await supabase
-        .from('receptoras')
-        .select('id, identificacao, nome, status_reprodutivo')
-        .in('id', receptoraIds)
-        .order('identificacao', { ascending: true });
+      // Fetch complete receptora data and historico stats in parallel
+      const [receptorasResult, historicoStatsMap] = await Promise.all([
+        supabase
+          .from('receptoras')
+          .select('id, identificacao, nome, status_reprodutivo')
+          .in('id', receptoraIds)
+          .order('identificacao', { ascending: true }),
+        loadHistoricoStats(receptoraIds),
+      ]);
 
-      if (error) throw error;
+      if (receptorasResult.error) throw receptorasResult.error;
 
-      const receptorasData = data || [];
+      const receptorasData = receptorasResult.data || [];
 
       // Calculate status for all receptoras
-      const receptorasComStatusPromises = receptorasData
+      const receptorasComStatusFiltradas: ReceptoraComStatus[] = receptorasData
         .filter(r => {
           const rId = r.id ? String(r.id).trim() : '';
           return rId !== '';
         })
-        .map(async (r) => {
+        .map((r) => {
           const rId = r.id ? String(r.id).trim() : '';
-          if (!rId) return null;
           const status = r.status_reprodutivo || 'VAZIA';
           const validacao = validarTransicaoStatus(status, 'ENTRAR_PASSO1');
 
@@ -160,13 +237,9 @@ export function useProtocoloWizardData(): UseProtocoloWizardDataReturn {
             ...r,
             status,
             motivoIndisponivel: validacao.valido ? undefined : validacao.mensagem,
+            historicoStats: historicoStatsMap.get(rId),
           };
         });
-
-      const receptorasComStatusResults = await Promise.all(receptorasComStatusPromises);
-      const receptorasComStatusFiltradas = receptorasComStatusResults.filter(
-        (r): r is ReceptoraComStatus => r !== null
-      );
 
       // Separate VAZIA receptoras (for availableReceptoras) and all (for receptorasComStatus)
       const receptorasVazias = receptorasComStatusFiltradas.filter(r => r.status === 'VAZIA');
@@ -182,7 +255,7 @@ export function useProtocoloWizardData(): UseProtocoloWizardDataReturn {
     } finally {
       setLoadingReceptoras(false);
     }
-  }, [toast]);
+  }, [toast, loadHistoricoStats]);
 
   // Get selected IDs as Set
   const getSelectedIds = useCallback((receptorasLocais: ReceptoraLocal[]): Set<string> => {

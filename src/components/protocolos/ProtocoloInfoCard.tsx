@@ -61,8 +61,8 @@ interface InfoItemProps {
 function InfoItem({ label, value }: InfoItemProps) {
   return (
     <div>
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="text-base text-slate-900">{value}</p>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <p className="text-base text-foreground">{value}</p>
     </div>
   );
 }

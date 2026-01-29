@@ -37,6 +37,7 @@ import { ClassificarForm } from './ClassificarForm';
 export interface CongelarData {
   data_congelamento: string;
   localizacao_atual: string;
+  cliente_id: string; // Cliente dono do embrião congelado
 }
 
 export interface DescartarData {
@@ -136,6 +137,7 @@ interface CongelarDialogProps {
   onOpenChange: (open: boolean) => void;
   count: number;
   data: CongelarData;
+  clientes: Cliente[];
   onDataChange: (data: CongelarData) => void;
   onSubmit: () => void;
   submitting: boolean;
@@ -146,6 +148,7 @@ export function CongelarDialog({
   onOpenChange,
   count,
   data,
+  clientes,
   onDataChange,
   onSubmit,
   submitting,
@@ -155,6 +158,9 @@ export function CongelarDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Congelar {count} Embrião(ões)</DialogTitle>
+          <DialogDescription>
+            Defina os dados do congelamento e o cliente dono do embrião
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -173,11 +179,29 @@ export function CongelarDialog({
               placeholder="Ex: Botijão 1, Canister A"
             />
           </div>
+          <div className="space-y-2">
+            <Label>Cliente (Dono do Embrião) *</Label>
+            <Select
+              value={data.cliente_id}
+              onValueChange={(v) => onDataChange({ ...data, cliente_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex gap-2 pt-2">
             <Button
               onClick={onSubmit}
               className="flex-1"
-              disabled={submitting}
+              disabled={submitting || !data.cliente_id}
             >
               {submitting ? 'Congelando...' : 'Congelar'}
             </Button>
@@ -326,11 +350,11 @@ interface HistoricoSheetProps {
 }
 
 const tipoOperacaoConfig: Record<string, { label: string; color: string; icon: string }> = {
-  CLASSIFICACAO: { label: 'Classificação', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '🏷️' },
-  CONGELAMENTO: { label: 'Congelamento', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: '❄️' },
-  DESCARTE: { label: 'Descarte', color: 'bg-red-100 text-red-700 border-red-200', icon: '🗑️' },
-  DESTINACAO: { label: 'Direcionamento', color: 'bg-green-100 text-green-700 border-green-200', icon: '👤' },
-  TRANSFERENCIA: { label: 'Transferência', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: '🔄' },
+  CLASSIFICACAO: { label: 'Classificação', color: 'bg-primary-subtle text-primary-subtle-foreground border-primary/30', icon: '🏷️' },
+  CONGELAMENTO: { label: 'Congelamento', color: 'bg-secondary text-secondary-foreground border-primary/20', icon: '❄️' },
+  DESCARTE: { label: 'Descarte', color: 'bg-destructive/10 text-destructive border-destructive/30', icon: '🗑️' },
+  DESTINACAO: { label: 'Direcionamento', color: 'bg-primary-subtle text-primary-subtle-foreground border-primary/30', icon: '👤' },
+  TRANSFERENCIA: { label: 'Transferência', color: 'bg-secondary text-secondary-foreground border-primary/20', icon: '🔄' },
 };
 
 export function HistoricoSheet({
@@ -348,7 +372,7 @@ export function HistoricoSheet({
             Histórico do Embrião
           </SheetTitle>
           <SheetDescription className="flex items-center gap-2">
-            <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+            <span className="font-mono bg-muted px-2 py-0.5 rounded text-foreground">
               {embriao?.identificacao || embriao?.id?.slice(0, 8)}
             </span>
             {embriao && (
@@ -359,27 +383,27 @@ export function HistoricoSheet({
 
         {/* Embryo info summary */}
         {embriao && (
-          <Card className="mt-4 bg-slate-50 border-slate-200">
+          <Card className="mt-4 bg-muted border-border">
             <CardContent className="pt-4 pb-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-slate-500">Doadora:</span>
-                  <span className="ml-2 font-medium">{embriao.doadora_registro || '-'}</span>
+                  <span className="text-muted-foreground">Doadora:</span>
+                  <span className="ml-2 font-medium text-foreground">{embriao.doadora_registro || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Touro:</span>
-                  <span className="ml-2 font-medium">{embriao.touro_nome || '-'}</span>
+                  <span className="text-muted-foreground">Touro:</span>
+                  <span className="ml-2 font-medium text-foreground">{embriao.touro_nome || '-'}</span>
                 </div>
                 {embriao.classificacao && (
                   <div>
-                    <span className="text-slate-500">Classificação:</span>
-                    <span className="ml-2 font-medium">{embriao.classificacao}</span>
+                    <span className="text-muted-foreground">Classificação:</span>
+                    <span className="ml-2 font-medium text-foreground">{embriao.classificacao}</span>
                   </div>
                 )}
                 {embriao.localizacao_atual && (
                   <div>
-                    <span className="text-slate-500">Localização:</span>
-                    <span className="ml-2 font-medium">{embriao.localizacao_atual}</span>
+                    <span className="text-muted-foreground">Localização:</span>
+                    <span className="ml-2 font-medium text-foreground">{embriao.localizacao_atual}</span>
                   </div>
                 )}
               </div>
@@ -395,15 +419,15 @@ export function HistoricoSheet({
           ) : historico.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-4xl mb-3">📋</div>
-              <p className="text-slate-500">Nenhum histórico registrado</p>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-muted-foreground">Nenhum histórico registrado</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
                 As operações realizadas aparecerão aqui
               </p>
             </div>
           ) : (
             <div className="relative">
               {/* Timeline line */}
-              <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-slate-200" />
+              <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-border" />
 
               {/* Timeline items */}
               <div className="space-y-4">
@@ -419,7 +443,7 @@ export function HistoricoSheet({
                       {/* Timeline dot */}
                       <div className={`
                         relative z-10 flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                        ${index === 0 ? 'bg-white border-2 border-green-500' : 'bg-white border border-slate-300'}
+                        ${index === 0 ? 'bg-card border-2 border-primary' : 'bg-card border border-border'}
                       `}>
                         <span className="text-sm">{config.icon}</span>
                       </div>
@@ -431,7 +455,7 @@ export function HistoricoSheet({
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}>
                               {config.label}
                             </span>
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               {item.data_mudanca ? formatDate(item.data_mudanca) : '-'}
                             </p>
                           </div>
@@ -440,7 +464,7 @@ export function HistoricoSheet({
                           )}
                         </div>
                         {item.observacoes && (
-                          <p className="text-sm text-slate-600 mt-2 bg-slate-50 p-2 rounded border border-slate-100">
+                          <p className="text-sm text-foreground mt-2 bg-muted p-2 rounded border border-border">
                             {item.observacoes}
                           </p>
                         )}
@@ -496,19 +520,19 @@ export function EditarFazendasDestinoDialog({
         </DialogHeader>
         {pacote && (
           <div className="space-y-4">
-            <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+            <div className="space-y-2 max-h-60 overflow-y-auto border border-border rounded-md p-3">
               {fazendas.map((fazenda) => (
                 <label
                   key={fazenda.id}
-                  className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-2 rounded"
+                  className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded"
                 >
                   <input
                     type="checkbox"
                     checked={fazendasSelecionadas.includes(fazenda.id)}
                     onChange={(e) => handleToggleFazenda(fazenda.id, e.target.checked)}
-                    className="rounded border-slate-300"
+                    className="rounded border-border"
                   />
-                  <span className="text-sm">{fazenda.nome}</span>
+                  <span className="text-sm text-foreground">{fazenda.nome}</span>
                 </label>
               ))}
             </div>

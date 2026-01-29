@@ -68,6 +68,49 @@ export function useTransferenciaHandlers({
 }: UseTransferenciaHandlersProps) {
   const { toast } = useToast();
 
+  /**
+   * Verifica se todas as receptoras de um protocolo foram processadas
+   * e atualiza o status do protocolo para FECHADO ou EM_TE
+   */
+  const verificarEAtualizarStatusProtocolo = useCallback(async (protocoloReceptoraId: string) => {
+    try {
+      // Buscar o protocolo_id através do protocolo_receptora
+      const { data: prData, error: prError } = await supabase
+        .from('protocolo_receptoras')
+        .select('protocolo_id')
+        .eq('id', protocoloReceptoraId)
+        .single();
+
+      if (prError || !prData?.protocolo_id) return;
+
+      const protocoloId = prData.protocolo_id;
+
+      // Buscar todas as receptoras do protocolo
+      const { data: todasReceptoras, error: todasError } = await supabase
+        .from('protocolo_receptoras')
+        .select('status')
+        .eq('protocolo_id', protocoloId);
+
+      if (todasError || !todasReceptoras) return;
+
+      // Verificar se todas foram processadas (não há mais APTA ou INICIADA)
+      const pendentes = todasReceptoras.filter(r => r.status === 'APTA' || r.status === 'INICIADA');
+
+      if (pendentes.length === 0) {
+        // Todas foram processadas - verificar se alguma foi utilizada (TE realizada)
+        const utilizadas = todasReceptoras.filter(r => r.status === 'UTILIZADA');
+        const novoStatus = utilizadas.length > 0 ? 'EM_TE' : 'FECHADO';
+
+        await supabase
+          .from('protocolos_sincronizacao')
+          .update({ status: novoStatus })
+          .eq('id', protocoloId);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status do protocolo:', error);
+    }
+  }, []);
+
   const handleDescartarReceptora = useCallback(async () => {
     if (!formData.receptora_id) {
       toast({
@@ -81,6 +124,7 @@ export function useTransferenciaHandlers({
     const receptoraSelecionada = receptoras.find(r => r.receptora_id === formData.receptora_id);
     const brincoReceptora = receptoraSelecionada?.brinco || formData.receptora_id;
     const origemReceptora = receptoraSelecionada?.origem || 'PROTOCOLO';
+    const protocoloReceptoraId = formData.protocolo_receptora_id;
 
     try {
       setSubmitting(true);
@@ -93,16 +137,19 @@ export function useTransferenciaHandlers({
           .eq('status', 'DISPONIVEL');
 
         if (cioLivreError) throw cioLivreError;
-      } else if (formData.protocolo_receptora_id) {
+      } else if (protocoloReceptoraId) {
         const { error: prError } = await supabase
           .from('protocolo_receptoras')
           .update({
             status: 'INAPTA',
             motivo_inapta: 'Descartada no menu de TE - não recebeu embrião'
           })
-          .eq('id', formData.protocolo_receptora_id);
+          .eq('id', protocoloReceptoraId);
 
         if (prError) throw prError;
+
+        // Verificar se todas as receptoras do protocolo foram processadas
+        await verificarEAtualizarStatusProtocolo(protocoloReceptoraId);
       }
 
       if (formData.receptora_id) {
@@ -133,7 +180,7 @@ export function useTransferenciaHandlers({
     } finally {
       setSubmitting(false);
     }
-  }, [formData, receptoras, setFormData, setSubmitting, recarregarReceptoras, toast]);
+  }, [formData, receptoras, setFormData, setSubmitting, recarregarReceptoras, verificarEAtualizarStatusProtocolo, toast]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

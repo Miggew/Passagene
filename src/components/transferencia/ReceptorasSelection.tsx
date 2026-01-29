@@ -53,7 +53,7 @@ export default function ReceptorasSelection({
                     }
                   }}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="radio"
                       name="receptora"
@@ -64,10 +64,15 @@ export default function ReceptorasSelection({
                     />
                     <span className="font-medium">{r.brinco}</span>
                     {r.origem === 'CIO_LIVRE' && (
-                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">CIO LIVRE</Badge>
+                      <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">CIO LIVRE</Badge>
                     )}
-                    {r.ciclando_classificacao && <CiclandoBadge classificacao={r.ciclando_classificacao} />}
-                    {r.qualidade_semaforo && <QualidadeSemaforo qualidade={r.qualidade_semaforo} />}
+                    <CiclandoBadge value={r.ciclando_classificacao} />
+                    <QualidadeSemaforo value={r.qualidade_semaforo} />
+                    {r.observacoes && (
+                      <span className="text-xs text-slate-500 italic truncate max-w-[150px]" title={r.observacoes}>
+                        {r.observacoes}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {quantidadeSessao > 0 && (

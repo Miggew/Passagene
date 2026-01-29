@@ -77,7 +77,6 @@ export function useTransferenciaEmbrioesData({
     }
 
     const payload = {
-      fazenda_id: estadoSessao.fazenda_id,
       pacote_id: pacoteIdLimpo,
       data_passo2: estadoSessao.data_passo2 || null,
       data_te: estadoSessao.data_te || null,
@@ -89,13 +88,37 @@ export function useTransferenciaEmbrioesData({
       incluir_cio_livre: !!estadoSessao.incluir_cio_livre,
       transferencias_ids: estadoSessao.transferenciasIdsSessao || [],
       protocolo_receptora_ids: estadoSessao.transferenciasSessao || [],
-      status: 'ABERTA',
       updated_at: new Date().toISOString(),
     };
 
-    await supabase
-      .from('transferencias_sessoes')
-      .upsert(payload, { onConflict: 'fazenda_id,status' });
+    try {
+      // Primeiro, tentar atualizar sessão existente
+      const { data: existingSessao } = await supabase
+        .from('transferencias_sessoes')
+        .select('id')
+        .eq('fazenda_id', estadoSessao.fazenda_id)
+        .eq('status', 'ABERTA')
+        .maybeSingle();
+
+      if (existingSessao) {
+        // Atualizar sessão existente
+        await supabase
+          .from('transferencias_sessoes')
+          .update(payload)
+          .eq('id', existingSessao.id);
+      } else {
+        // Inserir nova sessão
+        await supabase
+          .from('transferencias_sessoes')
+          .insert({
+            ...payload,
+            fazenda_id: estadoSessao.fazenda_id,
+            status: 'ABERTA',
+          });
+      }
+    } catch {
+      // Ignorar erros silenciosamente - a sessão é apenas para conveniência
+    }
   }, []);
 
   // Encerrar sessão no banco
@@ -302,12 +325,8 @@ export function useTransferenciaEmbrioesData({
   // Carregar pacotes de embriões
   const loadPacotes = useCallback(async () => {
     try {
-      // Tentar descartar embriões expirados (D9+) via RPC
-      // Se a função não existir ou falhar, ignorar silenciosamente
-      const { error: rpcError } = await supabase.rpc('descartar_embrioes_d9');
-      if (rpcError) {
-        console.warn('RPC descartar_embrioes_d9 não disponível:', rpcError.message);
-      }
+      // Nota: O descarte automático de embriões D9+ deve ser implementado via
+      // cron job ou trigger no banco de dados, não via chamada do frontend
 
       const [transferenciasResult, frescosResult] = await Promise.all([
         supabase.from('transferencias_embrioes').select('embriao_id'),
@@ -727,11 +746,11 @@ export function useTransferenciaEmbrioesData({
       const receptoraInfoMap = new Map((receptorasStatusData || []).map(r => [r.id, r]));
 
       const protocoloIdsView = [...new Set(statusFiltrado.map(s => s.protocolo_id).filter(Boolean))];
-      let prData: Array<{ id: string; receptora_id: string; protocolo_id: string; status: string; ciclando_classificacao?: 'N' | 'CL' | null; qualidade_semaforo?: 1 | 2 | 3 | null }> = [];
+      let prData: Array<{ id: string; receptora_id: string; protocolo_id: string; status: string; ciclando_classificacao?: 'N' | 'CL' | null; qualidade_semaforo?: 1 | 2 | 3 | null; observacoes?: string | null }> = [];
       if (protocoloIdsView.length > 0) {
         const { data: prDataRaw, error: prError } = await supabase
           .from('protocolo_receptoras')
-          .select('id, receptora_id, protocolo_id, status, ciclando_classificacao, qualidade_semaforo')
+          .select('id, receptora_id, protocolo_id, status, ciclando_classificacao, qualidade_semaforo, observacoes')
           .in('protocolo_id', protocoloIdsView)
           .neq('status', 'INAPTA')
           .neq('status', 'UTILIZADA');
@@ -757,6 +776,7 @@ export function useTransferenciaEmbrioesData({
             quantidade_embrioes: quantidadeSessao,
             ciclando_classificacao: pr?.ciclando_classificacao ?? null,
             qualidade_semaforo: pr?.qualidade_semaforo ?? null,
+            observacoes: pr?.observacoes ?? null,
             origem: 'PROTOCOLO' as const,
             status_reprodutivo: info?.status_reprodutivo,
           };

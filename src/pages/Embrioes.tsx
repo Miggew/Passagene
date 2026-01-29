@@ -30,7 +30,6 @@ import {
   ClassificarDialogBatch,
   CongelarDialog,
   DescartarDialog,
-  DirecionarClienteDialog,
   EditarFazendasDestinoDialog,
 } from '@/components/embrioes';
 
@@ -71,16 +70,12 @@ export default function Embrioes() {
     setShowDescartarDialog,
     showClassificarDialog,
     setShowClassificarDialog,
-    showDirecionarClienteDialog,
-    setShowDirecionarClienteDialog,
     showEditarFazendasDestinoDialog,
     setShowEditarFazendasDestinoDialog,
     congelarData,
     setCongelarData,
     descartarData,
     setDescartarData,
-    direcionarClienteData,
-    setDirecionarClienteData,
     classificarEmbriao,
     setClassificarEmbriao,
     pacoteEditandoFazendas,
@@ -90,7 +85,6 @@ export default function Embrioes() {
     submitting,
     handleCongelarEmMassa,
     handleDescartarEmMassa,
-    handleDirecionarClienteEmMassa,
     handleSalvarFazendasDestino,
     limparSelecao,
   } = useEmbrioesActions({
@@ -100,6 +94,32 @@ export default function Embrioes() {
     setClassificacoesPendentes,
     onSuccess: reloadData,
   });
+
+  // Handler para alternar estrela do embrião
+  const handleToggleEstrela = async (embriao: EmbrioCompleto) => {
+    try {
+      const novoValor = !embriao.estrela;
+      const { error } = await supabase
+        .from('embrioes')
+        .update({ estrela: novoValor })
+        .eq('id', embriao.id);
+
+      if (error) throw error;
+
+      toast({
+        title: novoValor ? 'Embrião marcado como Top' : 'Estrela removida',
+        description: novoValor ? 'Embrião marcado com estrela.' : 'Estrela removida do embrião.',
+      });
+
+      await reloadData();
+    } catch (error) {
+      toast({
+        title: 'Erro ao atualizar embrião',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Local UI state
   const [pacotesExpandidos, setPacotesExpandidos] = useState<Set<string>>(new Set());
@@ -285,12 +305,12 @@ export default function Embrioes() {
   return (
     <div className={`space-y-6 ${showAcoesEmMassa ? 'pb-24' : ''}`}>
       <PageHeader
-        title="Estoque de Embriões"
+        title="Embriões"
         description="Gerenciar pacotes de embriões para transferência, congelamento ou descarte"
       />
 
       {/* Filter bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-lg border shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
         <div className="flex items-center gap-3">
           <Label htmlFor="fazenda_destino" className="text-sm font-medium whitespace-nowrap">
             Fazenda Destino:
@@ -369,12 +389,12 @@ export default function Embrioes() {
                   return;
                 }
                 setEmbrioesSelecionados(new Set([embriao.id]));
+                setCongelarData({
+                  data_congelamento: new Date().toISOString().split('T')[0],
+                  localizacao_atual: '',
+                  cliente_id: '',
+                });
                 setShowCongelarDialog(true);
-              }}
-              onDirecionar={(embriao) => {
-                setEmbrioesSelecionados(new Set([embriao.id]));
-                setDirecionarClienteData({ cliente_id: '' });
-                setShowDirecionarClienteDialog(true);
               }}
               onDescartar={(embriao) => {
                 setEmbrioesSelecionados(new Set([embriao.id]));
@@ -384,6 +404,7 @@ export default function Embrioes() {
                 });
                 setShowDescartarDialog(true);
               }}
+              onToggleEstrela={handleToggleEstrela}
             />
           ))}
         </div>
@@ -394,19 +415,62 @@ export default function Embrioes() {
         <BulkActionsBar
           selectedCount={embrioesSelecionados.size}
           onClassificar={() => {
+            // Verificar se há embriões de pacotes já despachados
+            const ids = Array.from(embrioesSelecionados);
+            const embrioesDespachadosCount = ids.filter(id => {
+              const pacote = pacotes.find(p => p.embrioes.some(e => e.id === id));
+              return pacote?.disponivel_para_transferencia === true;
+            }).length;
+
+            if (embrioesDespachadosCount > 0) {
+              toast({
+                title: 'Ação não permitida',
+                description: `${embrioesDespachadosCount} embrião(ões) já foram despachados e não podem ser reclassificados.`,
+                variant: 'destructive',
+              });
+              return;
+            }
+
             setClassificarData({ classificacao: '' });
             setShowClassificarDialog(true);
           }}
           onCongelar={() => {
+            const ids = Array.from(embrioesSelecionados);
+
+            // Verificar se há embriões de pacotes já despachados
+            const embrioesDespachadosCount = ids.filter(id => {
+              const pacote = pacotes.find(p => p.embrioes.some(e => e.id === id));
+              return pacote?.disponivel_para_transferencia === true;
+            }).length;
+
+            if (embrioesDespachadosCount > 0) {
+              toast({
+                title: 'Ação não permitida',
+                description: `${embrioesDespachadosCount} embrião(ões) já foram despachados e não podem ser congelados.`,
+                variant: 'destructive',
+              });
+              return;
+            }
+
+            // Validar se todos embriões selecionados estão classificados
+            const embrioesParaCongelar = embrioes.filter(e => ids.includes(e.id));
+            const semClassificacao = embrioesParaCongelar.filter(e => !getClassificacaoAtual(e));
+
+            if (semClassificacao.length > 0) {
+              toast({
+                title: 'Classificação obrigatória',
+                description: `${semClassificacao.length} embrião(ões) não possui(em) classificação. Classifique antes de congelar.`,
+                variant: 'destructive',
+              });
+              return;
+            }
+
             setCongelarData({
               data_congelamento: new Date().toISOString().split('T')[0],
               localizacao_atual: '',
+              cliente_id: '',
             });
             setShowCongelarDialog(true);
-          }}
-          onDirecionar={() => {
-            setDirecionarClienteData({ cliente_id: '' });
-            setShowDirecionarClienteDialog(true);
           }}
           onDescartar={() => {
             setDescartarData({
@@ -450,6 +514,7 @@ export default function Embrioes() {
         onOpenChange={setShowCongelarDialog}
         count={embrioesSelecionados.size}
         data={congelarData}
+        clientes={clientes}
         onDataChange={setCongelarData}
         onSubmit={handleCongelarEmMassa}
         submitting={submitting}
@@ -462,16 +527,6 @@ export default function Embrioes() {
         data={descartarData}
         onDataChange={setDescartarData}
         onSubmit={handleDescartarEmMassa}
-        submitting={submitting}
-      />
-
-      <DirecionarClienteDialog
-        open={showDirecionarClienteDialog}
-        onOpenChange={setShowDirecionarClienteDialog}
-        clientes={clientes}
-        data={direcionarClienteData}
-        onDataChange={setDirecionarClienteData}
-        onSubmit={() => handleDirecionarClienteEmMassa(clientes)}
         submitting={submitting}
       />
 

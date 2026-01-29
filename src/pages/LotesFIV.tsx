@@ -402,7 +402,18 @@ export default function LotesFIV() {
 
       const { error } = await supabase.from('lote_fiv_acasalamentos').insert([acasalamentoParaInserir]);
 
-      if (error) throw error;
+      if (error) {
+        // 409 Conflict = unique constraint violation (duplicate acasalamento)
+        if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          toast({
+            title: 'Acasalamento duplicado',
+            description: 'Já existe um acasalamento com esta doadora e dose de sêmen neste lote. Edite o existente ou escolha outra combinação.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        throw error;
+      }
 
       const novaQuantidade = quantidadeDisponivel - quantidadeFracionada;
       const { error: doseUpdateError } = await supabase

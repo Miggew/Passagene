@@ -4,11 +4,9 @@ import type { Fazenda } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export type StatusReceptoraFiltro = 'SERVIDA' | 'PRENHE' | 'PRENHE_RETOQUE' | 'PRENHE_FEMEA' | 'PRENHE_MACHO' | 'PRENHE_SEM_SEXO' | 'PRENHE_2_SEXOS';
-export type TipoDiagnosticoFiltro = 'DG' | 'SEXAGEM';
 
 interface UseFazendasComLotesProps {
   statusReceptoraFiltro: StatusReceptoraFiltro | StatusReceptoraFiltro[];
-  tipoDiagnosticoFiltro: TipoDiagnosticoFiltro;
 }
 
 interface UseFazendasComLotesReturn {
@@ -22,7 +20,6 @@ interface UseFazendasComLotesReturn {
  */
 export function useFazendasComLotes({
   statusReceptoraFiltro,
-  tipoDiagnosticoFiltro,
 }: UseFazendasComLotesProps): UseFazendasComLotesReturn {
   const { toast } = useToast();
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
@@ -54,7 +51,8 @@ export function useFazendasComLotes({
       const receptoraIds = [...new Set((viewData || []).map(v => v.receptora_id).filter(Boolean))];
 
       if (receptoraIds.length === 0) {
-        setFazendas([]);
+        // Retorna todas as fazendas mesmo sem receptoras
+        setFazendas(fazendasData);
         return;
       }
 
@@ -79,76 +77,51 @@ export function useFazendasComLotes({
       if (receptorasError) throw receptorasError;
 
       const receptorasFiltradas = receptorasData?.map(r => r.id) || [];
+
       if (receptorasFiltradas.length === 0) {
+        // Se não há receptoras com o status, retorna lista vazia
         setFazendas([]);
         return;
       }
 
-      // 4. Buscar TEs realizadas
+      // 4. Buscar TEs realizadas para essas receptoras
       const { data: teData, error: teError } = await supabase
         .from('transferencias_embrioes')
-        .select('receptora_id, data_te')
+        .select('receptora_id')
         .in('receptora_id', receptorasFiltradas)
         .eq('status_te', 'REALIZADA');
 
-      if (teError) throw teError;
+      if (teError) {
+        console.error('Erro ao buscar TEs:', teError);
+        throw teError;
+      }
 
-      // 5. Buscar diagnósticos existentes
-      const { data: diagnosticosData, error: diagnosticosError } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, data_te')
-        .in('receptora_id', receptorasFiltradas)
-        .eq('tipo_diagnostico', tipoDiagnosticoFiltro);
+      const receptorasComTE = new Set(teData?.map(te => te.receptora_id) || []);
 
-      if (diagnosticosError) throw diagnosticosError;
+      if (receptorasComTE.size === 0) {
+        // Se não há TEs realizadas, retorna lista vazia
+        setFazendas([]);
+        return;
+      }
 
-      // 6. Mapear receptora -> fazenda
+      // 5. Mapear receptora -> fazenda
       const receptoraFazendaMap = new Map(
         (viewData || [])
           .filter(v => v.receptora_id && v.fazenda_id_atual)
           .map(v => [v.receptora_id, v.fazenda_id_atual])
       );
 
-      // 7. Agrupar receptoras por lote (fazenda + data_te)
-      const receptorasPorLote = new Map<string, Set<string>>();
-      const chaveFazendaMap = new Map<string, string>();
-
-      (teData || []).forEach(te => {
-        const fazendaId = receptoraFazendaMap.get(te.receptora_id);
-        if (!fazendaId) return;
-        const chave = `${fazendaId}|${te.data_te}`;
-        chaveFazendaMap.set(chave, fazendaId);
-        if (!receptorasPorLote.has(chave)) {
-          receptorasPorLote.set(chave, new Set());
-        }
-        receptorasPorLote.get(chave)!.add(te.receptora_id);
+      // 6. Identificar fazendas que têm receptoras com o status desejado E com TE realizada
+      const fazendasComReceptorasSet = new Set<string>();
+      receptorasComTE.forEach(receptoraId => {
+        const fazendaId = receptoraFazendaMap.get(receptoraId);
+        if (fazendaId) fazendasComReceptorasSet.add(fazendaId);
       });
 
-      // 8. Agrupar diagnósticos por lote
-      const diagnosticosPorLote = new Map<string, Set<string>>();
-      (diagnosticosData || []).forEach(dg => {
-        const fazendaId = receptoraFazendaMap.get(dg.receptora_id);
-        if (!fazendaId) return;
-        const chave = `${fazendaId}|${dg.data_te}`;
-        if (!diagnosticosPorLote.has(chave)) {
-          diagnosticosPorLote.set(chave, new Set());
-        }
-        diagnosticosPorLote.get(chave)!.add(dg.receptora_id);
-      });
-
-      // 9. Identificar fazendas com lotes pendentes
-      const fazendasAptasSet = new Set<string>();
-      receptorasPorLote.forEach((receptorasLote, chave) => {
-        const diagnosticosLote = diagnosticosPorLote.get(chave)?.size || 0;
-        if (diagnosticosLote < receptorasLote.size) {
-          const fazendaId = chaveFazendaMap.get(chave);
-          if (fazendaId) fazendasAptasSet.add(fazendaId);
-        }
-      });
-
-      const fazendasFiltradas = fazendasData.filter(f => fazendasAptasSet.has(f.id));
+      const fazendasFiltradas = fazendasData.filter(f => fazendasComReceptorasSet.has(f.id));
       setFazendas(fazendasFiltradas);
     } catch (error) {
+      console.error('Erro ao carregar fazendas:', error);
       toast({
         title: 'Erro ao carregar fazendas',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -158,7 +131,7 @@ export function useFazendasComLotes({
     } finally {
       setLoading(false);
     }
-  }, [statusReceptoraFiltro, tipoDiagnosticoFiltro, toast]);
+  }, [statusReceptoraFiltro, toast]);
 
   return {
     fazendas,

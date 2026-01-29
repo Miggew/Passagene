@@ -46,6 +46,7 @@ export interface ReceptoraSincronizada {
   quantidade_embrioes?: number;
   ciclando_classificacao?: 'N' | 'CL' | null;
   qualidade_semaforo?: 1 | 2 | 3 | null;
+  observacoes?: string | null;
   origem?: 'PROTOCOLO' | 'CIO_LIVRE';
   data_cio?: string;
   status_reprodutivo?: string | null;

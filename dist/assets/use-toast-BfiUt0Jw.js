@@ -1,1 +1,0 @@
-import{u as e}from"./index-TMaXuGT-.js";const c=({title:u,description:s,variant:r="default"})=>{const o=u??s??"Aviso",t=u&&s?{description:s}:void 0;return r==="destructive"?e.error(o,t):r==="success"?e.success(o,t):e(o,t)},n=()=>({toast:c});export{c as t,n as u};

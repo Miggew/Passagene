@@ -3,6 +3,14 @@
  */
 
 /**
+ * Dias mínimos de gestação para cada procedimento
+ */
+export const DIAS_MINIMOS = {
+  DG: 27,      // Diagnóstico de Gestação: mínimo 27 dias após fecundação
+  SEXAGEM: 54, // Sexagem Fetal: mínimo 54 dias após fecundação
+} as const;
+
+/**
  * Calcula o número de dias de gestação a partir da data de abertura do lote (D0)
  */
 export function calcularDiasGestacao(dataAberturaLote: string): number {
@@ -38,6 +46,8 @@ export interface LoteTEBase {
   data_te: string;
   quantidade_receptoras: number;
   status: 'ABERTO' | 'FECHADO';
+  dias_gestacao?: number; // Dias desde a fecundação (D0)
+  data_abertura_lote?: string; // Data de abertura do lote FIV (D0)
 }
 
 /**
@@ -79,9 +89,8 @@ export interface LoteFormDataBase {
 }
 
 /**
- * Valida se veterinário e técnico estão preenchidos
+ * Valida se o veterinário está preenchido (técnico é opcional)
  */
 export function validarResponsaveis(formData: LoteFormDataBase): boolean {
-  return formData.veterinario_responsavel.trim() !== '' &&
-         formData.tecnico_responsavel.trim() !== '';
+  return formData.veterinario_responsavel.trim() !== '';
 }

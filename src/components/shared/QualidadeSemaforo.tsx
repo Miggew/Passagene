@@ -14,9 +14,9 @@ interface QualidadeSemaforoProps {
   variant?: 'single' | 'row';
 }
 
-export default function QualidadeSemaforo({ 
-  value, 
-  onChange, 
+export default function QualidadeSemaforo({
+  value,
+  onChange,
   disabled = false,
   variant = 'single'
 }: QualidadeSemaforoProps) {
@@ -28,7 +28,7 @@ export default function QualidadeSemaforo({
       className={cn(
         'w-6 h-6 rounded-full border-2 transition-all',
         getQualidadeColor(num),
-        isSelected ? 'border-slate-900 scale-110' : 'border-slate-300',
+        isSelected ? 'border-foreground scale-110' : 'border-border',
         isEditable && !disabled && 'cursor-pointer hover:scale-125'
       )}
       onClick={() => isEditable && onChange?.(num)}
@@ -39,7 +39,7 @@ export default function QualidadeSemaforo({
   // Display mode (single) - mostra só a bolinha correspondente
   if (variant === 'single') {
     if (!value) {
-      return <span className="text-slate-300 text-xs">—</span>;
+      return <span className="text-muted-foreground/50 text-xs">—</span>;
     }
     return (
       <div className="flex items-center gap-1.5">
@@ -47,7 +47,7 @@ export default function QualidadeSemaforo({
           className={cn(
             'w-4 h-4 rounded-full border-2',
             getQualidadeColor(value),
-            'border-slate-300'
+            'border-border'
           )}
           title={`Qualidade ${value}`}
         />
@@ -62,22 +62,22 @@ export default function QualidadeSemaforo({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 px-3"
+          className="h-7 px-3 min-w-[90px]"
           disabled={disabled}
         >
           <div className="flex items-center gap-1">
             {value ? (
               <>
                 {renderSingleDot(value, false)}
-                <span className="text-sm text-slate-600 ml-1">{value}</span>
+                <span className="text-sm text-foreground ml-1">{value}</span>
               </>
             ) : (
-              <span className="text-slate-400 text-sm">Selecionar</span>
+              <span className="text-muted-foreground text-sm">Selecionar</span>
             )}
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3" align="start">
+      <PopoverContent className="w-auto p-3" align="start" sideOffset={4}>
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             {([1, 2, 3] as const).map((num) => (
@@ -86,15 +86,15 @@ export default function QualidadeSemaforo({
                 type="button"
                 className={cn(
                   'flex items-center gap-2 p-2 rounded-md transition-all',
-                  'hover:bg-slate-100',
-                  value === num && 'bg-slate-100'
+                  'hover:bg-muted',
+                  value === num && 'bg-muted'
                 )}
                 onClick={() => onChange!(num)}
                 disabled={disabled}
               >
                 {renderSingleDot(num, value === num)}
-                <span className="text-sm text-slate-700">{num}</span>
-                {value === num && <Check className="w-4 h-4 text-green-600" />}
+                <span className="text-sm text-foreground">{num}</span>
+                {value === num && <Check className="w-4 h-4 text-primary" />}
               </button>
             ))}
           </div>
@@ -102,7 +102,7 @@ export default function QualidadeSemaforo({
             <Button
               variant="ghost"
               size="sm"
-              className="justify-start text-slate-500"
+              className="justify-start text-muted-foreground"
               onClick={() => onChange!(null)}
               disabled={disabled}
             >

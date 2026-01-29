@@ -186,6 +186,12 @@ export function useProtocoloWizardReceptoras({
       return;
     }
 
+    // Find historicoStats from receptorasComStatus
+    const receptoraComStatus = receptorasComStatus.find(r => {
+      const rId = r.id ? String(r.id).trim() : '';
+      return rId === receptoraIdNormalized;
+    });
+
     // Add to local list
     setReceptorasLocais(prev => {
       const alreadyExists = prev.some(r => {
@@ -206,6 +212,7 @@ export function useProtocoloWizardReceptoras({
           observacoes: addReceptoraForm.observacoes?.trim() || undefined,
           ciclando_classificacao: addReceptoraForm.ciclando_classificacao || null,
           qualidade_semaforo: addReceptoraForm.qualidade_semaforo || null,
+          historicoStats: receptoraComStatus?.historicoStats,
         },
       ];
     });

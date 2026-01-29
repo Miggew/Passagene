@@ -2,11 +2,11 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { LoteTEBase } from '@/lib/gestacao';
-import type { StatusReceptoraFiltro, TipoDiagnosticoFiltro } from './useFazendasComLotes';
+import { calcularDiasGestacao } from '@/lib/gestacao';
+import type { StatusReceptoraFiltro } from './useFazendasComLotes';
 
 interface UseLotesTEProps<T extends LoteTEBase> {
   statusReceptoraFiltro: StatusReceptoraFiltro | StatusReceptoraFiltro[];
-  tipoDiagnosticoFiltro: TipoDiagnosticoFiltro;
   transformLote: (
     loteBase: LoteTEBase,
     diagnosticoLote: { veterinario_responsavel?: string; tecnico_responsavel?: string } | undefined
@@ -24,7 +24,6 @@ interface UseLotesTEReturn<T extends LoteTEBase> {
  */
 export function useLotesTE<T extends LoteTEBase>({
   statusReceptoraFiltro,
-  tipoDiagnosticoFiltro,
   transformLote,
 }: UseLotesTEProps<T>): UseLotesTEReturn<T> {
   const { toast } = useToast();
@@ -41,7 +40,10 @@ export function useLotesTE<T extends LoteTEBase>({
         .select('receptora_id')
         .eq('fazenda_id_atual', fazendaId);
 
-      if (viewError) throw viewError;
+      if (viewError) {
+        console.error('Erro ao buscar view:', viewError);
+        throw viewError;
+      }
 
       const receptoraIds = viewData?.map(v => v.receptora_id) || [];
 
@@ -66,7 +68,12 @@ export function useLotesTE<T extends LoteTEBase>({
         query = query.in('status_reprodutivo', statusArray);
       }
 
-      const { data: receptorasData } = await query;
+      const { data: receptorasData, error: receptorasError } = await query;
+
+      if (receptorasError) {
+        console.error('Erro ao buscar receptoras:', receptorasError);
+        throw receptorasError;
+      }
 
       const receptorasFiltradas = receptorasData?.map(r => r.id) || [];
 
@@ -78,27 +85,56 @@ export function useLotesTE<T extends LoteTEBase>({
       // 3. Buscar TEs realizadas
       const { data: teData, error: teError } = await supabase
         .from('transferencias_embrioes')
-        .select('id, receptora_id, data_te')
+        .select('id, receptora_id, data_te, embriao_id')
         .in('receptora_id', receptorasFiltradas)
         .eq('status_te', 'REALIZADA')
         .order('data_te', { ascending: false });
 
-      if (teError) throw teError;
+      if (teError) {
+        console.error('Erro ao buscar TEs:', teError);
+        throw teError;
+      }
 
-      // 4. Buscar diagnósticos existentes
-      const { data: diagnosticosData } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, data_te, veterinario_responsavel, tecnico_responsavel, data_diagnostico')
-        .in('receptora_id', receptorasFiltradas)
-        .eq('tipo_diagnostico', tipoDiagnosticoFiltro)
-        .order('data_diagnostico', { ascending: false });
+      if (!teData || teData.length === 0) {
+        setLotesTE([]);
+        return;
+      }
 
-      // 5. Agrupar por fazenda + data_te
+      // 4. Buscar embriões das TEs para obter lote_fiv_id
+      const embriaoIds = teData.map(te => te.embriao_id).filter(Boolean);
+      let embrioesMap = new Map<string, { lote_fiv_id: string }>();
+      let lotesFivMap = new Map<string, { data_abertura: string }>();
+
+      if (embriaoIds.length > 0) {
+        const { data: embrioesData } = await supabase
+          .from('embrioes')
+          .select('id, lote_fiv_id')
+          .in('id', embriaoIds);
+
+        if (embrioesData) {
+          embrioesMap = new Map(embrioesData.map(e => [e.id, { lote_fiv_id: e.lote_fiv_id }]));
+
+          // 5. Buscar lotes FIV para obter data_abertura
+          const loteFivIds = [...new Set(embrioesData.map(e => e.lote_fiv_id).filter(Boolean))];
+          if (loteFivIds.length > 0) {
+            const { data: lotesFivData } = await supabase
+              .from('lotes_fiv')
+              .select('id, data_abertura')
+              .in('id', loteFivIds);
+
+            if (lotesFivData) {
+              lotesFivMap = new Map(lotesFivData.map(l => [l.id, { data_abertura: l.data_abertura }]));
+            }
+          }
+        }
+      }
+
+      // 6. Agrupar por fazenda + data_te e calcular dias de gestação
       const lotesMap = new Map<string, LoteTEBase>();
       const receptorasPorData = new Map<string, Set<string>>();
-      const diagnosticoPorData = new Map<string, typeof diagnosticosData[0]>();
+      const dataAberturasPorLote = new Map<string, string>(); // chave do lote -> data_abertura mais antiga
 
-      teData?.forEach(te => {
+      teData.forEach(te => {
         const chave = `${fazendaId}-${te.data_te}`;
 
         if (!receptorasPorData.has(te.data_te)) {
@@ -106,12 +142,20 @@ export function useLotesTE<T extends LoteTEBase>({
         }
         receptorasPorData.get(te.data_te)!.add(te.receptora_id);
 
-        if (!lotesMap.has(chave)) {
-          const dgLote = diagnosticosData?.find(dg => dg.data_te === te.data_te);
-          if (dgLote && !diagnosticoPorData.has(te.data_te)) {
-            diagnosticoPorData.set(te.data_te, dgLote);
+        // Obter data_abertura do lote FIV através do embrião
+        const embriao = embrioesMap.get(te.embriao_id);
+        if (embriao?.lote_fiv_id) {
+          const loteFiv = lotesFivMap.get(embriao.lote_fiv_id);
+          if (loteFiv?.data_abertura) {
+            const dataAtual = dataAberturasPorLote.get(chave);
+            // Usar a data mais antiga (menor) como referência
+            if (!dataAtual || loteFiv.data_abertura < dataAtual) {
+              dataAberturasPorLote.set(chave, loteFiv.data_abertura);
+            }
           }
+        }
 
+        if (!lotesMap.has(chave)) {
           lotesMap.set(chave, {
             id: chave,
             fazenda_id: fazendaId,
@@ -123,31 +167,26 @@ export function useLotesTE<T extends LoteTEBase>({
         }
       });
 
-      // 6. Calcular quantidade e status
-      lotesMap.forEach((lote) => {
+      // 7. Calcular quantidade de receptoras e dias de gestação
+      lotesMap.forEach((lote, chave) => {
         const receptorasUnicas = receptorasPorData.get(lote.data_te)?.size || 0;
         lote.quantidade_receptoras = receptorasUnicas;
 
-        const diagnosticosDoLote = diagnosticosData?.filter(dg => dg.data_te === lote.data_te) || [];
-        if (diagnosticosDoLote.length > 0 && diagnosticosDoLote.length >= receptorasUnicas) {
-          lote.status = 'FECHADO';
+        const dataAbertura = dataAberturasPorLote.get(chave);
+        if (dataAbertura) {
+          lote.data_abertura_lote = dataAbertura;
+          lote.dias_gestacao = calcularDiasGestacao(dataAbertura);
         }
       });
 
-      // 7. Transformar para o tipo específico e filtrar apenas abertos
+      // 8. Transformar para o tipo específico
       const lotesArray = Array.from(lotesMap.values())
-        .map(loteBase => {
-          const dgLote = diagnosticoPorData.get(loteBase.data_te);
-          return transformLote(loteBase, dgLote ? {
-            veterinario_responsavel: dgLote.veterinario_responsavel,
-            tecnico_responsavel: dgLote.tecnico_responsavel,
-          } : undefined);
-        })
-        .filter(l => l.status === 'ABERTO')
+        .map(loteBase => transformLote(loteBase, undefined))
         .sort((a, b) => new Date(b.data_te).getTime() - new Date(a.data_te).getTime());
 
       setLotesTE(lotesArray);
     } catch (error) {
+      console.error('Erro ao carregar lotes:', error);
       toast({
         title: 'Erro ao carregar lotes',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
@@ -157,7 +196,7 @@ export function useLotesTE<T extends LoteTEBase>({
     } finally {
       setLoading(false);
     }
-  }, [statusReceptoraFiltro, tipoDiagnosticoFiltro, transformLote, toast]);
+  }, [statusReceptoraFiltro, transformLote, toast]);
 
   return {
     lotesTE,

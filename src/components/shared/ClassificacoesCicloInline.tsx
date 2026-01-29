@@ -24,13 +24,13 @@ export default function ClassificacoesCicloInline({
   const dotSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
 
   return (
-    <div className="flex flex-wrap items-center gap-3 text-slate-600">
+    <div className="flex flex-wrap items-center gap-3 text-foreground">
       {/* Ciclo (CL/N) */}
       <div className="flex items-center gap-2">
-        <span className={cn('text-slate-500 font-medium', sizeClasses)}>Ciclo:</span>
+        <span className={cn('text-muted-foreground font-medium', sizeClasses)}>Ciclo:</span>
         <ToggleGroup
           type="single"
-          value={ciclandoValue || undefined}
+          value={ciclandoValue ?? ''}
           onValueChange={(value) => {
             if (!disabled) {
               if (value === 'CL' || value === 'N') {
@@ -50,7 +50,7 @@ export default function ClassificacoesCicloInline({
             variant="outline"
             className={cn(
               'h-7 px-2 text-xs',
-              ciclandoValue === 'CL' && 'bg-blue-100 text-blue-700 border-blue-300 data-[state=on]:bg-blue-100',
+              ciclandoValue === 'CL' && 'bg-primary/10 text-primary border-primary/30 data-[state=on]:bg-primary/10',
               disabled && 'opacity-60'
             )}
           >
@@ -63,7 +63,7 @@ export default function ClassificacoesCicloInline({
             variant="outline"
             className={cn(
               'h-7 px-2 text-xs',
-              ciclandoValue === 'N' && 'bg-slate-100 text-slate-700 border-slate-300 data-[state=on]:bg-slate-100',
+              ciclandoValue === 'N' && 'bg-muted text-muted-foreground border-border data-[state=on]:bg-muted',
               disabled && 'opacity-60'
             )}
           >
@@ -74,7 +74,7 @@ export default function ClassificacoesCicloInline({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
             onClick={() => onChangeCiclando(null)}
             type="button"
           >
@@ -82,13 +82,13 @@ export default function ClassificacoesCicloInline({
           </Button>
         )}
         {!ciclandoValue && (
-          <span className={cn('text-slate-300', sizeClasses)}>—</span>
+          <span className={cn('text-muted-foreground/50', sizeClasses)}>—</span>
         )}
       </div>
 
       {/* Qualidade Semáforo */}
       <div className="flex items-center gap-2">
-        <span className={cn('text-slate-500 font-medium', sizeClasses)}>Qualidade:</span>
+        <span className={cn('text-muted-foreground font-medium', sizeClasses)}>Qualidade:</span>
         <div className="flex items-center gap-1.5">
           {([1, 2, 3] as const).map((num) => (
             <button
@@ -105,8 +105,8 @@ export default function ClassificacoesCicloInline({
                 'rounded-full border-2 transition-all',
                 getQualidadeColor(num),
                 qualidadeValue === num
-                  ? 'border-slate-900 scale-110 ring-2 ring-slate-300'
-                  : 'border-slate-300 opacity-50 hover:opacity-75 hover:scale-105',
+                  ? 'border-foreground scale-110 ring-2 ring-muted-foreground/30'
+                  : 'border-muted-foreground/30 opacity-50 hover:opacity-75 hover:scale-105',
                 disabled && 'opacity-40 cursor-not-allowed',
                 !disabled && 'cursor-pointer'
               )}
@@ -118,7 +118,7 @@ export default function ClassificacoesCicloInline({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
             onClick={() => onChangeQualidade(null)}
             type="button"
           >
@@ -126,7 +126,7 @@ export default function ClassificacoesCicloInline({
           </Button>
         )}
         {!qualidadeValue && (
-          <span className={cn('text-slate-300', sizeClasses)}>—</span>
+          <span className={cn('text-muted-foreground/50', sizeClasses)}>—</span>
         )}
       </div>
     </div>

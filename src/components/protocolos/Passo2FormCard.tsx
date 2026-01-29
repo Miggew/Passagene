@@ -40,13 +40,13 @@ export function Passo2FormCard({
           </div>
           <div className="space-y-2">
             <Label htmlFor="passo2_tecnico" className="text-blue-900">
-              Técnico Responsável *
+              Responsável *
             </Label>
             <Input
               id="passo2_tecnico"
               value={tecnico}
               onChange={(e) => onTecnicoChange(e.target.value)}
-              placeholder="Nome do técnico responsável"
+              placeholder="Nome do responsável"
               required
               className="bg-white"
             />

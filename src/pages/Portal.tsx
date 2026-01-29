@@ -185,7 +185,7 @@ export default function Portal() {
 
       // Configuração do pipeline - define ordem e próximo serviço
       const pipelineConfig: Record<string, { label: string; proximo: string; proximoLabel: string; cor: string }> = {
-        'EM_SINCRONIZACAO': { label: 'Em Sincronização', proximo: '2_PASSO', proximoLabel: '2º Passo', cor: 'bg-yellow-500' },
+        'EM_SINCRONIZACAO': { label: 'Em Sincronização', proximo: '2_PASSO', proximoLabel: '2º Passo', cor: 'bg-emerald-400' },
         'SINCRONIZADA': { label: 'Sincronizada', proximo: 'TE', proximoLabel: 'Transferência', cor: 'bg-blue-500' },
         'SERVIDA': { label: 'Servida', proximo: 'DG', proximoLabel: 'Diagnóstico', cor: 'bg-purple-500' },
         'PRENHE': { label: 'Prenhe', proximo: 'SEXAGEM', proximoLabel: 'Sexagem', cor: 'bg-pink-500' },

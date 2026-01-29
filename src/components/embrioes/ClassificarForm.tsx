@@ -45,7 +45,7 @@ export function ClassificarForm({
       <div className="flex gap-2 pt-2">
         <Button
           onClick={onSubmit}
-          className="flex-1 bg-purple-600 hover:bg-purple-700"
+          className="flex-1 bg-primary hover:bg-primary-dark"
           disabled={submitting}
         >
           {submitting ? 'Salvando...' : buttonLabel}

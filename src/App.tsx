@@ -27,12 +27,9 @@ const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
 // Receptoras agora fica dentro de FazendaDetail
 const ReceptoraHistorico = lazy(() => import('./pages/ReceptoraHistorico'));
 const Protocolos = lazy(() => import('./pages/Protocolos'));
-const ProtocoloFormWizard = lazy(() => import('./pages/ProtocoloFormWizard'));
 const ProtocoloDetail = lazy(() => import('./pages/ProtocoloDetail'));
-const ProtocoloPasso2 = lazy(() => import('./pages/ProtocoloPasso2'));
 const ProtocoloRelatorioFechado = lazy(() => import('./pages/ProtocoloRelatorioFechado'));
 const Aspiracoes = lazy(() => import('./pages/Aspiracoes'));
-const PacoteAspiracaoForm = lazy(() => import('./pages/PacoteAspiracaoForm'));
 const PacoteAspiracaoDetail = lazy(() => import('./pages/PacoteAspiracaoDetail'));
 const DosesSemen = lazy(() => import('./pages/DosesSemen'));
 const Touros = lazy(() => import('./pages/Touros'));
@@ -138,15 +135,12 @@ const AppRoutes = () => {
 
             {/* Protocolos */}
             <Route path="/protocolos" element={<Protocolos />} />
-            <Route path="/protocolos/novo" element={<ProtocoloFormWizard />} />
             <Route path="/protocolos/:id" element={<ProtocoloDetail />} />
-            <Route path="/protocolos/:id/passo2" element={<ProtocoloPasso2 />} />
             <Route path="/protocolos/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
             <Route path="/protocolos/fechados/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
 
             {/* Aspiracoes */}
             <Route path="/aspiracoes" element={<Aspiracoes />} />
-            <Route path="/aspiracoes/novo" element={<PacoteAspiracaoForm />} />
             <Route path="/aspiracoes/:id" element={<PacoteAspiracaoDetail />} />
 
             {/* Touros */}

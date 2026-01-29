@@ -254,7 +254,7 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
           .select('id, aspiracao_doadora_id, dose_semen_id')
           .in('id', acasalamentoIds),
         loteFivIds.length > 0
-          ? supabase.from('lotes_fiv').select('id, pacote_aspiracao_id, data_fecundacao').in('id', loteFivIds)
+          ? supabase.from('lotes_fiv').select('id, pacote_aspiracao_id, data_fecundacao, disponivel_para_transferencia').in('id', loteFivIds)
           : Promise.resolve({ data: null, error: null })
       ]);
 
@@ -268,6 +268,7 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
 
       const pacoteParaLoteMap = new Map<string, string>();
       const dataFecundacaoMap = new Map<string, string>();
+      const disponivelTransferenciaMap = new Map<string, boolean>();
       lotesFivData.forEach(lote => {
         if (lote.pacote_aspiracao_id) {
           pacoteParaLoteMap.set(lote.id, lote.pacote_aspiracao_id);
@@ -275,6 +276,7 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
         if (lote.data_fecundacao) {
           dataFecundacaoMap.set(lote.id, lote.data_fecundacao);
         }
+        disponivelTransferenciaMap.set(lote.id, lote.disponivel_para_transferencia === true);
       });
 
       // Phase 3: More parallel queries
@@ -462,7 +464,8 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
 
       pacotesArray.forEach((pacote) => {
         pacote.todos_classificados = pacote.total > 0 && pacote.sem_classificacao === 0;
-        pacote.disponivel_para_transferencia = pacote.todos_classificados && pacote.frescos > 0;
+        // Usar o valor do banco de dados, não calcular
+        pacote.disponivel_para_transferencia = disponivelTransferenciaMap.get(pacote.lote_fiv_id) === true;
       });
 
       // Set filtered embrioes based on filtered pacotes

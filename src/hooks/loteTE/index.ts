@@ -3,6 +3,6 @@
  */
 
 export { useFazendasComLotes } from './useFazendasComLotes';
-export type { StatusReceptoraFiltro, TipoDiagnosticoFiltro } from './useFazendasComLotes';
+export type { StatusReceptoraFiltro } from './useFazendasComLotes';
 
 export { useLotesTE } from './useLotesTE';

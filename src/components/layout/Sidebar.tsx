@@ -46,7 +46,7 @@ const routeLabels: Record<string, string> = {
   '/doadoras': 'Doadoras',
   '/touros': 'Catálogo de Touros',
   '/lotes-fiv': 'Lotes FIV',
-  '/embrioes': 'Embriões/Estoque',
+  '/embrioes': 'Embriões',
   '/embrioes-congelados': 'Embriões Congelados',
   '/doses-semen': 'Doses de Sêmen',
   '/protocolos': 'Protocolos',

@@ -308,7 +308,7 @@ function LoteHistoricoCard({
               <p><span className="font-medium">Data da Aspiração:</span> {lote.pacote_data ? formatDate(lote.pacote_data) : '-'}</p>
               <p><span className="font-medium">Fazenda Origem:</span> {lote.fazenda_origem_nome || '-'}</p>
               <p><span className="font-medium">Data de Abertura:</span> {formatDate(lote.data_abertura)}</p>
-              <p><span className="font-medium">Status:</span> <Badge variant="outline">{lote.status}</Badge></p>
+              <div className="flex items-center gap-1"><span className="font-medium">Status:</span> <Badge variant="outline">{lote.status}</Badge></div>
             </div>
           </div>
 

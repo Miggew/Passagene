@@ -771,6 +771,7 @@ export default function PacoteAspiracaoDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 }

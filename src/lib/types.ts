@@ -427,6 +427,7 @@ export interface Embriao {
   data_descarte?: string;
   localizacao_atual?: string;
   observacoes?: string;
+  estrela?: boolean; // Embrião top/excelente (marcado com estrela pela bióloga)
   created_at?: string;
   updated_at?: string;
 }

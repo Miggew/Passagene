@@ -349,11 +349,11 @@ export default function Usuarios() {
   const getUserTypeBadge = (type: string) => {
     switch (type) {
       case 'admin':
-        return <Badge className="bg-purple-100 text-purple-800">Admin</Badge>;
+        return <Badge className="bg-primary-subtle text-primary-subtle-foreground">Admin</Badge>;
       case 'cliente':
-        return <Badge className="bg-blue-100 text-blue-800">Cliente</Badge>;
+        return <Badge className="bg-secondary text-secondary-foreground">Cliente</Badge>;
       default:
-        return <Badge className="bg-gray-100 text-gray-800">Operacional</Badge>;
+        return <Badge variant="outline" className="text-muted-foreground">Operacional</Badge>;
     }
   };
 
@@ -400,20 +400,35 @@ export default function Usuarios() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Admins</p>
-            <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'admin').length}</p>
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Admins</p>
+                <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'admin').length}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Operacionais</p>
-            <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'operacional').length}</p>
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Operacionais</p>
+                <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'operacional').length}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Clientes</p>
-            <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'cliente').length}</p>
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Clientes</p>
+                <p className="text-2xl font-bold">{users.filter(u => u.user_type === 'cliente').length}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -476,7 +491,7 @@ export default function Usuarios() {
                     <TableCell>{getUserTypeBadge(user.user_type)}</TableCell>
                     <TableCell>
                       {user.user_type === 'admin' ? (
-                        <span className="text-purple-600 text-sm">Acesso total</span>
+                        <span className="text-primary text-sm font-medium">Acesso total</span>
                       ) : user.hub_permissions.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {user.hub_permissions.map(hub => (

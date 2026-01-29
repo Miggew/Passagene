@@ -31,7 +31,7 @@ export interface UseProtocoloPasso2DataReturn {
 export function useProtocoloPasso2Data(): UseProtocoloPasso2DataReturn {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [protocolo, setProtocolo] = useState<ProtocoloSincronizacao | null>(null);
   const [fazendaNome, setFazendaNome] = useState('');
   const [receptoras, setReceptoras] = useState<ReceptoraWithStatus[]>([]);

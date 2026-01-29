@@ -35,6 +35,7 @@ const registrarHistorico = async (
 export interface CongelarData {
   data_congelamento: string;
   localizacao_atual: string;
+  cliente_id: string;
 }
 
 export interface DescartarData {
@@ -145,6 +146,7 @@ export function useEmbrioesActions({
   const [congelarData, setCongelarData] = useState<CongelarData>({
     data_congelamento: hoje,
     localizacao_atual: '',
+    cliente_id: '',
   });
   const [descartarData, setDescartarData] = useState<DescartarData>({
     data_descarte: hoje,
@@ -242,6 +244,20 @@ export function useEmbrioesActions({
       return;
     }
 
+    // Verificar se todos os embriões selecionados estão classificados
+    const ids = Array.from(embrioesSelecionados);
+    const embrioesParaCongelar = embrioes.filter(e => ids.includes(e.id));
+    const semClassificacao = embrioesParaCongelar.filter(e => !e.classificacao || e.classificacao.trim() === '');
+
+    if (semClassificacao.length > 0) {
+      toast({
+        title: 'Classificação obrigatória',
+        description: `${semClassificacao.length} embrião(ões) não possui(em) classificação. Classifique antes de congelar.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!congelarData.localizacao_atual.trim()) {
       toast({
         title: 'Localização obrigatória',
@@ -251,9 +267,17 @@ export function useEmbrioesActions({
       return;
     }
 
+    if (!congelarData.cliente_id) {
+      toast({
+        title: 'Cliente obrigatório',
+        description: 'Selecione o cliente dono do embrião.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
-      const ids = Array.from(embrioesSelecionados);
 
       const { error } = await supabase
         .from('embrioes')
@@ -261,6 +285,7 @@ export function useEmbrioesActions({
           status_atual: 'CONGELADO',
           data_congelamento: congelarData.data_congelamento,
           localizacao_atual: congelarData.localizacao_atual.trim(),
+          cliente_id: congelarData.cliente_id,
         })
         .in('id', ids);
 
@@ -286,7 +311,7 @@ export function useEmbrioesActions({
 
       setShowCongelarDialog(false);
       limparSelecao();
-      setCongelarData({ data_congelamento: hoje, localizacao_atual: '' });
+      setCongelarData({ data_congelamento: hoje, localizacao_atual: '', cliente_id: '' });
       await onSuccess();
     } catch (error) {
       toast({

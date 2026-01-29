@@ -51,12 +51,11 @@ export function useProtocoloWizardSubmit({
     if (
       !protocoloData.fazenda_id ||
       !protocoloData.data_inicio ||
-      !protocoloData.veterinario.trim() ||
-      !protocoloData.tecnico.trim()
+      !protocoloData.veterinario.trim()
     ) {
       toast({
         title: 'Erro de validação',
-        description: 'Fazenda, data de início, veterinário e técnico são obrigatórios',
+        description: 'Fazenda, data de início e veterinário são obrigatórios',
         variant: 'destructive',
       });
       return false;
@@ -110,6 +109,17 @@ export function useProtocoloWizardSubmit({
     }
 
     const receptorasIds = receptorasValidas.map(r => r.id!);
+
+    // Check for duplicate receptoras
+    const uniqueIds = new Set(receptorasIds);
+    if (uniqueIds.size !== receptorasIds.length) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Existem receptoras duplicadas na seleção. Remova as duplicatas.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const receptorasObservacoes = receptorasValidas.map(r => r.observacoes || null);
     const receptorasCiclando = receptorasValidas.map(r => r.ciclando_classificacao || null);
     const receptorasQualidade = receptorasValidas.map(r => r.qualidade_semaforo || null);
@@ -119,7 +129,10 @@ export function useProtocoloWizardSubmit({
       setSubmitting(true);
 
       // Use atomic RPC to create protocol + links in transaction
-      const responsavel_inicio = `VET: ${protocoloData.veterinario.trim()} | TEC: ${protocoloData.tecnico.trim()}`;
+      const tecnicoTrimmed = protocoloData.tecnico.trim();
+      const responsavel_inicio = tecnicoTrimmed
+        ? `VET: ${protocoloData.veterinario.trim()} | TEC: ${tecnicoTrimmed}`
+        : `VET: ${protocoloData.veterinario.trim()}`;
 
       const { data: protocoloId, error: rpcError } = await supabase.rpc(
         'criar_protocolo_passo1_atomico',
@@ -135,7 +148,26 @@ export function useProtocoloWizardSubmit({
       );
 
       if (rpcError) {
-        throw rpcError;
+        // Log detalhado para debug
+        console.error('=== ERRO RPC criar_protocolo_passo1_atomico ===');
+        console.error('Code:', rpcError.code);
+        console.error('Message:', rpcError.message);
+        console.error('Details:', rpcError.details);
+        console.error('Hint:', rpcError.hint);
+        console.error('Full error:', JSON.stringify(rpcError, null, 2));
+        console.error('Receptoras enviadas:', receptorasIds);
+
+        // Tratar erros específicos do RPC
+        if (rpcError.code === '23505' || rpcError.message?.includes('duplicate') || rpcError.message?.includes('unique')) {
+          throw new Error('Uma ou mais receptoras já estão em um protocolo ativo. Verifique a seleção.');
+        }
+        if (rpcError.code === '23503' || rpcError.message?.includes('foreign key')) {
+          throw new Error('Receptora ou fazenda inválida. Recarregue a página e tente novamente.');
+        }
+        if (rpcError.code === 'PGRST202' || rpcError.message?.includes('Could not find')) {
+          throw new Error('Função do banco de dados não encontrada. Contate o suporte.');
+        }
+        throw new Error(rpcError.message || `Erro ao criar protocolo (código: ${rpcError.code})`);
       }
 
       if (!protocoloId) {
