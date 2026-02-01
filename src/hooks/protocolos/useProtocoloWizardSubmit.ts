@@ -15,6 +15,7 @@ import type { ReceptoraLocal, ProtocoloFormData } from './useProtocoloWizardData
 export interface UseProtocoloWizardSubmitProps {
   protocoloData: ProtocoloFormData;
   receptorasLocais: ReceptoraLocal[];
+  onSuccess?: () => void;
 }
 
 export interface UseProtocoloWizardSubmitReturn {
@@ -22,8 +23,6 @@ export interface UseProtocoloWizardSubmitReturn {
   submitting: boolean;
   showConfirmExit: boolean;
   setShowConfirmExit: (show: boolean) => void;
-  showResumo: boolean;
-  setShowResumo: (show: boolean) => void;
 
   // Actions
   handleFinalizarPasso1: () => Promise<void>;
@@ -36,6 +35,7 @@ export interface UseProtocoloWizardSubmitReturn {
 export function useProtocoloWizardSubmit({
   protocoloData,
   receptorasLocais,
+  onSuccess,
 }: UseProtocoloWizardSubmitProps): UseProtocoloWizardSubmitReturn {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -43,7 +43,6 @@ export function useProtocoloWizardSubmit({
   // States
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
-  const [showResumo, setShowResumo] = useState(false);
   const isFinalizingRef = useRef(false);
 
   // Validate protocol form
@@ -228,8 +227,12 @@ export function useProtocoloWizardSubmit({
         throw new Error('Erro ao atualizar status das receptoras. Tente novamente.');
       }
 
-      // Show resumo dialog instead of navigating directly
-      setShowResumo(true);
+      // Sucesso - chamar callback
+      toast({
+        title: '1º passo concluído',
+        description: `${receptorasLocais.length} receptora(s) em protocolo`,
+      });
+      onSuccess?.();
     } catch (error) {
       const errorMessage = error instanceof Error
         ? error.message
@@ -257,8 +260,6 @@ export function useProtocoloWizardSubmit({
     submitting,
     showConfirmExit,
     setShowConfirmExit,
-    showResumo,
-    setShowResumo,
 
     // Actions
     handleFinalizarPasso1,

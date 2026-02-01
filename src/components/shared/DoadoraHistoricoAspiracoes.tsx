@@ -1,24 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { AspiracaoDoadora } from '@/lib/types';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import CountBadge from '@/components/shared/CountBadge';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
+import { DataTable } from '@/components/shared/DataTable';
 
 interface DoadoraHistoricoAspiracoesProps {
   doadoraId: string;
@@ -65,14 +58,21 @@ export default function DoadoraHistoricoAspiracoes({
     }
   };
 
+  // Calcular estatísticas
+  const stats = useMemo(() => {
+    const total = aspiracoes.length;
+    const totalOocitos = aspiracoes.reduce((sum, a) => sum + (a.total_oocitos || 0), 0);
+    const mediaOocitos = total > 0 ? Math.round(totalOocitos / total) : 0;
+    return { total, totalOocitos, mediaOocitos };
+  }, [aspiracoes]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Histórico de Aspirações</DialogTitle>
-          <DialogDescription>
-            {doadoraNome ? `Aspirações da doadora: ${doadoraNome}` : 'Histórico completo de aspirações'}
-          </DialogDescription>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-base">
+            Histórico de Aspirações {doadoraNome && `— ${doadoraNome}`}
+          </DialogTitle>
         </DialogHeader>
 
         {loading ? (
@@ -80,35 +80,49 @@ export default function DoadoraHistoricoAspiracoes({
             <LoadingSpinner />
           </div>
         ) : (
-          <div className="mt-4">
-            {aspiracoes.length === 0 ? (
-              <p className="text-center text-slate-500 py-8">
-                Nenhuma aspiração registrada para esta doadora
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Quantidade de Oócitos</TableHead>
-                    <TableHead>Veterinário</TableHead>
-                    <TableHead>Técnico</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {aspiracoes.map((aspiracao) => (
-                    <TableRow key={aspiracao.id}>
-                      <TableCell>{formatDate(aspiracao.data_aspiracao)}</TableCell>
-                      <TableCell className="font-medium">
-                        {aspiracao.total_oocitos ?? '-'}
-                      </TableCell>
-                      <TableCell>{aspiracao.veterinario_responsavel || '-'}</TableCell>
-                      <TableCell>{aspiracao.tecnico_responsavel || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+          <div className="space-y-3">
+            {/* Resumo inline */}
+            <div className="flex items-center gap-4 pb-2 border-b border-border">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Total Aspirações:</span>
+                <CountBadge value={stats.total} variant="default" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Total Oócitos:</span>
+                <CountBadge value={stats.totalOocitos} variant="primary" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Média/Aspiração:</span>
+                <CountBadge value={stats.mediaOocitos} variant="info" />
+              </div>
+            </div>
+
+            <DataTable<AspiracaoDoadora>
+              data={aspiracoes}
+              rowKey="id"
+              rowNumber
+              emptyMessage="Nenhuma aspiração registrada para esta doadora"
+              columns={[
+                { key: 'data_aspiracao', label: 'Data' },
+                { key: 'total_oocitos', label: 'Oócitos', align: 'center' },
+                { key: 'veterinario_responsavel', label: 'Veterinário' },
+                { key: 'tecnico_responsavel', label: 'Técnico' },
+              ]}
+              renderCell={(row, column) => {
+                switch (column.key) {
+                  case 'data_aspiracao':
+                    return <span className="text-foreground">{formatDate(row.data_aspiracao)}</span>;
+                  case 'total_oocitos':
+                    return <CountBadge value={row.total_oocitos ?? 0} variant="primary" />;
+                  case 'veterinario_responsavel':
+                    return <span className="text-xs text-muted-foreground">{row.veterinario_responsavel || '—'}</span>;
+                  case 'tecnico_responsavel':
+                    return <span className="text-xs text-muted-foreground">{row.tecnico_responsavel || '—'}</span>;
+                  default:
+                    return null;
+                }
+              }}
+            />
           </div>
         )}
       </DialogContent>

@@ -17,14 +17,6 @@ import type { PacoteAspiracao, Fazenda, Doadora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -86,8 +78,11 @@ import {
   CircleDot,
   TrendingUp,
   RefreshCw,
+  User,
+  MapPin,
 } from 'lucide-react';
 import DatePickerBR from '@/components/shared/DatePickerBR';
+import { DataTable } from '@/components/shared/DataTable';
 
 // ==================== TYPES ====================
 
@@ -205,6 +200,10 @@ export default function Aspiracoes() {
   const [filtroDataFim, setFiltroDataFim] = useState<string>('');
   const [filtroBusca, setFiltroBusca] = useState<string>('');
 
+  // Paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const ITENS_POR_PAGINA = 15;
+
   // ========== COMPUTED ==========
   const buscaDestino = buscaFazendaDestino.trim();
   const buscaDestinoAtiva = buscaDestino.length >= 2;
@@ -219,6 +218,14 @@ export default function Aspiracoes() {
   const canFinalizar = fazendasDestinoIds.length > 0 && doadoras.length > 0;
 
   const temDadosNaoSalvos = currentStep === 'doadoras' || doadoras.length > 0;
+
+  // Paginação computed
+  const totalPaginas = Math.ceil(pacotesFiltrados.length / ITENS_POR_PAGINA);
+  const pacotesPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+    const fim = inicio + ITENS_POR_PAGINA;
+    return pacotesFiltrados.slice(inicio, fim);
+  }, [pacotesFiltrados, paginaAtual]);
 
   // ========== EFEITOS ==========
 
@@ -796,6 +803,7 @@ export default function Aspiracoes() {
     }
 
     setPacotesFiltrados(resultado);
+    setPaginaAtual(1); // Reset para primeira página ao filtrar
   }, [pacotes, filtroDataInicio, filtroDataFim, filtroFazenda, filtroBusca]);
 
   const handleBuscar = () => {
@@ -858,26 +866,20 @@ export default function Aspiracoes() {
         description="Gerenciar aspirações foliculares"
       />
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="nova-sessao" className="gap-2">
-            <PlayCircle className="h-4 w-4" />
-            Nova Sessão
-          </TabsTrigger>
-          <TabsTrigger value="historico" className="gap-2">
-            <Clock className="h-4 w-4" />
-            Histórico
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ==================== ABA NOVA SESSÃO ==================== */}
-        <TabsContent value="nova-sessao" className="mt-4 space-y-4">
-          {/* Barra Superior */}
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex-1 min-w-[150px] max-w-[180px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+      {/* ==================== SESSÃO DE ASPIRAÇÃO ==================== */}
+      <div className="mt-4 space-y-4">
+          {/* Barra Superior Premium */}
+          <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+            <div className="flex flex-wrap items-end gap-6">
+              {/* Grupo: Responsáveis */}
+              <div className="flex items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                  <User className="w-3.5 h-3.5" />
+                  <span>Responsáveis</span>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Veterinário *
                   </label>
                   <Input
@@ -888,9 +890,8 @@ export default function Aspiracoes() {
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
-
-                <div className="flex-1 min-w-[150px] max-w-[180px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Técnico *
                   </label>
                   <Input
@@ -901,9 +902,20 @@ export default function Aspiracoes() {
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
+              </div>
 
-                <div className="flex-1 min-w-[150px] max-w-[180px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              {/* Separador */}
+              <div className="h-10 w-px bg-border hidden lg:block" />
+
+              {/* Grupo: Local */}
+              <div className="flex items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Local</span>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Fazenda *
                   </label>
                   <Select
@@ -912,7 +924,7 @@ export default function Aspiracoes() {
                     disabled={currentStep === 'doadoras'}
                   >
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecione" />
+                      <SelectValue placeholder="Selecione a fazenda" />
                     </SelectTrigger>
                     <SelectContent>
                       {fazendas.map((fazenda) => (
@@ -923,9 +935,8 @@ export default function Aspiracoes() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="flex-1 min-w-[130px] max-w-[150px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                <div className="w-[130px] flex-shrink-0">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Data *
                   </label>
                   <DatePickerBR
@@ -935,9 +946,8 @@ export default function Aspiracoes() {
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
-
-                <div className="flex-1 min-w-[100px] max-w-[110px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                <div className="w-[90px] flex-shrink-0">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Hora
                   </label>
                   <Input
@@ -948,13 +958,20 @@ export default function Aspiracoes() {
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
+              </div>
 
+              {/* Separador */}
+              <div className="h-10 w-px bg-border hidden lg:block" />
+
+              {/* Grupo: Ação */}
+              <div className="flex items-end gap-3 ml-auto">
                 {currentStep === 'form' ? (
                   <Button
                     onClick={handleContinuar}
                     disabled={!formData.veterinario_responsavel || !formData.tecnico_responsavel || !formData.fazenda_id || !formData.data_aspiracao}
-                    className="h-9 bg-primary hover:bg-primary-dark"
+                    className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm"
                   >
+                    <PlayCircle className="w-4 h-4 mr-2" />
                     Continuar
                   </Button>
                 ) : (
@@ -967,14 +984,8 @@ export default function Aspiracoes() {
                   </Button>
                 )}
               </div>
-
-              {currentStep === 'form' && !formData.veterinario_responsavel && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Preencha todos os campos obrigatórios para continuar
-                </p>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Área de Doadoras (após Continuar) */}
           {currentStep === 'doadoras' && (
@@ -1309,218 +1320,7 @@ export default function Aspiracoes() {
               </Card>
             </>
           )}
-        </TabsContent>
-
-        {/* ==================== ABA HISTÓRICO ==================== */}
-        <TabsContent value="historico" className="space-y-6 mt-6">
-          {/* Cards de estatísticas */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Aspirações</p>
-                    <p className="text-2xl font-bold">{pacotesFiltrados.length}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Syringe className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Doadoras</p>
-                    <p className="text-2xl font-bold">{pacotesFiltrados.reduce((sum, p) => sum + (p.quantidade_doadoras || 0), 0)}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-accent/10 flex items-center justify-center">
-                    <UserPlus className="h-6 w-6 text-accent" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Oócitos</p>
-                    <p className="text-2xl font-bold text-primary">{pacotesFiltrados.reduce((sum, p) => sum + (p.total_oocitos || 0), 0)}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CircleDot className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Média/Doadora</p>
-                    <p className="text-2xl font-bold">
-                      {pacotesFiltrados.reduce((sum, p) => sum + (p.quantidade_doadoras || 0), 0) > 0
-                        ? (pacotesFiltrados.reduce((sum, p) => sum + (p.total_oocitos || 0), 0) / pacotesFiltrados.reduce((sum, p) => sum + (p.quantidade_doadoras || 0), 0)).toFixed(1)
-                        : '0'}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filtros */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Buscar</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Fazenda, veterinário..."
-                      value={filtroBusca}
-                      onChange={(e) => setFiltroBusca(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fazenda</label>
-                  <Select
-                    value={filtroFazenda || 'all'}
-                    onValueChange={(value) => setFiltroFazenda(value === 'all' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as fazendas</SelectItem>
-                      {fazendas.map((fazenda) => (
-                        <SelectItem key={fazenda.id} value={fazenda.id}>
-                          {fazenda.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Início</label>
-                  <DatePickerBR
-                    value={filtroDataInicio}
-                    onChange={setFiltroDataInicio}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Fim</label>
-                  <DatePickerBR
-                    value={filtroDataFim}
-                    onChange={setFiltroDataFim}
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={handleBuscar}
-                className="mt-4 bg-primary hover:bg-primary-dark"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Atualizar
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Lista */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Histórico de Aspirações</CardTitle>
-              <CardDescription>
-                {pacotesFiltrados.length} registro(s) encontrado(s)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!dadosCarregados ? (
-                <div className="text-center py-12">
-                  <Filter className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-lg font-medium text-muted-foreground">Aplique filtros para visualizar</p>
-                </div>
-              ) : loading ? (
-                <LoadingSpinner />
-              ) : pacotesFiltrados.length === 0 ? (
-                <EmptyState
-                  title="Nenhuma aspiração encontrada"
-                  description="Ajuste os filtros ou tente outro período."
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Fazenda</TableHead>
-                        <TableHead>Destino</TableHead>
-                        <TableHead>Doadoras</TableHead>
-                        <TableHead>Oócitos</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pacotesFiltrados.map((pacote) => (
-                        <TableRow
-                          key={pacote.id}
-                          className="cursor-pointer hover:bg-muted"
-                          onClick={() => navigate(`/aspiracoes/${pacote.id}`)}
-                        >
-                          <TableCell>{formatDate(pacote.data_aspiracao)}</TableCell>
-                          <TableCell className="font-medium">{pacote.fazenda_nome || '-'}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {pacote.fazendas_destino_nomes?.slice(0, 2).map((nome, i) => (
-                                <Badge key={i} variant="outline" className="text-xs">{nome}</Badge>
-                              ))}
-                              {(pacote.fazendas_destino_nomes?.length || 0) > 2 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{(pacote.fazendas_destino_nomes?.length || 0) - 2}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{pacote.quantidade_doadoras || 0}</TableCell>
-                          <TableCell className="font-medium">{pacote.total_oocitos || 0}</TableCell>
-                          <TableCell>
-                            <Badge variant={pacote.status === 'FINALIZADO' ? 'default' : 'secondary'}>
-                              {pacote.status === 'FINALIZADO' ? 'Finalizado' : 'Em Andamento'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/aspiracoes/${pacote.id}`)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
 
       {/* ==================== DIALOGS ==================== */}
 

@@ -30,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import StatusBadge from '@/components/shared/StatusBadge';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Edit, Search, History, ArrowRight, Baby } from 'lucide-react';
+import { Plus, Edit, Search, History, ArrowRight, Baby, Filter, X } from 'lucide-react';
 import { formatStatusLabel } from '@/lib/statusLabels';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -163,34 +163,73 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
 
   return (
     <div className="space-y-4">
-      {/* Header com ações */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Buscar por brinco ou nome..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filtrar status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os status</SelectItem>
-              {statusDisponiveis.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {formatStatusLabel(status)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-end gap-6">
+            {/* Grupo: Busca */}
+            <div className="flex items-end gap-3">
+              <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Busca</span>
+              </div>
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por brinco ou nome..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+            </div>
 
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+            {/* Separador */}
+            <div className="h-10 w-px bg-border hidden lg:block" />
+
+            {/* Grupo: Status */}
+            <div className="flex items-end gap-3">
+              <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                <span>Status</span>
+              </div>
+              <div className="w-[180px]">
+                <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Filtrar status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os status</SelectItem>
+                    {statusDisponiveis.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {formatStatusLabel(status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Botão Limpar */}
+            {(searchTerm || filtroStatus !== 'todos') && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFiltroStatus('todos');
+                }}
+                className="h-9"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Limpar
+              </Button>
+            )}
+          </div>
+
+          {/* Botão Nova Receptora */}
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -243,6 +282,7 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Tabela */}

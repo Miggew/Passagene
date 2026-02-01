@@ -4,14 +4,6 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -44,8 +36,10 @@ import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
+import CountBadge from '@/components/shared/CountBadge';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
+import { DataTable } from '@/components/shared/DataTable';
 import { ArrowLeft, Plus, Lock, Edit } from 'lucide-react';
 
 import { OocitosCountingForm } from '@/components/aspiracoes/OocitosCountingForm';
@@ -80,6 +74,7 @@ export default function PacoteAspiracaoDetail() {
     aspiracoes,
     doadorasDisponiveis,
     totalOocitos,
+    horarioFim,
     isFinalizado,
     loadData,
     reloadDoadorasDisponiveis,
@@ -257,87 +252,107 @@ export default function PacoteAspiracaoDetail() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={`Aspiração - ${fazendaNome}`}
-        description={isFinalizado ? 'Aspiração finalizada' : 'Gerenciar doadoras da aspiração'}
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigate('/aspiracoes')}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            {!isFinalizado && (
-              <Button
-                onClick={() => setShowFinalizarDialog(true)}
-                disabled={submittingPacote || aspiracoes.length === 0}
-              >
-                <Lock className="w-4 h-4 mr-2" />
-                {submittingPacote ? 'Finalizando...' : 'Finalizar Pacote'}
-              </Button>
-            )}
-          </div>
-        }
-      />
+      {/* Header compacto */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-xl font-semibold text-foreground">Relatório da Aspiração</h1>
+        </div>
+        {!isFinalizado && (
+          <Button
+            onClick={() => setShowFinalizarDialog(true)}
+            disabled={submittingPacote || aspiracoes.length === 0}
+          >
+            <Lock className="w-4 h-4 mr-2" />
+            {submittingPacote ? 'Finalizando...' : 'Finalizar Pacote'}
+          </Button>
+        )}
+      </div>
 
-      {/* Informações da Aspiração */}
+      {/* Informações da Aspiração - Compacto */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Informações da Aspiração</CardTitle>
-            {!isFinalizado && (
-              <Button variant="outline" size="sm" onClick={() => setShowEditPacote(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Editar
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-muted-foreground">Fazenda da Aspiração</Label>
-              <p className="font-medium">{fazendaNome}</p>
+        <CardContent className="pt-4 pb-4">
+          {/* Linha 1: Fazenda + Status + Resumo */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-4">
+              <div>
+                <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
+                <p className="text-base font-semibold text-foreground">{fazendaNome}</p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <span className="text-xs font-medium text-muted-foreground">Data</span>
+                <p className="text-sm text-foreground">{formatDate(pacote.data_aspiracao)}</p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <Badge
+                  variant={isFinalizado ? 'default' : 'outline'}
+                  className={isFinalizado
+                    ? 'bg-primary hover:bg-primary-dark'
+                    : 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}
+                >
+                  {isFinalizado ? 'Finalizado' : 'Em Andamento'}
+                </Badge>
+              </div>
+              {!isFinalizado && (
+                <Button variant="outline" size="sm" className="h-7" onClick={() => setShowEditPacote(true)}>
+                  <Edit className="w-3.5 h-3.5 mr-1" />
+                  Editar
+                </Button>
+              )}
             </div>
-            <div className="col-span-2">
-              <Label className="text-muted-foreground">Fazendas Destino</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
+
+            {/* Resumo inline */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Doadoras:</span>
+                <CountBadge value={aspiracoes.length} variant="default" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Oócitos:</span>
+                <CountBadge value={totalOocitos} variant="primary" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Média:</span>
+                <CountBadge value={aspiracoes.length > 0 ? (totalOocitos / aspiracoes.length).toFixed(1) : '0'} variant="info" />
+              </div>
+            </div>
+          </div>
+
+          {/* Linha 2: Grid com detalhes */}
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 pt-3 border-t border-border">
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Início</h4>
+              <p className="text-xs text-foreground">{pacote.horario_inicio || '—'}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fim</h4>
+              <p className="text-xs text-foreground">{horarioFim || '—'}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinário</h4>
+              <p className="text-xs text-foreground">{pacote.veterinario_responsavel || '—'}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Técnico</h4>
+              <p className="text-xs text-foreground">{pacote.tecnico_responsavel || '—'}</p>
+            </div>
+            <div className="space-y-1 lg:col-span-2">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fazendas Destino</h4>
+              <div className="flex flex-wrap gap-1">
                 {fazendasDestinoNomes.length > 0 ? (
                   fazendasDestinoNomes.map((nome, index) => (
-                    <Badge key={index} variant="outline" className="font-medium">
+                    <Badge key={index} variant="outline" className="text-[10px] px-1.5 py-0">
                       {nome}
                     </Badge>
                   ))
                 ) : (
-                  <p className="font-medium text-muted-foreground">-</p>
+                  <span className="text-xs text-muted-foreground">—</span>
                 )}
               </div>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Data da Aspiração</Label>
-              <p className="font-medium">{formatDate(pacote.data_aspiracao)}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Horário de Início</Label>
-              <p className="font-medium">{pacote.horario_inicio || '-'}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Veterinário Responsável</Label>
-              <p className="font-medium">{pacote.veterinario_responsavel || '-'}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Técnico Responsável</Label>
-              <p className="font-medium">{pacote.tecnico_responsavel || '-'}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Status</Label>
-              <div>
-                <Badge variant={isFinalizado ? 'default' : 'secondary'}>
-                  {isFinalizado ? 'FINALIZADO' : 'EM ANDAMENTO'}
-                </Badge>
-              </div>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Total de Oócitos</Label>
-              <p className="font-medium text-lg">{totalOocitos}</p>
             </div>
           </div>
         </CardContent>
@@ -345,9 +360,9 @@ export default function PacoteAspiracaoDetail() {
 
       {/* Lista de Doadoras */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2 pt-3">
           <div className="flex items-center justify-between">
-            <CardTitle>Doadoras Aspiradas ({aspiracoes.length})</CardTitle>
+            <CardTitle className="text-base">Doadoras Aspiradas ({aspiracoes.length})</CardTitle>
             {!isFinalizado && (
               <Dialog
                 open={showAddDoadora}
@@ -360,7 +375,7 @@ export default function PacoteAspiracaoDetail() {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button size="sm">
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Doadora
                   </Button>
@@ -562,57 +577,58 @@ export default function PacoteAspiracaoDetail() {
             )}
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Doadora</TableHead>
-                <TableHead>Registro</TableHead>
-                <TableHead>Horário</TableHead>
-                <TableHead>Viáveis</TableHead>
-                <TableHead>Total Oócitos</TableHead>
-                <TableHead>Recomendação Touro</TableHead>
-                <TableHead>Observações</TableHead>
-                {!isFinalizado && <TableHead className="text-right">Ações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {aspiracoes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={isFinalizado ? 7 : 8} className="text-center text-muted-foreground">
-                    Nenhuma doadora adicionada à aspiração
-                  </TableCell>
-                </TableRow>
-              ) : (
-                aspiracoes.map((aspiracao) => (
-                  <TableRow key={aspiracao.id}>
-                    <TableCell className="font-medium">{aspiracao.doadora_nome || '-'}</TableCell>
-                    <TableCell>{aspiracao.doadora_registro || '-'}</TableCell>
-                    <TableCell>
-                      {aspiracao.horario_aspiracao
-                        ? `${aspiracao.horario_aspiracao}${aspiracao.hora_final ? ` - ${aspiracao.hora_final}` : ''}`
-                        : '-'}
-                    </TableCell>
-                    <TableCell className="font-medium">{aspiracao.viaveis || 0}</TableCell>
-                    <TableCell>{aspiracao.total_oocitos || 0}</TableCell>
-                    <TableCell>{aspiracao.recomendacao_touro || '-'}</TableCell>
-                    <TableCell>{aspiracao.observacoes || '-'}</TableCell>
-                    {!isFinalizado && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => editAspiracaoHook.openEdit(aspiracao)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+        <CardContent className="pt-0 pb-2">
+          <DataTable
+            data={aspiracoes}
+            rowKey="id"
+            rowNumber
+            emptyMessage="Nenhuma doadora adicionada à aspiração"
+            columns={[
+              { key: 'doadora_nome', label: 'Doadora' },
+              { key: 'doadora_registro', label: 'Registro' },
+              { key: 'horario', label: 'Horário' },
+              { key: 'viaveis', label: 'Viáv.', align: 'center' },
+              { key: 'total_oocitos', label: 'Total', align: 'center' },
+              { key: 'recomendacao_touro', label: 'Rec. Touro' },
+              { key: 'observacoes', label: 'Obs.' },
+            ]}
+            renderCell={(row, column) => {
+              switch (column.key) {
+                case 'doadora_nome':
+                  return <span className="font-medium text-foreground">{row.doadora_nome || '—'}</span>;
+                case 'doadora_registro':
+                  return <span className="text-xs text-muted-foreground">{row.doadora_registro || '—'}</span>;
+                case 'horario':
+                  return (
+                    <span className="text-xs text-foreground whitespace-nowrap">
+                      {row.horario_aspiracao
+                        ? `${row.horario_aspiracao}${row.hora_final ? `-${row.hora_final}` : ''}`
+                        : '—'}
+                    </span>
+                  );
+                case 'viaveis':
+                  return <CountBadge value={row.viaveis || 0} variant="primary" />;
+                case 'total_oocitos':
+                  return <CountBadge value={row.total_oocitos || 0} variant="default" />;
+                case 'recomendacao_touro':
+                  return <span className="text-xs text-muted-foreground truncate">{row.recomendacao_touro || '—'}</span>;
+                case 'observacoes':
+                  return <span className="text-xs text-muted-foreground truncate">{row.observacoes || '—'}</span>;
+                default:
+                  return null;
+              }
+            }}
+            actions={!isFinalizado ? (row) => (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => editAspiracaoHook.openEdit(row)}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            ) : undefined}
+          />
         </CardContent>
       </Card>
 

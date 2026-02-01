@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
 import { buscarDadosGenealogia, extrairAcasalamentoIds } from '@/lib/dataEnrichment';
@@ -19,7 +20,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,20 +39,20 @@ import {
   DIAS_MINIMOS,
 } from '@/lib/gestacao';
 import { useFazendasComLotes, useLotesTE } from '@/hooks/loteTE';
+import { DataTable } from '@/components/shared/DataTable';
 import {
   Stethoscope,
-  UserCheck,
   Clock,
   Search,
-  Filter,
-  Building2,
   CalendarDays,
   CheckCircle,
-  XCircle,
-  RefreshCw,
   TrendingUp,
   Save,
   AlertTriangle,
+  Eye,
+  X,
+  User,
+  MapPin,
 } from 'lucide-react';
 
 interface ReceptoraServida {
@@ -88,6 +88,7 @@ interface HistoricoDG {
   receptora_brinco: string;
   receptora_nome?: string;
   fazenda_nome: string;
+  fazenda_id?: string;
   data_te: string;
   data_diagnostico: string;
   resultado: string;
@@ -98,7 +99,23 @@ interface HistoricoDG {
   data_provavel_parto?: string;
 }
 
+interface SessaoDG {
+  id: string;
+  fazenda_nome: string;
+  fazenda_id: string;
+  data_te: string;
+  data_diagnostico: string;
+  veterinario_responsavel?: string;
+  tecnico_responsavel?: string;
+  total_receptoras: number;
+  prenhes: number;
+  vazias: number;
+  retoques: number;
+  receptoras: HistoricoDG[];
+}
+
 export default function DiagnosticoGestacao() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const hoje = getHoje();
 
@@ -116,15 +133,19 @@ export default function DiagnosticoGestacao() {
 
   // State - Histórico
   const [historico, setHistorico] = useState<HistoricoDG[]>([]);
+  const [sessoes, setSessoes] = useState<SessaoDG[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [filtroFazenda, setFiltroFazenda] = useState<string>('todos');
   const [filtroResultado, setFiltroResultado] = useState<string>('todos');
   const [filtroBusca, setFiltroBusca] = useState('');
+  const [filtroDataTipo, setFiltroDataTipo] = useState<'data_dg' | 'data_parto'>('data_dg');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
-  const [filtroDataPartoDe, setFiltroDataPartoDe] = useState('');
-  const [filtroDataPartoAte, setFiltroDataPartoAte] = useState('');
   const [todasFazendas, setTodasFazendas] = useState<{id: string; nome: string}[]>([]);
+
+  // Paginação histórico
+  const [paginaHistorico, setPaginaHistorico] = useState(1);
+  const ITENS_POR_PAGINA_HISTORICO = 15;
 
   // Hooks compartilhados
   const { fazendas, loadFazendas } = useFazendasComLotes({
@@ -203,11 +224,15 @@ export default function DiagnosticoGestacao() {
         .order('data_diagnostico', { ascending: false })
         .limit(500);
 
-      if (filtroDataInicio) {
-        query = query.gte('data_diagnostico', filtroDataInicio);
-      }
-      if (filtroDataFim) {
-        query = query.lte('data_diagnostico', filtroDataFim);
+      // Aplicar filtro de data no banco apenas quando filtroDataTipo é 'data_dg'
+      // Quando é 'data_parto', o filtro é aplicado client-side pois data_provavel_parto está na tabela receptoras
+      if (filtroDataTipo === 'data_dg') {
+        if (filtroDataInicio) {
+          query = query.gte('data_diagnostico', filtroDataInicio);
+        }
+        if (filtroDataFim) {
+          query = query.lte('data_diagnostico', filtroDataFim);
+        }
       }
       if (filtroResultado && filtroResultado !== 'todos') {
         query = query.eq('resultado', filtroResultado);
@@ -222,6 +247,7 @@ export default function DiagnosticoGestacao() {
 
       if (!diagnosticosData || diagnosticosData.length === 0) {
         setHistorico([]);
+        setSessoes([]);
         return;
       }
 
@@ -258,19 +284,21 @@ export default function DiagnosticoGestacao() {
       }
 
       const fazendaMap = new Map(
-        (viewData || []).map(v => [v.receptora_id, v.fazenda_nome_atual])
+        (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
       );
 
       // 4. Montar histórico formatado
       const historicoFormatado: HistoricoDG[] = diagnosticosData
         .map(dg => {
           const receptora = receptorasMap.get(dg.receptora_id);
+          const fazendaInfo = fazendaMap.get(dg.receptora_id);
           return {
             id: dg.id,
             receptora_id: dg.receptora_id,
             receptora_brinco: receptora?.identificacao || '-',
             receptora_nome: receptora?.nome,
-            fazenda_nome: fazendaMap.get(dg.receptora_id) || '-',
+            fazenda_nome: fazendaInfo?.nome || '-',
+            fazenda_id: fazendaInfo?.id,
             data_te: dg.data_te,
             data_diagnostico: dg.data_diagnostico,
             resultado: dg.resultado,
@@ -283,6 +311,55 @@ export default function DiagnosticoGestacao() {
         });
 
       setHistorico(historicoFormatado);
+
+      // 5. Agrupar por sessão (fazenda + data_te + data_diagnostico + veterinário)
+      const sessoesMap = new Map<string, SessaoDG>();
+
+      historicoFormatado.forEach(dg => {
+        // Criar chave única para a sessão
+        const chave = `${dg.fazenda_nome}|${dg.data_te}|${dg.data_diagnostico}|${dg.veterinario_responsavel || ''}`;
+
+        if (!sessoesMap.has(chave)) {
+          sessoesMap.set(chave, {
+            id: chave,
+            fazenda_nome: dg.fazenda_nome,
+            fazenda_id: dg.fazenda_id || '',
+            data_te: dg.data_te,
+            data_diagnostico: dg.data_diagnostico,
+            veterinario_responsavel: dg.veterinario_responsavel,
+            tecnico_responsavel: dg.tecnico_responsavel,
+            total_receptoras: 0,
+            prenhes: 0,
+            vazias: 0,
+            retoques: 0,
+            receptoras: [],
+          });
+        }
+
+        const sessao = sessoesMap.get(chave)!;
+        sessao.total_receptoras++;
+        sessao.receptoras.push(dg);
+
+        if (dg.resultado === 'PRENHE') sessao.prenhes++;
+        else if (dg.resultado === 'VAZIA') sessao.vazias++;
+        else if (dg.resultado === 'RETOQUE') sessao.retoques++;
+
+        // Atualizar técnico se não tiver
+        if (!sessao.tecnico_responsavel && dg.tecnico_responsavel) {
+          sessao.tecnico_responsavel = dg.tecnico_responsavel;
+        }
+      });
+
+      // Ordenar sessões por data de diagnóstico (mais recente primeiro)
+      const sessoesArray = Array.from(sessoesMap.values()).sort((a, b) => {
+        const dataA = a.data_diagnostico || '';
+        const dataB = b.data_diagnostico || '';
+        if (dataA !== dataB) return dataB.localeCompare(dataA);
+        return (b.data_te || '').localeCompare(a.data_te || '');
+      });
+
+      setSessoes(sessoesArray);
+      setPaginaHistorico(1);
     } catch (error) {
       console.error('Erro no loadHistorico:', error);
       const errorMessage = error instanceof Error
@@ -783,27 +860,75 @@ export default function DiagnosticoGestacao() {
     return `${dia}/${mes}/${ano}`;
   };
 
-  const historicoFiltrado = historico.filter(h => {
+  // Filtrar sessões
+  const sessoesFiltradas = sessoes.filter(s => {
     const matchesBusca = !filtroBusca ||
-      h.receptora_brinco.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-      h.receptora_nome?.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-      h.fazenda_nome.toLowerCase().includes(filtroBusca.toLowerCase());
-    const matchesFazenda = filtroFazenda === 'todos' || h.fazenda_nome === filtroFazenda;
-    const matchesDataPartoDe = !filtroDataPartoDe || (h.data_provavel_parto && h.data_provavel_parto >= filtroDataPartoDe);
-    const matchesDataPartoAte = !filtroDataPartoAte || (h.data_provavel_parto && h.data_provavel_parto <= filtroDataPartoAte);
-    return matchesBusca && matchesFazenda && matchesDataPartoDe && matchesDataPartoAte;
+      s.fazenda_nome.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+      s.veterinario_responsavel?.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+      s.receptoras.some(r =>
+        r.receptora_brinco.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+        r.receptora_nome?.toLowerCase().includes(filtroBusca.toLowerCase())
+      );
+    const matchesFazenda = filtroFazenda === 'todos' || s.fazenda_nome === filtroFazenda;
+
+    // Filtro de data baseado no tipo selecionado
+    let matchesData = true;
+    if (filtroDataTipo === 'data_dg') {
+      // Filtrar por data do diagnóstico (já está filtrado no loadHistorico, mas aplicamos aqui também para filtragem local)
+      if (filtroDataInicio) {
+        matchesData = matchesData && s.data_diagnostico >= filtroDataInicio;
+      }
+      if (filtroDataFim) {
+        matchesData = matchesData && s.data_diagnostico <= filtroDataFim;
+      }
+    } else {
+      // Filtrar por data provável de parto
+      if (filtroDataInicio || filtroDataFim) {
+        const hasMatchingParto = s.receptoras.some(r => {
+          if (!r.data_provavel_parto) return false;
+          const matchesInicio = !filtroDataInicio || r.data_provavel_parto >= filtroDataInicio;
+          const matchesFim = !filtroDataFim || r.data_provavel_parto <= filtroDataFim;
+          return matchesInicio && matchesFim;
+        });
+        matchesData = hasMatchingParto;
+      }
+    }
+
+    return matchesBusca && matchesFazenda && matchesData;
   });
 
-  const estatisticasHistorico = {
-    total: historicoFiltrado.length,
-    prenhes: historicoFiltrado.filter(h => h.resultado === 'PRENHE').length,
-    vazias: historicoFiltrado.filter(h => h.resultado === 'VAZIA').length,
-    retoques: historicoFiltrado.filter(h => h.resultado === 'RETOQUE').length,
-  };
+  // Paginação
+  const totalPaginasHistorico = Math.ceil(sessoesFiltradas.length / ITENS_POR_PAGINA_HISTORICO);
+  const sessoesPaginadas = sessoesFiltradas.slice(
+    (paginaHistorico - 1) * ITENS_POR_PAGINA_HISTORICO,
+    paginaHistorico * ITENS_POR_PAGINA_HISTORICO
+  );
+
+  // Estatísticas baseadas nas sessões filtradas
+  const estatisticasHistorico = sessoesFiltradas.reduce(
+    (acc, s) => ({
+      total: acc.total + s.total_receptoras,
+      prenhes: acc.prenhes + s.prenhes,
+      vazias: acc.vazias + s.vazias,
+      retoques: acc.retoques + s.retoques,
+      sessoes: acc.sessoes + 1,
+    }),
+    { total: 0, prenhes: 0, vazias: 0, retoques: 0, sessoes: 0 }
+  );
 
   const taxaPrenhez = estatisticasHistorico.total > 0
     ? Math.round(((estatisticasHistorico.prenhes + estatisticasHistorico.retoques) / estatisticasHistorico.total) * 100)
     : 0;
+
+  const handleLimparFiltrosHistorico = () => {
+    setFiltroBusca('');
+    setFiltroFazenda('todos');
+    setFiltroResultado('todos');
+    setFiltroDataTipo('data_dg');
+    setFiltroDataInicio('');
+    setFiltroDataFim('');
+    setPaginaHistorico(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -812,27 +937,21 @@ export default function DiagnosticoGestacao() {
         description="Registrar diagnósticos de gestação por lote de TE"
       />
 
-      <Tabs defaultValue="nova-sessao" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="nova-sessao" className="gap-2">
-            <Stethoscope className="h-4 w-4" />
-            Nova Sessão
-          </TabsTrigger>
-          <TabsTrigger value="historico" className="gap-2" onClick={() => loadHistorico()}>
-            <Clock className="h-4 w-4" />
-            Histórico
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="nova-sessao" className="mt-4">
-          {/* Barra de controles compacta */}
-          <Card className="mb-4">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex flex-wrap items-end gap-3">
-                {/* Veterinário */}
-                <div className="flex-1 min-w-[180px] max-w-[220px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Veterinário
+      {/* ==================== SESSÃO DE DIAGNÓSTICO ==================== */}
+      <div className="mt-4">
+          {/* Barra de controles premium */}
+          <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
+            <div className="flex flex-wrap items-end gap-6">
+              {/* Grupo: Responsáveis */}
+              <div className="flex items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                  <User className="w-3.5 h-3.5" />
+                  <span>Responsáveis</span>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                    Veterinário *
                   </label>
                   <Input
                     placeholder="Nome do veterinário"
@@ -841,10 +960,8 @@ export default function DiagnosticoGestacao() {
                     className="h-9"
                   />
                 </div>
-
-                {/* Técnico */}
-                <div className="flex-1 min-w-[180px] max-w-[220px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Técnico
                   </label>
                   <Input
@@ -854,11 +971,21 @@ export default function DiagnosticoGestacao() {
                     className="h-9"
                   />
                 </div>
+              </div>
 
-                {/* Fazenda */}
-                <div className="flex-1 min-w-[180px] max-w-[220px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Fazenda
+              {/* Separador */}
+              <div className="h-10 w-px bg-border hidden lg:block" />
+
+              {/* Grupo: Local */}
+              <div className="flex items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Local</span>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                    Fazenda *
                   </label>
                   <Select
                     value={fazendaSelecionada}
@@ -877,11 +1004,9 @@ export default function DiagnosticoGestacao() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Lote TE */}
-                <div className="flex-1 min-w-[200px] max-w-[280px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Lote TE
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                    Lote TE *
                   </label>
                   <Select
                     value={loteSelecionado?.id || ''}
@@ -909,8 +1034,13 @@ export default function DiagnosticoGestacao() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
-                {/* Botão Salvar */}
+              {/* Separador */}
+              <div className="h-10 w-px bg-border hidden lg:block" />
+
+              {/* Grupo: Ação */}
+              <div className="flex items-end gap-3 ml-auto">
                 <Button
                   onClick={handleSalvarLote}
                   disabled={
@@ -920,38 +1050,24 @@ export default function DiagnosticoGestacao() {
                     loteSelecionado?.status === 'FECHADO' ||
                     (loteSelecionado?.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.DG)
                   }
-                  className="h-9 bg-primary hover:bg-primary-dark"
+                  className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm"
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  {submitting ? 'Salvando...' : 'Salvar'}
+                  <Save className="w-4 h-4 mr-2" />
+                  {submitting ? 'Salvando...' : 'Salvar Lote'}
                 </Button>
               </div>
+            </div>
 
-              {/* Mensagem de ajuda */}
-              {!loteFormData.veterinario_responsavel ? (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Preencha o veterinário para selecionar a fazenda
+            {/* Aviso de dias insuficientes */}
+            {loteSelecionado && loteSelecionado.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.DG && (
+              <div className="flex items-center gap-2 mt-3 p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Este lote está com {loteSelecionado.dias_gestacao} dias. DG requer mínimo de {DIAS_MINIMOS.DG} dias (faltam {DIAS_MINIMOS.DG - loteSelecionado.dias_gestacao}).
                 </p>
-              ) : !fazendaSelecionada ? (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Selecione uma fazenda para ver os lotes disponíveis
-                </p>
-              ) : lotesTE.length === 0 && !loadingLotes ? (
-                <p className="text-xs text-amber-600 mt-2">
-                  Nenhum lote de TE pendente nesta fazenda
-                </p>
-              ) : loteSelecionado && loteSelecionado.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.DG ? (
-                <div className="flex items-center gap-2 mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                  <p className="text-xs text-amber-700">
-                    <strong>Atenção:</strong> Este lote está com {loteSelecionado.dias_gestacao} dias de gestação.
-                    O DG só pode ser realizado a partir de <strong>{DIAS_MINIMOS.DG} dias</strong>.
-                    Faltam <strong>{DIAS_MINIMOS.DG - loteSelecionado.dias_gestacao} dias</strong>.
-                  </p>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
 
           {/* Tabela de Receptoras */}
           {loading ? (
@@ -1106,232 +1222,7 @@ export default function DiagnosticoGestacao() {
               </CardContent>
             </Card>
           ) : null}
-        </TabsContent>
-
-        <TabsContent value="historico" className="space-y-6 mt-6">
-          {/* Cards de estatísticas */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total de DGs</p>
-                    <p className="text-2xl font-bold">{estatisticasHistorico.total}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CalendarDays className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Prenhes</p>
-                    <p className="text-2xl font-bold text-green-600">{estatisticasHistorico.prenhes}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Vazias</p>
-                    <p className="text-2xl font-bold text-red-600">{estatisticasHistorico.vazias}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <XCircle className="h-6 w-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Taxa Prenhez</p>
-                    <p className="text-2xl font-bold text-primary">{taxaPrenhez}%</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filtros */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Buscar</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Brinco, nome, fazenda..."
-                      value={filtroBusca}
-                      onChange={(e) => setFiltroBusca(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fazenda</label>
-                  <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as fazendas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas as fazendas</SelectItem>
-                      {todasFazendas.map(f => (
-                        <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Resultado</label>
-                  <Select value={filtroResultado} onValueChange={setFiltroResultado}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="PRENHE">Prenhe</SelectItem>
-                      <SelectItem value="VAZIA">Vazia</SelectItem>
-                      <SelectItem value="RETOQUE">Retoque</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Início</label>
-                  <DatePickerBR
-                    value={filtroDataInicio}
-                    onChange={(value) => setFiltroDataInicio(value || '')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Fim</label>
-                  <DatePickerBR
-                    value={filtroDataFim}
-                    onChange={(value) => setFiltroDataFim(value || '')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Parto De</label>
-                  <DatePickerBR
-                    value={filtroDataPartoDe}
-                    onChange={(value) => setFiltroDataPartoDe(value || '')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Parto Até</label>
-                  <DatePickerBR
-                    value={filtroDataPartoAte}
-                    onChange={(value) => setFiltroDataPartoAte(value || '')}
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={loadHistorico}
-                className="mt-4 bg-primary hover:bg-primary-dark"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Tabela de histórico */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Histórico de Diagnósticos</CardTitle>
-              <CardDescription>
-                {historicoFiltrado.length} registro(s) encontrado(s)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingHistorico ? (
-                <LoadingSpinner />
-              ) : historicoFiltrado.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhum diagnóstico encontrado. Clique em "Atualizar" para carregar os dados.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Receptora</TableHead>
-                        <TableHead>Fazenda</TableHead>
-                        <TableHead>Data TE</TableHead>
-                        <TableHead>Data DG</TableHead>
-                        <TableHead>Data Parto</TableHead>
-                        <TableHead>Resultado</TableHead>
-                        <TableHead>Nº Gest.</TableHead>
-                        <TableHead>Veterinário</TableHead>
-                        <TableHead>Técnico</TableHead>
-                        <TableHead>Observações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {historicoFiltrado.map((h) => (
-                        <TableRow key={h.id}>
-                          <TableCell className="font-medium">
-                            {h.receptora_brinco}
-                            {h.receptora_nome && (
-                              <span className="text-muted-foreground text-sm ml-2">({h.receptora_nome})</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4 text-muted-foreground" />
-                              {h.fazenda_nome}
-                            </div>
-                          </TableCell>
-                          <TableCell>{formatarData(h.data_te)}</TableCell>
-                          <TableCell>{formatarData(h.data_diagnostico)}</TableCell>
-                          <TableCell>{h.data_provavel_parto ? formatarData(h.data_provavel_parto) : '-'}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                h.resultado === 'PRENHE'
-                                  ? 'bg-green-500/10 text-green-600 border-green-500/30'
-                                  : h.resultado === 'VAZIA'
-                                  ? 'bg-red-500/10 text-red-600 border-red-500/30'
-                                  : 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30'
-                              }
-                            >
-                              {h.resultado}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center">{h.numero_gestacoes || '-'}</TableCell>
-                          <TableCell>{h.veterinario_responsavel || '-'}</TableCell>
-                          <TableCell>{h.tecnico_responsavel || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{h.observacoes || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
     </div>
   );
 }

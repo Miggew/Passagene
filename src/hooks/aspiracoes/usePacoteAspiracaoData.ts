@@ -24,6 +24,8 @@ export function usePacoteAspiracaoData({ pacoteId }: UsePacoteAspiracaoDataProps
 
   const totalOocitos = aspiracoes.reduce((sum, a) => sum + (a.total_oocitos || 0), 0);
   const isFinalizado = pacote?.status === 'FINALIZADO';
+  // Horário de fim = hora_final da última doadora aspirada
+  const horarioFim = aspiracoes.length > 0 ? aspiracoes[aspiracoes.length - 1].hora_final || '' : '';
 
   const loadAspiracoes = useCallback(async (): Promise<AspiracaoDoadoraComNome[]> => {
     if (!pacoteId) return [];
@@ -186,6 +188,7 @@ export function usePacoteAspiracaoData({ pacoteId }: UsePacoteAspiracaoDataProps
     setAspiracoes,
     doadorasDisponiveis,
     totalOocitos,
+    horarioFim,
     isFinalizado,
     loadData,
     reloadDoadorasDisponiveis,

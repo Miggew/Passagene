@@ -32,7 +32,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import FazendaSelector from '@/components/shared/FazendaSelector';
 import { TableSkeleton } from '@/components/shared/TableSkeleton';
-import { Plus, Pencil, History, Star, Gem } from 'lucide-react';
+import { Plus, Pencil, History, Star, Gem, Search, Filter } from 'lucide-react';
 import SearchInput from '@/components/shared/SearchInput';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
 import { formatDateBR } from '@/lib/dateUtils';
@@ -105,15 +105,27 @@ export default function Doadoras() {
         />
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex-1 max-w-md">
-              <SearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder="Buscar por nome ou registro..."
-              />
-            </div>
-            <DoadoraFormDialog
+          {/* Barra de Filtros Premium */}
+          <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Grupo: Busca */}
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 rounded-full bg-primary/40" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>Busca</span>
+                </div>
+                <div className="flex-1 min-w-[280px]">
+                  <SearchInput
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Buscar por nome ou registro..."
+                  />
+                </div>
+              </div>
+
+              {/* Botão Nova Doadora */}
+              <DoadoraFormDialog
               showDialog={showDialog}
               handleDialogClose={handleDialogClose}
               formData={formData}
@@ -123,6 +135,7 @@ export default function Doadoras() {
               submitting={submitting}
               handleSubmit={handleSubmit}
             />
+            </div>
           </div>
 
           <Card>
@@ -345,8 +358,14 @@ const DoadoraRow = memo(function DoadoraRow({ doadora, navigate, setHistoricoDoa
       </TableCell>
       <TableCell>{doadora.ultima_aspiracao_total_oocitos ?? '-'}</TableCell>
       <TableCell>
-        <Badge variant={doadora.disponivel_aspiracao ? 'default' : 'secondary'}>
-          {doadora.disponivel_aspiracao ? 'Disponivel' : 'Indisponivel'}
+        <Badge
+          variant="outline"
+          className={doadora.disponivel_aspiracao
+            ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30'
+            : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30'
+          }
+        >
+          {doadora.disponivel_aspiracao ? 'Disponível' : 'Indisponível'}
         </Badge>
       </TableCell>
       <TableCell>
@@ -359,15 +378,15 @@ const DoadoraRow = memo(function DoadoraRow({ doadora, navigate, setHistoricoDoa
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-2">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
               setHistoricoDoadoraId(doadora.id);
             }}
-            title="Ver historico de aspiracoes"
           >
-            <History className="w-4 h-4" />
+            <History className="w-4 h-4 mr-2" />
+            Histórico
           </Button>
           <Button
             variant="ghost"

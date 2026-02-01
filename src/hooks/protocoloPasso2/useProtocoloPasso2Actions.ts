@@ -3,7 +3,6 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { ProtocoloSincronizacao } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -17,16 +16,14 @@ export interface UseProtocoloPasso2ActionsProps {
   setProtocolo: React.Dispatch<React.SetStateAction<ProtocoloSincronizacao | null>>;
   passo2Form: { data: string; tecnico: string };
   motivosInapta: Record<string, string>;
+  onSuccess?: () => void;
 }
 
 export interface UseProtocoloPasso2ActionsReturn {
   submitting: boolean;
-  showResumo: boolean;
-  setShowResumo: React.Dispatch<React.SetStateAction<boolean>>;
   handleStatusChange: (receptoraId: string, status: 'APTA' | 'INAPTA' | 'INICIADA') => void;
   handleMotivoChange: (receptoraId: string, motivo: string) => void;
   handleFinalizarPasso2: () => Promise<void>;
-  handleCloseResumo: () => void;
 }
 
 export function useProtocoloPasso2Actions({
@@ -37,11 +34,10 @@ export function useProtocoloPasso2Actions({
   setProtocolo,
   passo2Form,
   motivosInapta,
+  onSuccess,
 }: UseProtocoloPasso2ActionsProps): UseProtocoloPasso2ActionsReturn {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [showResumo, setShowResumo] = useState(false);
 
   const handleStatusChange = useCallback(
     (receptoraId: string, status: 'APTA' | 'INAPTA' | 'INICIADA') => {
@@ -182,7 +178,13 @@ export function useProtocoloPasso2Actions({
 
       await Promise.all(statusUpdatePromises);
 
-      setShowResumo(true);
+      // Sucesso - chamar callback
+      const confirmadas = receptoras.filter((r) => r.pr_status === 'APTA').length;
+      toast({
+        title: '2º passo concluído',
+        description: `${confirmadas} receptora(s) confirmadas para TE`,
+      });
+      onSuccess?.();
     } catch (error) {
       toast({
         title: 'Erro ao finalizar 2º passo',
@@ -203,23 +205,10 @@ export function useProtocoloPasso2Actions({
     toast,
   ]);
 
-  const handleCloseResumo = useCallback(() => {
-    setShowResumo(false);
-    const confirmadas = receptoras.filter((r) => r.pr_status === 'APTA').length;
-    toast({
-      title: '2º passo concluído com sucesso',
-      description: `${confirmadas} receptoras confirmadas para TE`,
-    });
-    navigate('/protocolos');
-  }, [receptoras, navigate, toast]);
-
   return {
     submitting,
-    showResumo,
-    setShowResumo,
     handleStatusChange,
     handleMotivoChange,
     handleFinalizarPasso2,
-    handleCloseResumo,
   };
 }

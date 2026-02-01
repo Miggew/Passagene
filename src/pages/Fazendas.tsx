@@ -24,7 +24,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { handleError } from '@/lib/error-handler';
-import { Search, Building2, Users, MapPin } from 'lucide-react';
+import { Search, Building2, Users, MapPin, Filter, X } from 'lucide-react';
 
 interface FazendaWithCliente extends Fazenda {
   cliente_nome?: string;
@@ -140,42 +140,70 @@ export default function Fazendas() {
         </Card>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, cliente, responsável..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <div className="flex flex-wrap items-end gap-6">
+          {/* Grupo: Busca */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Busca</span>
+            </div>
+            <div className="relative flex-1 min-w-[250px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, cliente, responsável..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Grupo: Filtros */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Users className="w-3.5 h-3.5" />
+              <span>Cliente</span>
+            </div>
+            <div className="w-[200px]">
+              <Select value={filtroCliente} onValueChange={setFiltroCliente}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os clientes</SelectItem>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Botão Limpar */}
+          {(searchTerm || filtroCliente !== 'todos') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                setFiltroCliente('todos');
+              }}
+              className="h-9 ml-auto"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Limpar Filtros
+            </Button>
+          )}
         </div>
-        <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os clientes</SelectItem>
-            {clientes.map((cliente) => (
-              <SelectItem key={cliente.id} value={cliente.id}>
-                {cliente.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {(searchTerm || filtroCliente !== 'todos') && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchTerm('');
-              setFiltroCliente('todos');
-            }}
-          >
-            Limpar filtros
-          </Button>
-        )}
       </div>
 
       {/* Tabela */}

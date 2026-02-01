@@ -4,6 +4,7 @@ export function formatStatusLabel(status: string): string {
 
   const map: Record<string, string> = {
     // Estados reprodutivos (receptoras)
+    DISPONIVEL: 'Disponível',
     VAZIA: 'Vazia',
     EM_SINCRONIZACAO: 'Em sincronização',
     SINCRONIZADA: 'Sincronizada',
@@ -19,14 +20,18 @@ export function formatStatusLabel(status: string): string {
     SINCRONIZADO: 'Sincronizado',
     FECHADO: 'Fechado',
     PASSO1_FECHADO: 'Passo 1 fechado',
-    PASSO2_FECHADO: 'Passo 2 fechado',
     EM_TE: 'Em TE',
+
+    // Status de receptoras (propriedade)
+    EM_PROTOCOLO: 'Em Protocolo',
+    DESCARTE: 'Descarte',
+    VENDIDA: 'Vendida',
 
     // Outros estados comuns
     APTA: 'Apta',
     INAPTA: 'Inapta',
     INICIADA: 'Iniciada',
-    UTILIZADA: 'Utilizada',
+    UTILIZADA: 'Servida',
     NAO_UTILIZADA: 'Não utilizada',
     SINCRONIZANDO: 'Sincronizando',
     RETOQUE: 'Retoque',

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
 import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds } from '@/lib/dataEnrichment';
@@ -18,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import { useToast } from '@/hooks/use-toast';
-import { atualizarStatusReceptora, type StatusReceptora } from '@/lib/receptoraStatus';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 import {
   type LoteTESexagem,
@@ -38,18 +37,20 @@ import {
   DIAS_MINIMOS,
 } from '@/lib/gestacao';
 import { useFazendasComLotes, useLotesTE } from '@/hooks/loteTE';
+import { DataTable } from '@/components/shared/DataTable';
 import {
   Baby,
   Clock,
   Search,
-  Filter,
-  Building2,
   CalendarDays,
-  RefreshCw,
   Users,
   TrendingDown,
   Save,
   AlertTriangle,
+  Eye,
+  X,
+  User,
+  MapPin,
 } from 'lucide-react';
 
 interface ReceptoraPrenhe {
@@ -86,6 +87,7 @@ interface HistoricoSexagem {
   receptora_brinco: string;
   receptora_nome?: string;
   fazenda_nome: string;
+  fazenda_id?: string;
   data_te: string;
   data_diagnostico: string;
   resultado: string;
@@ -97,8 +99,25 @@ interface HistoricoSexagem {
   data_provavel_parto?: string;
 }
 
+interface SessaoSexagem {
+  id: string;
+  fazenda_nome: string;
+  fazenda_id: string;
+  data_te: string;
+  data_sexagem: string;
+  veterinario_responsavel?: string;
+  tecnico_responsavel?: string;
+  total_receptoras: number;
+  femeas: number;
+  machos: number;
+  sem_sexo: number;
+  vazias: number;
+  receptoras: HistoricoSexagem[];
+}
+
 export default function Sexagem() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const hoje = getHoje();
 
   // State - Nova Sessão
@@ -114,16 +133,19 @@ export default function Sexagem() {
   });
 
   // State - Histórico
-  const [historico, setHistorico] = useState<HistoricoSexagem[]>([]);
+  const [sessoes, setSessoes] = useState<SessaoSexagem[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [filtroFazenda, setFiltroFazenda] = useState<string>('todos');
   const [filtroSexagem, setFiltroSexagem] = useState<string>('todos');
   const [filtroBusca, setFiltroBusca] = useState('');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
-  const [filtroDataPartoDe, setFiltroDataPartoDe] = useState('');
-  const [filtroDataPartoAte, setFiltroDataPartoAte] = useState('');
+  const [filtroDataTipo, setFiltroDataTipo] = useState<'data_sexagem' | 'data_parto'>('data_sexagem');
   const [todasFazendas, setTodasFazendas] = useState<{id: string; nome: string}[]>([]);
+
+  // Paginação do histórico
+  const [paginaHistorico, setPaginaHistorico] = useState(1);
+  const ITENS_POR_PAGINA_HISTORICO = 15;
 
   // Hooks compartilhados
   const { fazendas, loadFazendas } = useFazendasComLotes({
@@ -192,6 +214,7 @@ export default function Sexagem() {
   const loadHistorico = async () => {
     try {
       setLoadingHistorico(true);
+      setPaginaHistorico(1);
 
       // 1. Buscar diagnósticos de SEXAGEM
       let query = supabase
@@ -199,14 +222,19 @@ export default function Sexagem() {
         .select('*')
         .eq('tipo_diagnostico', 'SEXAGEM')
         .order('data_diagnostico', { ascending: false })
-        .limit(500);
+        .limit(1000);
 
-      if (filtroDataInicio) {
-        query = query.gte('data_diagnostico', filtroDataInicio);
+      // Filtro de data por sexagem é aplicado na query
+      if (filtroDataTipo === 'data_sexagem') {
+        if (filtroDataInicio) {
+          query = query.gte('data_diagnostico', filtroDataInicio);
+        }
+        if (filtroDataFim) {
+          query = query.lte('data_diagnostico', filtroDataFim);
+        }
       }
-      if (filtroDataFim) {
-        query = query.lte('data_diagnostico', filtroDataFim);
-      }
+      // Filtro por data_parto será aplicado client-side após obter dados das receptoras
+
       if (filtroSexagem && filtroSexagem !== 'todos') {
         query = query.eq('sexagem', filtroSexagem);
       }
@@ -219,7 +247,7 @@ export default function Sexagem() {
       }
 
       if (!diagnosticosData || diagnosticosData.length === 0) {
-        setHistorico([]);
+        setSessoes([]);
         return;
       }
 
@@ -240,11 +268,6 @@ export default function Sexagem() {
         (receptorasData || []).map(r => [r.id, r])
       );
 
-      // Mapa de data_provavel_parto por receptora
-      const dataPartoMap = new Map(
-        (receptorasData || []).map(r => [r.id, r.data_provavel_parto])
-      );
-
       // 3. Buscar fazenda atual das receptoras via view
       const { data: viewData, error: viewError } = await supabase
         .from('vw_receptoras_fazenda_atual')
@@ -255,20 +278,22 @@ export default function Sexagem() {
         console.error('Erro ao buscar view receptoras:', viewError);
       }
 
-      const fazendaMap = new Map(
-        (viewData || []).map(v => [v.receptora_id, v.fazenda_nome_atual])
+      const fazendaMap = new Map<string, { id: string; nome: string }>(
+        (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
       );
 
-      // 4. Montar histórico formatado
+      // 4. Montar histórico formatado e agrupar por sessão
       const historicoFormatado: HistoricoSexagem[] = diagnosticosData
         .map(dg => {
           const receptora = receptorasMap.get(dg.receptora_id);
+          const fazendaInfo = fazendaMap.get(dg.receptora_id);
           return {
             id: dg.id,
             receptora_id: dg.receptora_id,
             receptora_brinco: receptora?.identificacao || '-',
             receptora_nome: receptora?.nome,
-            fazenda_nome: fazendaMap.get(dg.receptora_id) || '-',
+            fazenda_nome: fazendaInfo?.nome || '-',
+            fazenda_id: fazendaInfo?.id,
             data_te: dg.data_te,
             data_diagnostico: dg.data_diagnostico,
             resultado: dg.resultado,
@@ -277,11 +302,61 @@ export default function Sexagem() {
             observacoes: dg.observacoes,
             veterinario_responsavel: dg.veterinario_responsavel,
             tecnico_responsavel: dg.tecnico_responsavel,
-            data_provavel_parto: dataPartoMap.get(dg.receptora_id) || undefined,
+            data_provavel_parto: receptora?.data_provavel_parto || undefined,
           };
         });
 
-      setHistorico(historicoFormatado);
+      // Filtro de data por parto é aplicado client-side
+      let historicoFiltrado = historicoFormatado;
+      if (filtroDataTipo === 'data_parto') {
+        historicoFiltrado = historicoFormatado.filter(h => {
+          if (!h.data_provavel_parto) return false;
+          if (filtroDataInicio && h.data_provavel_parto < filtroDataInicio) return false;
+          if (filtroDataFim && h.data_provavel_parto > filtroDataFim) return false;
+          return true;
+        });
+      }
+
+      // 5. Agrupar por sessão (fazenda + data_te + data_sexagem + veterinário)
+      const sessoesMap = new Map<string, SessaoSexagem>();
+
+      historicoFiltrado.forEach(h => {
+        const chave = `${h.fazenda_nome}|${h.data_te}|${h.data_diagnostico}|${h.veterinario_responsavel || ''}`;
+
+        if (!sessoesMap.has(chave)) {
+          sessoesMap.set(chave, {
+            id: chave,
+            fazenda_nome: h.fazenda_nome,
+            fazenda_id: h.fazenda_id || '',
+            data_te: h.data_te,
+            data_sexagem: h.data_diagnostico,
+            veterinario_responsavel: h.veterinario_responsavel,
+            tecnico_responsavel: h.tecnico_responsavel,
+            total_receptoras: 0,
+            femeas: 0,
+            machos: 0,
+            sem_sexo: 0,
+            vazias: 0,
+            receptoras: [],
+          });
+        }
+
+        const sessao = sessoesMap.get(chave)!;
+        sessao.receptoras.push(h);
+        sessao.total_receptoras++;
+
+        if (h.sexagem === 'FEMEA') sessao.femeas++;
+        else if (h.sexagem === 'MACHO') sessao.machos++;
+        else if (h.resultado === 'VAZIA') sessao.vazias++;
+        else sessao.sem_sexo++;
+      });
+
+      // Ordenar por data de sexagem (mais recente primeiro)
+      const sessoesArray = Array.from(sessoesMap.values()).sort((a, b) =>
+        b.data_sexagem.localeCompare(a.data_sexagem)
+      );
+
+      setSessoes(sessoesArray);
     } catch (error) {
       console.error('Erro no loadHistorico:', error);
       const errorMessage = error instanceof Error
@@ -784,27 +859,51 @@ export default function Sexagem() {
     return `${dia}/${mes}/${ano}`;
   };
 
-  const historicoFiltrado = historico.filter(h => {
+  // Filtrar sessões por fazenda e busca
+  const sessoesFiltradas = sessoes.filter(s => {
     const matchesBusca = !filtroBusca ||
-      h.receptora_brinco.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-      h.receptora_nome?.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-      h.fazenda_nome.toLowerCase().includes(filtroBusca.toLowerCase());
-    const matchesFazenda = filtroFazenda === 'todos' || h.fazenda_nome === filtroFazenda;
-    const matchesDataPartoDe = !filtroDataPartoDe || (h.data_provavel_parto && h.data_provavel_parto >= filtroDataPartoDe);
-    const matchesDataPartoAte = !filtroDataPartoAte || (h.data_provavel_parto && h.data_provavel_parto <= filtroDataPartoAte);
-    return matchesBusca && matchesFazenda && matchesDataPartoDe && matchesDataPartoAte;
+      s.fazenda_nome.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+      s.veterinario_responsavel?.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+      s.receptoras.some(r =>
+        r.receptora_brinco.toLowerCase().includes(filtroBusca.toLowerCase()) ||
+        r.receptora_nome?.toLowerCase().includes(filtroBusca.toLowerCase())
+      );
+    const matchesFazenda = filtroFazenda === 'todos' || s.fazenda_nome === filtroFazenda;
+    return matchesBusca && matchesFazenda;
   });
 
-  const estatisticasHistorico = {
-    total: historicoFiltrado.length,
-    femeas: historicoFiltrado.filter(h => h.sexagem === 'FEMEA').length,
-    machos: historicoFiltrado.filter(h => h.sexagem === 'MACHO').length,
-    vazias: historicoFiltrado.filter(h => h.resultado === 'VAZIA').length,
-  };
+  // Estatísticas calculadas a partir das sessões filtradas
+  const estatisticasHistorico = sessoesFiltradas.reduce(
+    (acc, s) => ({
+      total: acc.total + s.total_receptoras,
+      femeas: acc.femeas + s.femeas,
+      machos: acc.machos + s.machos,
+      vazias: acc.vazias + s.vazias,
+    }),
+    { total: 0, femeas: 0, machos: 0, vazias: 0 }
+  );
 
   const taxaPerda = estatisticasHistorico.total > 0
     ? Math.round((estatisticasHistorico.vazias / estatisticasHistorico.total) * 100)
     : 0;
+
+  // Paginação
+  const totalPaginasHistorico = Math.ceil(sessoesFiltradas.length / ITENS_POR_PAGINA_HISTORICO);
+  const sessoesPaginadas = sessoesFiltradas.slice(
+    (paginaHistorico - 1) * ITENS_POR_PAGINA_HISTORICO,
+    paginaHistorico * ITENS_POR_PAGINA_HISTORICO
+  );
+
+  // Limpar filtros do histórico
+  const handleLimparFiltrosHistorico = () => {
+    setFiltroBusca('');
+    setFiltroFazenda('todos');
+    setFiltroSexagem('todos');
+    setFiltroDataTipo('data_sexagem');
+    setFiltroDataInicio('');
+    setFiltroDataFim('');
+    setPaginaHistorico(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -813,27 +912,21 @@ export default function Sexagem() {
         description="Registrar sexagem fetal por lote de receptoras prenhes"
       />
 
-      <Tabs defaultValue="nova-sessao" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="nova-sessao" className="gap-2">
-            <Baby className="h-4 w-4" />
-            Nova Sessão
-          </TabsTrigger>
-          <TabsTrigger value="historico" className="gap-2" onClick={() => loadHistorico()}>
-            <Clock className="h-4 w-4" />
-            Histórico
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="nova-sessao" className="mt-4">
-          {/* Barra de controles compacta */}
-          <Card className="mb-4">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex flex-wrap items-end gap-3">
-                {/* Veterinário */}
-                <div className="flex-1 min-w-[180px] max-w-[220px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Veterinário
+      {/* ==================== SESSÃO DE SEXAGEM ==================== */}
+      <div className="mt-4">
+          {/* Barra de controles premium */}
+          <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
+            <div className="flex flex-wrap items-end gap-6">
+              {/* Grupo: Responsáveis */}
+              <div className="flex items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                  <User className="w-3.5 h-3.5" />
+                  <span>Responsáveis</span>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                    Veterinário *
                   </label>
                   <Input
                     placeholder="Nome do veterinário"
@@ -842,10 +935,8 @@ export default function Sexagem() {
                     className="h-9"
                   />
                 </div>
-
-                {/* Técnico */}
-                <div className="flex-1 min-w-[180px] max-w-[220px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Técnico
                   </label>
                   <Input
@@ -855,11 +946,21 @@ export default function Sexagem() {
                     className="h-9"
                   />
                 </div>
+              </div>
 
-                {/* Fazenda */}
-                <div className="flex-1 min-w-[180px] max-w-[220px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Fazenda
+              {/* Separador */}
+              <div className="h-10 w-px bg-border hidden lg:block" />
+
+              {/* Grupo: Local */}
+              <div className="flex items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Local</span>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                    Fazenda *
                   </label>
                   <Select
                     value={fazendaSelecionada}
@@ -878,11 +979,9 @@ export default function Sexagem() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Lote TE */}
-                <div className="flex-1 min-w-[200px] max-w-[280px]">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Lote TE
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                    Lote TE *
                   </label>
                   <Select
                     value={loteSelecionado?.id || ''}
@@ -910,8 +1009,13 @@ export default function Sexagem() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
-                {/* Botão Salvar */}
+              {/* Separador */}
+              <div className="h-10 w-px bg-border hidden lg:block" />
+
+              {/* Grupo: Ação */}
+              <div className="flex items-end gap-3 ml-auto">
                 <Button
                   onClick={handleSalvarLote}
                   disabled={
@@ -921,38 +1025,24 @@ export default function Sexagem() {
                     loteSelecionado?.status === 'FECHADO' ||
                     (loteSelecionado?.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.SEXAGEM)
                   }
-                  className="h-9 bg-primary hover:bg-primary-dark"
+                  className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm"
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  {submitting ? 'Salvando...' : 'Salvar'}
+                  <Save className="w-4 h-4 mr-2" />
+                  {submitting ? 'Salvando...' : 'Salvar Lote'}
                 </Button>
               </div>
+            </div>
 
-              {/* Mensagem de ajuda */}
-              {!loteFormData.veterinario_responsavel ? (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Preencha o veterinário para selecionar a fazenda
+            {/* Aviso de dias insuficientes */}
+            {loteSelecionado && loteSelecionado.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.SEXAGEM && (
+              <div className="flex items-center gap-2 mt-3 p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Este lote está com {loteSelecionado.dias_gestacao} dias. Sexagem requer mínimo de {DIAS_MINIMOS.SEXAGEM} dias (faltam {DIAS_MINIMOS.SEXAGEM - loteSelecionado.dias_gestacao}).
                 </p>
-              ) : !fazendaSelecionada ? (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Selecione uma fazenda para ver os lotes disponíveis
-                </p>
-              ) : lotesTE.length === 0 && !loadingLotes ? (
-                <p className="text-xs text-amber-600 mt-2">
-                  Nenhum lote de receptoras prenhes pendente nesta fazenda
-                </p>
-              ) : loteSelecionado && loteSelecionado.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.SEXAGEM ? (
-                <div className="flex items-center gap-2 mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                  <p className="text-xs text-amber-700">
-                    <strong>Atenção:</strong> Este lote está com {loteSelecionado.dias_gestacao} dias de gestação.
-                    A Sexagem só pode ser realizada a partir de <strong>{DIAS_MINIMOS.SEXAGEM} dias</strong>.
-                    Faltam <strong>{DIAS_MINIMOS.SEXAGEM - loteSelecionado.dias_gestacao} dias</strong>.
-                  </p>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
 
           {/* Tabela de Receptoras */}
           {loading ? (
@@ -1105,236 +1195,7 @@ export default function Sexagem() {
               </CardContent>
             </Card>
           ) : null}
-        </TabsContent>
-
-        <TabsContent value="historico" className="space-y-6 mt-6">
-          {/* Cards de estatísticas */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total de Sexagens</p>
-                    <p className="text-2xl font-bold">{estatisticasHistorico.total}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CalendarDays className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Fêmeas</p>
-                    <p className="text-2xl font-bold text-pink-600">{estatisticasHistorico.femeas}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-pink-500/10 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-pink-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Machos</p>
-                    <p className="text-2xl font-bold text-blue-600">{estatisticasHistorico.machos}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Taxa de Perda</p>
-                    <p className="text-2xl font-bold text-red-600">{taxaPerda}%</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <TrendingDown className="h-6 w-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filtros */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Buscar</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Brinco, nome, fazenda..."
-                      value={filtroBusca}
-                      onChange={(e) => setFiltroBusca(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fazenda</label>
-                  <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as fazendas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas as fazendas</SelectItem>
-                      {todasFazendas.map(f => (
-                        <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Sexagem</label>
-                  <Select value={filtroSexagem} onValueChange={setFiltroSexagem}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="FEMEA">Fêmea</SelectItem>
-                      <SelectItem value="MACHO">Macho</SelectItem>
-                      <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Início</label>
-                  <DatePickerBR
-                    value={filtroDataInicio}
-                    onChange={(value) => setFiltroDataInicio(value || '')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Fim</label>
-                  <DatePickerBR
-                    value={filtroDataFim}
-                    onChange={(value) => setFiltroDataFim(value || '')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Parto De</label>
-                  <DatePickerBR
-                    value={filtroDataPartoDe}
-                    onChange={(value) => setFiltroDataPartoDe(value || '')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Data Parto Até</label>
-                  <DatePickerBR
-                    value={filtroDataPartoAte}
-                    onChange={(value) => setFiltroDataPartoAte(value || '')}
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={loadHistorico}
-                className="mt-4 bg-primary hover:bg-primary-dark"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Tabela de histórico */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Histórico de Sexagens</CardTitle>
-              <CardDescription>
-                {historicoFiltrado.length} registro(s) encontrado(s)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingHistorico ? (
-                <LoadingSpinner />
-              ) : historicoFiltrado.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma sexagem encontrada. Clique em "Atualizar" para carregar os dados.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Receptora</TableHead>
-                        <TableHead>Fazenda</TableHead>
-                        <TableHead>Data TE</TableHead>
-                        <TableHead>Data Sexagem</TableHead>
-                        <TableHead>Data Parto</TableHead>
-                        <TableHead>Sexagem</TableHead>
-                        <TableHead>Nº Gest.</TableHead>
-                        <TableHead>Veterinário</TableHead>
-                        <TableHead>Técnico</TableHead>
-                        <TableHead>Observações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {historicoFiltrado.map((h) => (
-                        <TableRow key={h.id}>
-                          <TableCell className="font-medium">
-                            {h.receptora_brinco}
-                            {h.receptora_nome && (
-                              <span className="text-muted-foreground text-sm ml-2">({h.receptora_nome})</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4 text-muted-foreground" />
-                              {h.fazenda_nome}
-                            </div>
-                          </TableCell>
-                          <TableCell>{formatarData(h.data_te)}</TableCell>
-                          <TableCell>{formatarData(h.data_diagnostico)}</TableCell>
-                          <TableCell>{h.data_provavel_parto ? formatarData(h.data_provavel_parto) : '-'}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                h.sexagem === 'FEMEA'
-                                  ? 'bg-pink-500/10 text-pink-600 border-pink-500/30'
-                                  : h.sexagem === 'MACHO'
-                                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
-                                  : 'bg-gray-500/10 text-gray-600 border-gray-500/30'
-                              }
-                            >
-                              {h.sexagem === 'FEMEA' ? 'Fêmea' :
-                               h.sexagem === 'MACHO' ? 'Macho' :
-                               h.sexagem === 'SEM_SEXO' ? 'Sem sexo' : '-'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center">{h.numero_gestacoes || '-'}</TableCell>
-                          <TableCell>{h.veterinario_responsavel || '-'}</TableCell>
-                          <TableCell>{h.tecnico_responsavel || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">
-                            {h.observacoes?.replace(/SEXAGENS:[^|]+\|?/, '').trim() || '-'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
     </div>
   );
 }

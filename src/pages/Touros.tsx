@@ -31,7 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Search, Eye } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Dna, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import CamposDinamicosPorRaca from '@/components/touros/CamposDinamicosPorRaca';
 import type { Touro } from '@/lib/types';
@@ -128,40 +128,74 @@ function TourosFilters({
   filtroRaca,
   setFiltroRaca,
 }: TourosFiltersProps) {
+  const hasFilters = searchTerm || filtroRaca;
+
   return (
-    <div className="space-y-4 mb-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Buscar Touro</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+    <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
+      <div className="flex flex-wrap items-end gap-6">
+        {/* Grupo: Busca */}
+        <div className="flex items-end gap-3">
+          <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Busca</span>
+          </div>
+          <div className="relative flex-1 min-w-[250px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome, registro ou raca..."
+              placeholder="Buscar por nome, registro ou raça..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-9 h-9"
             />
           </div>
         </div>
-        <div className="space-y-2">
-          <Label>Filtrar por Raca</Label>
-          <Select
-            value={filtroRaca || 'all'}
-            onValueChange={(value) => setFiltroRaca(value === 'all' ? '' : value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todas as racas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as racas</SelectItem>
-              {racasBovinas.map((raca) => (
-                <SelectItem key={raca} value={raca}>
-                  {raca}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+        {/* Separador */}
+        <div className="h-10 w-px bg-border hidden lg:block" />
+
+        {/* Grupo: Raça */}
+        <div className="flex items-end gap-3">
+          <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+            <Dna className="w-3.5 h-3.5" />
+            <span>Raça</span>
+          </div>
+          <div className="w-[180px]">
+            <Select
+              value={filtroRaca || 'all'}
+              onValueChange={(value) => setFiltroRaca(value === 'all' ? '' : value)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Todas as raças" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as raças</SelectItem>
+                {racasBovinas.map((raca) => (
+                  <SelectItem key={raca} value={raca}>
+                    {raca}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        {/* Botão Limpar */}
+        {hasFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchTerm('');
+              setFiltroRaca('');
+            }}
+            className="h-9 ml-auto"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Limpar Filtros
+          </Button>
+        )}
       </div>
     </div>
   );

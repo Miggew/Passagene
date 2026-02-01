@@ -29,7 +29,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { useLotesFiltros } from '@/hooks/useLotesFiltros';
 import { useLotesFIVData } from '@/hooks/useLotesFIVData';
-import { Eye, X } from 'lucide-react';
+import { Eye, X, Filter, Calendar } from 'lucide-react';
 import { formatDate, extractDateOnly, diffDays, getTodayDateString } from '@/lib/utils';
 import { getNomeDia, getCorDia } from '@/lib/lotesFivUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -510,103 +510,131 @@ export default function LotesFIV() {
         }
       />
 
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
+        <div className="flex flex-wrap items-end gap-6">
+          {/* Grupo: Filtros */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filtros</span>
+            </div>
+            <div className="flex-1 min-w-[220px] relative fazenda-busca-container">
+              <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                Fazenda da Aspiração
+              </label>
+              <div className="relative">
+                <Input
+                  id="filtro-fazenda-aspiração"
+                  placeholder="Digite para buscar fazenda..."
+                  value={filtroFazendaAspiracaoBusca}
+                  onChange={(e) => {
+                    setFiltroFazendaAspiracaoBusca(e.target.value);
+                    setShowFazendaBusca(true);
+                    if (!e.target.value) {
+                      setFiltroFazendaAspiracao('');
+                    }
+                  }}
+                  onFocus={() => setShowFazendaBusca(true)}
+                  className="h-9"
+                />
+                {filtroFazendaAspiracao && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1 h-7 w-7 p-0"
+                    onClick={() => {
+                      setFiltroFazendaAspiracao('');
+                      setFiltroFazendaAspiracaoBusca('');
+                      setShowFazendaBusca(false);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                {showFazendaBusca && fazendasFiltradas.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {fazendasFiltradas.map((fazenda) => (
+                      <div
+                        key={fazenda.id}
+                        className="px-4 py-2 hover:bg-muted cursor-pointer text-sm"
+                        onClick={() => {
+                          setFiltroFazendaAspiracao(fazenda.id);
+                          setFiltroFazendaAspiracaoBusca(fazenda.nome);
+                          setShowFazendaBusca(false);
+                        }}
+                      >
+                        {fazenda.nome}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showFazendaBusca && filtroFazendaAspiracaoBusca && fazendasFiltradas.length === 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg p-4 text-sm text-muted-foreground">
+                    Nenhuma fazenda encontrada
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Grupo: Dia do Cultivo */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Cultivo</span>
+            </div>
+            <div className="w-[180px]">
+              <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                Dia do Cultivo
+              </label>
+              <Select
+                value={filtroDiaCultivo || undefined}
+                onValueChange={(value) => setFiltroDiaCultivo(value || '')}
+              >
+                <SelectTrigger id="filtro-dia-cultivo" className="h-9">
+                  <SelectValue placeholder="Todos os dias" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((dia) => (
+                    <SelectItem key={dia} value={dia.toString()}>
+                      D{dia} - {getNomeDia(dia)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Botão Limpar */}
+          {(filtroFazendaAspiracao || filtroDiaCultivo) && (
+            <div className="flex items-end ml-auto">
+              <Button
+                variant="outline"
+                onClick={limparFiltrosAtivos}
+                className="h-9"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Limpar Filtros
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Lista de Lotes FIV</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={abaAtiva} onValueChange={(value) => setAbaAtiva(value as 'ativos' | 'historico')}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="ativos">Lotes Ativos</TabsTrigger>
-              <TabsTrigger value="historico">Histórico</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="ativos" className="mt-0">
-              {/* Filtros */}
-              <div className="flex gap-4 mb-6 flex-wrap">
-                <div className="flex-1 min-w-[250px] relative fazenda-busca-container">
-                  <Label htmlFor="filtro-fazenda-aspiração">Filtrar por Fazenda da Aspiração</Label>
-                  <div className="relative">
-                    <Input
-                      id="filtro-fazenda-aspiração"
-                      placeholder="Digite para buscar fazenda..."
-                      value={filtroFazendaAspiracaoBusca}
-                      onChange={(e) => {
-                        setFiltroFazendaAspiracaoBusca(e.target.value);
-                        setShowFazendaBusca(true);
-                        if (!e.target.value) {
-                          setFiltroFazendaAspiracao('');
-                        }
-                      }}
-                      onFocus={() => setShowFazendaBusca(true)}
-                    />
-                    {filtroFazendaAspiracao && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-1 top-1 h-7 w-7 p-0"
-                        onClick={() => {
-                          setFiltroFazendaAspiracao('');
-                          setFiltroFazendaAspiracaoBusca('');
-                          setShowFazendaBusca(false);
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {showFazendaBusca && fazendasFiltradas.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                        {fazendasFiltradas.map((fazenda) => (
-                          <div
-                            key={fazenda.id}
-                            className="px-4 py-2 hover:bg-muted cursor-pointer"
-                            onClick={() => {
-                              setFiltroFazendaAspiracao(fazenda.id);
-                              setFiltroFazendaAspiracaoBusca(fazenda.nome);
-                              setShowFazendaBusca(false);
-                            }}
-                          >
-                            {fazenda.nome}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {showFazendaBusca && filtroFazendaAspiracaoBusca && fazendasFiltradas.length === 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-sm text-muted-foreground">
-                        Nenhuma fazenda encontrada
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <Label htmlFor="filtro-dia-cultivo">Filtrar por Dia do Cultivo</Label>
-                  <Select
-                    value={filtroDiaCultivo || undefined}
-                    onValueChange={(value) => setFiltroDiaCultivo(value || '')}
-                  >
-                    <SelectTrigger id="filtro-dia-cultivo">
-                      <SelectValue placeholder="Todos os dias" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((dia) => (
-                        <SelectItem key={dia} value={dia.toString()}>
-                          D{dia} - {getNomeDia(dia)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {(filtroFazendaAspiracao || filtroDiaCultivo) && (
-                  <div className="flex items-end">
-                    <Button
-                      variant="outline"
-                      onClick={limparFiltrosAtivos}
-                    >
-                      Limpar Filtros
-                    </Button>
-                  </div>
-                )}
-              </div>
 
               {lotesFiltrados.length === 0 ? (
                 <EmptyState
@@ -679,34 +707,6 @@ export default function LotesFIV() {
                   </TableBody>
                 </Table>
               )}
-            </TabsContent>
-
-            <TabsContent value="historico" className="mt-0">
-              <LotesHistoricoTab
-                lotesHistoricos={lotesHistoricos}
-                fazendas={fazendas}
-                detalhesLoteExpandido={detalhesLoteExpandido}
-                loteExpandido={loteExpandido}
-                loadingHistorico={loadingHistorico}
-                loadingDetalhes={loadingDetalhes}
-                filtroHistoricoDataInicio={filtroHistoricoDataInicio}
-                setFiltroHistoricoDataInicio={setFiltroHistoricoDataInicio}
-                filtroHistoricoDataFim={filtroHistoricoDataFim}
-                setFiltroHistoricoDataFim={setFiltroHistoricoDataFim}
-                filtroHistoricoFazenda={filtroHistoricoFazenda}
-                setFiltroHistoricoFazenda={setFiltroHistoricoFazenda}
-                filtroHistoricoFazendaBusca={filtroHistoricoFazendaBusca}
-                setFiltroHistoricoFazendaBusca={setFiltroHistoricoFazendaBusca}
-                showFazendaBuscaHistorico={showFazendaBuscaHistorico}
-                setShowFazendaBuscaHistorico={setShowFazendaBuscaHistorico}
-                historicoPage={historicoPage}
-                setHistoricoPage={setHistoricoPage}
-                HISTORICO_PAGE_SIZE={HISTORICO_PAGE_SIZE}
-                onLoadHistorico={loadLotesHistoricos}
-                onExpandirLote={handleExpandirLote}
-              />
-            </TabsContent>
-          </Tabs>
         </CardContent>
       </Card>
     </div>

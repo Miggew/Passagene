@@ -29,6 +29,7 @@ export { useProtocolosData } from './useProtocolosData';
 export type {
   ProtocoloWithFazenda,
   ProtocolosFiltros,
+  FiltroDataTipo,
   UseProtocolosDataReturn,
 } from './useProtocolosData';
 

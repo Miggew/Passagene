@@ -2,26 +2,18 @@
  * Página de Protocolos de Sincronização
  *
  * Estrutura:
- * - Aba "Nova Sessão" com sub-abas:
+ * - Sub-abas:
  *   - "1º Passo" - Criar novo protocolo
  *   - "2º Passo" - Continuar protocolo pendente
- * - Aba "Histórico" - Listagem de todos os protocolos
+ *
+ * O histórico de protocolos está disponível em /relatorios/servicos
  */
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -65,26 +57,15 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
-import EmptyState from '@/components/shared/EmptyState';
-import { formatDate } from '@/lib/utils';
 import {
   Plus,
-  PlayCircle,
   Search,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Clock,
   UserPlus,
   Lock,
   X,
-  Filter,
-  RefreshCw,
-  CalendarDays,
   CheckCircle,
-  Users,
-  Save,
-  TrendingUp,
+  Syringe,
+  ClipboardCheck,
 } from 'lucide-react';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
@@ -94,8 +75,6 @@ import ClassificacoesCicloInline from '@/components/shared/ClassificacoesCicloIn
 // Components
 import {
   ProtocoloInfoCard,
-  ProtocoloStatsCards,
-  ProtocoloResumoDialog,
   ConfirmExitDialog,
   ReceptorasPasso2Table,
 } from '@/components/protocolos';
@@ -106,7 +85,6 @@ import {
   useProtocoloWizardData,
   useProtocoloWizardReceptoras,
   useProtocoloWizardSubmit,
-  type ProtocoloWithFazenda,
 } from '@/hooks/protocolos';
 import {
   useProtocoloPasso2Data,
@@ -150,8 +128,6 @@ interface RascunhoPasso2 {
 }
 
 export default function Protocolos() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'nova-sessao' | 'historico'>('nova-sessao');
   const [activeSubTab, setActiveSubTab] = useState<'passo1' | 'passo2'>('passo1');
 
   // ========== ESTADOS RASCUNHO ==========
@@ -160,31 +136,13 @@ export default function Protocolos() {
   const [rascunhoPasso2Pendente, setRascunhoPasso2Pendente] = useState<RascunhoPasso2 | null>(null);
   const rascunhoPasso2VerificadoRef = useRef<string | null>(null);
 
-  // ========== HISTÓRICO ==========
+  // ========== DADOS DE PROTOCOLOS ==========
   const {
     loading: loadingHistorico,
-    loadingProtocolos,
     protocolos,
-    fazendas: fazendasHistorico,
-    filtroStatus,
-    setFiltroStatus,
-    fazendaFilter,
-    setFazendaFilter,
-    filtroDataInicio,
-    setFiltroDataInicio,
-    filtroDataFim,
-    setFiltroDataFim,
-    protocolosPage,
-    setProtocolosPage,
-    pageSize,
     loadData: loadDataHistorico,
     loadProtocolos,
-    limparFiltros,
-    aplicarAtalhoData,
   } = useProtocolosData();
-
-  // Estado para busca por texto no histórico
-  const [filtroBusca, setFiltroBusca] = useState('');
 
   // ========== PASSO 1 ==========
   const [passo1CurrentStep, setPasso1CurrentStep] = useState<'form' | 'receptoras'>('form');
@@ -239,14 +197,18 @@ export default function Protocolos() {
     submitting: submitSubmittingPasso1,
     showConfirmExit: showConfirmExitPasso1,
     setShowConfirmExit: setShowConfirmExitPasso1,
-    showResumo: showResumoPasso1,
-    setShowResumo: setShowResumoPasso1,
     handleFinalizarPasso1,
     handleConfirmExit: handleConfirmExitPasso1,
     validateProtocoloForm,
   } = useProtocoloWizardSubmit({
     protocoloData,
     receptorasLocais,
+    onSuccess: () => {
+      // Reset form and reload
+      handleResetPasso1();
+      limparRascunhoPasso1();
+      loadProtocolos(1);
+    },
   });
 
   const submittingPasso1 = receptorasSubmitting || submitSubmittingPasso1;
@@ -272,12 +234,9 @@ export default function Protocolos() {
 
   const {
     submitting: submittingPasso2,
-    showResumo: showResumoPasso2,
-    setShowResumo: setShowResumoPasso2,
     handleStatusChange,
     handleMotivoChange,
     handleFinalizarPasso2,
-    handleCloseResumo: handleCloseResumoPasso2,
   } = useProtocoloPasso2Actions({
     protocoloId: protocoloSelecionadoId,
     protocolo: protocoloPasso2,
@@ -286,6 +245,12 @@ export default function Protocolos() {
     setProtocolo: setProtocoloPasso2,
     passo2Form,
     motivosInapta,
+    onSuccess: () => {
+      // Reset form and reload
+      handleResetPasso2();
+      limparRascunhoPasso2();
+      loadProtocolos(1);
+    },
   });
 
   // ========== COMPUTED ==========
@@ -301,47 +266,8 @@ export default function Protocolos() {
 
   // Protocolos aguardando 2º passo
   const protocolosAguardando2Passo = useMemo(() => {
-    return protocolos.filter(p =>
-      p.status === 'PASSO1_FECHADO' || p.status === 'PRIMEIRO_PASSO_FECHADO'
-    );
+    return protocolos.filter(p => p.status === 'PASSO1_FECHADO');
   }, [protocolos]);
-
-  // Protocolos filtrados por busca de texto
-  const protocolosFiltrados = useMemo(() => {
-    if (!filtroBusca.trim()) return protocolos;
-    const termo = filtroBusca.toLowerCase().trim();
-    return protocolos.filter(p => {
-      const fazendaNome = p.fazenda_nome?.toLowerCase() || '';
-      const veterinario = p.responsavel_inicio?.toLowerCase() || '';
-      const tecnico = p.tecnico_responsavel?.toLowerCase() || '';
-      return fazendaNome.includes(termo) || veterinario.includes(termo) || tecnico.includes(termo);
-    });
-  }, [protocolos, filtroBusca]);
-
-  // Estatísticas do histórico
-  const estatisticasHistorico = useMemo(() => {
-    const total = protocolosFiltrados.length;
-    const aguardando2Passo = protocolosFiltrados.filter(p =>
-      p.status === 'PASSO1_FECHADO' || p.status === 'PRIMEIRO_PASSO_FECHADO'
-    ).length;
-    const protocolosSincronizados = protocolosFiltrados.filter(p =>
-      p.status === 'SINCRONIZADO' || p.status === 'PASSO2_FECHADO'
-    );
-    const sincronizados = protocolosSincronizados.length;
-
-    // Total de receptoras de todos os protocolos
-    const totalReceptoras = protocolosFiltrados.reduce((sum, p) => sum + (p.receptoras_count || 0), 0);
-
-    // Receptoras em protocolos que chegaram a SINCRONIZADO (passaram pelo 2º passo completo)
-    const receptorasSincronizadas = protocolosSincronizados.reduce((sum, p) => sum + (p.receptoras_count || 0), 0);
-
-    // % de aproveitamento: receptoras em protocolos sincronizados / total de receptoras
-    const aproveitamento = totalReceptoras > 0
-      ? Math.round((receptorasSincronizadas / totalReceptoras) * 100)
-      : 0;
-
-    return { total, aguardando2Passo, sincronizados, totalReceptoras, receptorasSincronizadas, aproveitamento };
-  }, [protocolosFiltrados]);
 
   // Stats do Passo 2
   const statsPasso2 = useMemo(() => ({
@@ -483,6 +409,7 @@ export default function Protocolos() {
     }
   }, [protocoloSelecionadoId, loadDataPasso2]);
 
+  // Configurar formulário quando protocolo carrega
   useEffect(() => {
     if (protocoloPasso2) {
       if (protocoloPasso2.passo2_data || protocoloPasso2.passo2_tecnico_responsavel) {
@@ -491,7 +418,12 @@ export default function Protocolos() {
           tecnico: protocoloPasso2.passo2_tecnico_responsavel || '',
         });
       }
+    }
+  }, [protocoloPasso2]);
 
+  // Configurar motivos de inapta quando receptoras carregam
+  useEffect(() => {
+    if (receptorasPasso2.length > 0) {
       const motivosInaptaLocal: Record<string, string> = {};
       receptorasPasso2
         .filter((r) => r.pr_status === 'INAPTA' && r.pr_motivo_inapta)
@@ -499,18 +431,24 @@ export default function Protocolos() {
           motivosInaptaLocal[r.id] = r.pr_motivo_inapta || '';
         });
       setMotivosInapta(motivosInaptaLocal);
+    }
+  }, [receptorasPasso2]);
 
-      // Verificar se há rascunho do passo 2 para este protocolo (apenas uma vez por protocolo)
-      if (rascunhoPasso2VerificadoRef.current !== protocoloPasso2.id) {
-        rascunhoPasso2VerificadoRef.current = protocoloPasso2.id;
-        const rascunho = getRascunhoPasso2();
-        if (rascunho && rascunho.protocoloSelecionadoId === protocoloPasso2.id) {
-          setRascunhoPasso2Pendente(rascunho);
-          setShowRestaurarPasso2Dialog(true);
-        }
+  // Verificar rascunho do passo 2 APÓS receptoras carregarem
+  useEffect(() => {
+    if (
+      protocoloPasso2 &&
+      receptorasPasso2.length > 0 &&
+      rascunhoPasso2VerificadoRef.current !== protocoloPasso2.id
+    ) {
+      rascunhoPasso2VerificadoRef.current = protocoloPasso2.id;
+      const rascunho = getRascunhoPasso2();
+      if (rascunho && rascunho.protocoloSelecionadoId === protocoloPasso2.id) {
+        setRascunhoPasso2Pendente(rascunho);
+        setShowRestaurarPasso2Dialog(true);
       }
     }
-  }, [protocoloPasso2, receptorasPasso2, getRascunhoPasso2]);
+  }, [protocoloPasso2, receptorasPasso2.length, getRascunhoPasso2]);
 
   // Verificar rascunho do passo 1 ao montar
   useEffect(() => {
@@ -540,40 +478,6 @@ export default function Protocolos() {
     }
   }, [protocoloSelecionadoId, passo2Form, motivosInapta, receptorasPasso2, salvarRascunhoPasso2]);
 
-  // ========== HANDLERS HISTÓRICO ==========
-  const handleBuscar = () => {
-    setProtocolosPage(1);
-    loadProtocolos(1, {
-      fazendaFilter,
-      filtroDataInicio,
-      filtroDataFim,
-      filtroStatus,
-    });
-  };
-
-  const handleLimparFiltros = () => {
-    limparFiltros();
-    setFiltroBusca('');
-    loadProtocolos(1, {
-      fazendaFilter: '',
-      filtroDataInicio: '',
-      filtroDataFim: '',
-      filtroStatus: 'all',
-    });
-  };
-
-  const handlePaginaAnterior = async () => {
-    const newPage = Math.max(1, protocolosPage - 1);
-    setProtocolosPage(newPage);
-    await loadProtocolos(newPage);
-  };
-
-  const handleProximaPagina = async () => {
-    const newPage = protocolosPage + 1;
-    setProtocolosPage(newPage);
-    await loadProtocolos(newPage);
-  };
-
   // ========== HANDLERS PASSO 1 ==========
   const handleContinueToReceptoras = () => {
     if (validateProtocoloForm()) {
@@ -598,14 +502,6 @@ export default function Protocolos() {
     });
     setReceptorasLocais([]);
     limparRascunhoPasso1();
-  };
-
-  const handleCloseResumoPasso1 = () => {
-    setShowResumoPasso1(false);
-    handleResetPasso1();
-    limparRascunhoPasso1();
-    // Recarregar protocolos para atualizar a lista de aguardando 2º passo
-    loadProtocolos(1);
   };
 
   // ========== HANDLERS PASSO 2 ==========
@@ -640,13 +536,6 @@ export default function Protocolos() {
     limparRascunhoPasso2();
   };
 
-  const handleCloseResumoPasso2Final = () => {
-    handleCloseResumoPasso2();
-    handleResetPasso2();
-    limparRascunhoPasso2();
-    loadProtocolos(1);
-  };
-
   // ========== HELPERS ==========
   const formatarData = (data: string) => {
     if (!data) return '-';
@@ -666,126 +555,121 @@ export default function Protocolos() {
         description="Gerenciar protocolos em 2 passos"
       />
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'nova-sessao' | 'historico')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="nova-sessao" className="gap-2">
-            <PlayCircle className="h-4 w-4" />
-            Nova Sessão
-          </TabsTrigger>
-          <TabsTrigger value="historico" className="gap-2" onClick={() => loadProtocolos(1)}>
-            <Clock className="h-4 w-4" />
-            Histórico
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ==================== ABA NOVA SESSÃO ==================== */}
-        <TabsContent value="nova-sessao" className="mt-4">
+      {/* ==================== SESSÃO DE PROTOCOLOS ==================== */}
+      <div className="mt-4">
           <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as 'passo1' | 'passo2')} className="w-full">
-            <TabsList className="grid w-full max-w-sm grid-cols-2 mb-4">
-              <TabsTrigger value="passo1" className="gap-2">
-                1º Passo
-              </TabsTrigger>
-              <TabsTrigger value="passo2" className="gap-2">
-                2º Passo
-                {protocolosAguardando2Passo.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                    {protocolosAguardando2Passo.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
+            {/* Premium Tabs */}
+            <div className="rounded-xl border border-border bg-card p-1.5 mb-4">
+              <div className="flex gap-1">
+                {[
+                  { value: 'passo1', label: '1º Passo', icon: Syringe, count: 0 },
+                  { value: 'passo2', label: '2º Passo', icon: ClipboardCheck, count: protocolosAguardando2Passo.length },
+                ].map(({ value, label, icon: Icon, count }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setActiveSubTab(value as 'passo1' | 'passo2')}
+                    className={`
+                      relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                      text-sm font-medium transition-all duration-200
+                      ${activeSubTab === value
+                        ? 'bg-muted/80 text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      }
+                    `}
+                  >
+                    {activeSubTab === value && (
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
+                    )}
+                    <div className={`
+                      flex items-center justify-center w-7 h-7 rounded-md transition-colors
+                      ${activeSubTab === value ? 'bg-primary/15' : 'bg-muted/50'}
+                    `}>
+                      <Icon className={`w-4 h-4 ${activeSubTab === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </div>
+                    <span>{label}</span>
+                    {count > 0 && (
+                      <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold rounded-full ${
+                        activeSubTab === value
+                          ? 'bg-primary/15 text-primary'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* ========== SUB-ABA 1º PASSO ========== */}
             <TabsContent value="passo1">
               {passo1CurrentStep === 'form' ? (
                 <>
-                  {/* Barra compacta de controles */}
-                  <Card className="mb-4">
-                    <CardContent className="pt-4 pb-4">
-                      <div className="flex flex-wrap items-end gap-3">
-                        {/* Veterinário */}
-                        <div className="flex-1 min-w-[160px] max-w-[200px]">
-                          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                            Veterinário *
-                          </label>
-                          <Input
-                            placeholder="Nome do veterinário"
-                            value={protocoloData.veterinario}
-                            onChange={(e) => setProtocoloData({ ...protocoloData, veterinario: e.target.value })}
-                            className="h-9"
-                          />
+                  {/* Barra Premium de Controles */}
+                  <div className="rounded-xl border border-border bg-card overflow-hidden mb-4">
+                    <div className="flex flex-wrap items-stretch">
+                      {/* Grupo: Responsáveis */}
+                      <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-6 rounded-full bg-primary/40" />
+                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Responsáveis</span>
                         </div>
+                        <Input
+                          placeholder="Veterinário *"
+                          value={protocoloData.veterinario}
+                          onChange={(e) => setProtocoloData({ ...protocoloData, veterinario: e.target.value })}
+                          className="h-9 w-[160px] bg-background/80 border-primary/20 focus:border-primary/40"
+                        />
+                        <Input
+                          placeholder="Técnico"
+                          value={protocoloData.tecnico}
+                          onChange={(e) => setProtocoloData({ ...protocoloData, tecnico: e.target.value })}
+                          className="h-9 w-[160px] bg-background"
+                        />
+                      </div>
 
-                        {/* Técnico */}
-                        <div className="flex-1 min-w-[160px] max-w-[200px]">
-                          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                            Técnico *
-                          </label>
-                          <Input
-                            placeholder="Nome do técnico"
-                            value={protocoloData.tecnico}
-                            onChange={(e) => setProtocoloData({ ...protocoloData, tecnico: e.target.value })}
-                            className="h-9"
-                          />
+                      {/* Grupo: Local e Data */}
+                      <div className="flex items-center gap-3 px-4 py-3 border-r border-border">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-6 rounded-full bg-primary/40" />
+                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Local</span>
                         </div>
+                        <Select
+                          value={protocoloData.fazenda_id}
+                          onValueChange={(value) => setProtocoloData({ ...protocoloData, fazenda_id: value })}
+                          disabled={!protocoloData.veterinario}
+                        >
+                          <SelectTrigger className="h-9 w-[180px] bg-background">
+                            <SelectValue placeholder="Fazenda *" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fazendasPasso1.map((fazenda) => (
+                              <SelectItem key={fazenda.id} value={fazenda.id}>
+                                {fazenda.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <DatePickerBR
+                          value={protocoloData.data_inicio}
+                          onChange={(value) => setProtocoloData({ ...protocoloData, data_inicio: value || '' })}
+                          className="h-9 w-[130px] bg-background"
+                        />
+                      </div>
 
-                        {/* Fazenda */}
-                        <div className="flex-1 min-w-[160px] max-w-[200px]">
-                          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                            Fazenda *
-                          </label>
-                          <Select
-                            value={protocoloData.fazenda_id}
-                            onValueChange={(value) => setProtocoloData({ ...protocoloData, fazenda_id: value })}
-                            disabled={!protocoloData.veterinario || !protocoloData.tecnico}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {fazendasPasso1.map((fazenda) => (
-                                <SelectItem key={fazenda.id} value={fazenda.id}>
-                                  {fazenda.nome}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Data Início */}
-                        <div className="flex-1 min-w-[140px] max-w-[160px]">
-                          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                            Data Início *
-                          </label>
-                          <DatePickerBR
-                            value={protocoloData.data_inicio}
-                            onChange={(value) => setProtocoloData({ ...protocoloData, data_inicio: value || '' })}
-                            className="h-9"
-                          />
-                        </div>
-
-                        {/* Botão Continuar */}
+                      {/* Grupo: Ação */}
+                      <div className="flex items-center gap-2 px-4 py-3 ml-auto bg-gradient-to-b from-muted/50 to-transparent">
                         <Button
                           onClick={handleContinueToReceptoras}
-                          disabled={loadingPasso1 || !protocoloData.fazenda_id || !protocoloData.veterinario || !protocoloData.tecnico || !protocoloData.data_inicio}
-                          className="h-9 bg-primary hover:bg-primary-dark"
+                          disabled={loadingPasso1 || !protocoloData.fazenda_id || !protocoloData.veterinario || !protocoloData.data_inicio}
+                          className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
                         >
                           Continuar
                         </Button>
                       </div>
-
-                      {/* Mensagem de ajuda */}
-                      {(!protocoloData.veterinario || !protocoloData.tecnico) ? (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Preencha veterinário e técnico para selecionar a fazenda
-                        </p>
-                      ) : !protocoloData.fazenda_id ? (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Selecione uma fazenda para continuar
-                        </p>
-                      ) : null}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
@@ -916,45 +800,36 @@ export default function Protocolos() {
                     title="Sair sem finalizar?"
                     description="Se você sair agora, nenhum protocolo será criado."
                   />
-
-                  <ProtocoloResumoDialog
-                    open={showResumoPasso1}
-                    onClose={handleCloseResumoPasso1}
-                    step={1}
-                    fazendaNome={getFazendaNome(protocoloData.fazenda_id)}
-                    dataInicio={protocoloData.data_inicio}
-                    totalReceptoras={receptorasLocais.length}
-                    receptorasConfirmadas={receptorasLocais.length}
-                  />
                 </>
               )}
             </TabsContent>
 
             {/* ========== SUB-ABA 2º PASSO ========== */}
             <TabsContent value="passo2">
-              {/* Barra compacta de seleção */}
-              <Card className="mb-4">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex flex-wrap items-end gap-3">
-                    {/* Responsável */}
-                    <div className="flex-1 min-w-[180px] max-w-[220px]">
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Responsável *
-                      </label>
+              {!protocoloSelecionadoId ? (
+                /* Etapa 1: Seleção do protocolo - Barra Premium */
+                <div className="rounded-xl border border-border bg-card overflow-hidden mb-4">
+                  <div className="flex flex-wrap items-stretch">
+                    {/* Grupo: Responsável */}
+                    <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-6 rounded-full bg-primary/40" />
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Responsável</span>
+                      </div>
                       <Input
-                        placeholder="Nome do responsável"
+                        placeholder="Nome do responsável *"
                         value={passo2Form.tecnico}
                         onChange={(e) => setPasso2Form(prev => ({ ...prev, tecnico: e.target.value }))}
-                        className="h-9"
-                        disabled={isProtocoloFinalizado}
+                        className="h-9 w-[180px] bg-background/80 border-primary/20 focus:border-primary/40"
                       />
                     </div>
 
-                    {/* Protocolo */}
-                    <div className="flex-1 min-w-[280px] max-w-[350px]">
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Protocolo Aguardando 2º Passo
-                      </label>
+                    {/* Grupo: Seleção */}
+                    <div className="flex items-center gap-3 px-4 py-3 border-r border-border flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-6 rounded-full bg-primary/40" />
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocolo</span>
+                      </div>
                       <Select
                         value={protocoloSelecionadoId}
                         onValueChange={(value) => {
@@ -962,8 +837,8 @@ export default function Protocolos() {
                         }}
                         disabled={!passo2Form.tecnico.trim()}
                       >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Selecione um protocolo" />
+                        <SelectTrigger className="h-9 min-w-[280px] bg-background">
+                          <SelectValue placeholder="Selecione um protocolo *" />
                         </SelectTrigger>
                         <SelectContent>
                           {protocolosAguardando2Passo.length === 0 ? (
@@ -979,304 +854,98 @@ export default function Protocolos() {
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    {/* Data 2º Passo */}
-                    <div className="flex-1 min-w-[140px] max-w-[160px]">
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Data 2º Passo
-                      </label>
                       <DatePickerBR
                         value={passo2Form.data}
                         onChange={(value) => setPasso2Form(prev => ({ ...prev, data: value || '' }))}
-                        className="h-9"
-                        disabled={!protocoloSelecionadoId || isProtocoloFinalizado}
+                        className="h-9 w-[130px] bg-background"
                       />
                     </div>
-
-                    {/* Botão Finalizar */}
-                    <Button
-                      onClick={handleFinalizarPasso2}
-                      disabled={!canFinalizePasso2 || submittingPasso2 || isProtocoloFinalizado}
-                      className="h-9 bg-primary hover:bg-primary-dark"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {submittingPasso2 ? 'Salvando...' : 'Finalizar'}
-                    </Button>
                   </div>
-
-                  {/* Mensagem de ajuda */}
-                  {!passo2Form.tecnico.trim() ? (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Preencha o responsável para selecionar o protocolo
-                    </p>
-                  ) : !protocoloSelecionadoId ? (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {protocolosAguardando2Passo.length === 0
-                        ? 'Nenhum protocolo aguardando 2º passo'
-                        : 'Selecione um protocolo para continuar'}
-                    </p>
-                  ) : statsPasso2.pendentes > 0 ? (
-                    <p className="text-xs text-amber-600 mt-2">
-                      {statsPasso2.pendentes} receptora(s) aguardando avaliação
-                    </p>
-                  ) : null}
-                </CardContent>
-              </Card>
-
-              {/* Conteúdo do Passo 2 */}
-              {loadingPasso2 ? (
+                </div>
+              ) : loadingPasso2 ? (
+                /* Loading */
                 <Card>
                   <CardContent className="py-8">
                     <LoadingSpinner />
                   </CardContent>
                 </Card>
-              ) : protocoloSelecionadoId && protocoloPasso2 ? (
+              ) : protocoloPasso2 ? (
+                /* Etapa 2: Avaliação das receptoras (similar à etapa receptoras do Passo 1) */
                 <>
-                  {/* Tabela de Receptoras */}
-                  <div>
-                    <ReceptorasPasso2Table
-                      receptoras={receptorasPasso2}
-                      motivosInapta={motivosInapta}
-                      isFinalized={isProtocoloFinalizado}
-                      onStatusChange={handleLocalStatusChange}
-                      onMotivoChange={handleLocalMotivoChange}
-                    />
-                  </div>
-
-                  <ProtocoloResumoDialog
-                    open={showResumoPasso2}
-                    onClose={handleCloseResumoPasso2Final}
-                    step={2}
+                  {/* Info Card (mesmo padrão do Passo 1) */}
+                  <ProtocoloInfoCard
                     fazendaNome={fazendaNomePasso2}
                     dataInicio={protocoloPasso2.data_inicio}
-                    totalReceptoras={receptorasPasso2.length}
-                    receptorasConfirmadas={statsPasso2.confirmadas}
-                    receptorasDescartadas={statsPasso2.descartadas}
+                    veterinario={protocoloPasso2.responsavel_inicio || '-'}
+                    tecnico={protocoloPasso2.tecnico_responsavel || '-'}
+                    passo2Data={passo2Form.data}
+                    passo2Tecnico={passo2Form.tecnico}
+                    showPasso2={true}
                   />
+
+                  {/* Card com tabela (mesmo padrão do Passo 1) */}
+                  <Card className="mt-4">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base">
+                            Receptoras para Avaliação ({receptorasPasso2.length})
+                          </CardTitle>
+                          <CardDescription>
+                            {isProtocoloFinalizado
+                              ? 'Protocolo já finalizado'
+                              : statsPasso2.pendentes > 0
+                                ? `${statsPasso2.pendentes} receptora(s) aguardando avaliação`
+                                : 'Todas as receptoras foram avaliadas'}
+                          </CardDescription>
+                        </div>
+                        {/* Stats badges */}
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            {statsPasso2.confirmadas} aptas
+                          </Badge>
+                          {statsPasso2.descartadas > 0 && (
+                            <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30">
+                              {statsPasso2.descartadas} inaptas
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <ReceptorasPasso2Table
+                        receptoras={receptorasPasso2}
+                        motivosInapta={motivosInapta}
+                        isFinalized={isProtocoloFinalizado}
+                        onStatusChange={handleLocalStatusChange}
+                        onMotivoChange={handleLocalMotivoChange}
+                        hideCard={true}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Botões de Ação (mesmo padrão do Passo 1) */}
+                  {!isProtocoloFinalizado && (
+                    <div className="flex items-center justify-between mt-4">
+                      <Button variant="outline" onClick={handleResetPasso2} disabled={submittingPasso2}>
+                        Voltar
+                      </Button>
+                      <Button
+                        onClick={handleFinalizarPasso2}
+                        disabled={!canFinalizePasso2 || submittingPasso2}
+                        className="bg-primary hover:bg-primary-dark"
+                      >
+                        <Lock className="w-4 h-4 mr-2" />
+                        {submittingPasso2 ? 'Finalizando...' : 'Finalizar 2º Passo'}
+                      </Button>
+                    </div>
+                  )}
                 </>
               ) : null}
             </TabsContent>
           </Tabs>
-        </TabsContent>
-
-        {/* ==================== ABA HISTÓRICO ==================== */}
-        <TabsContent value="historico" className="space-y-6 mt-6">
-          {/* Cards de estatísticas */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Protocolos</p>
-                    <p className="text-2xl font-bold">{estatisticasHistorico.total}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CalendarDays className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Aguard. 2º Passo</p>
-                    <p className="text-2xl font-bold text-amber-600">{estatisticasHistorico.aguardando2Passo}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-amber-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Rec. Sincronizadas</p>
-                    <p className="text-2xl font-bold text-primary">{estatisticasHistorico.receptorasSincronizadas}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">% Aproveitamento</p>
-                    <p className="text-2xl font-bold text-primary">{estatisticasHistorico.aproveitamento}%</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filtros */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="space-y-2">
-                  <Label>Buscar</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Fazenda, veterinário..."
-                      value={filtroBusca}
-                      onChange={(e) => setFiltroBusca(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="aguardando_2_passo">Aguardando 2º Passo</SelectItem>
-                      <SelectItem value="sincronizado">Sincronizados</SelectItem>
-                      <SelectItem value="fechado">Fechados</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Fazenda</Label>
-                  <Select
-                    value={fazendaFilter || 'all'}
-                    onValueChange={(value) => setFazendaFilter(value === 'all' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      {fazendasHistorico.map((fazenda) => (
-                        <SelectItem key={fazenda.id} value={fazenda.id}>
-                          {fazenda.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data Início (de)</Label>
-                  <DatePickerBR value={filtroDataInicio} onChange={setFiltroDataInicio} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data Início (até)</Label>
-                  <DatePickerBR value={filtroDataFim} onChange={setFiltroDataFim} />
-                </div>
-              </div>
-
-              <Button onClick={handleBuscar} disabled={loadingProtocolos} className="mt-4 bg-primary hover:bg-primary-dark">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Atualizar
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Lista de Protocolos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Histórico de Protocolos</CardTitle>
-              <CardDescription>
-                {protocolosFiltrados.length} registro(s) encontrado(s)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingProtocolos ? (
-                <LoadingSpinner />
-              ) : protocolosFiltrados.length === 0 ? (
-                <EmptyState
-                  title="Nenhum protocolo encontrado"
-                  description="Ajuste os filtros ou crie um novo protocolo."
-                  action={
-                    <Button variant="outline" onClick={handleLimparFiltros}>
-                      Limpar filtros
-                    </Button>
-                  }
-                />
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Fazenda</TableHead>
-                          <TableHead>Data Início</TableHead>
-                          <TableHead>Data 2º Passo</TableHead>
-                          <TableHead>Receptoras</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {protocolosFiltrados.map((protocolo) => (
-                          <ProtocoloRow
-                            key={protocolo.id}
-                            protocolo={protocolo}
-                            navigate={navigate}
-                            onIniciar2Passo={(id) => {
-                              setProtocoloSelecionadoId(id);
-                              setActiveTab('nova-sessao');
-                              setActiveSubTab('passo2');
-                            }}
-                          />
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* Paginação */}
-                  <div className="flex items-center justify-between pt-4 border-t mt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Página {protocolosPage}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePaginaAnterior}
-                        disabled={protocolosPage === 1 || loadingProtocolos}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleProximaPagina}
-                        disabled={protocolos.length < pageSize || loadingProtocolos}
-                      >
-                        Próxima
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
 
       {/* Dialog para restaurar rascunho do Passo 1 */}
       <AlertDialog open={showRestaurarPasso1Dialog} onOpenChange={setShowRestaurarPasso1Dialog}>
@@ -1325,99 +994,6 @@ export default function Protocolos() {
 }
 
 // ==================== SUB-COMPONENTES ====================
-
-interface ProtocoloRowProps {
-  protocolo: ProtocoloWithFazenda;
-  navigate: ReturnType<typeof useNavigate>;
-  onIniciar2Passo: (id: string) => void;
-}
-
-function ProtocoloRow({ protocolo, navigate, onIniciar2Passo }: ProtocoloRowProps) {
-  const isAguardando2Passo =
-    protocolo.status === 'PASSO1_FECHADO' || protocolo.status === 'PRIMEIRO_PASSO_FECHADO';
-  const isFechado = protocolo.status === 'FECHADO' || protocolo.status === 'EM_TE';
-  const isSincronizado = protocolo.status === 'SINCRONIZADO' || protocolo.status === 'PASSO2_FECHADO';
-
-  return (
-    <TableRow>
-      <TableCell className="font-medium">{protocolo.fazenda_nome}</TableCell>
-      <TableCell>{formatDate(protocolo.data_inicio)}</TableCell>
-      <TableCell>{protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '-'}</TableCell>
-      <TableCell>{protocolo.receptoras_count}</TableCell>
-      <TableCell>
-        <ProtocoloStatusBadge
-          isFechado={isFechado}
-          isSincronizado={isSincronizado}
-          isAguardando2Passo={isAguardando2Passo}
-          status={protocolo.status}
-        />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center justify-end gap-2">
-          {isAguardando2Passo && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => onIniciar2Passo(protocolo.id)}
-              className="bg-primary hover:bg-primary-dark"
-            >
-              <PlayCircle className="w-4 h-4 mr-2" />
-              2º Passo
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/protocolos/${protocolo.id}/relatorio`)}
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Relatório
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-interface ProtocoloStatusBadgeProps {
-  isFechado: boolean;
-  isSincronizado: boolean;
-  isAguardando2Passo: boolean;
-  status: string | null;
-}
-
-function ProtocoloStatusBadge({
-  isFechado,
-  isSincronizado,
-  isAguardando2Passo,
-  status,
-}: ProtocoloStatusBadgeProps) {
-  if (isFechado) {
-    return (
-      <Badge variant="secondary" className="bg-muted-foreground hover:bg-muted-foreground/90 text-white">
-        Fechado
-      </Badge>
-    );
-  }
-
-  if (isSincronizado) {
-    return (
-      <Badge variant="default" className="bg-primary hover:bg-primary-dark text-primary-foreground">
-        Sincronizado
-      </Badge>
-    );
-  }
-
-  if (isAguardando2Passo) {
-    return (
-      <Badge variant="outline" className="border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
-        Aguardando 2º Passo
-      </Badge>
-    );
-  }
-
-  return <Badge variant="default">{status || 'N/A'}</Badge>;
-}
 
 // ========== FORMULÁRIOS PASSO 1 ==========
 
@@ -1698,29 +1274,33 @@ function ReceptorasTablePasso1({
   onUpdateQualidade,
 }: ReceptorasTablePasso1Props) {
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      {/* Cabeçalho */}
-      <div className="grid grid-cols-[minmax(120px,1fr)_repeat(3,36px)_100px_100px_1fr_36px] gap-0 bg-muted text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-        <div className="px-3 py-2">Receptora</div>
-        <div className="px-1 py-2 text-center" title="Protocolos">P</div>
-        <div className="px-1 py-2 text-center" title="Gestações">G</div>
-        <div className="px-1 py-2 text-center" title="Desde última">D</div>
-        <div className="px-2 py-2 text-center">Ciclando</div>
-        <div className="px-2 py-2 text-center">Qualidade</div>
-        <div className="px-2 py-2">Obs.</div>
-        <div className="px-2 py-2"></div>
-      </div>
+    /* Container com scroll horizontal quando necessário */
+    <div className="overflow-x-auto rounded-lg border border-border">
+      {/* Tabela: min-w garante largura mínima, w-full distribui uniformemente */}
+      <div className="min-w-[700px] w-full">
+        {/* Cabeçalho - colunas fixas + flexíveis com minmax + separador de contexto */}
+        <div className="grid grid-cols-[minmax(160px,1.5fr)_36px_36px_36px_16px_90px_90px_minmax(100px,1fr)_40px] gap-0 bg-muted text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <div className="px-3 py-2">Receptora</div>
+          <div className="px-1 py-2 text-center" title="Protocolos">P</div>
+          <div className="px-1 py-2 text-center" title="Gestações">G</div>
+          <div className="px-1 py-2 text-center" title="Desde última">D</div>
+          <div className="border-r border-border/50"></div>
+          <div className="px-2 py-2 text-center">Ciclando</div>
+          <div className="px-2 py-2 text-center">Qualidade</div>
+          <div className="px-2 py-2">Obs.</div>
+          <div className="px-2 py-2"></div>
+        </div>
 
-      {/* Linhas */}
-      {receptorasLocais.map((r, index) => {
-        const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
-        const stats = r.historicoStats;
+        {/* Linhas */}
+        {receptorasLocais.map((r, index) => {
+          const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
+          const stats = r.historicoStats;
 
-        return (
-          <div
-            key={rowKey}
-            className="group grid grid-cols-[minmax(120px,1fr)_repeat(3,36px)_100px_100px_1fr_36px] gap-0 items-center border-t border-border hover:bg-muted/50"
-          >
+          return (
+            <div
+              key={rowKey}
+              className="group grid grid-cols-[minmax(160px,1.5fr)_36px_36px_36px_16px_90px_90px_minmax(100px,1fr)_40px] gap-0 items-center border-t border-border hover:bg-muted/50"
+            >
             {/* Receptora */}
             <div className="flex items-center gap-2 px-3 py-1.5">
               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0">
@@ -1748,6 +1328,9 @@ function ReceptorasTablePasso1({
                 {stats?.protocolosDesdeUltimaGestacao ?? 0}
               </span>
             </div>
+
+            {/* Separador de contexto */}
+            <div className="border-r border-border/50 h-full"></div>
 
             {/* Ciclando */}
             <div className="px-2 py-1 flex justify-center">
@@ -1786,6 +1369,7 @@ function ReceptorasTablePasso1({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

@@ -32,7 +32,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, Users, Dna, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -447,44 +447,96 @@ export default function DosesSemen() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Doses de Sêmen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Filtrar por Touro</Label>
-                <Input
-                  placeholder="Buscar por nome ou registro do touro..."
-                  value={filtroTouro}
-                  onChange={(e) => setFiltroTouro(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Filtrar por Cliente</Label>
-                <Input
-                  placeholder="Buscar por nome do cliente..."
-                  value={filtroCliente}
-                  onChange={(e) => setFiltroCliente(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Filtrar por Tipo</Label>
-                <Select value={filtroTipo || 'all'} onValueChange={(value) => setFiltroTipo(value === 'all' ? '' : value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os tipos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    <SelectItem value="CONVENCIONAL">CONVENCIONAL</SelectItem>
-                    <SelectItem value="SEXADO">SEXADO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <div className="flex flex-wrap items-end gap-6">
+          {/* Grupo: Busca Touro */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Search className="w-3.5 h-3.5" />
+              <span>Touro</span>
+            </div>
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Nome ou registro do touro..."
+                value={filtroTouro}
+                onChange={(e) => setFiltroTouro(e.target.value)}
+                className="pl-9 h-9"
+              />
             </div>
           </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Grupo: Cliente */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Users className="w-3.5 h-3.5" />
+              <span>Cliente</span>
+            </div>
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Nome do cliente..."
+                value={filtroCliente}
+                onChange={(e) => setFiltroCliente(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Grupo: Tipo */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-blue-500/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Dna className="w-3.5 h-3.5" />
+              <span>Tipo</span>
+            </div>
+            <div className="w-[160px]">
+              <Select value={filtroTipo || 'all'} onValueChange={(value) => setFiltroTipo(value === 'all' ? '' : value)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Todos os tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="CONVENCIONAL">CONVENCIONAL</SelectItem>
+                  <SelectItem value="SEXADO">SEXADO</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Botão Limpar */}
+          {(filtroTouro || filtroCliente || filtroTipo) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFiltroTouro('');
+                setFiltroCliente('');
+                setFiltroTipo('');
+              }}
+              className="h-9 ml-auto"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Limpar Filtros
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Doses de Sêmen ({dosesFiltradas.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>

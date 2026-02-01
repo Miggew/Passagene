@@ -38,13 +38,23 @@ const LotesFIV = lazy(() => import('./pages/LotesFIV'));
 const Embrioes = lazy(() => import('./pages/Embrioes'));
 const EmbrioesCongelados = lazy(() => import('./pages/EmbrioesCongelados'));
 const TransferenciaEmbrioes = lazy(() => import('./pages/TransferenciaEmbrioes'));
+const TESessaoDetail = lazy(() => import('./pages/TESessaoDetail'));
 const DiagnosticoGestacao = lazy(() => import('./pages/DiagnosticoGestacao'));
+const DiagnosticoSessaoDetail = lazy(() => import('./pages/DiagnosticoSessaoDetail'));
 const Sexagem = lazy(() => import('./pages/Sexagem'));
+const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Usuarios = lazy(() => import('./pages/Usuarios'));
 const Portal = lazy(() => import('./pages/Portal'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
+
+// Páginas do Hub Relatórios
+const RelatoriosHome = lazy(() => import('./pages/relatorios/RelatoriosHome'));
+const RelatoriosServicos = lazy(() => import('./pages/relatorios/RelatoriosServicos'));
+const RelatoriosAnimais = lazy(() => import('./pages/relatorios/RelatoriosAnimais'));
+const RelatoriosMaterial = lazy(() => import('./pages/relatorios/RelatoriosMaterial'));
+const RelatoriosProducao = lazy(() => import('./pages/relatorios/RelatoriosProducao'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -160,15 +170,25 @@ const AppRoutes = () => {
 
             {/* Transferencia de Embrioes */}
             <Route path="/transferencia" element={<TransferenciaEmbrioes />} />
+            <Route path="/transferencia/sessao" element={<TESessaoDetail />} />
 
             {/* Diagnostico de Gestacao */}
             <Route path="/dg" element={<DiagnosticoGestacao />} />
+            <Route path="/dg/sessao" element={<DiagnosticoSessaoDetail />} />
 
             {/* Sexagem */}
             <Route path="/sexagem" element={<Sexagem />} />
+            <Route path="/sexagem/sessao" element={<SexagemSessaoDetail />} />
 
             {/* Portal do Cliente */}
             <Route path="/portal" element={<Portal />} />
+
+            {/* Hub Relatórios */}
+            <Route path="/relatorios" element={<RelatoriosHome />} />
+            <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
+            <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />
+            <Route path="/relatorios/material" element={<RelatoriosMaterial />} />
+            <Route path="/relatorios/producao" element={<RelatoriosProducao />} />
           </Route>
 
           {/* Rota 404 */}

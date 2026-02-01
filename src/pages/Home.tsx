@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Dna, FlaskConical, LogOut, Moon, Sun } from 'lucide-react';
+import { Building2, Dna, FlaskConical, LogOut, Moon, Sun, FileBarChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import logoEscrito from '@/assets/logoescrito.svg';
@@ -14,6 +14,7 @@ const hubIcons: Record<string, React.ElementType> = {
   genetica: Dna,
   laboratorio: FlaskConical,
   campo: CowIcon,
+  relatorios: FileBarChart,
 };
 
 export default function Home() {

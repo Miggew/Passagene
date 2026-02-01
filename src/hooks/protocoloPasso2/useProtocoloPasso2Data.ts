@@ -8,6 +8,12 @@ import { supabase } from '@/lib/supabase';
 import type { ProtocoloSincronizacao, Receptora } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
+export interface ReceptoraHistoricoStats {
+  totalProtocolos: number;
+  gestacoes: number;
+  protocolosDesdeUltimaGestacao: number;
+}
+
 export interface ReceptoraWithStatus extends Receptora {
   pr_id: string;
   pr_status: string;
@@ -15,6 +21,7 @@ export interface ReceptoraWithStatus extends Receptora {
   pr_observacoes?: string;
   pr_ciclando_classificacao?: 'N' | 'CL' | null;
   pr_qualidade_semaforo?: 1 | 2 | 3 | null;
+  historicoStats?: ReceptoraHistoricoStats;
 }
 
 export interface UseProtocoloPasso2DataReturn {
@@ -35,6 +42,73 @@ export function useProtocoloPasso2Data(): UseProtocoloPasso2DataReturn {
   const [protocolo, setProtocolo] = useState<ProtocoloSincronizacao | null>(null);
   const [fazendaNome, setFazendaNome] = useState('');
   const [receptoras, setReceptoras] = useState<ReceptoraWithStatus[]>([]);
+
+  // Carregar estatísticas de histórico das receptoras
+  const loadHistoricoStats = useCallback(async (receptoraIds: string[]): Promise<Map<string, ReceptoraHistoricoStats>> => {
+    const statsMap = new Map<string, ReceptoraHistoricoStats>();
+
+    if (receptoraIds.length === 0) return statsMap;
+
+    try {
+      // Buscar todos os protocolos das receptoras
+      const { data: protocolosData } = await supabase
+        .from('protocolo_receptoras')
+        .select('receptora_id, created_at')
+        .in('receptora_id', receptoraIds)
+        .order('created_at', { ascending: false });
+
+      // Buscar todos os diagnósticos com resultado PRENHE
+      const { data: diagnosticosData } = await supabase
+        .from('diagnosticos_gestacao')
+        .select('receptora_id, data_diagnostico')
+        .in('receptora_id', receptoraIds)
+        .in('resultado', ['PRENHE', 'PRENHE_IA'])
+        .order('data_diagnostico', { ascending: false });
+
+      // Processar dados por receptora
+      const protocolosPorReceptora = new Map<string, string[]>();
+      (protocolosData || []).forEach(p => {
+        const list = protocolosPorReceptora.get(p.receptora_id) || [];
+        list.push(p.created_at);
+        protocolosPorReceptora.set(p.receptora_id, list);
+      });
+
+      const gestacoesPorReceptora = new Map<string, string[]>();
+      (diagnosticosData || []).forEach(d => {
+        const list = gestacoesPorReceptora.get(d.receptora_id) || [];
+        list.push(d.data_diagnostico);
+        gestacoesPorReceptora.set(d.receptora_id, list);
+      });
+
+      // Calcular stats para cada receptora
+      receptoraIds.forEach(id => {
+        const protocolos = protocolosPorReceptora.get(id) || [];
+        const gestacoes = gestacoesPorReceptora.get(id) || [];
+
+        const totalProtocolos = protocolos.length;
+        const totalGestacoes = gestacoes.length;
+
+        // Calcular protocolos desde última gestação
+        let protocolosDesdeUltimaGestacao = totalProtocolos;
+        if (gestacoes.length > 0 && protocolos.length > 0) {
+          const ultimaGestacao = new Date(gestacoes[0]);
+          protocolosDesdeUltimaGestacao = protocolos.filter(
+            p => new Date(p) > ultimaGestacao
+          ).length;
+        }
+
+        statsMap.set(id, {
+          totalProtocolos,
+          gestacoes: totalGestacoes,
+          protocolosDesdeUltimaGestacao,
+        });
+      });
+    } catch (error) {
+      console.error('Erro ao carregar histórico stats:', error);
+    }
+
+    return statsMap;
+  }, []);
 
   const loadReceptoras = useCallback(async (id: string) => {
     try {
@@ -63,16 +137,38 @@ export function useProtocoloPasso2Data(): UseProtocoloPasso2DataReturn {
         return;
       }
 
+      // Obter IDs das receptoras
+      const receptoraIds = finalPrData.map(pr => pr.receptora_id);
+
+      // Carregar dados das receptoras e histórico stats em paralelo
+      const [receptorasResult, historicoStatsMap] = await Promise.all([
+        supabase
+          .from('receptoras')
+          .select('*')
+          .in('id', receptoraIds),
+        loadHistoricoStats(receptoraIds),
+      ]);
+
+      if (receptorasResult.error) {
+        toast({
+          title: 'Erro ao carregar dados das receptoras',
+          description: receptorasResult.error.message,
+          variant: 'destructive',
+        });
+        setReceptoras([]);
+        return;
+      }
+
+      const receptorasData = receptorasResult.data || [];
+
+      // Mapear dados das receptoras por ID
+      const receptorasMap = new Map(receptorasData.map(r => [r.id, r]));
+
       const receptorasWithStatus: ReceptoraWithStatus[] = [];
 
       for (const pr of finalPrData) {
-        const { data: receptoraData, error: receptoraError } = await supabase
-          .from('receptoras')
-          .select('*')
-          .eq('id', pr.receptora_id)
-          .single();
-
-        if (receptoraError) continue;
+        const receptoraData = receptorasMap.get(pr.receptora_id);
+        if (!receptoraData) continue;
 
         receptorasWithStatus.push({
           ...receptoraData,
@@ -92,6 +188,7 @@ export function useProtocoloPasso2Data(): UseProtocoloPasso2DataReturn {
             pr.qualidade_semaforo <= 3
               ? (pr.qualidade_semaforo as 1 | 2 | 3)
               : null,
+          historicoStats: historicoStatsMap.get(pr.receptora_id),
         });
       }
 
@@ -103,7 +200,7 @@ export function useProtocoloPasso2Data(): UseProtocoloPasso2DataReturn {
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  }, [toast, loadHistoricoStats]);
 
   const loadData = useCallback(async (id: string) => {
     try {
@@ -121,7 +218,6 @@ export function useProtocoloPasso2Data(): UseProtocoloPasso2DataReturn {
       // Validate status
       if (
         protocoloData.status !== 'PASSO1_FECHADO' &&
-        protocoloData.status !== 'PRIMEIRO_PASSO_FECHADO' &&
         protocoloData.status !== 'SINCRONIZADO'
       ) {
         toast({

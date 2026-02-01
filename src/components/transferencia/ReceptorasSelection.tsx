@@ -1,14 +1,14 @@
 /**
  * Componente para seleção de receptoras na transferência de embriões
- * Extraído de TransferenciaEmbrioes.tsx para melhor organização
+ * Migrado para usar SelectableDataTable
  */
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import { Trash2 } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
+import { SelectableDataTable, SelectableColumn } from '@/components/shared/DataTable';
 import { ReceptoraSincronizada } from '@/lib/types/transferenciaEmbrioes';
 
 interface ReceptorasSelectionProps {
@@ -28,78 +28,89 @@ export default function ReceptorasSelection({
   onSelectReceptora,
   onDescartarReceptora,
 }: ReceptorasSelectionProps) {
-  return (
-    <div className="space-y-2">
-      <Label>6. Selecionar Receptora *</Label>
-      <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-        {receptoras.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhuma receptora sincronizada encontrada para esta fazenda.</p>
-        ) : (
-          <div className="space-y-2">
-            {receptoras.map((r) => {
-              const quantidadeSessao = contagemSessaoPorReceptora[r.receptora_id] || 0;
-              const podeReceber = quantidadeSessao < 2;
-              const isSelected = selectedReceptoraId === r.receptora_id;
+  const columns: SelectableColumn<ReceptoraSincronizada>[] = [
+    { key: 'brinco', label: 'Receptora' },
+    { key: 'embrioes_count', label: 'Embriões', width: '80px', align: 'center' },
+    { key: 'action', label: '', width: '50px', excludeFromCard: true },
+  ];
 
-              return (
-                <div
-                  key={r.receptora_id}
-                  className={`flex items-center justify-between p-2 rounded cursor-pointer ${
-                    isSelected ? 'bg-green-100 border-green-500 border' : podeReceber ? 'hover:bg-slate-50' : 'opacity-50 cursor-not-allowed'
-                  }`}
-                  onClick={() => {
-                    if (podeReceber) {
-                      onSelectReceptora(r.receptora_id, r.protocolo_receptora_id || '');
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <input
-                      type="radio"
-                      name="receptora"
-                      checked={isSelected}
-                      onChange={() => {}}
-                      disabled={!podeReceber}
-                      className="w-4 h-4"
-                    />
-                    <span className="font-medium">{r.brinco}</span>
-                    {r.origem === 'CIO_LIVRE' && (
-                      <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">CIO LIVRE</Badge>
-                    )}
-                    <CiclandoBadge value={r.ciclando_classificacao} />
-                    <QualidadeSemaforo value={r.qualidade_semaforo} />
-                    {r.observacoes && (
-                      <span className="text-xs text-slate-500 italic truncate max-w-[150px]" title={r.observacoes}>
-                        {r.observacoes}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {quantidadeSessao > 0 && (
-                      <Badge variant="secondary">{quantidadeSessao}/2 embriões</Badge>
-                    )}
-                    {isSelected && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDescartarReceptora();
-                        }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        disabled={submitting}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
+  return (
+    <SelectableDataTable<ReceptoraSincronizada>
+      data={receptoras}
+      columns={columns}
+      rowKey="receptora_id"
+      selectionType="radio"
+      radioName="receptora"
+      selectedId={selectedReceptoraId}
+      onSelect={(id) => {
+        const receptora = receptoras.find(r => r.receptora_id === id);
+        if (receptora) {
+          onSelectReceptora(id, receptora.protocolo_receptora_id || '');
+        }
+      }}
+      isRowDisabled={(row) => {
+        const quantidadeSessao = contagemSessaoPorReceptora[row.receptora_id] || 0;
+        return quantidadeSessao >= 2;
+      }}
+      emptyMessage="Nenhuma receptora sincronizada encontrada"
+      footerContent={`${receptoras.length} receptora(s) disponível(is)`}
+      renderCell={(row, column) => {
+        const quantidadeSessao = contagemSessaoPorReceptora[row.receptora_id] || 0;
+        const isSelected = selectedReceptoraId === row.receptora_id;
+
+        switch (column.key) {
+          case 'brinco':
+            return (
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-sm font-medium text-foreground">{row.brinco}</span>
+                  {row.origem === 'CIO_LIVRE' && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+                      CIO
+                    </Badge>
+                  )}
+                  <CiclandoBadge value={row.ciclando_classificacao} />
+                  <QualidadeSemaforo value={row.qualidade_semaforo} />
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+                {row.observacoes && (
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5" title={row.observacoes}>
+                    {row.observacoes}
+                  </p>
+                )}
+              </div>
+            );
+
+          case 'embrioes_count':
+            return quantidadeSessao > 0 ? (
+              <span className="inline-flex items-center justify-center px-2 h-5 text-[10px] font-medium bg-primary/15 text-primary rounded">
+                {quantidadeSessao}/2
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">-</span>
+            );
+
+          case 'action':
+            return isSelected ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDescartarReceptora();
+                }}
+                className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                disabled={submitting}
+                title="Descartar receptora"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            ) : null;
+
+          default:
+            return undefined;
+        }
+      }}
+    />
   );
 }

@@ -18,7 +18,11 @@
       "Bash(npx eslint:*)",
       "Bash(ls:*)",
       "Bash(echo:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(dir:*)",
+      "Bash(tasklist:*)",
+      "Bash(pnpm add:*)",
+      "Bash(grep:*)"
     ]
   }
 }

@@ -123,7 +123,7 @@ export default function FazendaDetail() {
           .from('protocolos_sincronizacao')
           .select('id, status')
           .eq('fazenda_id', id)
-          .in('status', ['PASSO1_FECHADO', 'PRIMEIRO_PASSO_FECHADO', 'SINCRONIZADO']),
+          .in('status', ['PASSO1_FECHADO', 'SINCRONIZADO']),
 
         // Receptoras
         receptoraIds.length > 0
@@ -167,7 +167,7 @@ export default function FazendaDetail() {
       // Processar protocolos
       const protocolos = protocolosResult.data || [];
       const passo2Pendente = protocolos.filter(p =>
-        p.status === 'PASSO1_FECHADO' || p.status === 'PRIMEIRO_PASSO_FECHADO'
+        p.status === 'PASSO1_FECHADO'
       ).length;
       const tePendente = protocolos.filter(p => p.status === 'SINCRONIZADO').length;
 

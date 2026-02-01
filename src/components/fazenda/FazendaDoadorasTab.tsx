@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/shared/EmptyState';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
-import { Plus, Pencil, Search, History, Star, Gem } from 'lucide-react';
+import { Plus, Pencil, Search, History, Star, Gem, Filter, X } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -228,21 +228,38 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
 
   return (
     <div className="space-y-4">
-      {/* Header com ações */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Buscar por nome ou registro..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Busca</span>
+            </div>
+            <div className="relative flex-1 min-w-[250px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou registro..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            {searchTerm && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSearchTerm('')}
+                className="h-9"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
           </div>
-        </div>
 
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          {/* Botão Nova Doadora */}
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -317,6 +334,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Tabela */}

@@ -16,11 +16,14 @@ export interface ProtocoloWithFazenda extends ProtocoloSincronizacao {
   receptoras_count: number;
 }
 
+export type FiltroDataTipo = 'data_inicio' | 'passo2_data';
+
 export interface ProtocolosFiltros {
   filtroStatus: string;
   fazendaFilter: string;
   filtroDataInicio: string;
   filtroDataFim: string;
+  filtroDataTipo: FiltroDataTipo;
 }
 
 const PROTOCOLOS_FILTROS_KEY = 'protocolos_filtros';
@@ -48,6 +51,7 @@ export interface UseProtocolosDataReturn {
   protocolos: ProtocoloWithFazenda[];
   fazendas: Fazenda[];
   protocolosTotalCount: number;
+  statsAproveitamento: { finalizadas: number; utilizadas: number; sincronizadas: number };
 
   // Filters
   filtroStatus: string;
@@ -58,6 +62,8 @@ export interface UseProtocolosDataReturn {
   setFiltroDataInicio: (data: string) => void;
   filtroDataFim: string;
   setFiltroDataFim: (data: string) => void;
+  filtroDataTipo: FiltroDataTipo;
+  setFiltroDataTipo: (tipo: FiltroDataTipo) => void;
 
   // Pagination
   protocolosPage: number;
@@ -82,16 +88,14 @@ export function useProtocolosData(): UseProtocolosDataReturn {
   const [protocolos, setProtocolos] = useState<ProtocoloWithFazenda[]>([]);
   const [fazendas, setFazendas] = useState<Fazenda[]>([]);
   const [protocolosTotalCount, setProtocolosTotalCount] = useState(0);
+  const [statsAproveitamento, setStatsAproveitamento] = useState({ finalizadas: 0, utilizadas: 0, sincronizadas: 0 });
 
   // Filters
-  const filtroStatusInicial =
-    filtrosPersistidos.filtroStatus && filtrosPersistidos.filtroStatus !== 'all'
-      ? filtrosPersistidos.filtroStatus
-      : 'aguardando_2_passo';
-  const [filtroStatus, setFiltroStatus] = useState<string>(filtroStatusInicial);
+  const [filtroStatus, setFiltroStatus] = useState<string>(filtrosPersistidos.filtroStatus || 'all');
   const [fazendaFilter, setFazendaFilter] = useState(filtrosPersistidos.fazendaFilter ?? '');
   const [filtroDataInicio, setFiltroDataInicio] = useState(filtrosPersistidos.filtroDataInicio ?? '');
   const [filtroDataFim, setFiltroDataFim] = useState(filtrosPersistidos.filtroDataFim ?? '');
+  const [filtroDataTipo, setFiltroDataTipo] = useState<FiltroDataTipo>(filtrosPersistidos.filtroDataTipo ?? 'data_inicio');
 
   // Pagination
   const [protocolosPage, setProtocolosPage] = useState(filtrosPersistidos.protocolosPage ?? 1);
@@ -103,10 +107,11 @@ export function useProtocolosData(): UseProtocolosDataReturn {
       fazendaFilter,
       filtroDataInicio,
       filtroDataFim,
+      filtroDataTipo,
       protocolosPage,
     };
     localStorage.setItem(PROTOCOLOS_FILTROS_KEY, JSON.stringify(payload));
-  }, [filtroStatus, fazendaFilter, filtroDataInicio, filtroDataFim, protocolosPage]);
+  }, [filtroStatus, fazendaFilter, filtroDataInicio, filtroDataFim, filtroDataTipo, protocolosPage]);
 
   // Load fazendas
   const loadFazendas = useCallback(async () => {
@@ -132,6 +137,7 @@ export function useProtocolosData(): UseProtocolosDataReturn {
       const dataInicio = filters?.filtroDataInicio !== undefined ? filters.filtroDataInicio : filtroDataInicio;
       const dataFim = filters?.filtroDataFim !== undefined ? filters.filtroDataFim : filtroDataFim;
       const status = filters?.filtroStatus !== undefined ? filters.filtroStatus : filtroStatus;
+      const dataTipo = filters?.filtroDataTipo !== undefined ? filters.filtroDataTipo : filtroDataTipo;
 
       const currentPage = pageOverride !== undefined ? pageOverride : protocolosPage;
 
@@ -148,19 +154,21 @@ export function useProtocolosData(): UseProtocolosDataReturn {
         query = query.eq('fazenda_id', fazenda);
       }
 
+      // Date filter - use selected date field
+      const campoData = dataTipo === 'passo2_data' ? 'passo2_data' : 'data_inicio';
       if (dataInicio) {
-        query = query.gte('data_inicio', dataInicio);
+        query = query.gte(campoData, dataInicio);
       }
 
       if (dataFim) {
-        query = query.lte('data_inicio', dataFim);
+        query = query.lte(campoData, dataFim);
       }
 
       // Status filter
       if (status === 'aguardando_2_passo') {
-        query = query.in('status', ['PASSO1_FECHADO', 'PRIMEIRO_PASSO_FECHADO']);
+        query = query.eq('status', 'PASSO1_FECHADO');
       } else if (status === 'sincronizado') {
-        query = query.in('status', ['SINCRONIZADO', 'PASSO2_FECHADO']);
+        query = query.eq('status', 'SINCRONIZADO');
       } else if (status === 'fechado') {
         query = query.in('status', ['FECHADO', 'EM_TE']);
       }
@@ -175,17 +183,34 @@ export function useProtocolosData(): UseProtocolosDataReturn {
       const protocolosIds = (protocolosData || []).map(p => p.id);
       const fazendaIds = [...new Set((protocolosData || []).map(p => p.fazenda_id))];
 
-      // Fetch receptora counts for all protocols at once
-      const { data: receptorasCounts } = await supabase
+      // Fetch receptora counts and status for all protocols at once
+      const { data: receptorasData } = await supabase
         .from('protocolo_receptoras')
-        .select('protocolo_id')
+        .select('protocolo_id, status')
         .in('protocolo_id', protocolosIds);
 
       // Group counts by protocolo_id
-      const contagemPorProtocolo = (receptorasCounts || []).reduce((acc, pr) => {
+      const contagemPorProtocolo = (receptorasData || []).reduce((acc, pr) => {
         acc[pr.protocolo_id] = (acc[pr.protocolo_id] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
+
+      // Calculate stats for aproveitamento
+      // Finalizadas = APTA + INAPTA + UTILIZADA (todas que terminaram o protocolo)
+      // Utilizadas = UTILIZADA (receberam embrião)
+      // Sincronizadas = APTA (aptas para receber embrião mas ainda não receberam)
+      const statsReceptoras = (receptorasData || []).reduce((acc, pr) => {
+        if (pr.status === 'APTA' || pr.status === 'INAPTA' || pr.status === 'UTILIZADA') {
+          acc.finalizadas++;
+        }
+        if (pr.status === 'UTILIZADA') {
+          acc.utilizadas++;
+        }
+        if (pr.status === 'APTA') {
+          acc.sincronizadas++;
+        }
+        return acc;
+      }, { finalizadas: 0, utilizadas: 0, sincronizadas: 0 });
 
       // Fetch fazenda names at once
       const { data: fazendasData } = await supabase
@@ -222,13 +247,15 @@ export function useProtocolosData(): UseProtocolosDataReturn {
 
       setProtocolos(protocolosValidos);
       setProtocolosTotalCount(count || 0);
+      setStatsAproveitamento(statsReceptoras);
     } catch (error) {
       handleError(error, 'Erro ao carregar protocolos');
       setProtocolos([]);
+      setStatsAproveitamento({ finalizadas: 0, utilizadas: 0, sincronizadas: 0 });
     } finally {
       setLoadingProtocolos(false);
     }
-  }, [fazendaFilter, filtroDataInicio, filtroDataFim, filtroStatus, protocolosPage]);
+  }, [fazendaFilter, filtroDataInicio, filtroDataFim, filtroDataTipo, filtroStatus, protocolosPage]);
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -248,6 +275,7 @@ export function useProtocolosData(): UseProtocolosDataReturn {
     setFazendaFilter('');
     setFiltroDataInicio('');
     setFiltroDataFim('');
+    setFiltroDataTipo('data_inicio');
     setFiltroStatus('all');
     setProtocolosPage(1);
   }, []);
@@ -270,6 +298,7 @@ export function useProtocolosData(): UseProtocolosDataReturn {
     protocolos,
     fazendas,
     protocolosTotalCount,
+    statsAproveitamento,
 
     // Filters
     filtroStatus,
@@ -280,6 +309,8 @@ export function useProtocolosData(): UseProtocolosDataReturn {
     setFiltroDataInicio,
     filtroDataFim,
     setFiltroDataFim,
+    filtroDataTipo,
+    setFiltroDataTipo,
 
     // Pagination
     protocolosPage,

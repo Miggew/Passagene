@@ -16,7 +16,7 @@ import {
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Eye, Search, Users, Building2, MapPin } from 'lucide-react';
+import { Plus, Eye, Search, Users, Building2, MapPin, Filter, X } from 'lucide-react';
 import { handleError } from '@/lib/error-handler';
 
 interface ClienteWithStats extends Cliente {
@@ -140,22 +140,35 @@ export default function Clientes() {
         </Card>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, telefone ou endereço..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Grupo: Busca */}
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 rounded-full bg-primary/40" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Busca</span>
+            </div>
+            <div className="relative flex-1 min-w-[250px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, telefone ou endereço..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          {/* Botão Limpar */}
+          {searchTerm && (
+            <Button variant="outline" size="sm" onClick={() => setSearchTerm('')} className="h-9">
+              <X className="w-4 h-4 mr-2" />
+              Limpar
+            </Button>
+          )}
         </div>
-        {searchTerm && (
-          <Button variant="ghost" size="sm" onClick={() => setSearchTerm('')}>
-            Limpar filtro
-          </Button>
-        )}
       </div>
 
       {/* Tabela */}

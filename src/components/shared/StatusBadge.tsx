@@ -6,47 +6,105 @@ interface StatusBadgeProps {
   status: string;
   count?: number;
   className?: string;
+  size?: 'sm' | 'default';
 }
 
-const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
-  APTA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
-  INAPTA: { variant: 'destructive', className: '' },
-  INICIADA: { variant: 'secondary', className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-  UTILIZADA: { variant: 'outline', className: 'bg-purple-100 text-purple-800 border-purple-300' },
-  NAO_UTILIZADA: { variant: 'outline', className: 'bg-gray-100 text-gray-800' },
-  SINCRONIZANDO: { variant: 'outline', className: 'border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-  SINCRONIZADA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
-  // Status de protocolos
-  SINCRONIZADO: { variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 text-white' },
-  FECHADO: { variant: 'secondary', className: 'bg-slate-500 hover:bg-slate-600 text-white' },
-  PASSO1_FECHADO: { variant: 'secondary', className: 'bg-blue-400 hover:bg-blue-500 text-white' },
-  PASSO2_FECHADO: { variant: 'default', className: 'bg-blue-600 hover:bg-blue-700 text-white' }, // Status antigo, será migrado
-  EM_TE: { variant: 'secondary', className: 'bg-slate-500 hover:bg-slate-600 text-white' }, // Status antigo, será migrado
-  // Estados reprodutivos
-  VAZIA: { variant: 'outline', className: 'bg-gray-100 text-gray-800 border-gray-300' },
-  EM_SINCRONIZACAO: { variant: 'outline', className: 'border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-  SERVIDA: { variant: 'secondary', className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-  PRENHE: { variant: 'default', className: 'bg-green-600 hover:bg-green-700 text-white' },
-  PRENHE_RETOQUE: { variant: 'secondary', className: 'bg-orange-500 hover:bg-orange-600 text-white' },
-  PRENHE_FEMEA: { variant: 'default', className: 'bg-pink-600 hover:bg-pink-700 text-white' },
-  PRENHE_MACHO: { variant: 'default', className: 'bg-blue-700 hover:bg-blue-800 text-white' },
-  PRENHE_SEM_SEXO: { variant: 'default', className: 'bg-purple-600 hover:bg-purple-700 text-white' },
-  PRENHE_2_SEXOS: { variant: 'default', className: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
-  // Outros
-  RETOQUE: { variant: 'secondary', className: 'bg-orange-500 hover:bg-orange-600 text-white' },
-  TRANSFERIDO: { variant: 'outline', className: 'bg-blue-100 text-blue-800 border-blue-300' },
-  CONGELADO: { variant: 'secondary', className: 'bg-cyan-500 hover:bg-cyan-600 text-white' },
-  REALIZADA: { variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
+/**
+ * Sistema de cores semânticas para badges de status
+ * Padrão: bg-[cor]/10 text-[cor]-600 dark:text-[cor]-400 border-[cor]/30
+ */
+const statusConfig: Record<string, string> = {
+  // ═══════════════════════════════════════════════════════════════
+  // ESTADOS NEUTROS - Cinza (aguardando/inicial)
+  // ═══════════════════════════════════════════════════════════════
+  VAZIA: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+  NAO_UTILIZADA: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+  DISPONIVEL: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // EM PROCESSO - Teal/Emerald (sincronização)
+  // ═══════════════════════════════════════════════════════════════
+  EM_SINCRONIZACAO: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/30',
+  SINCRONIZANDO: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/30',
+  SINCRONIZADA: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  SINCRONIZADO: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // INICIADO/SERVIDA - Sky/Violet (ação tomada)
+  // ═══════════════════════════════════════════════════════════════
+  INICIADA: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30',
+  SERVIDA: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30',
+  UTILIZADA: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // PRENHEZ - Cores específicas por resultado
+  // ═══════════════════════════════════════════════════════════════
+  PRENHE: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30',
+  PRENHE_RETOQUE: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  PRENHE_FEMEA: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/30',
+  PRENHE_MACHO: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+  PRENHE_SEM_SEXO: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+  PRENHE_2_SEXOS: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // PROTOCOLOS - Blue/Slate (etapas do protocolo)
+  // ═══════════════════════════════════════════════════════════════
+  PASSO1_FECHADO: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+  FECHADO: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+  EM_TE: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+  EM_PROTOCOLO: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // STATUS DE PROPRIEDADE - Vermelho/Cinza (descarte/venda)
+  // ═══════════════════════════════════════════════════════════════
+  DESCARTE: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30',
+  VENDIDA: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // APTIDÃO - Verde/Vermelho (apto/inapto)
+  // ═══════════════════════════════════════════════════════════════
+  APTA: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30',
+  INAPTA: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // EMBRIÕES - Cyan/Violet (estado do embrião)
+  // ═══════════════════════════════════════════════════════════════
+  CONGELADO: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
+  TRANSFERIDO: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // CONCLUSÃO - Verde/Amber (finalizado/retoque)
+  // ═══════════════════════════════════════════════════════════════
+  REALIZADA: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30',
+  RETOQUE: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
 };
 
-export default function StatusBadge({ status, count, className }: StatusBadgeProps) {
-  const config = statusConfig[status] || { variant: 'outline' as const, className: '' };
+// Fallback para status não mapeados
+const defaultConfig = 'bg-muted text-muted-foreground border-border';
+
+export default function StatusBadge({ status, count, className, size = 'default' }: StatusBadgeProps) {
+  const colorClasses = statusConfig[status] || defaultConfig;
   const label = formatStatusLabel(status);
   const display = count && count > 1 ? `${label} (${count})` : label;
 
+  const sizeClasses = size === 'sm'
+    ? 'text-[10px] px-1.5 py-0 h-4'
+    : 'text-xs px-2 py-0.5';
+
   return (
-    <Badge variant={config.variant} className={cn(config.className, className)}>
+    <Badge
+      variant="outline"
+      className={cn(colorClasses, sizeClasses, className)}
+    >
       {display}
     </Badge>
   );
+}
+
+/**
+ * Exporta as cores para uso direto quando necessário
+ * Ex: em renderCell de DataTables
+ */
+export function getStatusColor(status: string): string {
+  return statusConfig[status] || defaultConfig;
 }

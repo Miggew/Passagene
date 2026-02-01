@@ -11,6 +11,9 @@ import {
   Sparkles,
   Shield,
   Snowflake,
+  FileBarChart,
+  ClipboardList,
+  TrendingUp,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { ClipboardIcon } from '@/components/icons/ClipboardIcon';
@@ -35,6 +38,12 @@ const routeIcons: Record<string, React.ElementType> = {
   '/transferencia': ArrowRightLeft,
   '/dg': ThumbsUp,
   '/sexagem': GenderIcon,
+  // Hub Relatórios
+  '/relatorios': FileBarChart,
+  '/relatorios/servicos': ClipboardList,
+  '/relatorios/animais': DonorCowIcon,
+  '/relatorios/material': EmbryoIcon,
+  '/relatorios/producao': TrendingUp,
 };
 
 // Labels das rotas
@@ -54,6 +63,12 @@ const routeLabels: Record<string, string> = {
   '/transferencia': 'Transferência (TE)',
   '/dg': 'Diagnóstico Gestação',
   '/sexagem': 'Sexagem',
+  // Hub Relatórios
+  '/relatorios': 'Visão Geral',
+  '/relatorios/servicos': 'Serviços de Campo',
+  '/relatorios/animais': 'Animais',
+  '/relatorios/material': 'Material Genético',
+  '/relatorios/producao': 'Produção',
 };
 
 export default function Sidebar() {

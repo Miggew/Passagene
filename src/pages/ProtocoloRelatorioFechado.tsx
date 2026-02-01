@@ -1,24 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { ProtocoloSincronizacao, Receptora, ProtocoloReceptora } from '@/lib/types';
+import type { ProtocoloSincronizacao, Receptora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
+import CountBadge, { getTaxaVariant } from '@/components/shared/CountBadge';
+import { DataTable, Column } from '@/components/shared/DataTable';
 
 interface ReceptoraComStatusFinal extends Receptora {
   pr_id: string;
@@ -45,9 +39,9 @@ export default function ProtocoloRelatorioFechado() {
   } | null>(null);
   const [resumo, setResumo] = useState({
     totalIniciaram: 0,
-    totalConcluiram: 0,
+    totalSincronizadas: 0,
+    totalServidas: 0,
     totalDescartadas: 0,
-    totalConfirmadas: 0,
   });
 
   // Função para enriquecer observações com informações da mudança de fazenda
@@ -255,20 +249,19 @@ export default function ProtocoloRelatorioFechado() {
         .eq('status_te', 'REALIZADA')
         .order('data_te', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
       if (teError) {
         // Se não encontrou TE, não é erro - apenas não há TE ainda
-        // Continua sem TE
         return;
       }
 
-      if (teData) {
+      if (teData && teData.length > 0) {
+        const te = teData[0];
         setTeInfo({
-          data_te: teData.data_te,
-          veterinario_responsavel: teData.veterinario_responsavel || undefined,
-          tecnico_responsavel: teData.tecnico_responsavel || undefined,
+          data_te: te.data_te,
+          veterinario_responsavel: te.veterinario_responsavel || undefined,
+          tecnico_responsavel: te.tecnico_responsavel || undefined,
         });
       }
     } catch {
@@ -317,16 +310,18 @@ export default function ProtocoloRelatorioFechado() {
       setReceptorasFinal(receptorasComStatus);
 
       // Calcular resumo
+      // Sincronizadas = todas que foram aprovadas no 2º passo (APTA + UTILIZADA)
+      // Servidas = das sincronizadas, quantas receberam embrião (UTILIZADA)
       const totalIniciaram = receptorasComStatus.length;
-      const totalConfirmadas = receptorasComStatus.filter(r => r.pr_status === 'APTA').length;
+      const totalSincronizadas = receptorasComStatus.filter(r => r.pr_status === 'APTA' || r.pr_status === 'UTILIZADA').length;
+      const totalServidas = receptorasComStatus.filter(r => r.pr_status === 'UTILIZADA').length;
       const totalDescartadas = receptorasComStatus.filter(r => r.pr_status === 'INAPTA').length;
-      const totalConcluiram = totalConfirmadas; // Confirmadas = concluíram
 
       setResumo({
         totalIniciaram,
-        totalConcluiram,
+        totalSincronizadas,
+        totalServidas,
         totalDescartadas,
-        totalConfirmadas,
       });
     } catch {
       toast({
@@ -351,17 +346,31 @@ export default function ProtocoloRelatorioFechado() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'APTA') {
-      return <Badge variant="default" className="bg-green-600">Confirmada</Badge>;
-    }
-    if (status === 'INAPTA') {
-      return <Badge variant="destructive">Descartada</Badge>;
-    }
-    return <Badge variant="secondary">{status}</Badge>;
-  };
+    const statusMap: Record<string, { label: string; className: string }> = {
+      'INICIADA': {
+        label: 'Pendente',
+        className: 'bg-muted text-muted-foreground border-border',
+      },
+      'APTA': {
+        label: 'Sincronizada',
+        className: 'bg-primary/15 text-primary border-primary/30',
+      },
+      'INAPTA': {
+        label: 'Descartada',
+        className: 'bg-destructive/15 text-destructive border-destructive/30',
+      },
+      'UTILIZADA': {
+        label: 'Servida',
+        className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
+      },
+    };
 
-  const handlePrint = () => {
-    window.print();
+    const config = statusMap[status] || { label: status, className: '' };
+    return (
+      <Badge variant="outline" className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -379,240 +388,206 @@ export default function ProtocoloRelatorioFechado() {
     );
   }
 
+  const responsavelPasso1 = parseResponsavelInicio(protocolo.responsavel_inicio);
+  const taxaSucesso = resumo.totalIniciaram > 0
+    ? Math.round((resumo.totalSincronizadas / resumo.totalIniciaram) * 100)
+    : 0;
+
   return (
-    <div className="space-y-6 print:space-y-4">
-      {/* Header com botões */}
-      <div className="flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/protocolos')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Relatório do Protocolo</h1>
-            <p className="text-muted-foreground mt-1">Visualização somente leitura</p>
-          </div>
-        </div>
-        <Button onClick={handlePrint} variant="outline">
-          <Printer className="w-4 h-4 mr-2" />
-          Imprimir
+    <div className="space-y-4">
+      {/* Header compacto */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4" />
         </Button>
+        <h1 className="text-xl font-semibold text-foreground">Relatório do Protocolo</h1>
       </div>
 
-      {/* Informações do Protocolo - Reorganizado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Coluna 1: Informações Gerais */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações Gerais</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Fazenda</p>
-              <p className="text-base text-foreground mt-1">{fazendaNome || '—'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Data de Início</p>
-              <p className="text-base text-foreground mt-1">
-                {protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Status</p>
-              <p className="text-base text-foreground mt-1">
+      {/* Card principal com informações do protocolo */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          {/* Linha 1: Fazenda + Status + Resumo */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-4">
+              <div>
+                <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
+                <p className="text-base font-semibold text-foreground">{fazendaNome || '—'}</p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <span className="text-xs font-medium text-muted-foreground">Data Início</span>
+                <p className="text-sm text-foreground">{protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}</p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
                 {protocolo.status === 'SINCRONIZADO' && (
-                  <Badge variant="default" className="bg-green-600">Sincronizado</Badge>
+                  <Badge variant="default" className="bg-primary hover:bg-primary-dark">Sincronizado</Badge>
                 )}
                 {protocolo.status === 'FECHADO' && (
-                  <Badge variant="default" className="bg-slate-600">Fechado</Badge>
+                  <Badge variant="secondary" className="bg-muted-foreground hover:bg-muted-foreground/90 text-white">Fechado</Badge>
                 )}
                 {protocolo.status === 'PASSO1_FECHADO' && (
-                  <Badge variant="outline" className="border-emerald-500 bg-emerald-50 text-emerald-700">Aguardando 2º Passo</Badge>
+                  <Badge variant="outline" className="border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Aguardando 2º Passo</Badge>
                 )}
-              </p>
+                {protocolo.status === 'EM_TE' && (
+                  <Badge variant="secondary" className="bg-blue-600 hover:bg-blue-700 text-white">Em TE</Badge>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Coluna 2: 1º Passo */}
-        <Card>
-          <CardHeader>
-            <CardTitle>1º Passo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Veterinário Responsável</p>
-              <p className="text-base text-foreground mt-1">
-                {parseResponsavelInicio(protocolo.responsavel_inicio).veterinario || '—'}
-              </p>
+            {/* Resumo inline */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Total:</span>
+                <CountBadge value={resumo.totalIniciaram} variant="default" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Servidas:</span>
+                <CountBadge value={resumo.totalServidas} variant="violet" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Sincronizadas:</span>
+                <CountBadge value={resumo.totalSincronizadas} variant="primary" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Descartadas:</span>
+                <CountBadge value={resumo.totalDescartadas} variant="danger" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Taxa:</span>
+                <CountBadge value={taxaSucesso} suffix="%" variant={getTaxaVariant(taxaSucesso)} />
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Técnico Responsável</p>
-              <p className="text-base text-foreground mt-1">
-                {parseResponsavelInicio(protocolo.responsavel_inicio).tecnico || '—'}
-              </p>
+          </div>
+
+          {/* Linha 2: Grid com etapas do protocolo */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-border">
+            {/* 1º Passo */}
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">1º Passo</h4>
+              <div className="space-y-0.5">
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Vet:</span>{' '}
+                  <span className="text-foreground">{responsavelPasso1.veterinario || '—'}</span>
+                </p>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Téc:</span>{' '}
+                  <span className="text-foreground">{responsavelPasso1.tecnico || '—'}</span>
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Coluna 3: 2º Passo */}
-        <Card>
-          <CardHeader>
-            <CardTitle>2º Passo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Data de Realização</p>
-              <p className="text-base text-foreground mt-1">
-                {protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '—'}
-              </p>
+            {/* 2º Passo */}
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">2º Passo</h4>
+              <div className="space-y-0.5">
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Data:</span>{' '}
+                  <span className="text-foreground">{protocolo.passo2_data ? formatDate(protocolo.passo2_data) : '—'}</span>
+                </p>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Téc:</span>{' '}
+                  <span className="text-foreground">{protocolo.passo2_tecnico_responsavel || '—'}</span>
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Técnico Responsável</p>
-              <p className="text-base text-foreground mt-1">
-                {protocolo.passo2_tecnico_responsavel || '—'}
-              </p>
+
+            {/* TE */}
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Transferência</h4>
+              <div className="space-y-0.5">
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Data:</span>{' '}
+                  <span className="text-foreground">{teInfo?.data_te ? formatDate(teInfo.data_te) : '—'}</span>
+                </p>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Vet:</span>{' '}
+                  <span className="text-foreground">{teInfo?.veterinario_responsavel || '—'}</span>
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Coluna 4: Transferência de Embriões (TE) */}
-        {teInfo && (teInfo.data_te || teInfo.veterinario_responsavel || teInfo.tecnico_responsavel) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Transferência de Embriões</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {teInfo.data_te && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Data da TE</p>
-                  <p className="text-base text-foreground mt-1">
-                    {formatDate(teInfo.data_te)}
-                  </p>
-                </div>
-              )}
-              {teInfo.veterinario_responsavel && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Veterinário Responsável</p>
-                  <p className="text-base text-foreground mt-1">
-                    {teInfo.veterinario_responsavel}
-                  </p>
-                </div>
-              )}
-              {teInfo.tecnico_responsavel && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Técnico Responsável</p>
-                  <p className="text-base text-foreground mt-1">
-                    {teInfo.tecnico_responsavel}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Total Iniciaram</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-foreground">{resumo.totalIniciaram}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Confirmadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{resumo.totalConfirmadas}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Descartadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-red-600">{resumo.totalDescartadas}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Taxa de Sucesso</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-blue-600">
-              {resumo.totalIniciaram > 0
-                ? Math.round((resumo.totalConfirmadas / resumo.totalIniciaram) * 100)
-                : 0}
-              %
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Receptoras e Resultado Final */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Receptoras e Resultado Final</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {receptorasFinal.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Nenhuma receptora no protocolo</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Identificação</TableHead>
-                  <TableHead>Ciclando</TableHead>
-                  <TableHead>Qualidade</TableHead>
-                  <TableHead>Resultado Final</TableHead>
-                  <TableHead>Motivo do Descarte</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {receptorasFinal.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">
-                      {r.identificacao}
-                      {r.nome ? ` - ${r.nome}` : ''}
-                    </TableCell>
-                    <TableCell>
-                      <CiclandoBadge
-                        value={r.pr_ciclando_classificacao}
-                        variant="display"
-                        disabled={true}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <QualidadeSemaforo
-                        value={r.pr_qualidade_semaforo}
-                        variant="single"
-                        disabled={true}
-                      />
-                    </TableCell>
-                    <TableCell>{getStatusBadge(r.pr_status)}</TableCell>
-                    <TableCell>{r.pr_motivo_inapta || '—'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+            {/* Observações (se houver) */}
+            {protocolo.observacoes ? (
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Observações</h4>
+                <p className="text-xs text-muted-foreground line-clamp-2">{protocolo.observacoes}</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">TE (cont.)</h4>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Téc:</span>{' '}
+                  <span className="text-foreground">{teInfo?.tecnico_responsavel || '—'}</span>
+                </p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Observações */}
-      {protocolo.observacoes && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Observações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground whitespace-pre-wrap">{protocolo.observacoes}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Tabela de Receptoras */}
+      <Card>
+        <CardHeader className="pb-2 pt-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Receptoras ({receptorasFinal.length})</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 pb-2">
+          <DataTable<ReceptoraComStatusFinal>
+            data={receptorasFinal}
+            rowKey="id"
+            rowNumber
+            emptyMessage="Nenhuma receptora no protocolo"
+            columns={[
+              { key: 'identificacao', label: 'Identificação' },
+              { key: 'pr_ciclando_classificacao', label: 'Ciclo', align: 'center' },
+              { key: 'pr_qualidade_semaforo', label: 'Qual.', align: 'center' },
+              { key: 'pr_status', label: 'Resultado', align: 'center' },
+              { key: 'pr_motivo_inapta', label: 'Motivo Descarte' },
+            ]}
+            renderCell={(row, column) => {
+              switch (column.key) {
+                case 'identificacao':
+                  return (
+                    <div>
+                      <span className="font-medium text-sm text-foreground">{row.identificacao}</span>
+                      {row.nome && (
+                        <span className="text-[10px] text-muted-foreground block">{row.nome}</span>
+                      )}
+                    </div>
+                  );
+                case 'pr_ciclando_classificacao':
+                  return (
+                    <CiclandoBadge
+                      value={row.pr_ciclando_classificacao}
+                      variant="display"
+                      disabled={true}
+                    />
+                  );
+                case 'pr_qualidade_semaforo':
+                  return (
+                    <QualidadeSemaforo
+                      value={row.pr_qualidade_semaforo}
+                      variant="single"
+                      disabled={true}
+                    />
+                  );
+                case 'pr_status':
+                  return getStatusBadge(row.pr_status);
+                case 'pr_motivo_inapta':
+                  return (
+                    <span className="text-xs text-muted-foreground">
+                      {row.pr_motivo_inapta || '—'}
+                    </span>
+                  );
+                default:
+                  return null;
+              }
+            }}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

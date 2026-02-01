@@ -31,7 +31,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Eye, Snowflake, Download } from 'lucide-react';
+import { Search, Eye, Snowflake, Download, Filter, Users, Dna, X } from 'lucide-react';
 
 interface Cliente {
   id: string;
@@ -404,65 +404,122 @@ export default function EmbrioesCongelados() {
         </Card>
       )}
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+      {/* Barra de Filtros Premium */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <div className="flex flex-wrap items-end gap-6">
+          {/* Grupo: Busca */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Busca</span>
+            </div>
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar embrião..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Grupo: Cliente */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Users className="w-3.5 h-3.5" />
+              <span>Cliente</span>
+            </div>
+            <div className="w-[180px]">
+              <Select value={filtroCliente} onValueChange={setFiltroCliente}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Clientes</SelectItem>
+                  {clientes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="h-10 w-px bg-border hidden lg:block" />
+
+          {/* Grupo: Genética */}
+          <div className="flex items-end gap-3">
+            <div className="w-1 h-6 rounded-full bg-blue-500/40 self-center" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <Dna className="w-3.5 h-3.5" />
+              <span>Genética</span>
+            </div>
+            <div className="w-[150px]">
+              <Select value={filtroRaca} onValueChange={setFiltroRaca}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Raça" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas Raças</SelectItem>
+                  {racas.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-[150px]">
+              <Select value={filtroClassificacao} onValueChange={setFiltroClassificacao}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Classificação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas</SelectItem>
+                  {classificacoes.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-[180px]">
+              <Select value={filtroTouro} onValueChange={setFiltroTouro}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Touro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Touros</SelectItem>
+                  {touros.map(([id, nome]) => (
+                    <SelectItem key={id} value={id}>{nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Botão Limpar */}
+          {(searchTerm || filtroCliente !== 'todos' || filtroRaca !== 'todos' || filtroClassificacao !== 'todos' || filtroTouro !== 'todos') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                setFiltroCliente('todos');
+                setFiltroRaca('todos');
+                setFiltroClassificacao('todos');
+                setFiltroTouro('todos');
+              }}
+              className="h-9 ml-auto"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Limpar Filtros
+            </Button>
+          )}
         </div>
-
-        <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos Clientes</SelectItem>
-            {clientes.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filtroRaca} onValueChange={setFiltroRaca}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Raça" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todas Raças</SelectItem>
-            {racas.map((r) => (
-              <SelectItem key={r} value={r}>{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filtroClassificacao} onValueChange={setFiltroClassificacao}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Classificação" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todas</SelectItem>
-            {classificacoes.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filtroTouro} onValueChange={setFiltroTouro}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Touro" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos Touros</SelectItem>
-            {touros.map(([id, nome]) => (
-              <SelectItem key={id} value={id}>{nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Tabela */}

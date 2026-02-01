@@ -151,4 +151,11 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+
+  /* Ícones de inputs de tempo e data no dark mode */
+  .dark input[type="time"]::-webkit-calendar-picker-indicator,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.8);
+  }
 }
