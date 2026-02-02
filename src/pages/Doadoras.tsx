@@ -32,7 +32,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import FazendaSelector from '@/components/shared/FazendaSelector';
 import { TableSkeleton } from '@/components/shared/TableSkeleton';
-import { Plus, Pencil, History, Star, Gem, Search, Filter } from 'lucide-react';
+import { Plus, Pencil, History, Star, Gem, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
 import SearchInput from '@/components/shared/SearchInput';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
 import { formatDateBR } from '@/lib/dateUtils';
@@ -44,6 +44,7 @@ import {
   useDoadorasForm,
   racasPredefinidas,
   type DoadoraComAspiracao,
+  type SortOrder,
 } from '@/hooks/doadoras';
 
 export default function Doadoras() {
@@ -57,6 +58,10 @@ export default function Doadoras() {
     setSelectedFazendaId,
     searchTerm,
     setSearchTerm,
+    sortByDate,
+    setSortByDate,
+    clearFilters,
+    hasActiveFilters,
     historicoDoadoraId,
     setHistoricoDoadoraId,
     loadFazendas,
@@ -108,33 +113,85 @@ export default function Doadoras() {
           {/* Barra de Filtros Premium */}
           <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              {/* Grupo: Busca */}
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 rounded-full bg-primary/40" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>Busca</span>
+              <div className="flex flex-wrap items-center gap-6">
+                {/* Grupo: Busca */}
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-6 rounded-full bg-primary/40" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Busca</span>
+                  </div>
+                  <div className="flex-1 min-w-[220px]">
+                    <SearchInput
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder="Buscar por nome ou registro..."
+                    />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-[280px]">
-                  <SearchInput
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    placeholder="Buscar por nome ou registro..."
-                  />
+
+                {/* Separador */}
+                <div className="h-10 w-px bg-border hidden lg:block" />
+
+                {/* Grupo: Ordenação por Data */}
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-6 rounded-full bg-amber-500/40" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <span>Última Aspiração</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant={sortByDate === 'desc' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setSortByDate(sortByDate === 'desc' ? 'none' : 'desc')}
+                      title="Mais recentes primeiro"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5 mr-1" />
+                      <span className="text-xs">Recentes</span>
+                    </Button>
+                    <Button
+                      variant={sortByDate === 'asc' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setSortByDate(sortByDate === 'asc' ? 'none' : 'asc')}
+                      title="Mais antigas primeiro"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5 mr-1" />
+                      <span className="text-xs">Antigas</span>
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Botão Limpar */}
+                {hasActiveFilters && (
+                  <>
+                    <div className="h-10 w-px bg-border hidden lg:block" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-8"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Limpar
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Botão Nova Doadora */}
               <DoadoraFormDialog
-              showDialog={showDialog}
-              handleDialogClose={handleDialogClose}
-              formData={formData}
-              setFormData={setFormData}
-              racaSelecionada={racaSelecionada}
-              handleRacaChange={handleRacaChange}
-              submitting={submitting}
-              handleSubmit={handleSubmit}
-            />
+                showDialog={showDialog}
+                handleDialogClose={handleDialogClose}
+                formData={formData}
+                setFormData={setFormData}
+                racaSelecionada={racaSelecionada}
+                handleRacaChange={handleRacaChange}
+                submitting={submitting}
+                handleSubmit={handleSubmit}
+              />
             </div>
           </div>
 

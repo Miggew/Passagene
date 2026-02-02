@@ -10,8 +10,8 @@ import {
   HistoricoItem,
   HistoricoAdmin,
   Estatisticas,
-  normalizarData,
 } from '@/lib/receptoraHistoricoUtils';
+import { extractDateOnly } from '@/lib/dateUtils';
 
 interface DoseQueryLocal {
   id: string;
@@ -85,7 +85,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
         .single();
 
       itemsAdmin.push({
-        data: normalizarData(primeiroRegistro.data_inicio),
+        data: extractDateOnly(primeiroRegistro.data_inicio),
         tipo: 'CADASTRO',
         resumo: `Cadastro na fazenda ${fazendaData?.nome || 'desconhecida'}`,
       });
@@ -104,7 +104,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
         const destinoNome = fazendasMap.get(historicoAtual.fazenda_id) || '?';
 
         itemsAdmin.push({
-          data: normalizarData(historicoAtual.data_inicio),
+          data: extractDateOnly(historicoAtual.data_inicio),
           tipo: 'MUDANCA_FAZENDA',
           resumo: `${origemNome} → ${destinoNome}`,
         });
@@ -146,7 +146,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
       animaisData.forEach((animal) => {
         if (!animal.data_nascimento) return;
         items.push({
-          data: normalizarData(animal.data_nascimento),
+          data: extractDateOnly(animal.data_nascimento),
           tipo: 'PARICAO',
           resumo: 'Parição registrada',
           detalhes: `Animal ${animal.id.substring(0, 8)} • Sexo: ${animal.sexo || '—'}`,
@@ -163,11 +163,11 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
 
         if (!protocolo || !protocolo.data_inicio) continue;
 
-        const dataInicio = normalizarData(protocolo.data_inicio);
+        const dataInicio = extractDateOnly(protocolo.data_inicio);
         let resumo = `1º Passo`;
 
         if (protocolo.passo2_data) {
-          const dataPasso2 = normalizarData(protocolo.passo2_data);
+          const dataPasso2 = extractDateOnly(protocolo.passo2_data);
           if (pr.status === 'APTA') {
             resumo = `1º Passo • 2º Passo: APTA`;
           } else if (pr.status === 'INAPTA') {
@@ -322,10 +322,10 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
             resumo += ` | ${acasalamentosInfo.join('; ')}`;
           }
 
-          items.push({ data: normalizarData(dataTe), tipo: 'TE', resumo });
+          items.push({ data: extractDateOnly(dataTe), tipo: 'TE', resumo });
           acasalamentosPorDataTe.set(dataTe, acasalamentosInfo);
         } else if (tesDescartadas.length > 0) {
-          items.push({ data: normalizarData(dataTe), tipo: 'TE', resumo: 'Descartada para TE' });
+          items.push({ data: extractDateOnly(dataTe), tipo: 'TE', resumo: 'Descartada para TE' });
         }
       });
     }
@@ -347,7 +347,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
           }
         }
 
-        items.push({ data: normalizarData(dg.data_diagnostico), tipo: 'DG', resumo });
+        items.push({ data: extractDateOnly(dg.data_diagnostico), tipo: 'DG', resumo });
       }
     }
 
@@ -408,7 +408,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
           }
         }
 
-        items.push({ data: normalizarData(sexagem.data_diagnostico), tipo: 'SEXAGEM', resumo });
+        items.push({ data: extractDateOnly(sexagem.data_diagnostico), tipo: 'SEXAGEM', resumo });
       }
     }
 
@@ -422,7 +422,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
     if (cioLivreData && receptoraData?.status_cio_livre === 'CONFIRMADA') {
       const cio = cioLivreData[0];
       if (cio?.data_cio) {
-        items.push({ data: normalizarData(cio.data_cio), tipo: 'CIO_LIVRE', resumo: 'Cio livre' });
+        items.push({ data: extractDateOnly(cio.data_cio), tipo: 'CIO_LIVRE', resumo: 'Cio livre' });
       }
     }
 
@@ -439,8 +439,8 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
       let dataUltimaGestacao: string | null = null;
       if (diagnosticosData && diagnosticosData.length > 0) {
         const dgsOrdenados = [...diagnosticosData].sort((a, b) => {
-          const dataA = normalizarData(a.data_diagnostico);
-          const dataB = normalizarData(b.data_diagnostico);
+          const dataA = extractDateOnly(a.data_diagnostico);
+          const dataB = extractDateOnly(b.data_diagnostico);
           return dataB.localeCompare(dataA);
         });
 
@@ -449,7 +449,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
         );
 
         if (ultimaGestacao) {
-          dataUltimaGestacao = normalizarData(ultimaGestacao.data_diagnostico);
+          dataUltimaGestacao = extractDateOnly(ultimaGestacao.data_diagnostico);
         }
       }
 
@@ -464,7 +464,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
           const dataReferencia = protocolo.passo2_data || protocolo.data_inicio;
           if (!dataReferencia) continue;
 
-          const dataRefNormalizada = normalizarData(dataReferencia);
+          const dataRefNormalizada = extractDateOnly(dataReferencia);
 
           if (dataRefNormalizada > dataUltimaGestacao) {
             stats.ciclosDesdeUltimaGestacao++;

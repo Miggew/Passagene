@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { LoteTEBase } from '@/lib/gestacao';
-import { calcularDiasGestacao } from '@/lib/gestacao';
+import { calcularDiasGestacao } from '@/lib/dataEnrichment';
 import type { StatusReceptoraFiltro } from './useFazendasComLotes';
 
 interface UseLotesTEProps<T extends LoteTEBase> {

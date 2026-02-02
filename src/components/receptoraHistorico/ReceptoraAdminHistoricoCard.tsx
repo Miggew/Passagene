@@ -1,12 +1,12 @@
 /**
- * Card de histórico administrativo (cadastro e mudanças de fazenda)
+ * Card de histórico administrativo (cadastro e mudanças de fazenda) - Compacto
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, UserPlus } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import type { HistoricoAdmin } from '@/lib/receptoraHistoricoUtils';
-import { formatarData, tipoIconConfig, tipoBadgeConfig } from '@/lib/receptoraHistoricoUtils';
+import { tipoIconConfig, tipoBadgeConfig } from '@/lib/receptoraHistoricoUtils';
+import { formatDateBR } from '@/lib/dateUtils';
 
 interface ReceptoraAdminHistoricoCardProps {
   historicoAdmin: HistoricoAdmin[];
@@ -17,45 +17,42 @@ export function ReceptoraAdminHistoricoCard({ historicoAdmin }: ReceptoraAdminHi
 
   const getTipoIcon = (tipo: string) => {
     const config = tipoIconConfig[tipo];
-    if (!config) return <Calendar className="w-4 h-4" />;
+    if (!config) return null;
     const Icon = config.icon;
-    return <Icon className={config.className} />;
+    return <Icon className="w-3 h-3" />;
   };
 
   const getTipoBadge = (tipo: string) => {
     const config = tipoBadgeConfig[tipo];
-    if (!config) return <Badge variant="outline">{tipo}</Badge>;
+    if (!config) return <Badge variant="outline" className="text-[10px] px-1.5 py-0">{tipo}</Badge>;
     return (
-      <Badge variant="outline" className={config.className}>
+      <Badge variant="outline" className={`${config.className} text-[10px] px-1.5 py-0`}>
         {config.label}
       </Badge>
     );
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Histórico Administrativo</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {historicoAdmin.map((item, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200"
-            >
-              <div className="flex items-center gap-2 min-w-[100px]">
-                {getTipoIcon(item.tipo)}
-                {getTipoBadge(item.tipo)}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-slate-900">{item.resumo}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{formatarData(item.data)}</p>
-              </div>
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border-b border-border">
+        <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium text-foreground">Histórico Administrativo</span>
+      </div>
+
+      {/* Itens */}
+      <div className="divide-y divide-border/50">
+        {historicoAdmin.map((item, index) => (
+          <div key={index} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors">
+            <div className="flex items-center justify-center w-5 h-5 rounded bg-muted/50">
+              {getTipoIcon(item.tipo)}
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            {getTipoBadge(item.tipo)}
+            <span className="flex-1 text-xs text-foreground truncate">{item.resumo}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">{formatDateBR(item.data)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

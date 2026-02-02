@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -34,20 +34,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
-import { ArrowLeft, Plus, UserPlus, CheckCircle, Lock, Trash2 } from 'lucide-react';
+import { formatDate, cn } from '@/lib/utils';
+import { formatStatusLabel } from '@/lib/statusLabels';
+import { ArrowLeft, Plus, UserPlus, CheckCircle, Lock, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 
 import {
   useProtocoloData,
@@ -64,6 +72,8 @@ export default function ProtocoloDetail() {
   const [showAddReceptora, setShowAddReceptora] = useState(false);
   const [showResumoPasso1, setShowResumoPasso1] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [buscaReceptora, setBuscaReceptora] = useState('');
 
   // Data hook
   const {
@@ -237,6 +247,8 @@ export default function ProtocoloDetail() {
                     if (!open) {
                       addReceptoraHook.resetForm();
                       createReceptoraHook.resetForm();
+                      setBuscaReceptora('');
+                      setComboboxOpen(false);
                     }
                   }}
                 >
@@ -263,27 +275,103 @@ export default function ProtocoloDetail() {
                       <TabsContent value="existing" className="space-y-4 mt-4">
                         <div className="space-y-2">
                           <Label>Receptora *</Label>
-                          <Select
-                            value={addReceptoraHook.formData.receptora_id}
-                            onValueChange={(value) => addReceptoraHook.updateField('receptora_id', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione uma receptora VAZIA" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {receptorasDisponiveis.length === 0 ? (
-                                <div className="p-2 text-sm text-muted-foreground">
-                                  Nenhuma receptora VAZIA disponível nesta fazenda
-                                </div>
-                              ) : (
-                                receptorasDisponiveis.map((r) => (
-                                  <SelectItem key={r.id} value={r.id}>
-                                    {r.identificacao} {r.nome ? `- ${r.nome}` : ''}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
+                          <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={comboboxOpen}
+                                className="w-full justify-between font-normal"
+                              >
+                                {addReceptoraHook.formData.receptora_id
+                                  ? (() => {
+                                      const selected = receptorasDisponiveis.find(
+                                        (r) => r.id === addReceptoraHook.formData.receptora_id
+                                      );
+                                      return selected
+                                        ? `${selected.identificacao}${selected.nome ? ` - ${selected.nome}` : ''}`
+                                        : 'Selecione uma receptora...';
+                                    })()
+                                  : 'Selecione uma receptora...'}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command shouldFilter={false}>
+                                <CommandInput
+                                  placeholder="Buscar por brinco ou nome..."
+                                  value={buscaReceptora}
+                                  onValueChange={setBuscaReceptora}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>Nenhuma receptora encontrada.</CommandEmpty>
+                                  <CommandGroup>
+                                    {receptorasDisponiveis
+                                      .filter((r) => {
+                                        if (!buscaReceptora) return true;
+                                        const busca = buscaReceptora.toLowerCase();
+                                        return (
+                                          r.identificacao?.toLowerCase().includes(busca) ||
+                                          r.nome?.toLowerCase().includes(busca)
+                                        );
+                                      })
+                                      .map((r) => {
+                                        const statusLabel = r.status_reprodutivo
+                                          ? formatStatusLabel(r.status_reprodutivo)
+                                          : 'Vazia';
+
+                                        return (
+                                          <CommandItem
+                                            key={r.id}
+                                            value={r.id}
+                                            disabled={!r.disponivel}
+                                            onSelect={() => {
+                                              if (r.disponivel) {
+                                                addReceptoraHook.updateField('receptora_id', r.id);
+                                                setComboboxOpen(false);
+                                                setBuscaReceptora('');
+                                              }
+                                            }}
+                                            className={cn(
+                                              'flex items-center justify-between',
+                                              !r.disponivel && 'opacity-50 cursor-not-allowed'
+                                            )}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <Check
+                                                className={cn(
+                                                  'h-4 w-4',
+                                                  addReceptoraHook.formData.receptora_id === r.id
+                                                    ? 'opacity-100'
+                                                    : 'opacity-0'
+                                                )}
+                                              />
+                                              <span className={!r.disponivel ? 'text-muted-foreground' : ''}>
+                                                {r.identificacao}
+                                                {r.nome ? ` - ${r.nome}` : ''}
+                                              </span>
+                                            </div>
+                                            {!r.disponivel && (
+                                              <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                  'ml-2 text-[10px] px-1.5 py-0',
+                                                  r.jaNoProtocolo
+                                                    ? 'border-blue-500/50 text-blue-600 dark:text-blue-400'
+                                                    : 'border-amber-500/50 text-amber-600 dark:text-amber-400'
+                                                )}
+                                              >
+                                                {r.jaNoProtocolo ? 'Já no protocolo' : statusLabel}
+                                              </Badge>
+                                            )}
+                                          </CommandItem>
+                                        );
+                                      })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
 
                         <div className="space-y-2">
@@ -299,7 +387,7 @@ export default function ProtocoloDetail() {
                         <Button
                           onClick={addReceptoraHook.handleAddReceptora}
                           className="w-full"
-                          disabled={addReceptoraHook.submitting || receptorasDisponiveis.length === 0}
+                          disabled={addReceptoraHook.submitting || !addReceptoraHook.formData.receptora_id}
                         >
                           {addReceptoraHook.submitting ? 'Adicionando...' : 'Adicionar'}
                         </Button>

@@ -38,7 +38,18 @@ import {
   User,
   MapPin,
   Save,
+  AlertTriangle,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { formatDate } from '@/lib/utils';
 import { DataTable } from '@/components/shared/DataTable';
 import { Switch } from '@/components/ui/switch';
@@ -111,6 +122,9 @@ export default function TransferenciaEmbrioes() {
   // Estado de submissão
   const [submitting, setSubmitting] = useState(false);
 
+  // Estado para permitir 2º embrião (caso raro ~3%)
+  const [permitirSegundoEmbriao, setPermitirSegundoEmbriao] = useState(false);
+
   // Estados para Histórico
   const [historico, setHistorico] = useState<HistoricoTE[]>([]);
   const [sessoes, setSessoes] = useState<SessaoTE[]>([]);
@@ -124,6 +138,14 @@ export default function TransferenciaEmbrioes() {
   const [paginaHistorico, setPaginaHistorico] = useState(1);
   const ITENS_POR_PAGINA_HISTORICO = 15;
 
+  // Estados para dialog de sessão em andamento
+  const [showRestaurarDialog, setShowRestaurarDialog] = useState(false);
+  const [sessaoPendente, setSessaoPendente] = useState<{
+    filtros: { fazenda_id?: string; origemEmbriao?: string; filtroClienteId?: string; filtroRaca?: string };
+    camposPacote: CamposPacote;
+    formData: Partial<TransferenciaFormData>;
+  } | null>(null);
+
   // Hook de filtros e UI
   const {
     origemEmbriao,
@@ -134,8 +156,6 @@ export default function TransferenciaEmbrioes() {
     setFiltroRaca,
     dataPasso2,
     setDataPasso2,
-    incluirCioLivre,
-    setIncluirCioLivre,
     embrioesPage,
     setEmbrioesPage,
     showRelatorioDialog,
@@ -179,7 +199,6 @@ export default function TransferenciaEmbrioes() {
     restaurarSessaoEmAndamento,
   } = useTransferenciaEmbrioesData({
     dataPasso2,
-    incluirCioLivre,
     filtroClienteId,
     filtroRaca,
     formData,
@@ -256,7 +275,6 @@ export default function TransferenciaEmbrioes() {
       origem_embriao: origemEmbriao,
       filtro_cliente_id: filtroClienteId,
       filtro_raca: filtroRaca,
-      incluir_cio_livre: incluirCioLivre,
       transferenciasSessao,
       transferenciasIdsSessao,
       embrioes_page: embrioesPage,
@@ -356,7 +374,7 @@ export default function TransferenciaEmbrioes() {
 
       if (acasalamentoIds.length > 0) {
         const { data: acasalamentosData } = await supabase
-          .from('lotes_fiv_acasalamentos')
+          .from('lote_fiv_acasalamentos')
           .select(`
             id,
             doadoras (registro),
@@ -535,22 +553,121 @@ export default function TransferenciaEmbrioes() {
     return `${dia}/${mes}/${ano}`;
   };
 
+  // Funções para o dialog de sessão em andamento
+  const handleRestaurarSessao = async () => {
+    if (sessaoPendente) {
+      const dataPasso2Sessao = sessaoPendente.filtros.data_passo2 || '';
+      const fazendaIdSessao = sessaoPendente.formData.fazenda_id || '';
+      const pacoteIdSalvo = sessaoPendente.formData.pacote_id || '';
+      const transferenciasIds = sessaoPendente.transferenciasIds || [];
+
+      // 1. Aplicar filtros primeiro
+      aplicarFiltrosSessao(sessaoPendente.filtros);
+      setCamposPacote(sessaoPendente.camposPacote);
+
+      // 2. Recarregar fazendas e pacotes, capturando os resultados diretamente
+      const [, pacotesCarregados] = await Promise.all([
+        loadFazendas(dataPasso2Sessao),
+        loadPacotes()
+      ]);
+
+      // 3. Inferir o pacote correto a partir dos embriões transferidos na sessão
+      // O pacote_id salvo é só o lote_fiv_id (UUID), precisamos da data_despacho também
+      let pacoteIdReconstruido = '';
+      if (pacoteIdSalvo && pacotesCarregados && pacotesCarregados.length > 0) {
+        // Tentar inferir a data_despacho dos embriões das transferências
+        if (transferenciasIds.length > 0) {
+          try {
+            const { data: transferenciasComEmbriao } = await supabase
+              .from('transferencias_embrioes')
+              .select('embriao_id, embrioes(lote_fiv_id, created_at)')
+              .in('id', transferenciasIds)
+              .limit(1);
+
+            if (transferenciasComEmbriao && transferenciasComEmbriao.length > 0) {
+              const embriao = Array.isArray(transferenciasComEmbriao[0].embrioes)
+                ? transferenciasComEmbriao[0].embrioes[0]
+                : transferenciasComEmbriao[0].embrioes;
+
+              if (embriao?.lote_fiv_id && embriao?.created_at) {
+                const dataDespacho = embriao.created_at.split('T')[0];
+                const pacoteIdInferido = `${embriao.lote_fiv_id}-${dataDespacho}`;
+                const pacoteExato = pacotesCarregados.find(p => p.id === pacoteIdInferido);
+                if (pacoteExato) {
+                  pacoteIdReconstruido = pacoteExato.id;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao inferir pacote da sessão:', error);
+          }
+        }
+
+        // Fallback: buscar por lote_fiv_id se não conseguiu inferir
+        if (!pacoteIdReconstruido) {
+          const pacotesDaFazenda = fazendaIdSessao
+            ? pacotesCarregados.filter(p => p.fazendas_destino_ids.includes(fazendaIdSessao))
+            : pacotesCarregados;
+          const pacoteEncontrado = pacotesDaFazenda.find(p =>
+            p.id.startsWith(pacoteIdSalvo) || p.lote_fiv_id === pacoteIdSalvo
+          );
+          if (pacoteEncontrado) {
+            pacoteIdReconstruido = pacoteEncontrado.id;
+          }
+        }
+      }
+
+      // 4. Agora aplicar o formData (fazenda_id, pacote_id reconstruído, etc.)
+      setFormData(prev => ({
+        ...prev,
+        ...sessaoPendente.formData,
+        pacote_id: pacoteIdReconstruido || pacoteIdSalvo,
+        embriao_id: '',
+        receptora_id: '',
+        protocolo_receptora_id: '',
+        observacoes: '',
+      }));
+
+      // 5. Se há fazenda_id, carregar as receptoras
+      // Passa o estado da sessão para preservar receptoras que já receberam embriões
+      if (fazendaIdSessao) {
+        await carregarReceptorasDaFazenda(fazendaIdSessao, {
+          contagem: contagemSessaoPorReceptora,
+          info: receptorasSessaoInfo,
+        });
+      }
+
+      toast({
+        title: 'Sessão restaurada',
+        description: 'Continuando de onde você parou.',
+      });
+    }
+    setShowRestaurarDialog(false);
+    setSessaoPendente(null);
+  };
+
+  const handleDescartarSessao = async () => {
+    // Encerrar sessão no banco
+    if (sessaoPendente?.filtros?.fazenda_id) {
+      await encerrarSessaoNoBanco(sessaoPendente.filtros.fazenda_id);
+    }
+    setShowRestaurarDialog(false);
+    setSessaoPendente(null);
+    toast({
+      title: 'Sessão descartada',
+      description: 'Uma nova sessão será iniciada.',
+    });
+  };
+
   // Effects
   useEffect(() => {
     const carregarDados = async () => {
       await Promise.all([loadFazendas(), loadPacotes(), loadClientes(), loadTodasFazendas()]);
       const sessaoRestaurada = await restaurarSessaoEmAndamento();
       if (sessaoRestaurada) {
-        aplicarFiltrosSessao(sessaoRestaurada.filtros);
-        setCamposPacote(sessaoRestaurada.camposPacote);
-        setFormData(prev => ({
-          ...prev,
-          ...sessaoRestaurada.formData,
-          embriao_id: '',
-          receptora_id: '',
-          protocolo_receptora_id: '',
-          observacoes: '',
-        }));
+        // Mostrar dialog perguntando se quer restaurar
+        setSessaoPendente(sessaoRestaurada);
+        setShowRestaurarDialog(true);
       }
     };
     carregarDados();
@@ -560,17 +677,29 @@ export default function TransferenciaEmbrioes() {
     if (formData.fazenda_id || formData.pacote_id || transferenciasIdsSessao.length > 0) {
       salvarEstadoSessao();
     }
-  }, [formData.fazenda_id, formData.pacote_id, formData.protocolo_id, formData.data_te, formData.veterinario_responsavel, formData.tecnico_responsavel, origemEmbriao, filtroClienteId, filtroRaca, dataPasso2, incluirCioLivre, transferenciasSessao.length, transferenciasIdsSessao.length, embrioesPage]);
+  }, [formData.fazenda_id, formData.pacote_id, formData.protocolo_id, formData.data_te, formData.veterinario_responsavel, formData.tecnico_responsavel, origemEmbriao, filtroClienteId, filtroRaca, dataPasso2, transferenciasSessao.length, transferenciasIdsSessao.length, embrioesPage]);
 
   useEffect(() => {
     void loadFazendas();
   }, [dataPasso2]);
 
+  // Efeito para recarregar receptoras quando filtros mudam
+  // Preserva receptoras da sessão atual se há transferências em andamento
   useEffect(() => {
     if (formData.fazenda_id) {
-      carregarReceptorasDaFazenda(formData.fazenda_id);
+      const temSessaoAtiva = transferenciasIdsSessao.length > 0;
+
+      if (temSessaoAtiva) {
+        carregarReceptorasDaFazenda(formData.fazenda_id, {
+          contagem: contagemSessaoPorReceptora,
+          info: receptorasSessaoInfo,
+        });
+      } else {
+        carregarReceptorasDaFazenda(formData.fazenda_id);
+      }
     }
-  }, [formData.fazenda_id, dataPasso2, incluirCioLivre]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.fazenda_id, dataPasso2]);
 
   useEffect(() => {
     if (origemEmbriao === 'CONGELADO' && (filtroClienteId || filtroRaca.trim())) {
@@ -693,12 +822,12 @@ export default function TransferenciaEmbrioes() {
                 </div>
                 <div className="flex-1 min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                    Fazenda *
+                    Fazenda {transferenciasIdsSessao.length > 0 ? '(sessão ativa)' : '*'}
                   </label>
                   <Select
                     value={formData.fazenda_id}
                     onValueChange={handleFazendaChange}
-                    disabled={!formData.veterinario_responsavel}
+                    disabled={!formData.veterinario_responsavel || transferenciasIdsSessao.length > 0}
                   >
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Selecione a fazenda" />
@@ -776,12 +905,12 @@ export default function TransferenciaEmbrioes() {
                   </div>
                   <div className="flex items-center gap-2 h-9 self-end">
                     <Switch
-                      id="incluir-cio-livre"
-                      checked={incluirCioLivre}
-                      onCheckedChange={setIncluirCioLivre}
+                      id="permitir-segundo-embriao"
+                      checked={permitirSegundoEmbriao}
+                      onCheckedChange={setPermitirSegundoEmbriao}
                     />
-                    <Label htmlFor="incluir-cio-livre" className="cursor-pointer text-xs">
-                      Incluir CIO livre
+                    <Label htmlFor="permitir-segundo-embriao" className="cursor-pointer text-xs">
+                      2º embrião
                     </Label>
                   </div>
                 </div>
@@ -896,16 +1025,35 @@ export default function TransferenciaEmbrioes() {
               {(formData.pacote_id || (origemEmbriao === 'CONGELADO' && (filtroClienteId || filtroRaca.trim()))) && (
                 <Card className="mb-4">
                   <CardContent className="pt-4">
+                    {/* Header com título e botão de transferir */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1 h-6 rounded-full bg-primary/40" />
+                        <span className="text-sm font-semibold text-foreground">Selecione Receptora e Embrião</span>
+                      </div>
+                      {formData.embriao_id && formData.receptora_id && (
+                        <Button
+                          type="submit"
+                          disabled={submitting}
+                          className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
+                        >
+                          <ArrowRightLeft className="w-4 h-4 mr-2" />
+                          {submitting ? 'Registrando...' : 'Transferir Embrião'}
+                        </Button>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {/* Coluna Esquerda - Receptoras */}
                       <div className="flex flex-col">
-                        <h3 className="text-sm font-semibold text-foreground mb-2">Receptoras</h3>
+                        <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Receptoras</h3>
                         <div className="flex-1 min-h-[300px] max-h-[400px]">
                           <ReceptorasSelection
                             receptoras={receptoras}
                             selectedReceptoraId={formData.receptora_id}
                             contagemSessaoPorReceptora={contagemSessaoPorReceptora}
                             submitting={submitting}
+                            permitirSegundoEmbriao={permitirSegundoEmbriao}
                             onSelectReceptora={(receptoraId, protocoloReceptoraId) => {
                               setFormData({
                                 ...formData,
@@ -920,7 +1068,7 @@ export default function TransferenciaEmbrioes() {
 
                       {/* Coluna Direita - Embriões */}
                       <div className="flex flex-col">
-                        <h3 className="text-sm font-semibold text-foreground mb-2">
+                        <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                           Embriões {origemEmbriao === 'PACOTE' ? '(Pacote)' : '(Congelados)'}
                         </h3>
                         <div className="flex-1 min-h-[300px] max-h-[400px]">
@@ -954,36 +1102,26 @@ export default function TransferenciaEmbrioes() {
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              {/* Campo de Observações e Botão de Submit */}
-              {formData.embriao_id && formData.receptora_id && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="flex items-end gap-4">
-                      <div className="flex-1">
-                        <Label htmlFor="observacoes" className="text-xs font-medium text-muted-foreground mb-1 block">
-                          Observações
-                        </Label>
-                        <Textarea
-                          id="observacoes"
-                          value={formData.observacoes}
-                          onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                          placeholder="Observações sobre a transferência"
-                          rows={2}
-                          className="resize-none"
-                        />
+                    {/* Campo de Observações inline */}
+                    {formData.embriao_id && formData.receptora_id && (
+                      <div className="mt-4 pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1 max-w-md">
+                            <Label htmlFor="observacoes" className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                              Observações (opcional)
+                            </Label>
+                            <Input
+                              id="observacoes"
+                              value={formData.observacoes}
+                              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                              placeholder="Observações sobre a transferência"
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <Button
-                        type="submit"
-                        disabled={submitting}
-                        className="h-10 bg-primary hover:bg-primary-dark"
-                      >
-                        {submitting ? 'Registrando...' : 'Registrar Transferência'}
-                      </Button>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -1005,6 +1143,25 @@ export default function TransferenciaEmbrioes() {
         onFechar={fecharRelatorio}
         onConfirmarEncerrar={handleEncerrarSessao}
       />
+
+      {/* Dialog Restaurar Sessão em Andamento */}
+      <AlertDialog open={showRestaurarDialog} onOpenChange={setShowRestaurarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              Sessão de TE não finalizada
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem uma sessão de transferência de embriões em andamento que não foi finalizada. Deseja continuar de onde parou?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDescartarSessao}>Descartar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestaurarSessao}>Restaurar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

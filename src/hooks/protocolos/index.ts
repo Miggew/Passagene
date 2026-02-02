@@ -33,7 +33,7 @@ export type {
   UseProtocolosDataReturn,
 } from './useProtocolosData';
 
-export { useProtocoloData, type ReceptoraWithStatus } from './useProtocoloData';
+export { useProtocoloData, type ReceptoraWithStatus, type ReceptoraParaSelecao } from './useProtocoloData';
 export { useAddReceptoraProtocolo } from './useAddReceptoraProtocolo';
 export type { AddReceptoraFormData as AddReceptoraProtocoloFormData } from './useAddReceptoraProtocolo';
 export { useCreateReceptoraProtocolo } from './useCreateReceptoraProtocolo';

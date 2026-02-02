@@ -24,11 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { Plus, Check, ChevronsUpDown, X } from 'lucide-react';
+import { formatDate, cn } from '@/lib/utils';
 
 interface NovoLoteDialogProps {
   pacotes: PacoteComNomes[];
@@ -57,6 +59,8 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
   const [doses, setDoses] = useState<DoseSemen[]>([]);
   const [aspiracoesDoadoras, setAspiracoesDoadoras] = useState<AspiracaoDoadora[]>([]);
   const [doadoras, setDoadoras] = useState<Doadora[]>([]);
+  const [touroComboboxOpen, setTouroComboboxOpen] = useState(false);
+  const [touroSelecionadoId, setTouroSelecionadoId] = useState<string>('');
 
   const handlePacoteChange = async (pacoteId: string) => {
     setFormData({ ...formData, pacote_aspiracao_id: pacoteId });
@@ -278,6 +282,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
     setAspiracoesDoadoras([]);
     setDoadoras([]);
     setDoses([]);
+    setTouroSelecionadoId('');
   };
 
   const handleCancel = () => {
@@ -354,51 +359,186 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
           </div>
 
           <div className="space-y-2">
-            <Label>Doses de Sêmen Disponíveis no Lote *</Label>
-            <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-              {doses.length === 0 ? (
+            <Label>Doses de Sêmen Disponíveis no Lote</Label>
+            {doses.length === 0 ? (
+              <div className="border rounded-lg p-4 bg-slate-50">
                 <p className="text-sm text-slate-500">
                   {selectedPacote ? 'Carregando doses...' : 'Selecione um pacote primeiro'}
                 </p>
-              ) : (
-                <div className="space-y-2">
-                  {doses.map((dose) => {
-                    const cliente = clientes.find((c) => c.id === dose.cliente_id);
-                    const isSelected = formData.doses_selecionadas.includes(dose.id);
-                    return (
-                      <div key={dose.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`dose-${dose.id}`}
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                doses_selecionadas: [...formData.doses_selecionadas, dose.id],
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                doses_selecionadas: formData.doses_selecionadas.filter((id) => id !== dose.id),
-                              });
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <label htmlFor={`dose-${dose.id}`} className="text-sm cursor-pointer flex-1">
-                          <span className="font-medium">{dose.touro?.nome || 'Touro desconhecido'}</span>
-                          {dose.touro?.registro && <span className="text-slate-500 ml-2">({dose.touro.registro})</span>}
-                          {cliente && <span className="text-slate-500 ml-2">- {cliente.nome}</span>}
-                        </label>
+              </div>
+            ) : (
+              <>
+                {/* Seleção em cascata: Touro -> Dono */}
+                {(() => {
+                  // Agrupar doses por touro
+                  const dosesPorTouro = doses.reduce((acc, dose) => {
+                    const touroId = dose.touro_id || 'sem-touro';
+                    if (!acc[touroId]) {
+                      acc[touroId] = [];
+                    }
+                    acc[touroId].push(dose);
+                    return acc;
+                  }, {} as Record<string, DoseSemen[]>);
+
+                  // Lista única de touros
+                  const tourosUnicos = Object.entries(dosesPorTouro).map(([touroId, dosesDoTouro]) => ({
+                    id: touroId,
+                    nome: dosesDoTouro[0].touro?.nome || 'Touro desconhecido',
+                    registro: dosesDoTouro[0].touro?.registro,
+                    doses: dosesDoTouro,
+                  }));
+
+                  // Touro selecionado
+                  const touroAtual = tourosUnicos.find((t) => t.id === touroSelecionadoId);
+                  const dosesDoTouro = touroAtual?.doses || [];
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Passo 1: Buscar Touro */}
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-muted-foreground">1. Buscar touro</span>
+                        <Popover open={touroComboboxOpen} onOpenChange={setTouroComboboxOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={touroComboboxOpen}
+                              className="w-full justify-between font-normal"
+                            >
+                              {touroAtual ? (
+                                <span className="truncate">
+                                  {touroAtual.nome}
+                                  {touroAtual.registro && ` (${touroAtual.registro})`}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Buscar touro por nome ou registro...</span>
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar touro por nome ou registro..." />
+                              <CommandList>
+                                <CommandEmpty>Nenhum touro encontrado.</CommandEmpty>
+                                <CommandGroup>
+                                  {tourosUnicos.map((touro) => (
+                                    <CommandItem
+                                      key={touro.id}
+                                      value={`${touro.nome} ${touro.registro || ''}`}
+                                      onSelect={() => {
+                                        setTouroSelecionadoId(touro.id);
+                                        setTouroComboboxOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          touroSelecionadoId === touro.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      <span className="truncate">
+                                        {touro.nome}
+                                        {touro.registro && (
+                                          <span className="text-muted-foreground ml-1">({touro.registro})</span>
+                                        )}
+                                      </span>
+                                      <span className="ml-auto text-xs text-muted-foreground">
+                                        {touro.doses.length} {touro.doses.length === 1 ? 'dono' : 'donos'}
+                                      </span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+
+                      {/* Passo 2: Selecionar donos (checkboxes) */}
+                      {touroSelecionadoId && dosesDoTouro.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-xs text-muted-foreground">2. Selecionar donos para adicionar</span>
+                          <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
+                            {dosesDoTouro.map((dose) => {
+                              const cliente = clientes.find((c) => c.id === dose.cliente_id);
+                              const isSelected = formData.doses_selecionadas.includes(dose.id);
+                              return (
+                                <div key={dose.id} className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id={`dose-${dose.id}`}
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setFormData({
+                                          ...formData,
+                                          doses_selecionadas: [...formData.doses_selecionadas, dose.id],
+                                        });
+                                      } else {
+                                        setFormData({
+                                          ...formData,
+                                          doses_selecionadas: formData.doses_selecionadas.filter((id) => id !== dose.id),
+                                        });
+                                      }
+                                    }}
+                                    className="rounded"
+                                  />
+                                  <label htmlFor={`dose-${dose.id}`} className="text-sm cursor-pointer flex-1">
+                                    {cliente?.nome || 'Sem cliente'}
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Lista de doses selecionadas */}
+                {formData.doses_selecionadas.length > 0 && (
+                  <div className="space-y-1.5 mt-4">
+                    <span className="text-xs text-muted-foreground">
+                      Doses selecionadas ({formData.doses_selecionadas.length})
+                    </span>
+                    <div className="border rounded-lg p-3 bg-green-50 border-green-200 space-y-1.5 max-h-40 overflow-y-auto">
+                      {formData.doses_selecionadas.map((doseId) => {
+                        const dose = doses.find((d) => d.id === doseId);
+                        const cliente = dose ? clientes.find((c) => c.id === dose.cliente_id) : null;
+                        if (!dose) return null;
+                        return (
+                          <div key={doseId} className="flex items-center justify-between text-sm">
+                            <span>
+                              <span className="font-medium">{dose.touro?.nome || 'Touro'}</span>
+                              {dose.touro?.registro && (
+                                <span className="text-slate-500 ml-1">({dose.touro.registro})</span>
+                              )}
+                              <span className="text-slate-500 ml-1">- {cliente?.nome || 'Sem cliente'}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  doses_selecionadas: formData.doses_selecionadas.filter((id) => id !== doseId),
+                                });
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             <p className="text-xs text-slate-500">
-              Selecione as doses de sêmen que estarão disponíveis para uso neste lote
+              Busque o touro e selecione de quais donos as doses estarão disponíveis neste lote
             </p>
           </div>
 

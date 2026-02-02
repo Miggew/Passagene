@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Search, X, Eye, History, FileText } from 'lucide-react';
+import { Search, X, Eye, History, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { CowIcon } from '@/components/icons/CowIcon';
 import { supabase } from '@/lib/supabase';
@@ -19,6 +19,9 @@ import { useClienteFilter } from '@/hooks/useClienteFilter';
 import PageHeader from '@/components/shared/PageHeader';
 import type { Fazenda } from '@/lib/types';
 import { exportRelatorio } from '@/lib/exportPdf';
+import { formatDateBR } from '@/lib/dateUtils';
+import DatePickerBR from '@/components/shared/DatePickerBR';
+import { CalendarCheck } from 'lucide-react';
 
 type TipoAnimal = 'receptoras' | 'doadoras';
 
@@ -44,9 +47,13 @@ interface DoadoraRow {
   classificacao_genetica?: string;
   total_aspiracoes: number;
   media_oocitos: number;
+  ultima_aspiracao_data?: string;
 }
 
+type SortOrder = 'asc' | 'desc' | 'none';
+
 const ITENS_POR_PAGINA = 20;
+const DIAS_DESCANSO = 14; // Período mínimo entre aspirações
 
 export default function RelatoriosAnimais() {
   const navigate = useNavigate();
@@ -65,6 +72,8 @@ export default function RelatoriosAnimais() {
   const [filtroBusca, setFiltroBusca] = useState('');
   const [filtroRaca, setFiltroRaca] = useState('all');
   const [filtroDisponivel, setFiltroDisponivel] = useState('all');
+  const [sortByDate, setSortByDate] = useState<SortOrder>('none');
+  const [dataAspiracao, setDataAspiracao] = useState<string>('');
 
   // Dados
   const [receptoras, setReceptoras] = useState<ReceptoraRow[]>([]);
@@ -217,19 +226,22 @@ export default function RelatoriosAnimais() {
 
     const { data } = await query;
 
-    // Buscar estatísticas de aspirações
+    // Buscar estatísticas de aspirações (incluindo última data)
     const doadoraIds = data?.map(d => d.id) ?? [];
     const { data: aspiracoes } = await supabase
       .from('aspiracoes_doadoras')
-      .select('doadora_id, total_oocitos')
+      .select('doadora_id, total_oocitos, data_aspiracao')
       .in('doadora_id', doadoraIds);
 
-    const statsMap = new Map<string, { count: number; totalOocitos: number }>();
+    const statsMap = new Map<string, { count: number; totalOocitos: number; ultimaData?: string }>();
     aspiracoes?.forEach(a => {
-      const current = statsMap.get(a.doadora_id) ?? { count: 0, totalOocitos: 0 };
+      const current = statsMap.get(a.doadora_id) ?? { count: 0, totalOocitos: 0, ultimaData: undefined };
+      const novaData = a.data_aspiracao;
+      const ultimaData = current.ultimaData && current.ultimaData > novaData ? current.ultimaData : novaData;
       statsMap.set(a.doadora_id, {
         count: current.count + 1,
         totalOocitos: current.totalOocitos + (a.total_oocitos ?? 0),
+        ultimaData,
       });
     });
 
@@ -247,12 +259,13 @@ export default function RelatoriosAnimais() {
           classificacao_genetica: d.classificacao_genetica,
           total_aspiracoes: stats?.count ?? 0,
           media_oocitos: stats ? Math.round(stats.totalOocitos / stats.count) : 0,
+          ultima_aspiracao_data: stats?.ultimaData,
         };
       }) ?? []
     );
   };
 
-  // Dados filtrados por busca
+  // Dados filtrados por busca e ordenados
   const dadosFiltrados = useMemo(() => {
     let dados: any[] = tipoAnimal === 'receptoras' ? receptoras : doadoras;
 
@@ -273,8 +286,40 @@ export default function RelatoriosAnimais() {
       }
     }
 
+    // Filtrar por disponibilidade para aspiração (apenas para doadoras)
+    if (tipoAnimal === 'doadoras' && dataAspiracao) {
+      // Calcula data de corte: data selecionada - 14 dias (parse sem timezone)
+      const [y, m, d] = dataAspiracao.split('-').map(Number);
+      const dataCorte = new Date(y, m - 1, d - DIAS_DESCANSO);
+
+      dados = dados.filter((doadora: DoadoraRow) => {
+        // Se nunca foi aspirada, está disponível
+        if (!doadora.ultima_aspiracao_data) return true;
+        // Parse da última aspiração sem timezone
+        const [ay, am, ad] = doadora.ultima_aspiracao_data.split('-').map(Number);
+        const ultimaAsp = new Date(ay, am - 1, ad);
+        // Se última aspiração foi até a data de corte (>= 14 dias), está disponível
+        return ultimaAsp <= dataCorte;
+      });
+    }
+
+    // Aplicar ordenação por data (apenas para doadoras)
+    if (tipoAnimal === 'doadoras' && sortByDate !== 'none') {
+      dados = [...dados].sort((a: DoadoraRow, b: DoadoraRow) => {
+        const dateA = a.ultima_aspiracao_data ? new Date(a.ultima_aspiracao_data).getTime() : 0;
+        const dateB = b.ultima_aspiracao_data ? new Date(b.ultima_aspiracao_data).getTime() : 0;
+
+        // Itens sem data vão para o final
+        if (!a.ultima_aspiracao_data && !b.ultima_aspiracao_data) return 0;
+        if (!a.ultima_aspiracao_data) return 1;
+        if (!b.ultima_aspiracao_data) return -1;
+
+        return sortByDate === 'asc' ? dateA - dateB : dateB - dateA;
+      });
+    }
+
     return dados;
-  }, [tipoAnimal, receptoras, doadoras, filtroBusca]);
+  }, [tipoAnimal, receptoras, doadoras, filtroBusca, sortByDate, dataAspiracao]);
 
   // Paginação
   const totalPaginas = Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA);
@@ -289,6 +334,8 @@ export default function RelatoriosAnimais() {
     setFiltroRaca('all');
     setFiltroDisponivel('all');
     setFiltroBusca('');
+    setSortByDate('none');
+    setDataAspiracao('');
     setPaginaAtual(1);
   };
 
@@ -451,9 +498,66 @@ export default function RelatoriosAnimais() {
               )}
             </div>
 
+            {/* Grupo: Planejamento de aspiração (apenas para doadoras) */}
+            {tipoAnimal === 'doadoras' && (
+              <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-6 rounded-full bg-primary/40" />
+                  <CalendarCheck className="w-3.5 h-3.5 text-primary/60" />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Aptas em</span>
+                </div>
+                <DatePickerBR
+                  value={dataAspiracao}
+                  onChange={setDataAspiracao}
+                  placeholder="Selecionar data"
+                  className="h-9 w-[140px] bg-background"
+                />
+                {dataAspiracao && (
+                  <span className="text-[10px] text-muted-foreground">
+                    (asp. até {(() => {
+                      const [y, m, d] = dataAspiracao.split('-').map(Number);
+                      const dataCorte = new Date(y, m - 1, d - DIAS_DESCANSO);
+                      return formatDateBR(dataCorte.toISOString());
+                    })()})
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Grupo: Ordenação (apenas para doadoras) */}
+            {tipoAnimal === 'doadoras' && (
+              <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-6 rounded-full bg-amber-500/40" />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ordenar</span>
+                </div>
+                <Button
+                  variant={sortByDate !== 'none' ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 px-2.5"
+                  onClick={() => {
+                    // Cicla: none -> desc -> asc -> none
+                    if (sortByDate === 'none') setSortByDate('desc');
+                    else if (sortByDate === 'desc') setSortByDate('asc');
+                    else setSortByDate('none');
+                  }}
+                  title={sortByDate === 'none' ? 'Ordenar por data' : sortByDate === 'desc' ? 'Mais recentes primeiro' : 'Mais antigas primeiro'}
+                >
+                  {sortByDate === 'none' && <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />}
+                  {sortByDate === 'desc' && <ArrowDown className="w-3.5 h-3.5 mr-1.5" />}
+                  {sortByDate === 'asc' && <ArrowUp className="w-3.5 h-3.5 mr-1.5" />}
+                  <span className="text-xs">
+                    {sortByDate === 'none' && 'Última Asp.'}
+                    {sortByDate === 'desc' && 'Recentes'}
+                    {sortByDate === 'asc' && 'Antigas'}
+                  </span>
+                </Button>
+              </div>
+            )}
+
             {/* Grupo: Ações */}
             <div className="flex items-center gap-2 px-4 py-3 ml-auto bg-gradient-to-b from-muted/50 to-transparent">
-              {(filtroBusca || filtroFazenda !== 'all' || filtroStatus !== 'all' || filtroRaca !== 'all' || filtroDisponivel !== 'all') && (
+              {(filtroBusca || filtroFazenda !== 'all' || filtroStatus !== 'all' || filtroRaca !== 'all' || filtroDisponivel !== 'all' || sortByDate !== 'none' || dataAspiracao) && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -504,7 +608,7 @@ export default function RelatoriosAnimais() {
                 <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${
                   tipoAnimal === 'receptoras'
                     ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
-                    : 'grid-cols-[1.2fr_1fr_1.2fr_1fr_0.8fr_0.8fr_0.6fr]'
+                    : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'
                 }`}>
                   <div className="px-4 py-3 flex items-center gap-2">
                     <div className="w-1 h-4 rounded-full bg-primary/40" />
@@ -520,6 +624,7 @@ export default function RelatoriosAnimais() {
                   ) : (
                     <>
                       <div className="px-3 py-3">Raça</div>
+                      <div className="px-3 py-3 text-center">Última Asp.</div>
                       <div className="px-3 py-3 text-center">Aspirações</div>
                       <div className="px-3 py-3 text-center">Média</div>
                     </>
@@ -543,7 +648,7 @@ export default function RelatoriosAnimais() {
                       ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
                       ${tipoAnimal === 'receptoras'
                         ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
-                        : 'grid-cols-[1.2fr_1fr_1.2fr_1fr_0.8fr_0.8fr_0.6fr]'
+                        : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'
                       }
                     `}
                   >
@@ -589,6 +694,12 @@ export default function RelatoriosAnimais() {
                         {/* Raça */}
                         <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
                           {(row as DoadoraRow).raca || '-'}
+                        </div>
+                        {/* Última Aspiração */}
+                        <div className="px-3 py-3.5 text-sm text-center text-muted-foreground">
+                          {(row as DoadoraRow).ultima_aspiracao_data
+                            ? formatDateBR((row as DoadoraRow).ultima_aspiracao_data!)
+                            : '-'}
                         </div>
                         {/* Aspirações */}
                         <div className="px-3 py-3.5 flex justify-center">

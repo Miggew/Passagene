@@ -532,3 +532,62 @@ const variant = getTaxaVariant(taxa, 50); // 'primary' se >= 50, 'warning' se < 
 import { getStatusColor } from '@/components/shared/StatusBadge';
 const colorClasses = getStatusColor('PRENHE_FEMEA'); // para uso em renderCell
 ```
+
+---
+
+## Correções Relatórios e KPIs (01/02/2026)
+
+> **Status:** CONCLUÍDO
+
+### Problemas Corrigidos
+
+#### 1. RelatoriosAnimais.tsx - Filtro de Doadoras para Aspiração
+- Adicionada coluna "Última Aspiração" na listagem de doadoras
+- Botão de ordenação cíclico: sem ordem → recentes → antigas → sem ordem
+- Filtro por data de aspiração futura (período de descanso de 14 dias)
+  - DatePickerBR com data da próxima aspiração
+  - Filtra doadoras cuja última aspiração + 14 dias ≤ data selecionada
+
+#### 2. RelatoriosMaterial.tsx - Doses de Sêmen
+- Corrigido nome da coluna: `quantidade_disponivel` → `quantidade`
+- Queries separadas para clientes e touros (sem nested joins)
+
+#### 3. RelatoriosProducao.tsx - Métricas e Lotes FIV
+- Corrigido `data_fiv` → `data_abertura`
+- Corrigido `pacote_id` → `pacote_aspiracao_id`
+- Reescrita função `loadLotesFiv` para query direta em lotes_fiv
+
+#### 4. useKPIData.ts - Dashboards Visão Geral (CRÍTICO)
+
+**Problema:** Nested joins do Supabase falhavam silenciosamente, retornando dados vazios.
+
+**Funções corrigidas:**
+
+| Função | Problema | Solução |
+|--------|----------|---------|
+| `fetchRankingFazendas` | Join em receptoras para fazenda | Usar view `vw_receptoras_fazenda_atual` |
+| `fetchRankingTouros` | Sem filtro de data + campos errados | Filtrar por `lotes_fiv.data_abertura`, buscar oócitos de `aspiracoes_doadoras.viaveis`, contar embriões da tabela `embrioes` |
+| `fetchRankingDoadoras` | Nested join em doadoras + campos errados | Mesma correção acima |
+
+**Padrão correto para KPIs de taxa de virada:**
+```tsx
+// Oócitos = aspiracoes_doadoras.viaveis
+// Embriões = COUNT(*) from embrioes WHERE classificacao IN ('A','B','C','BE','BN','BX','BL','BI')
+```
+
+### Lições Aprendidas
+
+1. **Supabase nested joins** podem falhar silenciosamente - preferir queries separadas
+2. **Verificar nomes de colunas** no código existente antes de assumir
+3. **Dados de embriões** são contados da tabela `embrioes`, não de campos agregados
+4. **DatePickerBR** usa string ISO (`"2026-01-15"`), não objeto Date
+5. **View `vw_receptoras_fazenda_atual`** é necessária para obter fazenda atual de receptoras (não há FK direto)
+
+### Arquivos Modificados
+
+| Arquivo | Alterações |
+|---------|------------|
+| `src/pages/relatorios/RelatoriosAnimais.tsx` | Coluna última aspiração, filtro data, ordenação cíclica |
+| `src/pages/relatorios/RelatoriosMaterial.tsx` | Correção coluna quantidade |
+| `src/pages/relatorios/RelatoriosProducao.tsx` | Correções data_abertura, pacote_aspiracao_id |
+| `src/hooks/useKPIData.ts` | Reescrita completa das funções de ranking |

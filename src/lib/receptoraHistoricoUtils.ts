@@ -3,7 +3,6 @@
  */
 
 import { Calendar, Syringe, Activity, Baby, MapPin, UserPlus, Tag } from 'lucide-react';
-import { extractDateOnly, formatDateBR } from './dateUtils';
 
 export interface HistoricoItem {
   data: string;
@@ -25,58 +24,77 @@ export interface Estatisticas {
 }
 
 /**
- * Normaliza uma string de data para o formato YYYY-MM-DD
- * @deprecated Use extractDateOnly from @/lib/dateUtils
- */
-export const normalizarData = (dataString: string): string => {
-  if (!dataString) return dataString;
-  return extractDateOnly(dataString) || dataString;
-};
-
-/**
- * Formata uma data para exibição no formato brasileiro
- * @deprecated Use formatDateBR from @/lib/dateUtils
- */
-export const formatarData = (data: string): string => {
-  return formatDateBR(data);
-};
-
-/**
  * Configuração de ícones por tipo de evento
  */
 export const tipoIconConfig: Record<string, { icon: typeof Calendar; className: string }> = {
-  'CADASTRO': { icon: UserPlus, className: 'w-4 h-4 text-indigo-600' },
-  'MUDANCA_FAZENDA': { icon: MapPin, className: 'w-4 h-4 text-orange-600' },
-  'PROTOCOLO': { icon: Calendar, className: 'w-4 h-4 text-blue-600' },
-  'TE': { icon: Syringe, className: 'w-4 h-4 text-green-600' },
-  'DG': { icon: Activity, className: 'w-4 h-4 text-purple-600' },
-  'SEXAGEM': { icon: Baby, className: 'w-4 h-4 text-pink-600' },
-  'PARICAO': { icon: Baby, className: 'w-4 h-4 text-teal-600' },
-  'CIO_LIVRE': { icon: Tag, className: 'w-4 h-4 text-amber-600' },
+  'CADASTRO': { icon: UserPlus, className: 'w-4 h-4 text-indigo-600 dark:text-indigo-400' },
+  'MUDANCA_FAZENDA': { icon: MapPin, className: 'w-4 h-4 text-orange-600 dark:text-orange-400' },
+  'PROTOCOLO': { icon: Calendar, className: 'w-4 h-4 text-blue-600 dark:text-blue-400' },
+  'TE': { icon: Syringe, className: 'w-4 h-4 text-emerald-600 dark:text-emerald-400' },
+  'DG': { icon: Activity, className: 'w-4 h-4 text-purple-600 dark:text-purple-400' },
+  'SEXAGEM': { icon: Baby, className: 'w-4 h-4 text-pink-600 dark:text-pink-400' },
+  'PARICAO': { icon: Baby, className: 'w-4 h-4 text-teal-600 dark:text-teal-400' },
+  'CIO_LIVRE': { icon: Tag, className: 'w-4 h-4 text-amber-600 dark:text-amber-400' },
 };
 
 /**
- * Configuração de badges por tipo de evento
+ * Configuração de badges por tipo de evento - Compatible com dark mode
  */
 export const tipoBadgeConfig: Record<string, { label: string; className: string }> = {
-  'CADASTRO': { label: 'Cadastro', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  'MUDANCA_FAZENDA': { label: 'Fazenda', className: 'bg-orange-50 text-orange-700 border-orange-200' },
-  'PROTOCOLO': { label: 'Protocolo', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  'TE': { label: 'TE', className: 'bg-green-50 text-green-700 border-green-200' },
-  'DG': { label: 'DG', className: 'bg-purple-50 text-purple-700 border-purple-200' },
-  'SEXAGEM': { label: 'Sexagem', className: 'bg-pink-50 text-pink-700 border-pink-200' },
-  'PARICAO': { label: 'Parição', className: 'bg-teal-50 text-teal-700 border-teal-200' },
-  'CIO_LIVRE': { label: 'Cio Livre', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  'CADASTRO': {
+    label: 'Cadastro',
+    className: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30'
+  },
+  'MUDANCA_FAZENDA': {
+    label: 'Fazenda',
+    className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30'
+  },
+  'PROTOCOLO': {
+    label: 'Protocolo',
+    className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+  },
+  'TE': {
+    label: 'TE',
+    className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+  },
+  'DG': {
+    label: 'DG',
+    className: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30'
+  },
+  'SEXAGEM': {
+    label: 'Sexagem',
+    className: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/30'
+  },
+  'PARICAO': {
+    label: 'Parição',
+    className: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/30'
+  },
+  'CIO_LIVRE': {
+    label: 'Cio Livre',
+    className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+  },
 };
 
 /**
- * Configuração de badges para status de cio livre
+ * Configuração de badges para status de cio livre - Compatible com dark mode
  */
 export const cioLivreBadgeConfig: Record<string, { label: string; className: string }> = {
-  'CONFIRMADA': { label: 'Confirmada', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  'REJEITADA': { label: 'Rejeitada', className: 'bg-rose-50 text-rose-700 border-rose-200' },
-  'SUBSTITUIDA': { label: 'Substituída', className: 'bg-slate-50 text-slate-700 border-slate-200' },
-  'PENDENTE': { label: 'Pendente', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  'CONFIRMADA': {
+    label: 'Confirmada',
+    className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+  },
+  'REJEITADA': {
+    label: 'Rejeitada',
+    className: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30'
+  },
+  'SUBSTITUIDA': {
+    label: 'Substituída',
+    className: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30'
+  },
+  'PENDENTE': {
+    label: 'Pendente',
+    className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+  },
 };
 
 /**

@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -69,6 +70,8 @@ import {
 } from 'lucide-react';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
+import { formatStatusLabel } from '@/lib/statusLabels';
+import { getStatusColor } from '@/components/shared/StatusBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 import ClassificacoesCicloInline from '@/components/shared/ClassificacoesCicloInline';
 
@@ -215,6 +218,15 @@ export default function Protocolos() {
 
   // ========== PASSO 2 ==========
   const [protocoloSelecionadoId, setProtocoloSelecionadoId] = useState<string>('');
+  const [protocolosPasso2Lista, setProtocolosPasso2Lista] = useState<Array<{
+    id: string;
+    fazenda_id: string;
+    fazenda_nome: string;
+    data_inicio: string;
+    receptoras_count: number;
+  }>>([]);
+  const [loadingProtocolosPasso2, setLoadingProtocolosPasso2] = useState(false);
+  const [fazendaFilterPasso2, setFazendaFilterPasso2] = useState<string>('');
   const [passo2Form, setPasso2Form] = useState({
     data: new Date().toISOString().split('T')[0],
     tecnico: '',
@@ -250,6 +262,7 @@ export default function Protocolos() {
       handleResetPasso2();
       limparRascunhoPasso2();
       loadProtocolos(1);
+      loadProtocolosPasso2Lista();
     },
   });
 
@@ -264,10 +277,22 @@ export default function Protocolos() {
     [getReceptorasFiltradas, buscaReceptora, actualSelectedIds]
   );
 
-  // Protocolos aguardando 2º passo
+  // Protocolos aguardando 2º passo (filtrado por fazenda se selecionada)
   const protocolosAguardando2Passo = useMemo(() => {
-    return protocolos.filter(p => p.status === 'PASSO1_FECHADO');
-  }, [protocolos]);
+    if (!fazendaFilterPasso2) return protocolosPasso2Lista;
+    return protocolosPasso2Lista.filter(p => p.fazenda_id === fazendaFilterPasso2);
+  }, [protocolosPasso2Lista, fazendaFilterPasso2]);
+
+  // Lista de fazendas únicas para o filtro do passo 2
+  const fazendasPasso2 = useMemo(() => {
+    const fazendasMap = new Map<string, string>();
+    protocolosPasso2Lista.forEach(p => {
+      if (!fazendasMap.has(p.fazenda_id)) {
+        fazendasMap.set(p.fazenda_id, p.fazenda_nome);
+      }
+    });
+    return Array.from(fazendasMap.entries()).map(([id, nome]) => ({ id, nome }));
+  }, [protocolosPasso2Lista]);
 
   // Stats do Passo 2
   const statsPasso2 = useMemo(() => ({
@@ -391,11 +416,78 @@ export default function Protocolos() {
     setShowRestaurarPasso2Dialog(false);
   }, [limparRascunhoPasso2]);
 
+  // ========== CARREGAR PROTOCOLOS PASSO 2 ==========
+  const loadProtocolosPasso2Lista = useCallback(async () => {
+    try {
+      setLoadingProtocolosPasso2(true);
+
+      // Buscar todos os protocolos com status PASSO1_FECHADO (independente de outros filtros)
+      const { data: protocolosData, error } = await supabase
+        .from('protocolos_sincronizacao')
+        .select('id, fazenda_id, data_inicio, status')
+        .eq('status', 'PASSO1_FECHADO')
+        .order('data_inicio', { ascending: false });
+
+      if (error) throw error;
+
+      if (!protocolosData || protocolosData.length === 0) {
+        setProtocolosPasso2Lista([]);
+        return;
+      }
+
+      // Buscar contagem de receptoras e nomes das fazendas
+      const protocoloIds = protocolosData.map(p => p.id);
+      const fazendaIds = [...new Set(protocolosData.map(p => p.fazenda_id))];
+
+      const [receptorasResult, fazendasResult] = await Promise.all([
+        supabase
+          .from('protocolo_receptoras')
+          .select('protocolo_id')
+          .in('protocolo_id', protocoloIds),
+        supabase
+          .from('fazendas')
+          .select('id, nome')
+          .in('id', fazendaIds),
+      ]);
+
+      // Criar mapa de contagem por protocolo
+      const contagemMap: Record<string, number> = {};
+      (receptorasResult.data || []).forEach(pr => {
+        contagemMap[pr.protocolo_id] = (contagemMap[pr.protocolo_id] || 0) + 1;
+      });
+
+      // Criar mapa de nomes de fazenda
+      const fazendaMap: Record<string, string> = {};
+      (fazendasResult.data || []).forEach(f => {
+        fazendaMap[f.id] = f.nome;
+      });
+
+      // Filtrar protocolos sem receptoras (zumbis) e montar lista
+      const listaFinal = protocolosData
+        .filter(p => (contagemMap[p.id] || 0) > 0)
+        .map(p => ({
+          id: p.id,
+          fazenda_id: p.fazenda_id,
+          fazenda_nome: fazendaMap[p.fazenda_id] || 'N/A',
+          data_inicio: p.data_inicio,
+          receptoras_count: contagemMap[p.id] || 0,
+        }));
+
+      setProtocolosPasso2Lista(listaFinal);
+    } catch (error) {
+      console.error('Erro ao carregar protocolos passo 2:', error);
+      setProtocolosPasso2Lista([]);
+    } finally {
+      setLoadingProtocolosPasso2(false);
+    }
+  }, []);
+
   // ========== EFFECTS ==========
   useEffect(() => {
     loadDataHistorico();
     loadFazendasPasso1();
-  }, [loadDataHistorico, loadFazendasPasso1]);
+    loadProtocolosPasso2Lista();
+  }, [loadDataHistorico, loadFazendasPasso1, loadProtocolosPasso2Lista]);
 
   useEffect(() => {
     if (passo1CurrentStep === 'receptoras' && protocoloData.fazenda_id) {
@@ -533,6 +625,7 @@ export default function Protocolos() {
       tecnico: '',
     });
     setMotivosInapta({});
+    setFazendaFilterPasso2('');
     limparRascunhoPasso2();
   };
 
@@ -563,7 +656,7 @@ export default function Protocolos() {
               <div className="flex gap-1">
                 {[
                   { value: 'passo1', label: '1º Passo', icon: Syringe, count: 0 },
-                  { value: 'passo2', label: '2º Passo', icon: ClipboardCheck, count: protocolosAguardando2Passo.length },
+                  { value: 'passo2', label: '2º Passo', icon: ClipboardCheck, count: protocolosPasso2Lista.length },
                 ].map(({ value, label, icon: Icon, count }) => (
                   <button
                     key={value}
@@ -824,6 +917,29 @@ export default function Protocolos() {
                       />
                     </div>
 
+                    {/* Grupo: Fazenda */}
+                    <div className="flex items-center gap-3 px-4 py-3 border-r border-border">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-6 rounded-full bg-primary/40" />
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fazenda</span>
+                      </div>
+                      <Select
+                        value={fazendaFilterPasso2}
+                        onValueChange={setFazendaFilterPasso2}
+                      >
+                        <SelectTrigger className="h-9 w-[180px] bg-background">
+                          <SelectValue placeholder="Selecione a fazenda" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fazendasPasso2.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Grupo: Seleção */}
                     <div className="flex items-center gap-3 px-4 py-3 border-r border-border flex-1">
                       <div className="flex items-center gap-2">
@@ -835,15 +951,19 @@ export default function Protocolos() {
                         onValueChange={(value) => {
                           setProtocoloSelecionadoId(value);
                         }}
-                        disabled={!passo2Form.tecnico.trim()}
+                        disabled={!passo2Form.tecnico.trim() || !fazendaFilterPasso2}
                       >
                         <SelectTrigger className="h-9 min-w-[280px] bg-background">
-                          <SelectValue placeholder="Selecione um protocolo *" />
+                          <SelectValue placeholder={!fazendaFilterPasso2 ? "Selecione a fazenda primeiro" : "Selecione um protocolo *"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {protocolosAguardando2Passo.length === 0 ? (
+                          {loadingProtocolosPasso2 ? (
                             <div className="p-2 text-sm text-muted-foreground text-center">
-                              Nenhum protocolo aguardando
+                              Carregando...
+                            </div>
+                          ) : protocolosAguardando2Passo.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              Nenhum protocolo nesta fazenda
                             </div>
                           ) : (
                             protocolosAguardando2Passo.map((p) => (
@@ -1103,26 +1223,37 @@ function AddReceptoraForm({
                             }
                           }}
                           disabled={!r.disponivel}
-                          className={`group ${!r.disponivel ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          className={`group ${!r.disponivel ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <div className="flex items-center justify-between w-full gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className="flex flex-col">
-                                <span className="font-medium group-data-[selected=true]:text-accent-foreground">
-                                  {r.identificacao}
-                                </span>
-                                {r.nome && (
-                                  <span className="text-xs text-muted-foreground group-data-[selected=true]:text-accent-foreground/70">{r.nome}</span>
-                                )}
-                              </div>
-                              {stats && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-1.5 py-0.5 rounded font-medium">{stats.totalProtocolos}P</span>
-                                  <span className="text-xs bg-emerald-200 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-200 px-1.5 py-0.5 rounded font-medium">{stats.gestacoes}G</span>
-                                  <span className="text-xs bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-200 px-1.5 py-0.5 rounded font-medium">{stats.protocolosDesdeUltimaGestacao}D</span>
-                                </div>
+                            {/* Identificação e nome */}
+                            <div className="flex flex-col min-w-0 flex-shrink">
+                              <span className={`font-medium truncate ${r.disponivel ? 'group-data-[selected=true]:text-accent-foreground' : 'text-muted-foreground'}`}>
+                                {r.identificacao}
+                              </span>
+                              {r.nome && (
+                                <span className="text-xs text-muted-foreground truncate group-data-[selected=true]:text-accent-foreground/70">{r.nome}</span>
                               )}
                             </div>
+
+                            {/* Para receptoras DISPONÍVEIS: mostrar stats de histórico */}
+                            {r.disponivel && stats && (
+                              <div className="flex items-center gap-1 shrink-0 ml-auto">
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium" title="Protocolos">{stats.totalProtocolos}P</span>
+                                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-medium" title="Gestações">{stats.gestacoes}G</span>
+                                <span className="text-[10px] bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium" title="Desde última gestação">{stats.protocolosDesdeUltimaGestacao}D</span>
+                              </div>
+                            )}
+
+                            {/* Para receptoras INDISPONÍVEIS: mostrar badge de status com cor semântica */}
+                            {!r.disponivel && (
+                              <Badge
+                                variant="outline"
+                                className={`ml-auto text-[10px] px-1.5 py-0 shrink-0 ${getStatusColor(r.status)}`}
+                              >
+                                {formatStatusLabel(r.status)}
+                              </Badge>
+                            )}
                           </div>
                         </CommandItem>
                       );

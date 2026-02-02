@@ -11,15 +11,6 @@ export const DIAS_MINIMOS = {
 } as const;
 
 /**
- * Calcula o número de dias de gestação a partir da data de abertura do lote (D0)
- */
-export function calcularDiasGestacao(dataAberturaLote: string): number {
-  const d0 = new Date(dataAberturaLote);
-  const hoje = new Date();
-  return Math.floor((hoje.getTime() - d0.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/**
  * Calcula a data provável de parto (D0 + 275 dias)
  */
 export function calcularDataProvavelParto(dataAberturaLote: string): string {
@@ -27,13 +18,6 @@ export function calcularDataProvavelParto(dataAberturaLote: string): string {
   const dataParto = new Date(d0);
   dataParto.setDate(dataParto.getDate() + 275);
   return dataParto.toISOString().split('T')[0];
-}
-
-/**
- * Retorna a data de hoje no formato YYYY-MM-DD
- */
-export function getHoje(): string {
-  return new Date().toISOString().split('T')[0];
 }
 
 /**

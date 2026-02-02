@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { EmbriaoQuery, DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
-import { buscarDadosGenealogia, extrairAcasalamentoIds } from '@/lib/dataEnrichment';
+import { buscarDadosGenealogia, extrairAcasalamentoIds, calcularDiasGestacao } from '@/lib/dataEnrichment';
+import { todayISO } from '@/lib/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -32,9 +33,7 @@ import {
   type LoteTEDiagnostico,
   type EmbriaoTransferido,
   type LoteFormDataBase,
-  calcularDiasGestacao,
   calcularDataProvavelParto,
-  getHoje,
   validarResponsaveis,
   DIAS_MINIMOS,
 } from '@/lib/gestacao';
@@ -54,6 +53,16 @@ import {
   User,
   MapPin,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ReceptoraServida {
   receptora_id: string;
@@ -114,10 +123,23 @@ interface SessaoDG {
   receptoras: HistoricoDG[];
 }
 
+// Configuração de rascunho
+const RASCUNHO_KEY = 'passagene_dg_rascunho';
+const RASCUNHO_EXPIRACAO_HORAS = 24;
+
+interface RascunhoDG {
+  fazenda_id: string;
+  lote_id: string;
+  lote_data_te: string;
+  formData: DiagnosticoFormData;
+  loteFormData: LoteFormDataBase;
+  timestamp: number;
+}
+
 export default function DiagnosticoGestacao() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const hoje = getHoje();
+  const hoje = todayISO();
 
   // State - Nova Sessão
   const [fazendaSelecionada, setFazendaSelecionada] = useState<string>('');
@@ -147,6 +169,9 @@ export default function DiagnosticoGestacao() {
   const [paginaHistorico, setPaginaHistorico] = useState(1);
   const ITENS_POR_PAGINA_HISTORICO = 15;
 
+  // Estado para dialog de sessão em andamento
+  const [showRestaurarDialog, setShowRestaurarDialog] = useState(false);
+
   // Hooks compartilhados
   const { fazendas, loadFazendas } = useFazendasComLotes({
     statusReceptoraFiltro: 'SERVIDA',
@@ -166,7 +191,123 @@ export default function DiagnosticoGestacao() {
     transformLote,
   });
 
+  // ========== FUNÇÕES DE RASCUNHO ==========
+
+  const getRascunho = (): RascunhoDG | null => {
+    try {
+      const raw = localStorage.getItem(RASCUNHO_KEY);
+      if (!raw) return null;
+
+      const rascunho: RascunhoDG = JSON.parse(raw);
+
+      // Verificar expiração
+      const horasPassadas = (Date.now() - rascunho.timestamp) / (1000 * 60 * 60);
+      if (horasPassadas > RASCUNHO_EXPIRACAO_HORAS) {
+        localStorage.removeItem(RASCUNHO_KEY);
+        return null;
+      }
+
+      // Verificar se tem dados preenchidos
+      const temDados = Object.keys(rascunho.formData).length > 0;
+      if (!temDados) {
+        localStorage.removeItem(RASCUNHO_KEY);
+        return null;
+      }
+
+      return rascunho;
+    } catch {
+      return null;
+    }
+  };
+
+  const salvarRascunho = useCallback(() => {
+    if (!loteSelecionado || Object.keys(formData).length === 0) return;
+
+    // Verificar se há dados modificados
+    const temDadosPreenchidos = Object.values(formData).some(
+      dados => dados.resultado || dados.numero_gestacoes || dados.observacoes
+    );
+    if (!temDadosPreenchidos) return;
+
+    const rascunho: RascunhoDG = {
+      fazenda_id: fazendaSelecionada,
+      lote_id: loteSelecionado.id,
+      lote_data_te: loteSelecionado.data_te,
+      formData,
+      loteFormData,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(RASCUNHO_KEY, JSON.stringify(rascunho));
+  }, [fazendaSelecionada, loteSelecionado, formData, loteFormData]);
+
+  const limparRascunho = () => {
+    localStorage.removeItem(RASCUNHO_KEY);
+  };
+
+  const restaurarRascunho = async () => {
+    const rascunho = getRascunho();
+    if (rascunho) {
+      setFazendaSelecionada(rascunho.fazenda_id);
+      setLoteFormData(rascunho.loteFormData);
+      // formData será restaurado quando as receptoras forem carregadas
+      // Guardar em sessionStorage temporariamente para restaurar depois
+      sessionStorage.setItem('dg_formdata_restore', JSON.stringify(rascunho.formData));
+      toast({
+        title: 'Sessão restaurada',
+        description: 'Continuando o diagnóstico de onde você parou.',
+      });
+    }
+    setShowRestaurarDialog(false);
+  };
+
+  const descartarRascunho = () => {
+    limparRascunho();
+    sessionStorage.removeItem('dg_formdata_restore');
+    setShowRestaurarDialog(false);
+  };
+
   // Effects
+  useEffect(() => {
+    // Verificar rascunho ao montar
+    const rascunho = getRascunho();
+    if (rascunho) {
+      setShowRestaurarDialog(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Salvar rascunho automaticamente quando há mudanças
+    salvarRascunho();
+  }, [salvarRascunho]);
+
+  useEffect(() => {
+    // Restaurar formData quando as receptoras forem carregadas
+    const formDataRestore = sessionStorage.getItem('dg_formdata_restore');
+    if (formDataRestore && receptoras.length > 0) {
+      try {
+        const savedFormData = JSON.parse(formDataRestore);
+        // Só restaura dados para receptoras que ainda existem
+        const restoredFormData: DiagnosticoFormData = {};
+        receptoras.forEach(r => {
+          if (savedFormData[r.receptora_id]) {
+            restoredFormData[r.receptora_id] = savedFormData[r.receptora_id];
+          } else {
+            restoredFormData[r.receptora_id] = {
+              resultado: '',
+              numero_gestacoes: '1',
+              observacoes: '',
+              data_diagnostico: hoje,
+            };
+          }
+        });
+        setFormData(restoredFormData);
+        sessionStorage.removeItem('dg_formdata_restore');
+      } catch {
+        sessionStorage.removeItem('dg_formdata_restore');
+      }
+    }
+  }, [receptoras, hoje]);
+
   useEffect(() => {
     loadFazendas();
     loadTodasFazendas();
@@ -817,6 +958,9 @@ export default function DiagnosticoGestacao() {
           : `${receptoras.length} diagnóstico(s) registrado(s)`,
       });
 
+      // Limpar rascunho após salvar com sucesso
+      limparRascunho();
+
       if (todasComDiagnostico) {
         // Se fechou o lote, limpa a seleção para permitir novo trabalho
         setLoteSelecionado(null);
@@ -1223,6 +1367,25 @@ export default function DiagnosticoGestacao() {
             </Card>
           ) : null}
         </div>
+
+      {/* Dialog Restaurar Sessão em Andamento */}
+      <AlertDialog open={showRestaurarDialog} onOpenChange={setShowRestaurarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              Diagnóstico de gestação não finalizado
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem um diagnóstico de gestação em andamento que não foi finalizado. Deseja continuar de onde parou?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={descartarRascunho}>Descartar</AlertDialogCancel>
+            <AlertDialogAction onClick={restaurarRascunho}>Restaurar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

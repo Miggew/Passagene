@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { DiagnosticoGestacaoInsert, DiagnosticoGestacaoUpdate } from '@/lib/types';
-import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds } from '@/lib/dataEnrichment';
+import { buscarDadosGenealogia, buscarLotesFIV, extrairAcasalamentoIds, extrairLoteIds, calcularDiasGestacao } from '@/lib/dataEnrichment';
+import { todayISO } from '@/lib/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -31,8 +32,6 @@ import {
   type LoteTESexagem,
   type EmbriaoTransferido,
   type LoteFormDataBase,
-  calcularDiasGestacao,
-  getHoje,
   validarResponsaveis,
   DIAS_MINIMOS,
 } from '@/lib/gestacao';
@@ -52,6 +51,16 @@ import {
   User,
   MapPin,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ReceptoraPrenhe {
   receptora_id: string;
@@ -115,10 +124,23 @@ interface SessaoSexagem {
   receptoras: HistoricoSexagem[];
 }
 
+// Configuração de rascunho
+const RASCUNHO_KEY = 'passagene_sexagem_rascunho';
+const RASCUNHO_EXPIRACAO_HORAS = 24;
+
+interface RascunhoSexagem {
+  fazenda_id: string;
+  lote_id: string;
+  lote_data_te: string;
+  formData: SexagemFormData;
+  loteFormData: LoteFormDataBase;
+  timestamp: number;
+}
+
 export default function Sexagem() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const hoje = getHoje();
+  const hoje = todayISO();
 
   // State - Nova Sessão
   const [fazendaSelecionada, setFazendaSelecionada] = useState<string>('');
@@ -147,6 +169,9 @@ export default function Sexagem() {
   const [paginaHistorico, setPaginaHistorico] = useState(1);
   const ITENS_POR_PAGINA_HISTORICO = 15;
 
+  // Estado para dialog de sessão em andamento
+  const [showRestaurarDialog, setShowRestaurarDialog] = useState(false);
+
   // Hooks compartilhados
   const { fazendas, loadFazendas } = useFazendasComLotes({
     statusReceptoraFiltro: ['PRENHE', 'PRENHE_RETOQUE'],
@@ -166,7 +191,121 @@ export default function Sexagem() {
     transformLote,
   });
 
+  // ========== FUNÇÕES DE RASCUNHO ==========
+
+  const getRascunho = (): RascunhoSexagem | null => {
+    try {
+      const raw = localStorage.getItem(RASCUNHO_KEY);
+      if (!raw) return null;
+
+      const rascunho: RascunhoSexagem = JSON.parse(raw);
+
+      // Verificar expiração
+      const horasPassadas = (Date.now() - rascunho.timestamp) / (1000 * 60 * 60);
+      if (horasPassadas > RASCUNHO_EXPIRACAO_HORAS) {
+        localStorage.removeItem(RASCUNHO_KEY);
+        return null;
+      }
+
+      // Verificar se tem dados preenchidos
+      const temDados = Object.keys(rascunho.formData).length > 0;
+      if (!temDados) {
+        localStorage.removeItem(RASCUNHO_KEY);
+        return null;
+      }
+
+      return rascunho;
+    } catch {
+      return null;
+    }
+  };
+
+  const salvarRascunho = useCallback(() => {
+    if (!loteSelecionado || Object.keys(formData).length === 0) return;
+
+    // Verificar se há dados modificados
+    const temDadosPreenchidos = Object.values(formData).some(
+      dados => dados.sexagens.some(s => s !== '') || dados.observacoes
+    );
+    if (!temDadosPreenchidos) return;
+
+    const rascunho: RascunhoSexagem = {
+      fazenda_id: fazendaSelecionada,
+      lote_id: loteSelecionado.id,
+      lote_data_te: loteSelecionado.data_te,
+      formData,
+      loteFormData,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(RASCUNHO_KEY, JSON.stringify(rascunho));
+  }, [fazendaSelecionada, loteSelecionado, formData, loteFormData]);
+
+  const limparRascunho = () => {
+    localStorage.removeItem(RASCUNHO_KEY);
+  };
+
+  const restaurarRascunho = async () => {
+    const rascunho = getRascunho();
+    if (rascunho) {
+      setFazendaSelecionada(rascunho.fazenda_id);
+      setLoteFormData(rascunho.loteFormData);
+      // formData será restaurado quando as receptoras forem carregadas
+      sessionStorage.setItem('sexagem_formdata_restore', JSON.stringify(rascunho.formData));
+      toast({
+        title: 'Sessão restaurada',
+        description: 'Continuando a sexagem de onde você parou.',
+      });
+    }
+    setShowRestaurarDialog(false);
+  };
+
+  const descartarRascunho = () => {
+    limparRascunho();
+    sessionStorage.removeItem('sexagem_formdata_restore');
+    setShowRestaurarDialog(false);
+  };
+
   // Effects
+  useEffect(() => {
+    // Verificar rascunho ao montar
+    const rascunho = getRascunho();
+    if (rascunho) {
+      setShowRestaurarDialog(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Salvar rascunho automaticamente quando há mudanças
+    salvarRascunho();
+  }, [salvarRascunho]);
+
+  useEffect(() => {
+    // Restaurar formData quando as receptoras forem carregadas
+    const formDataRestore = sessionStorage.getItem('sexagem_formdata_restore');
+    if (formDataRestore && receptoras.length > 0) {
+      try {
+        const savedFormData = JSON.parse(formDataRestore);
+        // Só restaura dados para receptoras que ainda existem
+        const restoredFormData: SexagemFormData = {};
+        receptoras.forEach(r => {
+          if (savedFormData[r.receptora_id]) {
+            restoredFormData[r.receptora_id] = savedFormData[r.receptora_id];
+          } else {
+            restoredFormData[r.receptora_id] = {
+              data_sexagem: hoje,
+              sexagens: Array(r.numero_gestacoes).fill(''),
+              observacoes: '',
+            };
+          }
+        });
+        setFormData(restoredFormData);
+        sessionStorage.removeItem('sexagem_formdata_restore');
+      } catch {
+        sessionStorage.removeItem('sexagem_formdata_restore');
+      }
+    }
+  }, [receptoras, hoje]);
+
   useEffect(() => {
     loadFazendas();
     loadTodasFazendas();
@@ -816,6 +955,9 @@ export default function Sexagem() {
           : `${receptoras.length} sexagem(ns) registrada(s)`,
       });
 
+      // Limpar rascunho após salvar com sucesso
+      limparRascunho();
+
       if (todasComSexagem) {
         // Se fechou o lote, limpa a seleção para permitir novo trabalho
         setLoteSelecionado(null);
@@ -1196,6 +1338,25 @@ export default function Sexagem() {
             </Card>
           ) : null}
         </div>
+
+      {/* Dialog Restaurar Sessão em Andamento */}
+      <AlertDialog open={showRestaurarDialog} onOpenChange={setShowRestaurarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              Sexagem não finalizada
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem uma sessão de sexagem em andamento que não foi finalizada. Deseja continuar de onde parou?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={descartarRascunho}>Descartar</AlertDialogCancel>
+            <AlertDialogAction onClick={restaurarRascunho}>Restaurar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

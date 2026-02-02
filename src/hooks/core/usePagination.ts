@@ -3,7 +3,7 @@
  * Reutilizável em qualquer tabela com paginação
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 
 export interface UsePaginationOptions {
   /** Tamanho da página (padrão: 20) */
@@ -72,7 +72,7 @@ export function usePagination<T = unknown>(
   }, [currentPage, totalPages]);
 
   // Se a página válida é diferente da atual, atualizar
-  useMemo(() => {
+  useEffect(() => {
     if (validPage !== currentPage) {
       setCurrentPage(validPage);
     }

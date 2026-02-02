@@ -1,8 +1,8 @@
 /**
- * Card de estatísticas reprodutivas da receptora
+ * Card de estatísticas reprodutivas da receptora - Compacto
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Activity, Heart, RefreshCw } from 'lucide-react';
 import type { Estatisticas } from '@/lib/receptoraHistoricoUtils';
 
 interface ReceptoraEstatisticasCardProps {
@@ -10,27 +10,41 @@ interface ReceptoraEstatisticasCardProps {
 }
 
 export function ReceptoraEstatisticasCard({ estatisticas }: ReceptoraEstatisticasCardProps) {
+  const taxaSucesso = estatisticas.totalCiclos > 0
+    ? ((estatisticas.totalGestacoes / estatisticas.totalCiclos) * 100).toFixed(0)
+    : '—';
+
+  const stats = [
+    { icon: Activity, label: 'Ciclos', value: estatisticas.totalCiclos, color: 'blue' },
+    { icon: Heart, label: 'Gestações', value: estatisticas.totalGestacoes, color: 'emerald' },
+    { icon: RefreshCw, label: 'Desde Última', value: estatisticas.ciclosDesdeUltimaGestacao, color: 'amber' },
+    { icon: null, label: 'Taxa', value: taxaSucesso !== '—' ? `${taxaSucesso}%` : '—', color: 'primary' },
+  ];
+
+  const colorClasses: Record<string, string> = {
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    primary: 'bg-primary/10 text-primary',
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Estatísticas Reprodutivas</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-2xl font-bold text-blue-700">{estatisticas.totalCiclos}</p>
-            <p className="text-sm text-slate-600 mt-1">Ciclos Realizados</p>
+    <div className="rounded-lg border border-border bg-card p-3">
+      <div className="grid grid-cols-4 gap-2">
+        {stats.map((stat, index) => (
+          <div key={index} className="text-center">
+            <div className={`inline-flex items-center justify-center w-7 h-7 rounded-md ${colorClasses[stat.color]} mb-1`}>
+              {stat.icon ? (
+                <stat.icon className="w-3.5 h-3.5" />
+              ) : (
+                <span className="text-[10px] font-bold">%</span>
+              )}
+            </div>
+            <p className="text-lg font-bold text-foreground">{stat.value}</p>
+            <p className="text-[10px] text-muted-foreground">{stat.label}</p>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-            <p className="text-2xl font-bold text-green-700">{estatisticas.totalGestacoes}</p>
-            <p className="text-sm text-slate-600 mt-1">Gestações</p>
-          </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-            <p className="text-2xl font-bold text-orange-700">{estatisticas.ciclosDesdeUltimaGestacao}</p>
-            <p className="text-sm text-slate-600 mt-1">Ciclos desde Última Gestação</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+    </div>
   );
 }

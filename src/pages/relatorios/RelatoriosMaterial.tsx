@@ -211,18 +211,8 @@ export default function RelatoriosMaterial() {
   const loadDosesSemen = async () => {
     let query = supabase
       .from('doses_semen')
-      .select(`
-        id,
-        cliente_id,
-        clientes(nome),
-        touro_id,
-        touros(nome, registro),
-        tipo_semen,
-        quantidade_disponivel,
-        partida,
-        data_aquisicao
-      `)
-      .gt('quantidade_disponivel', 0)
+      .select('*')
+      .gt('quantidade', 0)
       .order('created_at', { ascending: false });
 
     // Filtros
@@ -240,20 +230,50 @@ export default function RelatoriosMaterial() {
       query = query.eq('tipo_semen', filtroTipo);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Erro ao carregar doses:', error);
+      setDosesSemen([]);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setDosesSemen([]);
+      return;
+    }
+
+    // Buscar nomes dos clientes e touros separadamente
+    const clienteIds = [...new Set(data.map(d => d.cliente_id).filter(Boolean))];
+    const touroIds = [...new Set(data.map(d => d.touro_id).filter(Boolean))];
+
+    const [clientesResult, tourosResult] = await Promise.all([
+      clienteIds.length > 0
+        ? supabase.from('clientes').select('id, nome').in('id', clienteIds)
+        : Promise.resolve({ data: [] }),
+      touroIds.length > 0
+        ? supabase.from('touros').select('id, nome, registro').in('id', touroIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const clientesMap = new Map<string, string>();
+    const tourosMap = new Map<string, { nome: string; registro?: string }>();
+
+    clientesResult.data?.forEach(c => clientesMap.set(c.id, c.nome));
+    tourosResult.data?.forEach(t => tourosMap.set(t.id, { nome: t.nome, registro: t.registro }));
 
     setDosesSemen(
-      data?.map(d => ({
+      data.map(d => ({
         id: d.id,
         cliente_id: d.cliente_id,
-        cliente_nome: (d.clientes as any)?.nome ?? 'N/A',
-        touro_nome: (d.touros as any)?.nome ?? 'N/A',
-        touro_registro: (d.touros as any)?.registro,
+        cliente_nome: clientesMap.get(d.cliente_id) ?? 'N/A',
+        touro_nome: tourosMap.get(d.touro_id)?.nome ?? 'N/A',
+        touro_registro: tourosMap.get(d.touro_id)?.registro,
         tipo_semen: d.tipo_semen,
-        quantidade_disponivel: d.quantidade_disponivel,
+        quantidade_disponivel: d.quantidade ?? 0,
         partida: d.partida,
         data_aquisicao: d.data_aquisicao,
-      })) ?? []
+      }))
     );
   };
 

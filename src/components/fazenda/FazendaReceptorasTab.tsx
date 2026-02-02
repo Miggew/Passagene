@@ -50,7 +50,6 @@ interface FazendaReceptorasTabProps {
 
 export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptorasTabProps) {
   const navigate = useNavigate();
-  const [showHistoricoId, setShowHistoricoId] = useState<string | null>(null);
 
   // Data hook - já filtrado pela fazenda
   const {

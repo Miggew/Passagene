@@ -3,19 +3,37 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#2ECC71" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PassaGene" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="PassaGene" />
+  <meta name="msapplication-TileColor" content="#2ECC71" />
+  <meta name="msapplication-tap-highlight" content="no" />
+
+  <!-- Icons -->
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="mask-icon" href="/mask-icon.svg" color="#2ECC71" />
+
+  <!-- App Info -->
   <title>PassaGene - Sistema FIV/TE</title>
   <meta name="description" content="PassaGene - Sistema completo de controle de FIV/TE bovina" />
   <meta name="author" content="PassaGene" />
 
+  <!-- Open Graph -->
   <meta property="og:title" content="PassaGene - Sistema FIV/TE" />
   <meta property="og:description" content="PassaGene - Sistema completo de controle de FIV/TE bovina" />
   <meta property="og:type" content="website" />
-
+  <meta property="og:image" content="/og-image.png" />
 </head>
 
-<body>  <div id="root"></div>
+<body>
+  <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

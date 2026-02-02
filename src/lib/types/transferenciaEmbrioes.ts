@@ -15,7 +15,6 @@ export interface SessaoPersistida extends TransferenciaSessao {
   data_passo2?: string;
   veterinario_responsavel?: string;
   tecnico_responsavel?: string;
-  incluir_cio_livre?: boolean;
 }
 
 // Item de query de transferência com receptora
@@ -104,7 +103,6 @@ export type SessaoTransferenciaStorage = {
   origem_embriao?: 'PACOTE' | 'CONGELADO';
   filtro_cliente_id?: string;
   filtro_raca?: string;
-  incluir_cio_livre?: boolean;
 };
 
 export type RelatorioTransferenciaItem = {
@@ -112,6 +110,7 @@ export type RelatorioTransferenciaItem = {
   doadora: string;
   touro: string;
   classificacao: string;
+  receptora_id?: string;
   receptora_brinco: string;
   receptora_nome: string;
   data_te?: string | null;

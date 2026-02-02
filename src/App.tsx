@@ -17,10 +17,6 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 // Paginas do app
 const Home = lazy(() => import('./pages/Home'));
-const Clientes = lazy(() => import('./pages/Clientes'));
-const ClienteForm = lazy(() => import('./pages/ClienteForm'));
-const ClienteDetail = lazy(() => import('./pages/ClienteDetail'));
-const Fazendas = lazy(() => import('./pages/Fazendas'));
 const FazendaDetail = lazy(() => import('./pages/FazendaDetail'));
 const Doadoras = lazy(() => import('./pages/Doadoras'));
 const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
@@ -44,8 +40,7 @@ const DiagnosticoSessaoDetail = lazy(() => import('./pages/DiagnosticoSessaoDeta
 const Sexagem = lazy(() => import('./pages/Sexagem'));
 const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
-const Usuarios = lazy(() => import('./pages/Usuarios'));
-const Portal = lazy(() => import('./pages/Portal'));
+const Administrativo = lazy(() => import('./pages/Administrativo'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
 
@@ -55,6 +50,13 @@ const RelatoriosServicos = lazy(() => import('./pages/relatorios/RelatoriosServi
 const RelatoriosAnimais = lazy(() => import('./pages/relatorios/RelatoriosAnimais'));
 const RelatoriosMaterial = lazy(() => import('./pages/relatorios/RelatoriosMaterial'));
 const RelatoriosProducao = lazy(() => import('./pages/relatorios/RelatoriosProducao'));
+
+// Páginas do Hub Genética (Catálogo de Vendas)
+const GeneticaHome = lazy(() => import('./pages/genetica/GeneticaHome'));
+const GeneticaDoadoras = lazy(() => import('./pages/genetica/GeneticaDoadoras'));
+const GeneticaDoadoraDetail = lazy(() => import('./pages/genetica/GeneticaDoadoraDetail'));
+const GeneticaTouros = lazy(() => import('./pages/genetica/GeneticaTouros'));
+const GeneticaTouroDetail = lazy(() => import('./pages/genetica/GeneticaTouroDetail'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,23 +119,22 @@ const AppRoutes = () => {
           {/* Página de sem acesso (protegida, mas sem layout) */}
           <Route path="/sem-acesso" element={<ProtectedRoute><SemAcesso /></ProtectedRoute>} />
 
-          {/* Página inicial - seleção de hubs (protegida, sem MainLayout) */}
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-
           {/* Rotas protegidas (app principal com MainLayout) */}
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
 
-            {/* Clientes */}
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/clientes/novo" element={<ClienteForm />} />
-            <Route path="/clientes/:id" element={<ClienteDetail />} />
-            <Route path="/clientes/:id/editar" element={<ClienteForm />} />
+            {/* Página inicial - Dashboard unificado por tipo de usuário */}
+            <Route path="/" element={<Home />} />
 
-            {/* Usuarios (admin only) */}
-            <Route path="/usuarios" element={<Usuarios />} />
+            {/* Painel Administrativo Unificado */}
+            <Route path="/administrativo" element={<Administrativo />} />
 
-            {/* Fazendas */}
-            <Route path="/fazendas" element={<Fazendas />} />
+            {/* Redirecionamentos das rotas antigas */}
+            <Route path="/clientes" element={<Navigate to="/administrativo?tab=clientes" replace />} />
+            <Route path="/clientes/*" element={<Navigate to="/administrativo?tab=clientes" replace />} />
+            <Route path="/usuarios" element={<Navigate to="/administrativo?tab=usuarios" replace />} />
+
+            {/* Fazendas - listagem redireciona, mas detalhe mantem (tem tabs complexas) */}
+            <Route path="/fazendas" element={<Navigate to="/administrativo?tab=fazendas" replace />} />
             <Route path="/fazendas/:id" element={<FazendaDetail />} />
 
             {/* Doadoras */}
@@ -180,15 +181,19 @@ const AppRoutes = () => {
             <Route path="/sexagem" element={<Sexagem />} />
             <Route path="/sexagem/sessao" element={<SexagemSessaoDetail />} />
 
-            {/* Portal do Cliente */}
-            <Route path="/portal" element={<Portal />} />
-
             {/* Hub Relatórios */}
             <Route path="/relatorios" element={<RelatoriosHome />} />
             <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
             <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />
             <Route path="/relatorios/material" element={<RelatoriosMaterial />} />
             <Route path="/relatorios/producao" element={<RelatoriosProducao />} />
+
+            {/* Hub Genética (Catálogo de Vendas) */}
+            <Route path="/genetica" element={<GeneticaHome />} />
+            <Route path="/genetica/doadoras" element={<GeneticaDoadoras />} />
+            <Route path="/genetica/doadoras/:id" element={<GeneticaDoadoraDetail />} />
+            <Route path="/genetica/touros" element={<GeneticaTouros />} />
+            <Route path="/genetica/touros/:id" element={<GeneticaTouroDetail />} />
           </Route>
 
           {/* Rota 404 */}

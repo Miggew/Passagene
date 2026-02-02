@@ -124,26 +124,6 @@ export function diffDays(from: string, to: string): number {
 }
 
 /**
- * Verifica se uma data é válida
- */
-export function isValidDate(dateStr: string | null | undefined): boolean {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
-  return !isNaN(date.getTime());
-}
-
-/**
- * Compara duas datas
- * @returns -1 se a < b, 0 se iguais, 1 se a > b
- */
-export function compareDates(a: string | null | undefined, b: string | null | undefined): number {
-  if (!a && !b) return 0;
-  if (!a) return -1;
-  if (!b) return 1;
-  return a.localeCompare(b);
-}
-
-/**
  * Formata data relativa (ex: "há 2 dias", "em 3 dias")
  */
 export function formatRelativeDate(dateStr: string | null | undefined): string {

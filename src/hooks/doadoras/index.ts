@@ -7,6 +7,7 @@ export type {
   Fazenda,
   DoadoraComAspiracao,
   UseDoadorasDataReturn,
+  SortOrder,
 } from './useDoadorasData';
 
 export { useDoadorasForm, racasPredefinidas } from './useDoadorasForm';

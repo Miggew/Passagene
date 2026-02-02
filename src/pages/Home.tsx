@@ -1,139 +1,82 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Dna, FlaskConical, LogOut, Moon, Sun, FileBarChart } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { useUserClientes } from '@/hooks/useUserClientes';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import logoEscrito from '@/assets/logoescrito.svg';
-import { CowIcon } from '@/components/icons/CowIcon';
-
-// Mapeamento de ícones por código do hub
-const hubIcons: Record<string, React.ElementType> = {
-  administrativo: Building2,
-  genetica: Dna,
-  laboratorio: FlaskConical,
-  campo: CowIcon,
-  relatorios: FileBarChart,
-};
+import {
+  HomeDashboardCliente,
+  HomeDashboardOperacional,
+  HomeDashboardAdmin,
+} from '@/components/home';
 
 export default function Home() {
-  const navigate = useNavigate();
-  const { getAccessibleHubs, profile } = usePermissions();
-  const { signOut } = useAuth();
-  const [isDark, setIsDark] = React.useState(() =>
-    document.documentElement.classList.contains('dark')
-  );
+  const { isAdmin, isCliente, isOperacional, profile, clienteId } = usePermissions();
+  const { clienteIds, clientes, loading: loadingClientes } = useUserClientes();
 
-  const accessibleHubs = getAccessibleHubs();
-
-  const handleHubClick = (hubCode: string, firstRoute: string) => {
-    navigate(firstRoute);
+  // Determinar saudação baseado no tipo de usuário
+  const getSaudacao = () => {
+    const hora = new Date().getHours();
+    if (hora < 12) return 'Bom dia';
+    if (hora < 18) return 'Boa tarde';
+    return 'Boa noite';
   };
 
-  const toggleDarkMode = () => {
-    document.documentElement.classList.toggle('dark');
-    setIsDark(!isDark);
+  const getSubtitulo = () => {
+    if (isCliente) return 'Acompanhe suas fazendas e animais';
+    if (isOperacional) return 'Visão geral dos clientes vinculados';
+    return 'Visão geral do sistema';
   };
+
+  // Loading state para operacional e cliente
+  if ((isCliente || isOperacional) && loadingClientes) {
+    return <LoadingSpinner />;
+  }
 
   return (
-    <div className="min-h-screen bg-secondary flex flex-col">
-      {/* Header unificado */}
-      <header className="border-b border-border bg-card">
-        <div className="flex items-center justify-between px-4 md:px-6 h-16">
-          {/* Logo */}
-          <img
-            src={logoEscrito}
-            alt="PassaGene"
-            className="h-12 w-auto"
-          />
+    <div className="space-y-6">
+      {/* Header Premium com Logo */}
+      <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-6 relative overflow-hidden">
+        {/* Decoração de fundo */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full translate-y-1/2 -translate-x-1/2" />
 
-          {/* Área direita: user + dark mode + logout */}
-          <div className="flex items-center gap-4">
-            {/* Dark mode toggle */}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={toggleDarkMode}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-
-            {profile && (
-              <span className="hidden sm:inline text-sm text-muted-foreground">
-                Olá, <span className="text-foreground font-medium">{profile.nome}</span>
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline ml-1">Sair</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-4xl">
-          <div className="text-center mb-12">
-            <h2 className="font-heading text-2xl font-semibold text-foreground mb-2">
-              Selecione um módulo
-            </h2>
-            <p className="text-muted-foreground">
-              Escolha o hub que deseja acessar
-            </p>
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Lado esquerdo: Saudação */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-8 rounded-full bg-primary" />
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  {getSaudacao()}, {profile?.nome?.split(' ')[0] || 'Usuário'}
+                </h1>
+                <p className="text-sm text-muted-foreground">{getSubtitulo()}</p>
+              </div>
+            </div>
           </div>
 
-          {accessibleHubs.length === 0 ? (
-            <div className="text-center py-12 rounded-2xl border border-border bg-card shadow-sm p-6">
-              <p className="text-muted-foreground">
-                Você não tem acesso a nenhum módulo.
-              </p>
-              <p className="text-muted-foreground/70 text-sm mt-2">
-                Entre em contato com o administrador.
-              </p>
+          {/* Lado direito: Logo */}
+          <div className="flex items-center justify-center md:justify-end">
+            <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-4 shadow-sm">
+              <img
+                src={logoEscrito}
+                alt="PassaGene"
+                className="h-10 w-auto"
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {accessibleHubs.map((hub) => {
-                const Icon = hubIcons[hub.code] || Building2;
-
-                return (
-                  <button
-                    key={hub.code}
-                    onClick={() => handleHubClick(hub.code, hub.routes[0])}
-                    className={cn(
-                      'flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200',
-                      'bg-primary hover:bg-primary-dark text-primary-foreground',
-                      'shadow-md hover:shadow-lg',
-                      'transform hover:scale-105 active:scale-[0.98]'
-                    )}
-                  >
-                    <Icon className="w-14 h-14 mb-4" />
-                    <span className="font-heading text-lg font-semibold">{hub.name}</span>
-                    {hub.description && (
-                      <span className="text-sm opacity-80 mt-1 text-center">
-                        {hub.description}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          </div>
         </div>
-      </main>
+      </div>
 
-      {/* Footer */}
-      <footer className="p-6 text-center text-muted-foreground text-sm border-t border-border bg-card">
-        PassaGene &copy; {new Date().getFullYear()}
-      </footer>
+      {/* Dashboard baseado no tipo de usuário */}
+      {isAdmin && <HomeDashboardAdmin />}
+      {isOperacional && !isAdmin && (
+        <HomeDashboardOperacional clienteIds={clienteIds} />
+      )}
+      {isCliente && clienteId && (
+        <HomeDashboardCliente
+          clienteId={clienteId}
+          clienteNome={clientes.find(c => c.id === clienteId)?.nome}
+        />
+      )}
     </div>
   );
 }

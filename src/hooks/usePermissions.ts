@@ -26,6 +26,9 @@ export function usePermissions() {
   // Verifica se o usuário é cliente
   const isCliente = permissions?.isCliente ?? false;
 
+  // Verifica se o usuário é operacional
+  const isOperacional = permissions?.profile?.user_type === 'operacional';
+
   // Retorna o perfil do usuário
   const profile = permissions?.profile ?? null;
 
@@ -35,11 +38,30 @@ export function usePermissions() {
   // Verifica se o usuário tem permissões carregadas
   const hasPermissions = permissions !== null;
 
+  // Mapeamento de rotas especiais para rotas de hub
+  // Rotas que não estão diretamente no hub mas pertencem a ele
+  const routeAliases: Record<string, string> = {
+    '/receptoras': '/fazendas', // Histórico de receptoras pertence ao hub de fazendas
+  };
+
   // Encontra o hub de uma rota específica
   const getHubForRoute = (route: string): Hub | null => {
-    return hubs.find(hub =>
+    // Primeiro tenta encontrar diretamente
+    const directMatch = hubs.find(hub =>
       hub.routes.some(r => route.startsWith(r))
-    ) ?? null;
+    );
+    if (directMatch) return directMatch;
+
+    // Se não encontrou, verifica se há um alias para esta rota
+    for (const [alias, target] of Object.entries(routeAliases)) {
+      if (route.startsWith(alias)) {
+        return hubs.find(hub =>
+          hub.routes.some(r => target.startsWith(r))
+        ) ?? null;
+      }
+    }
+
+    return null;
   };
 
   // Retorna a primeira rota do primeiro hub acessível (para redirecionamento)
@@ -47,12 +69,8 @@ export function usePermissions() {
     const accessibleHubs = getAccessibleHubs();
     if (accessibleHubs.length === 0) return '/sem-acesso';
 
-    // Se for cliente, vai para o portal
-    if (isCliente) return '/portal';
-
-    // Retorna a primeira rota do primeiro hub
-    const firstHub = accessibleHubs[0];
-    return firstHub.routes[0] || '/';
+    // Todos os tipos de usuário vão para o dashboard unificado
+    return '/';
   };
 
   return {
@@ -60,6 +78,7 @@ export function usePermissions() {
     profile,
     isAdmin,
     isCliente,
+    isOperacional,
     clienteId,
     hasPermissions,
     hubs,

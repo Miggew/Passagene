@@ -384,7 +384,8 @@ export function LoteDetailView({
               </TableHeader>
               <TableBody>
                 {acasalamentos.map((acasalamento) => {
-                  const quantidadeOocitos = acasalamento.viaveis || 0;
+                  // Prioriza quantidade_oocitos (salvo no acasalamento), fallback para viaveis (retrocompatibilidade)
+                  const quantidadeOocitos = acasalamento.quantidade_oocitos || acasalamento.viaveis || 0;
                   // Clivados: usa valor editado, ou valor salvo, ou vazio
                   const clivadosEditado = editClivados[acasalamento.id];
                   const clivadosSalvo = acasalamento.embrioes_clivados_d3;
@@ -651,7 +652,7 @@ export function LoteDetailView({
                   <TableRow key={ac.id}>
                     <TableCell>{ac.doadora_registro || '-'}</TableCell>
                     <TableCell>{ac.dose_nome || '-'}</TableCell>
-                    <TableCell className="text-center">{ac.viaveis || 0}</TableCell>
+                    <TableCell className="text-center">{ac.quantidade_oocitos || ac.viaveis || 0}</TableCell>
                     <TableCell className="text-center">
                       {editQuantidadeEmbrioes[ac.id] ?? ac.total_embrioes_produzidos ?? '-'}
                     </TableCell>

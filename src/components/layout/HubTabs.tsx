@@ -25,7 +25,10 @@ export default function HubTabs() {
     document.documentElement.classList.contains('dark')
   );
 
-  const accessibleHubs = getAccessibleHubs();
+  // Filtra hubs que só têm "/" como rota (redundante com o logo)
+  const accessibleHubs = getAccessibleHubs().filter(
+    hub => !(hub.routes.length === 1 && hub.routes[0] === '/')
+  );
   const currentHub = getHubForRoute(location.pathname);
 
   const handleHubClick = (hubCode: string, firstRoute: string) => {

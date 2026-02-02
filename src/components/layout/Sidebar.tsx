@@ -2,7 +2,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
-  Users,
   Home,
   Syringe,
   TestTube,
@@ -16,17 +15,13 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
-import { ClipboardIcon } from '@/components/icons/ClipboardIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 
 // Mapeamento de ícones por rota
 const routeIcons: Record<string, React.ElementType> = {
-  '/clientes': Users,
-  '/fazendas': Home,
-  '/usuarios': Shield,
-  '/portal': ClipboardIcon,
+  '/administrativo': Shield,
   '/doadoras': DonorCowIcon,
   '/touros': Sparkles,
   '/lotes-fiv': TestTube,
@@ -48,10 +43,7 @@ const routeIcons: Record<string, React.ElementType> = {
 
 // Labels das rotas
 const routeLabels: Record<string, string> = {
-  '/clientes': 'Clientes',
-  '/fazendas': 'Fazendas',
-  '/usuarios': 'Usuários',
-  '/portal': 'Meu Portal',
+  '/administrativo': 'Painel Admin',
   '/doadoras': 'Doadoras',
   '/touros': 'Catálogo de Touros',
   '/lotes-fiv': 'Lotes FIV',
@@ -90,7 +82,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-64 bg-card border-r border-border min-h-full flex flex-col">
+    <aside className="hidden md:flex w-64 bg-card border-r border-border min-h-full flex-col">
       {/* Header do hub atual */}
       <div className="p-4 border-b border-border">
         <h2 className="font-heading text-lg font-semibold text-foreground">{currentHub.name}</h2>

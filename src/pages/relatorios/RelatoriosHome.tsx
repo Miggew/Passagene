@@ -1,21 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState, useMemo } from 'react';
+import { format } from 'date-fns';
+import { Card, CardContent } from '@/components/ui/card';
 import {
-  ClipboardList,
   Users,
   Dna,
-  TrendingUp,
-  ArrowRight,
   Calendar,
   Activity,
+  Target,
+  Stethoscope,
 } from 'lucide-react';
 import { CowIcon } from '@/components/icons/CowIcon';
 import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
 import { supabase } from '@/lib/supabase';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
 import PageHeader from '@/components/shared/PageHeader';
+import {
+  KPICard,
+  TrendLineChart,
+  HorizontalBarChart,
+  PeriodSelector,
+  gerarPeriodo,
+} from '@/components/charts';
+import type { PeriodoTipo } from '@/components/charts';
+import { useKPIData } from '@/hooks/useKPIData';
 
 interface DashboardStats {
   protocolos: number;
@@ -27,8 +34,9 @@ interface DashboardStats {
 }
 
 export default function RelatoriosHome() {
-  const navigate = useNavigate();
   const { clienteIdFilter, userContext } = useClienteFilter();
+
+  // Estado dos cards de resumo (30 dias)
   const [stats, setStats] = useState<DashboardStats>({
     protocolos: 0,
     aspiracoes: 0,
@@ -37,15 +45,39 @@ export default function RelatoriosHome() {
     embrioes: 0,
     dosesSemen: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
 
+  // Estado do período para KPIs
+  const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>('trimestre');
+  const [periodoValor, setPeriodoValor] = useState(() => {
+    const agora = new Date();
+    const t = Math.ceil((agora.getMonth() + 1) / 3);
+    return `${agora.getFullYear()}-T${t}`;
+  });
+
+  // Gerar período completo
+  const periodo = useMemo(() => gerarPeriodo(periodoTipo, periodoValor), [periodoTipo, periodoValor]);
+
+  // Buscar dados de KPIs
+  const {
+    data: kpiData,
+    loading: loadingKPI,
+    anoAtual,
+    anoAnterior,
+    temDadosAnoAnterior,
+  } = useKPIData({
+    periodo,
+    clienteId: clienteIdFilter ?? undefined,
+  });
+
+  // Carregar estatísticas de 30 dias
   useEffect(() => {
     loadStats();
   }, [clienteIdFilter]);
 
   const loadStats = async () => {
     try {
-      setLoading(true);
+      setLoadingStats(true);
 
       // Buscar fazendas do cliente (se filtro ativo)
       let fazendaIds: string[] = [];
@@ -56,6 +88,8 @@ export default function RelatoriosHome() {
           .eq('cliente_id', clienteIdFilter);
         fazendaIds = fazendas?.map(f => f.id) ?? [];
       }
+
+      const dataLimite = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Queries em paralelo
       const [
@@ -72,11 +106,11 @@ export default function RelatoriosHome() {
               .from('protocolos_sincronizacao')
               .select('id', { count: 'exact', head: true })
               .in('fazenda_id', fazendaIds)
-              .gte('data_inicio', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+              .gte('data_inicio', dataLimite)
           : supabase
               .from('protocolos_sincronizacao')
               .select('id', { count: 'exact', head: true })
-              .gte('data_inicio', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+              .gte('data_inicio', dataLimite),
 
         // Aspirações dos últimos 30 dias
         clienteIdFilter && fazendaIds.length > 0
@@ -84,13 +118,13 @@ export default function RelatoriosHome() {
               .from('pacotes_aspiracao')
               .select('id', { count: 'exact', head: true })
               .in('fazenda_id', fazendaIds)
-              .gte('data_aspiracao', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+              .gte('data_aspiracao', dataLimite)
           : supabase
               .from('pacotes_aspiracao')
               .select('id', { count: 'exact', head: true })
-              .gte('data_aspiracao', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+              .gte('data_aspiracao', dataLimite),
 
-        // Total de receptoras (usando view para fazenda atual)
+        // Total de receptoras
         clienteIdFilter && fazendaIds.length > 0
           ? supabase
               .from('vw_receptoras_fazenda_atual')
@@ -144,176 +178,288 @@ export default function RelatoriosHome() {
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
     } finally {
-      setLoading(false);
+      setLoadingStats(false);
     }
   };
 
-  const menuCards = [
-    {
-      title: 'Serviços de Campo',
-      description: 'Protocolos, Aspirações, TE, DG e Sexagem',
-      icon: ClipboardList,
-      route: '/relatorios/servicos',
-      color: 'bg-primary/10 text-primary',
-    },
-    {
-      title: 'Animais',
-      description: 'Receptoras e Doadoras',
-      icon: CowIcon,
-      route: '/relatorios/animais',
-      color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    },
-    {
-      title: 'Material Genético',
-      description: 'Embriões e Doses de Sêmen',
-      icon: EmbryoIcon,
-      route: '/relatorios/material',
-      color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    },
-    {
-      title: 'Produção',
-      description: 'Lotes FIV e Métricas',
-      icon: TrendingUp,
-      route: '/relatorios/producao',
-      color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-    },
-  ];
+  // Preparar comparativo para KPICard
+  const getComparativo = (kpi: typeof kpiData.taxaPrenhez) => {
+    if (kpi.anterior === null) return undefined;
+    return {
+      valorAnterior: kpi.anterior,
+      labelAnterior: periodo.labelAnterior,
+      delta: kpi.delta ?? 0,
+      deltaPercent: kpi.deltaPercent ?? 0,
+    };
+  };
+
+  const getSemComparativo = () => {
+    if (temDadosAnoAnterior) return undefined;
+    return {
+      mensagem: `Comparativo disponível quando houver dados de ${anoAnterior}`,
+    };
+  };
 
   return (
     <div className="p-6 space-y-6">
       <PageHeader
-        title="Hub Relatórios"
+        title="Visão Geral"
         description={
           userContext.isCliente
-            ? `Visualize os dados e relatórios da sua conta`
-            : 'Central de consultas e relatórios do sistema'
+            ? 'Análise de performance da sua conta'
+            : 'Análise de performance e indicadores do sistema'
         }
       />
 
-      {/* Cards de estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Activity className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? '...' : stats.protocolos}
-                </p>
-                <p className="text-xs text-muted-foreground">Protocolos (30d)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Calendar className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? '...' : stats.aspiracoes}
-                </p>
-                <p className="text-xs text-muted-foreground">Aspirações (30d)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <Users className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? '...' : stats.receptoras}
-                </p>
-                <p className="text-xs text-muted-foreground">Receptoras</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-500/10">
-                <Dna className="w-5 h-5 text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? '...' : stats.doadoras}
-                </p>
-                <p className="text-xs text-muted-foreground">Doadoras</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-cyan-500/10">
-                <EmbryoIcon className="w-5 h-5 text-cyan-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? '...' : stats.embrioes}
-                </p>
-                <p className="text-xs text-muted-foreground">Embriões Cong.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-rose-500/10">
-                <Dna className="w-5 h-5 text-rose-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? '...' : stats.dosesSemen}
-                </p>
-                <p className="text-xs text-muted-foreground">Doses Sêmen</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Seletor de Período */}
+      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
+        <PeriodSelector
+          tipo={periodoTipo}
+          valor={periodoValor}
+          onTipoChange={setPeriodoTipo}
+          onValorChange={setPeriodoValor}
+        />
       </div>
 
-      {/* Cards de navegação */}
+      {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {menuCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Card
-              key={card.route}
-              className="cursor-pointer hover:shadow-md transition-shadow group"
-              onClick={() => navigate(card.route)}
-            >
-              <CardHeader className="pb-2">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.color}`}>
-                  <Icon className="w-6 h-6" />
+        <KPICard
+          title="Taxa de Prenhez"
+          value={loadingKPI ? '...' : `${kpiData.taxaPrenhez.atual.toFixed(1)}%`}
+          subtitle={`${kpiData.taxaPrenhez.total} diagnósticos`}
+          icon={<Target className="w-5 h-5 text-emerald-600" />}
+          iconBgColor="bg-emerald-500/10"
+          comparativo={getComparativo(kpiData.taxaPrenhez)}
+          semComparativo={getSemComparativo()}
+          loading={loadingKPI}
+        />
+
+        <KPICard
+          title="Taxa de Virada"
+          value={loadingKPI ? '...' : `${kpiData.taxaVirada.atual.toFixed(1)}%`}
+          subtitle={`${kpiData.taxaVirada.total} embriões`}
+          icon={<EmbryoIcon className="w-5 h-5 text-cyan-600" />}
+          iconBgColor="bg-cyan-500/10"
+          comparativo={getComparativo(kpiData.taxaVirada)}
+          semComparativo={getSemComparativo()}
+          loading={loadingKPI}
+        />
+
+        <KPICard
+          title="Total de TEs"
+          value={loadingKPI ? '...' : kpiData.totalTEs.toLocaleString()}
+          subtitle="transferências realizadas"
+          icon={<Activity className="w-5 h-5 text-violet-600" />}
+          iconBgColor="bg-violet-500/10"
+          loading={loadingKPI}
+        />
+
+        <KPICard
+          title="Total de DGs"
+          value={loadingKPI ? '...' : kpiData.totalDGs.toLocaleString()}
+          subtitle="diagnósticos realizados"
+          icon={<Stethoscope className="w-5 h-5 text-amber-600" />}
+          iconBgColor="bg-amber-500/10"
+          loading={loadingKPI}
+        />
+      </div>
+
+      {/* Cards de Resumo Rápido (30 dias) */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground px-1">Resumo dos últimos 30 dias</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Activity className="w-5 h-5 text-primary" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-base mb-1 flex items-center justify-between">
-                  {card.title}
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                </CardTitle>
-                <CardDescription>{card.description}</CardDescription>
-              </CardContent>
-            </Card>
-          );
-        })}
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? '...' : stats.protocolos}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Protocolos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <Calendar className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? '...' : stats.aspiracoes}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Aspirações</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/10">
+                  <CowIcon className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? '...' : stats.receptoras}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Receptoras</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-500/10">
+                  <Dna className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? '...' : stats.doadoras}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Doadoras</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10">
+                  <EmbryoIcon className="w-5 h-5 text-cyan-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? '...' : stats.embrioes}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Embriões Cong.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-rose-500/10">
+                  <Dna className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? '...' : stats.dosesSemen}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Doses Sêmen</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Gráfico de Tendência */}
+      <TrendLineChart
+        title="Tendência da Taxa de Prenhez"
+        description={`Evolução mensal - ${periodo.label}`}
+        data={kpiData.tendenciaPrenhez}
+        anoAtual={anoAtual}
+        anoAnterior={temDadosAnoAnterior ? anoAnterior : undefined}
+        loading={loadingKPI}
+      />
+
+      {/* Rankings - Primeira Linha */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <HorizontalBarChart
+          title="Taxa de Virada por Touro"
+          description="Ranking de touros por conversão de oócitos em embriões"
+          data={kpiData.rankingTouros}
+          loading={loadingKPI}
+          showMeta
+          metaValue={40}
+          barColor="hsl(var(--primary))"
+          maxItems={8}
+        />
+
+        <HorizontalBarChart
+          title="Eficiência por Fazenda"
+          description="Ranking de fazendas por taxa de prenhez"
+          data={kpiData.rankingFazendas}
+          loading={loadingKPI}
+          showMeta
+          metaValue={50}
+          barColor="hsl(180, 70%, 45%)"
+          maxItems={8}
+        />
+      </div>
+
+      {/* Rankings - Segunda Linha */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <HorizontalBarChart
+          title="Top 10 Doadoras"
+          description="Por taxa de virada de embriões"
+          data={kpiData.rankingDoadoras}
+          loading={loadingKPI}
+          showMeta
+          metaValue={35}
+          barColor="hsl(280, 60%, 55%)"
+          maxItems={10}
+        />
+
+        <HorizontalBarChart
+          title="Eficiência dos Veterinários"
+          description="Taxa de prenhez por veterinário"
+          data={kpiData.rankingVeterinarios}
+          loading={loadingKPI}
+          showMeta
+          metaValue={50}
+          barColor="hsl(210, 70%, 50%)"
+          maxItems={8}
+        />
+
+        <HorizontalBarChart
+          title="Eficiência dos Técnicos"
+          description="Taxa de prenhez por técnico"
+          data={kpiData.rankingTecnicos}
+          loading={loadingKPI}
+          showMeta
+          metaValue={50}
+          barColor="hsl(25, 80%, 55%)"
+          maxItems={8}
+        />
+      </div>
+
+      {/* Legenda de cores */}
+      <div className="rounded-xl border border-border bg-muted/30 p-4">
+        <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Legenda:</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-emerald-600" />
+            <span>Acima da meta</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-amber-500" />
+            <span>Próximo da meta (80%+)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-red-500" />
+            <span>Abaixo da meta</span>
+          </div>
+          {temDadosAnoAnterior && (
+            <div className="ml-auto flex items-center gap-2">
+              <div className="w-6 h-0.5 bg-muted-foreground opacity-50" />
+              <span>Período anterior</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

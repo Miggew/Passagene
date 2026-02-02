@@ -130,13 +130,33 @@ export function useTransferenciaHandlers({
       setSubmitting(true);
 
       if (origemReceptora === 'CIO_LIVRE') {
-        const { error: cioLivreError } = await supabase
+        const { error: cioLivreError, data: cioLivreData } = await supabase
           .from('receptoras_cio_livre')
-          .update({ status: 'DESCARTADA' })
+          .update({ ativa: false })
           .eq('receptora_id', formData.receptora_id)
-          .eq('status', 'DISPONIVEL');
+          .eq('ativa', true)
+          .select('id');
 
-        if (cioLivreError) throw cioLivreError;
+        if (cioLivreError) {
+          // Log detalhado para diagnóstico de problemas de RLS
+          console.error('Erro ao descartar receptora CIO LIVRE:', {
+            error: cioLivreError,
+            code: cioLivreError.code,
+            message: cioLivreError.message,
+            details: cioLivreError.details,
+            hint: cioLivreError.hint,
+            receptora_id: formData.receptora_id,
+          });
+          throw cioLivreError;
+        }
+
+        // Verificar se o update realmente afetou algum registro
+        if (!cioLivreData || cioLivreData.length === 0) {
+          console.warn('Nenhum registro de CIO LIVRE encontrado para desativar:', {
+            receptora_id: formData.receptora_id,
+            possivel_causa: 'Registro não existe ou RLS bloqueou acesso',
+          });
+        }
       } else if (protocoloReceptoraId) {
         const { error: prError } = await supabase
           .from('protocolo_receptoras')
@@ -152,7 +172,10 @@ export function useTransferenciaHandlers({
         await verificarEAtualizarStatusProtocolo(protocoloReceptoraId);
       }
 
-      if (formData.receptora_id) {
+      // Para PROTOCOLO: mudar status para VAZIA (não recebeu embrião)
+      // Para CIO LIVRE: NÃO mudar status (ela mantém o status anterior - pode ser PRENHE, etc)
+      // O cio livre foi apenas um evento de observação que não se confirmou
+      if (formData.receptora_id && origemReceptora !== 'CIO_LIVRE') {
         await supabase
           .from('receptoras')
           .update({ status_reprodutivo: 'VAZIA' })
@@ -162,7 +185,7 @@ export function useTransferenciaHandlers({
       toast({
         title: 'Receptora descartada',
         description: origemReceptora === 'CIO_LIVRE'
-          ? `${brincoReceptora} foi descartada e saiu da lista de cio livre.`
+          ? `${brincoReceptora} foi descartada da lista de cio livre. Status anterior mantido.`
           : `${brincoReceptora} foi descartada e não receberá embrião neste protocolo.`,
       });
 
@@ -227,18 +250,37 @@ export function useTransferenciaHandlers({
       return;
     }
 
+    // Validação de status - verifica se a receptora pode receber embrião
+    // Para CIO LIVRE: SEMPRE permite (o cio livre é um evento que interrompe qualquer status anterior)
+    //   - Se ela estava PRENHE e entrou em cio livre, significa que pode ter abortado
+    //   - O veterinário avalia na hora da TE se realmente está em cio
+    //   - Se receber embrião, confirma o cio livre e status vira SERVIDA
+    // Para PROTOCOLO: usa a validação padrão de transição
     if (formData.receptora_id && !permitirSegundaTe) {
-      const statusBase = receptoraSelecionada.status_reprodutivo || 'VAZIA';
-      const statusAtual = receptoraSelecionada.origem === 'CIO_LIVRE' ? 'SINCRONIZADA' : statusBase;
-      const validacao = validarTransicaoStatus(statusAtual, 'REALIZAR_TE');
+      // CIO LIVRE: sempre permitir (independente do status anterior)
+      if (receptoraSelecionada.origem !== 'CIO_LIVRE') {
+        const statusBase = receptoraSelecionada.status_reprodutivo || 'VAZIA';
 
-      if (!validacao.valido) {
-        toast({
-          title: 'Erro de validação',
-          description: validacao.mensagem || 'A receptora não pode receber embrião no estado atual',
-          variant: 'destructive',
-        });
-        return;
+        // Para receptoras de PROTOCOLO, verificar se pode receber embrião
+        if (statusBase.startsWith('PRENHE')) {
+          toast({
+            title: 'Receptora indisponível',
+            description: 'Esta receptora já está prenhe e não pode receber outro embrião.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const validacao = validarTransicaoStatus(statusBase, 'REALIZAR_TE');
+
+        if (!validacao.valido) {
+          toast({
+            title: 'Erro de validação',
+            description: validacao.mensagem || 'A receptora não pode receber embrião no estado atual',
+            variant: 'destructive',
+          });
+          return;
+        }
       }
     }
 
@@ -328,9 +370,9 @@ export function useTransferenciaHandlers({
         loadPacotes();
       }
 
-      if (formData.fazenda_id) {
-        await recarregarReceptoras(formData.fazenda_id, { contagem: novaContagem, info: novaInfo });
-      }
+      // NÃO recarregar receptoras do banco após transferência
+      // A lista local é atualizada via contagemSessaoPorReceptora
+      // e o componente ReceptorasSelection filtra baseado nisso
     } catch (error) {
       toast({
         title: 'Erro ao registrar transferência',
@@ -344,7 +386,7 @@ export function useTransferenciaHandlers({
     formData, origemEmbriao, receptoras, contagemSessaoPorReceptora, receptorasSessaoInfo,
     setFormData, setSubmitting, setTransferenciasIdsSessao, setTransferenciasSessao,
     setContagemSessaoPorReceptora, setReceptorasSessaoInfo,
-    loadPacotes, loadEmbrioesCongelados, recarregarReceptoras, toast
+    loadPacotes, loadEmbrioesCongelados, toast
   ]);
 
   const gerarRelatorioSessao = useCallback(async (apenasVisualizacao: boolean = false) => {
@@ -403,8 +445,9 @@ export function useTransferenciaHandlers({
           doadora: doadoraRegistro,
           touro: touroNome,
           classificacao: t.embrioes?.classificacao || 'N/A',
+          receptora_id: t.receptoras?.id || t.receptora_id || '',
           receptora_brinco: t.receptoras?.identificacao || 'N/A',
-          receptora_nome: t.receptoras?.nome || 'N/A',
+          receptora_nome: t.receptoras?.nome || '',
           data_te: t.data_te,
           veterinario: t.veterinario_responsavel || 'N/A',
           tecnico: t.tecnico_responsavel || 'N/A',
@@ -476,6 +519,30 @@ export function useTransferenciaHandlers({
       const receptoraIds = [...new Set((transferenciasData || []).map(t => t.receptora_id).filter(Boolean))];
       if (receptoraIds.length === 0) {
         throw new Error('Nenhuma receptora encontrada para encerrar a sessão.');
+      }
+
+      // Marcar receptoras CIO LIVRE como ativa=false (para não reaparecerem em futuras sessões)
+      // Faz update para todas as receptoraIds - se não forem CIO LIVRE, o update não afeta nada
+      if (receptoraIds.length > 0) {
+        const { error: cioLivreError, data: cioLivreData } = await supabase
+          .from('receptoras_cio_livre')
+          .update({ ativa: false })
+          .in('receptora_id', receptoraIds)
+          .eq('ativa', true)
+          .select('id');
+
+        if (cioLivreError) {
+          console.error('Erro ao desativar receptoras CIO LIVRE no encerramento:', {
+            error: cioLivreError,
+            code: cioLivreError.code,
+            message: cioLivreError.message,
+            receptoraIds,
+            possivel_causa: 'RLS pode estar bloqueando UPDATE para este usuário',
+          });
+          // Não interrompe o fluxo - apenas loga o erro
+        } else if (cioLivreData && cioLivreData.length > 0) {
+          console.info(`${cioLivreData.length} receptora(s) CIO LIVRE desativada(s) no encerramento da sessão`);
+        }
       }
 
       const { error: rpcError } = await supabase.rpc('encerrar_sessao_te', {

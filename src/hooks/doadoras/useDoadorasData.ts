@@ -5,7 +5,7 @@
  * - Carregamento de fazendas e doadoras com JOIN (sem N+1)
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useFazendas, useDoadorasByFazenda } from '@/api';
 import { useListFilter } from '@/hooks/core';
 import type { DoadoraComUltimaAspiracao } from '@/api/supabaseQueries';
@@ -16,6 +16,8 @@ export interface Fazenda {
 }
 
 export type DoadoraComAspiracao = DoadoraComUltimaAspiracao;
+
+export type SortOrder = 'asc' | 'desc' | 'none';
 
 export interface UseDoadorasDataReturn {
   // Loading state
@@ -35,6 +37,10 @@ export interface UseDoadorasDataReturn {
   setSearchTerm: (term: string) => void;
   clearFilters: () => void;
   hasActiveFilters: boolean;
+
+  // Sorting
+  sortByDate: SortOrder;
+  setSortByDate: (order: SortOrder) => void;
 
   // Historico dialog
   historicoDoadoraId: string | null;
@@ -56,6 +62,9 @@ export function useDoadorasData(): UseDoadorasDataReturn {
   // Selection
   const [selectedFazendaId, setSelectedFazendaId] = useState<string>('');
 
+  // Sorting
+  const [sortByDate, setSortByDate] = useState<SortOrder>('none');
+
   // Historico dialog
   const [historicoDoadoraId, setHistoricoDoadoraId] = useState<string | null>(null);
 
@@ -74,15 +83,42 @@ export function useDoadorasData(): UseDoadorasDataReturn {
 
   // Filtragem genérica com useListFilter
   const {
-    filtered: filteredDoadoras,
+    filtered: filteredDoadorasBase,
     searchTerm,
     setSearchTerm,
-    clearFilters,
-    hasActiveFilters,
+    clearFilters: clearFiltersBase,
+    hasActiveFilters: hasActiveFiltersBase,
   } = useListFilter({
     data: doadoras,
     searchFn: searchDoadora,
   });
+
+  // Aplicar ordenação após filtragem
+  const filteredDoadoras = useMemo(() => {
+    if (sortByDate === 'none') {
+      return filteredDoadorasBase;
+    }
+
+    return [...filteredDoadorasBase].sort((a, b) => {
+      const dateA = a.ultima_aspiracao_data ? new Date(a.ultima_aspiracao_data).getTime() : 0;
+      const dateB = b.ultima_aspiracao_data ? new Date(b.ultima_aspiracao_data).getTime() : 0;
+
+      // Itens sem data vão para o final
+      if (!a.ultima_aspiracao_data && !b.ultima_aspiracao_data) return 0;
+      if (!a.ultima_aspiracao_data) return 1;
+      if (!b.ultima_aspiracao_data) return -1;
+
+      return sortByDate === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+  }, [filteredDoadorasBase, sortByDate]);
+
+  // Clear filters incluindo ordenação
+  const clearFilters = () => {
+    clearFiltersBase();
+    setSortByDate('none');
+  };
+
+  const hasActiveFilters = hasActiveFiltersBase || sortByDate !== 'none';
 
   // Compatibilidade com código existente
   const loadFazendas = async () => {
@@ -116,6 +152,10 @@ export function useDoadorasData(): UseDoadorasDataReturn {
     setSearchTerm,
     clearFilters,
     hasActiveFilters,
+
+    // Sorting
+    sortByDate,
+    setSortByDate,
 
     // Historico dialog
     historicoDoadoraId,

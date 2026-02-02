@@ -22,7 +22,15 @@
       "Bash(dir:*)",
       "Bash(tasklist:*)",
       "Bash(pnpm add:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(pnpm exec vite build:*)",
+      "Bash(pnpm install:*)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -5 {}')",
+      "Bash(for component in \"aspect-ratio\" \"input-otp\" \"navigation-menu\" \"hover-card\" \"accordion\" \"carousel\" \"context-menu\" \"drawer\" \"resizable\" \"menubar\" \"toggle-group\" \"input-otp\" \"collapsible\")",
+      "Bash(do echo \"=== $component ===\")",
+      "Bash(done)",
+      "Bash(xargs -I {} bash -c \"echo ''=== {} ===''; grep -c ''className='' {}\")",
+      "Bash(pnpm tsc:*)"
     ]
   }
 }

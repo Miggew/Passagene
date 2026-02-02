@@ -13,7 +13,6 @@ export interface TransferenciaFiltersState {
   filtroClienteId: string;
   filtroRaca: string;
   dataPasso2: string;
-  incluirCioLivre: boolean;
   embrioesPage: number;
 }
 
@@ -28,7 +27,6 @@ const INITIAL_FILTERS: TransferenciaFiltersState = {
   filtroClienteId: '',
   filtroRaca: '',
   dataPasso2: '',
-  incluirCioLivre: false,
   embrioesPage: 1,
 };
 
@@ -44,7 +42,6 @@ export function useTransferenciaEmbrioesFilters() {
   const [filtroClienteId, setFiltroClienteId] = useState(INITIAL_FILTERS.filtroClienteId);
   const [filtroRaca, setFiltroRaca] = useState(INITIAL_FILTERS.filtroRaca);
   const [dataPasso2, setDataPasso2] = useState(INITIAL_FILTERS.dataPasso2);
-  const [incluirCioLivre, setIncluirCioLivre] = useState(INITIAL_FILTERS.incluirCioLivre);
   const [embrioesPage, setEmbrioesPage] = useState(INITIAL_FILTERS.embrioesPage);
 
   // Estados de UI do relatório
@@ -58,7 +55,6 @@ export function useTransferenciaEmbrioesFilters() {
     setFiltroClienteId(INITIAL_FILTERS.filtroClienteId);
     setFiltroRaca(INITIAL_FILTERS.filtroRaca);
     setDataPasso2(INITIAL_FILTERS.dataPasso2);
-    setIncluirCioLivre(INITIAL_FILTERS.incluirCioLivre);
     setEmbrioesPage(INITIAL_FILTERS.embrioesPage);
   }, []);
 
@@ -101,14 +97,12 @@ export function useTransferenciaEmbrioesFilters() {
     filtro_cliente_id?: string;
     filtro_raca?: string;
     data_passo2?: string;
-    incluir_cio_livre?: boolean;
     embrioes_page?: number;
   }) => {
     setOrigemEmbriao(sessao.origem_embriao === 'CONGELADO' ? 'CONGELADO' : 'PACOTE');
     setFiltroClienteId(sessao.filtro_cliente_id || '');
     setFiltroRaca(sessao.filtro_raca || '');
     setDataPasso2(sessao.data_passo2 || new Date().toISOString().split('T')[0]);
-    setIncluirCioLivre(!!sessao.incluir_cio_livre);
     if (sessao.embrioes_page) {
       setEmbrioesPage(sessao.embrioes_page);
     }
@@ -120,9 +114,8 @@ export function useTransferenciaEmbrioesFilters() {
     filtroClienteId,
     filtroRaca,
     dataPasso2,
-    incluirCioLivre,
     embrioesPage,
-  }), [origemEmbriao, filtroClienteId, filtroRaca, dataPasso2, incluirCioLivre, embrioesPage]);
+  }), [origemEmbriao, filtroClienteId, filtroRaca, dataPasso2, embrioesPage]);
 
   return {
     // Estados de filtros
@@ -134,8 +127,6 @@ export function useTransferenciaEmbrioesFilters() {
     setFiltroRaca,
     dataPasso2,
     setDataPasso2,
-    incluirCioLivre,
-    setIncluirCioLivre,
     embrioesPage,
     setEmbrioesPage,
 

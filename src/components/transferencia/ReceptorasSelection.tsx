@@ -16,6 +16,7 @@ interface ReceptorasSelectionProps {
   selectedReceptoraId: string;
   contagemSessaoPorReceptora: Record<string, number>;
   submitting: boolean;
+  permitirSegundoEmbriao: boolean;
   onSelectReceptora: (receptoraId: string, protocoloReceptoraId: string) => void;
   onDescartarReceptora: () => void;
 }
@@ -25,35 +26,51 @@ export default function ReceptorasSelection({
   selectedReceptoraId,
   contagemSessaoPorReceptora,
   submitting,
+  permitirSegundoEmbriao,
   onSelectReceptora,
   onDescartarReceptora,
 }: ReceptorasSelectionProps) {
+  // Filtrar receptoras baseado no modo:
+  // - Padrão: esconde receptoras que já receberam 1+ embrião
+  // - Com permitirSegundoEmbriao: mostra todas, desabilita as com 2
+  const receptorasFiltradas = receptoras.filter(r => {
+    const quantidade = contagemSessaoPorReceptora[r.receptora_id] || 0;
+    if (permitirSegundoEmbriao) {
+      return quantidade < 2; // Mostra quem tem 0 ou 1
+    }
+    return quantidade === 0; // Só mostra quem não recebeu nenhum
+  });
   const columns: SelectableColumn<ReceptoraSincronizada>[] = [
     { key: 'brinco', label: 'Receptora' },
     { key: 'embrioes_count', label: 'Embriões', width: '80px', align: 'center' },
     { key: 'action', label: '', width: '50px', excludeFromCard: true },
   ];
 
+  // Contagem para o footer
+  const totalDisponiveis = receptorasFiltradas.length;
+  const comEmbriao = receptorasFiltradas.filter(r => (contagemSessaoPorReceptora[r.receptora_id] || 0) > 0).length;
+
   return (
     <SelectableDataTable<ReceptoraSincronizada>
-      data={receptoras}
+      data={receptorasFiltradas}
       columns={columns}
       rowKey="receptora_id"
       selectionType="radio"
       radioName="receptora"
       selectedId={selectedReceptoraId}
       onSelect={(id) => {
-        const receptora = receptoras.find(r => r.receptora_id === id);
+        const receptora = receptorasFiltradas.find(r => r.receptora_id === id);
         if (receptora) {
           onSelectReceptora(id, receptora.protocolo_receptora_id || '');
         }
       }}
-      isRowDisabled={(row) => {
-        const quantidadeSessao = contagemSessaoPorReceptora[row.receptora_id] || 0;
-        return quantidadeSessao >= 2;
-      }}
-      emptyMessage="Nenhuma receptora sincronizada encontrada"
-      footerContent={`${receptoras.length} receptora(s) disponível(is)`}
+      isRowDisabled={() => false}
+      emptyMessage={permitirSegundoEmbriao
+        ? "Nenhuma receptora disponível para 2º embrião"
+        : "Nenhuma receptora sincronizada encontrada"}
+      footerContent={permitirSegundoEmbriao && comEmbriao > 0
+        ? `${totalDisponiveis} receptora(s) - ${comEmbriao} com 1 embrião`
+        : `${totalDisponiveis} receptora(s) disponível(is)`}
       renderCell={(row, column) => {
         const quantidadeSessao = contagemSessaoPorReceptora[row.receptora_id] || 0;
         const isSelected = selectedReceptoraId === row.receptora_id;
@@ -81,12 +98,16 @@ export default function ReceptorasSelection({
             );
 
           case 'embrioes_count':
+            // Só mostra o contador quando permitirSegundoEmbriao está ativo
+            if (!permitirSegundoEmbriao) {
+              return <span className="text-xs text-muted-foreground">-</span>;
+            }
             return quantidadeSessao > 0 ? (
-              <span className="inline-flex items-center justify-center px-2 h-5 text-[10px] font-medium bg-primary/15 text-primary rounded">
+              <span className="inline-flex items-center justify-center px-2 h-5 text-[10px] font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded">
                 {quantidadeSessao}/2
               </span>
             ) : (
-              <span className="text-xs text-muted-foreground">-</span>
+              <span className="text-xs text-muted-foreground">0/2</span>
             );
 
           case 'action':

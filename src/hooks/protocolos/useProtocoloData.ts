@@ -10,6 +10,11 @@ export interface ReceptoraWithStatus extends Receptora {
   pr_observacoes?: string;
 }
 
+export interface ReceptoraParaSelecao extends Receptora {
+  disponivel: boolean;
+  jaNoProtocolo: boolean;
+}
+
 interface UseProtocoloDataProps {
   protocoloId: string | undefined;
 }
@@ -21,7 +26,7 @@ export function useProtocoloData({ protocoloId }: UseProtocoloDataProps) {
   const [protocolo, setProtocolo] = useState<ProtocoloSincronizacao | null>(null);
   const [fazendaNome, setFazendaNome] = useState('');
   const [receptoras, setReceptoras] = useState<ReceptoraWithStatus[]>([]);
-  const [receptorasDisponiveis, setReceptorasDisponiveis] = useState<Receptora[]>([]);
+  const [receptorasDisponiveis, setReceptorasDisponiveis] = useState<ReceptoraParaSelecao[]>([]);
 
   const loadReceptoras = useCallback(async (): Promise<ReceptoraWithStatus[]> => {
     if (!protocoloId) return [];
@@ -97,16 +102,22 @@ export function useProtocoloData({ protocoloId }: UseProtocoloDataProps) {
     if (receptorasResult.error) throw receptorasResult.error;
 
     const allReceptoras = receptorasResult.data || [];
-    const receptorasJaAdicionadas = prResult.data?.map(pr => pr.receptora_id) || [];
+    const receptorasJaAdicionadas = new Set(prResult.data?.map(pr => pr.receptora_id) || []);
 
-    // Filter: exclude already added AND check status for VAZIA only
-    const disponiveis = allReceptoras.filter(r => {
-      if (receptorasJaAdicionadas.includes(r.id)) return false;
+    // Retornar todas as receptoras com flags de disponibilidade
+    const todasComStatus: ReceptoraParaSelecao[] = allReceptoras.map(r => {
+      const jaNoProtocolo = receptorasJaAdicionadas.has(r.id);
       const status = r.status_reprodutivo || 'VAZIA';
-      return status === 'VAZIA';
+      const disponivel = !jaNoProtocolo && status === 'VAZIA';
+
+      return {
+        ...r,
+        disponivel,
+        jaNoProtocolo,
+      } as ReceptoraParaSelecao;
     });
 
-    setReceptorasDisponiveis(disponiveis);
+    setReceptorasDisponiveis(todasComStatus);
   }, [protocoloId]);
 
   const loadData = useCallback(async () => {

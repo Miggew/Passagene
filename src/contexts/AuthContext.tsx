@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Se for cliente, acesso apenas ao hub cliente (Meu Portal)
+      // Se for cliente, acesso apenas ao hub cliente
       if (profile.user_type === 'cliente') {
         return {
           profile,

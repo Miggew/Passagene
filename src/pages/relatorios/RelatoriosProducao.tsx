@@ -24,7 +24,7 @@ import { exportRelatorio } from '@/lib/exportPdf';
 interface LoteFivRow {
   id: string;
   codigo: string;
-  data_fiv: string;
+  data_abertura: string;
   fazenda_nome: string;
   total_oocitos: number;
   total_embrioes: number;
@@ -115,80 +115,94 @@ export default function RelatoriosProducao() {
   };
 
   const loadLotesFiv = async (fazendaIds: string[]) => {
-    // Primeiro buscar os pacotes de aspiração para obter fazenda_id
-    let pacoteQuery = supabase
-      .from('pacotes_aspiracao')
-      .select('id, fazenda_id, fazendas(nome)');
-
-    if (clienteIdFilter && fazendaIds.length > 0) {
-      pacoteQuery = pacoteQuery.in('fazenda_id', fazendaIds);
-    }
-    if (filtroFazenda !== 'all') {
-      pacoteQuery = pacoteQuery.eq('fazenda_id', filtroFazenda);
-    }
-
-    const { data: pacotes } = await pacoteQuery;
-    const pacoteMap = new Map(pacotes?.map(p => [p.id, p]) ?? []);
-    const pacoteIds = Array.from(pacoteMap.keys());
-
-    if (pacoteIds.length === 0) {
-      setLotes([]);
-      return;
-    }
-
-    // Buscar lotes FIV
+    // Buscar lotes FIV diretamente
     let query = supabase
       .from('lotes_fiv')
-      .select(`
-        id,
-        codigo,
-        data_fiv,
-        pacote_aspiracao_id,
-        status
-      `)
-      .in('pacote_aspiracao_id', pacoteIds)
-      .order('data_fiv', { ascending: false });
+      .select('*')
+      .order('data_abertura', { ascending: false });
 
     if (filtroStatus !== 'all') {
       query = query.eq('status', filtroStatus);
     }
     if (filtroDataInicio) {
-      query = query.gte('data_fiv', filtroDataInicio);
+      query = query.gte('data_abertura', filtroDataInicio);
     }
     if (filtroDataFim) {
-      query = query.lte('data_fiv', filtroDataFim);
+      query = query.lte('data_abertura', filtroDataFim);
     }
 
-    const { data: lotesData } = await query;
+    const { data: lotesData, error } = await query;
 
-    // Buscar estatísticas dos lotes
-    const loteIds = lotesData?.map(l => l.id) ?? [];
+    if (error) {
+      console.error('Erro ao carregar lotes:', error);
+      setLotes([]);
+      return;
+    }
 
-    // Buscar total de oócitos por lote (via aspirações_doadoras)
-    const { data: oocitosData } = await supabase
-      .from('aspiracoes_doadoras')
-      .select('pacote_id, total_oocitos')
-      .in('pacote_id', pacoteIds);
+    if (!lotesData || lotesData.length === 0) {
+      setLotes([]);
+      return;
+    }
 
+    // Buscar pacotes de aspiração para obter fazenda
+    const pacoteIds = [...new Set(lotesData.map(l => l.pacote_aspiracao_id).filter(Boolean))];
+
+    let pacoteMap = new Map<string, any>();
+    if (pacoteIds.length > 0) {
+      const { data: pacotes } = await supabase
+        .from('pacotes_aspiracao')
+        .select('id, fazenda_id, fazendas(nome)')
+        .in('id', pacoteIds);
+
+      pacotes?.forEach(p => pacoteMap.set(p.id, p));
+    }
+
+    // Filtrar por fazenda se necessário
+    let lotesFiltrados = lotesData;
+    if (filtroFazenda !== 'all') {
+      lotesFiltrados = lotesData.filter(l => {
+        const pacote = pacoteMap.get(l.pacote_aspiracao_id);
+        return pacote?.fazenda_id === filtroFazenda;
+      });
+    } else if (clienteIdFilter && fazendaIds.length > 0) {
+      lotesFiltrados = lotesData.filter(l => {
+        const pacote = pacoteMap.get(l.pacote_aspiracao_id);
+        return pacote?.fazenda_id && fazendaIds.includes(pacote.fazenda_id);
+      });
+    }
+
+    const loteIds = lotesFiltrados.map(l => l.id);
+    const pacoteIdsFiltrados = [...new Set(lotesFiltrados.map(l => l.pacote_aspiracao_id).filter(Boolean))];
+
+    // Buscar total de oócitos por pacote (via aspirações_doadoras)
     const oocitosPorPacote = new Map<string, number>();
-    oocitosData?.forEach(o => {
-      const current = oocitosPorPacote.get(o.pacote_id) ?? 0;
-      oocitosPorPacote.set(o.pacote_id, current + (o.total_oocitos ?? 0));
-    });
+    if (pacoteIdsFiltrados.length > 0) {
+      const { data: oocitosData } = await supabase
+        .from('aspiracoes_doadoras')
+        .select('pacote_aspiracao_id, total_oocitos')
+        .in('pacote_aspiracao_id', pacoteIdsFiltrados);
+
+      oocitosData?.forEach(o => {
+        const current = oocitosPorPacote.get(o.pacote_aspiracao_id) ?? 0;
+        oocitosPorPacote.set(o.pacote_aspiracao_id, current + (o.total_oocitos ?? 0));
+      });
+    }
 
     // Buscar total de embriões por lote
-    const { data: embrioesData } = await supabase
-      .from('embrioes')
-      .select('lote_fiv_id')
-      .in('lote_fiv_id', loteIds);
-
     const embrioesPorLote = new Map<string, number>();
-    embrioesData?.forEach(e => {
-      embrioesPorLote.set(e.lote_fiv_id, (embrioesPorLote.get(e.lote_fiv_id) ?? 0) + 1);
-    });
+    if (loteIds.length > 0) {
+      const { data: embrioesData } = await supabase
+        .from('embrioes')
+        .select('lote_fiv_id')
+        .in('lote_fiv_id', loteIds);
+
+      embrioesData?.forEach(e => {
+        embrioesPorLote.set(e.lote_fiv_id, (embrioesPorLote.get(e.lote_fiv_id) ?? 0) + 1);
+      });
+    }
 
     setLotes(
-      lotesData?.map(l => {
+      lotesFiltrados.map(l => {
         const pacote = pacoteMap.get(l.pacote_aspiracao_id);
         const totalOocitos = oocitosPorPacote.get(l.pacote_aspiracao_id) ?? 0;
         const totalEmbrioes = embrioesPorLote.get(l.id) ?? 0;
@@ -197,14 +211,14 @@ export default function RelatoriosProducao() {
         return {
           id: l.id,
           codigo: l.codigo,
-          data_fiv: l.data_fiv,
+          data_abertura: l.data_abertura,
           fazenda_nome: (pacote?.fazendas as any)?.nome ?? 'N/A',
           total_oocitos: totalOocitos,
           total_embrioes: totalEmbrioes,
           taxa_sucesso: taxaSucesso,
           status: l.status,
         };
-      }) ?? []
+      })
     );
   };
 
@@ -220,7 +234,7 @@ export default function RelatoriosProducao() {
       supabase
         .from('lotes_fiv')
         .select('id, pacote_aspiracao_id', { count: 'exact' })
-        .gte('data_fiv', dataLimiteStr),
+        .gte('data_abertura', dataLimiteStr),
 
       // Total de aspirações
       clienteIdFilter && fazendaIds.length > 0
@@ -258,7 +272,7 @@ export default function RelatoriosProducao() {
       const { data: oocitosData } = await supabase
         .from('aspiracoes_doadoras')
         .select('total_oocitos')
-        .in('pacote_id', pacoteIds);
+        .in('pacote_aspiracao_id', pacoteIds);
 
       totalOocitos = oocitosData?.reduce((acc, o) => acc + (o.total_oocitos ?? 0), 0) ?? 0;
     }
@@ -584,7 +598,7 @@ export default function RelatoriosProducao() {
                   >
                     <div className="px-4 py-3 font-medium text-sm">{row.codigo}</div>
                     <div className="px-3 py-3 text-sm text-muted-foreground truncate">{row.fazenda_nome}</div>
-                    <div className="px-3 py-3 text-sm text-center">{formatDate(row.data_fiv)}</div>
+                    <div className="px-3 py-3 text-sm text-center">{formatDate(row.data_abertura)}</div>
                     <div className="px-3 py-3 flex justify-center">
                       <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 text-xs font-medium bg-muted text-foreground rounded">
                         {row.total_oocitos}
