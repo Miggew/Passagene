@@ -8,12 +8,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus } from 'lucide-react';
-import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import { ArrowLeft, Plus, Dna, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 import EmptyState from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/shared/StatusBadge';
 import CountBadge from '@/components/shared/CountBadge';
 import { useReceptoraHistoricoData, useReceptoraHistoricoActions } from '@/hooks/receptoraHistorico';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   CioLivreCard,
   ReceptoraAdminHistoricoCard,
@@ -24,6 +27,7 @@ import {
 export default function ReceptoraHistorico() {
   const { id: receptoraId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isCliente } = usePermissions();
 
   // Hook de dados
   const {
@@ -32,6 +36,7 @@ export default function ReceptoraHistorico() {
     historico,
     historicoAdmin,
     estatisticas,
+    cruzamentoAtual,
     loadData,
   } = useReceptoraHistoricoData();
 
@@ -66,7 +71,7 @@ export default function ReceptoraHistorico() {
     : 0;
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingScreen />;
   }
 
   if (!receptora) {
@@ -95,8 +100,8 @@ export default function ReceptoraHistorico() {
           <h1 className="text-xl font-semibold text-foreground">Histórico da Receptora</h1>
         </div>
 
-        {/* Ação: Registrar Cio Livre */}
-        {!receptora.is_cio_livre && (
+        {/* Ação: Registrar Cio Livre - apenas para não-clientes */}
+        {!receptora.is_cio_livre && !isCliente && (
           <Button
             size="sm"
             onClick={() => setShowCioLivreDialog(true)}
@@ -134,6 +139,18 @@ export default function ReceptoraHistorico() {
                   <StatusBadge status={receptora.status_reprodutivo || 'VAZIA'} />
                 </div>
               </div>
+              {receptora.data_provavel_parto && receptora.status_reprodutivo?.includes('PRENHE') && (
+                <>
+                  <div className="h-8 w-px bg-border" />
+                  <div>
+                    <span className="text-xs font-medium text-muted-foreground">Parto Previsto</span>
+                    <p className="text-sm text-foreground flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-primary" />
+                      {format(new Date(receptora.data_provavel_parto), "dd MMM yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                </>
+              )}
               {receptora.raca && (
                 <>
                   <div className="h-8 w-px bg-border" />
@@ -169,6 +186,23 @@ export default function ReceptoraHistorico() {
               </div>
             </div>
           </div>
+
+          {/* Cruzamento do Embrião - Destaque para prenhes */}
+          {cruzamentoAtual && receptora.status_reprodutivo?.includes('PRENHE') && (
+            <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <Dna className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Cruzamento do Embrião</span>
+                  <p className="text-base font-semibold text-foreground">
+                    {cruzamentoAtual.doadora} <span className="text-primary mx-1">×</span> {cruzamentoAtual.touro}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Linha 2: Detalhes adicionais se houver cio livre */}
           {receptora.is_cio_livre && (

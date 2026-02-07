@@ -17,7 +17,7 @@ const statusConfig: Record<string, string> = {
   // ═══════════════════════════════════════════════════════════════
   // ESTADOS NEUTROS - Cinza (aguardando/inicial)
   // ═══════════════════════════════════════════════════════════════
-  VAZIA: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
+  VAZIA: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30', // Perda/negativo
   NAO_UTILIZADA: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
   DISPONIVEL: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
 
@@ -37,14 +37,23 @@ const statusConfig: Record<string, string> = {
   UTILIZADA: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30',
 
   // ═══════════════════════════════════════════════════════════════
-  // PRENHEZ - Cores específicas por resultado
+  // PRENHEZ - Semiótica: verde=sucesso, rosa=fêmea, azul=macho
   // ═══════════════════════════════════════════════════════════════
   PRENHE: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30',
   PRENHE_RETOQUE: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  // Sexadas: rosa=fêmea, azul=macho (semiótica universal)
   PRENHE_FEMEA: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/30',
   PRENHE_MACHO: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
   PRENHE_SEM_SEXO: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
   PRENHE_2_SEXOS: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+
+  // ═══════════════════════════════════════════════════════════════
+  // SEXAGEM - Resultados de sexagem (sem prefixo PRENHE_)
+  // ═══════════════════════════════════════════════════════════════
+  FEMEA: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/30',
+  MACHO: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+  SEM_SEXO: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+  '2_SEXOS': 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
 
   // ═══════════════════════════════════════════════════════════════
   // PROTOCOLOS - Blue/Slate (etapas do protocolo)

@@ -222,8 +222,8 @@ export function LoteDetailView({
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Detalhes do Lote FIV</h1>
-          <div className="text-slate-600 mt-1 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground">Detalhes do Lote FIV</h1>
+          <div className="text-muted-foreground mt-1 flex items-center gap-2">
             <span>
               Data de fecundação (D0): {formatDate(lote.data_abertura)} |
               {dataAspiracaoStr && ` Data aspiração (D-1): ${formatDateString(dataAspiracaoStr)} |`}
@@ -252,9 +252,9 @@ export function LoteDetailView({
               <Label>Dia Atual</Label>
               <p className="text-2xl font-bold">
                 {diaCultivo === -1 ? (
-                  <>D-1 <span className="text-lg font-normal text-slate-600">- {getNomeDiaDetalhe(diaCultivo)}</span></>
+                  <>D-1 <span className="text-lg font-normal text-muted-foreground">- {getNomeDiaDetalhe(diaCultivo)}</span></>
                 ) : (
-                  <>D{diaCultivo} <span className="text-lg font-normal text-slate-600">- {getNomeDiaDetalhe(diaCultivo)}</span></>
+                  <>D{diaCultivo} <span className="text-lg font-normal text-muted-foreground">- {getNomeDiaDetalhe(diaCultivo)}</span></>
                 )}
               </p>
             </div>
@@ -263,7 +263,7 @@ export function LoteDetailView({
               {diaAtual < 7 ? (
                 <div>
                   <p className="text-2xl font-bold text-orange-600">{dataD7Formatada}</p>
-                  <p className="text-sm text-slate-500">{diaSemanaD7}</p>
+                  <p className="text-sm text-muted-foreground">{diaSemanaD7}</p>
                 </div>
               ) : (
                 <p className="text-2xl font-bold text-green-600">Hoje ou passou</p>
@@ -289,7 +289,7 @@ export function LoteDetailView({
           {lote.observacoes && (
             <div>
               <Label>Observações</Label>
-              <p className="text-slate-600">{lote.observacoes}</p>
+              <p className="text-muted-foreground">{lote.observacoes}</p>
             </div>
           )}
 
@@ -355,7 +355,7 @@ export function LoteDetailView({
         </CardHeader>
         <CardContent>
           {acasalamentos.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-muted-foreground">
               <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>Nenhum acasalamento cadastrado</p>
               {lote.status === 'ABERTO' && (
@@ -409,7 +409,7 @@ export function LoteDetailView({
                         <div>
                           <p className="font-medium">{acasalamento.doadora_registro || '-'}</p>
                           {acasalamento.doadora_nome && (
-                            <p className="text-sm text-slate-500">{acasalamento.doadora_nome}</p>
+                            <p className="text-sm text-muted-foreground">{acasalamento.doadora_nome}</p>
                           )}
                         </div>
                       </TableCell>
@@ -480,9 +480,9 @@ export function LoteDetailView({
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {despacho.acasalamentos.map((ac, idx) => (
-                      <div key={idx} className="text-sm bg-slate-50 rounded p-2">
+                      <div key={idx} className="text-sm bg-muted rounded p-2">
                         <span className="font-medium">{ac.doadora}</span>
-                        <span className="text-slate-500"> x {ac.dose}</span>
+                        <span className="text-muted-foreground"> x {ac.dose}</span>
                         <span className="ml-2 text-green-600 font-medium">({ac.quantidade})</span>
                       </div>
                     ))}
@@ -628,13 +628,13 @@ export function LoteDetailView({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 bg-slate-50">
+            <div className="border rounded-lg p-4 bg-muted">
               <h4 className="font-medium mb-2">Informações do Lote</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <p><span className="text-slate-500">Fazenda Origem:</span> {fazendaOrigemNome || lote.pacote_nome}</p>
-                <p><span className="text-slate-500">Fazendas Destino:</span> {fazendasDestinoNomes.join(', ') || '-'}</p>
-                <p><span className="text-slate-500">Data TE prevista:</span> {dataD7Formatada}</p>
-                <p><span className="text-slate-500">Total Acasalamentos:</span> {acasalamentos.length}</p>
+                <p><span className="text-muted-foreground">Fazenda Origem:</span> {fazendaOrigemNome || lote.pacote_nome}</p>
+                <p><span className="text-muted-foreground">Fazendas Destino:</span> {fazendasDestinoNomes.join(', ') || '-'}</p>
+                <p><span className="text-muted-foreground">Data TE prevista:</span> {dataD7Formatada}</p>
+                <p><span className="text-muted-foreground">Total Acasalamentos:</span> {acasalamentos.length}</p>
               </div>
             </div>
 

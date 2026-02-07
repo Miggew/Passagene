@@ -1,12 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Dna, FlaskConical, LogOut, Moon, Sun } from 'lucide-react';
+import { Building2, Dna, FlaskConical, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import logoSimples from '@/assets/logosimples.svg';
-import React from 'react';
 import { CowIcon } from '@/components/icons/CowIcon';
+import ThemeToggle from '@/components/shared/ThemeToggle';
 
 // Mapeamento de ícones por código do hub
 const hubIcons: Record<string, React.ElementType> = {
@@ -19,11 +19,8 @@ const hubIcons: Record<string, React.ElementType> = {
 export default function HubTabs() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getAccessibleHubs, getHubForRoute, profile } = usePermissions();
+  const { isCliente, getAccessibleHubs, getHubForRoute, profile } = usePermissions();
   const { signOut } = useAuth();
-  const [isDark, setIsDark] = React.useState(() =>
-    document.documentElement.classList.contains('dark')
-  );
 
   // Filtra hubs que só têm "/" como rota (redundante com o logo)
   const accessibleHubs = getAccessibleHubs().filter(
@@ -33,11 +30,6 @@ export default function HubTabs() {
 
   const handleHubClick = (hubCode: string, firstRoute: string) => {
     navigate(firstRoute);
-  };
-
-  const toggleDarkMode = () => {
-    document.documentElement.classList.toggle('dark');
-    setIsDark(!isDark);
   };
 
   return (
@@ -58,42 +50,37 @@ export default function HubTabs() {
             />
           </button>
 
-          {/* Tabs dos hubs */}
-          <nav className="flex items-center overflow-x-auto">
-            {accessibleHubs.map((hub) => {
-              const Icon = hubIcons[hub.code] || Building2;
-              const isActive = currentHub?.code === hub.code;
+          {/* Tabs dos hubs - esconde para clientes */}
+          {!isCliente && (
+            <nav className="flex items-center overflow-x-auto">
+              {accessibleHubs.map((hub) => {
+                const Icon = hubIcons[hub.code] || Building2;
+                const isActive = currentHub?.code === hub.code;
 
-              return (
-                <button
-                  key={hub.code}
-                  onClick={() => handleHubClick(hub.code, hub.routes[0])}
-                  className={cn(
-                    'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap border-b-2',
-                    isActive
-                      ? 'bg-primary/5 text-primary border-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
-                  )}
-                >
-                  <Icon className={cn('w-4 h-4', isActive && 'text-primary')} />
-                  <span>{hub.name}</span>
-                </button>
-              );
-            })}
-          </nav>
+                return (
+                  <button
+                    key={hub.code}
+                    onClick={() => handleHubClick(hub.code, hub.routes[0])}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap border-b-2',
+                      isActive
+                        ? 'bg-primary/5 text-primary border-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
+                    )}
+                  >
+                    <Icon className={cn('w-4 h-4', isActive && 'text-primary')} />
+                    <span>{hub.name}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
         {/* Lado direito: User info + Dark mode + Logout */}
         <div className="flex items-center gap-2 px-4">
           {/* Dark mode toggle */}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleDarkMode}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+          <ThemeToggle size="sm" />
 
           {/* User info */}
           {profile && (

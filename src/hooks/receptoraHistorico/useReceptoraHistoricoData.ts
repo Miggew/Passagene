@@ -24,12 +24,18 @@ interface DoseQueryLocal {
   } | null;
 }
 
+export interface CruzamentoAtual {
+  doadora: string;
+  touro: string;
+}
+
 export interface UseReceptoraHistoricoDataReturn {
   loading: boolean;
   receptora: Receptora | null;
   historico: HistoricoItem[];
   historicoAdmin: HistoricoAdmin[];
   estatisticas: Estatisticas;
+  cruzamentoAtual: CruzamentoAtual | null;
   loadData: (receptoraId: string) => Promise<void>;
   setReceptora: React.Dispatch<React.SetStateAction<Receptora | null>>;
 }
@@ -45,6 +51,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
     totalGestacoes: 0,
     ciclosDesdeUltimaGestacao: 0,
   });
+  const [cruzamentoAtual, setCruzamentoAtual] = useState<CruzamentoAtual | null>(null);
 
   const carregarHistoricoReceptora = useCallback(async (targetReceptoraId: string) => {
     const items: HistoricoItem[] = [];
@@ -490,7 +497,21 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
     items.sort((a, b) => b.data.localeCompare(a.data));
     itemsAdmin.sort((a, b) => b.data.localeCompare(a.data));
 
-    return { receptoraData, items, itemsAdmin, stats };
+    // Extrair cruzamento atual se prenhe
+    let cruzamento: CruzamentoAtual | null = null;
+    if (receptoraData?.status_reprodutivo?.includes('PRENHE') && tesData && tesData.length > 0) {
+      // Pegar a transferência mais recente
+      const teRecente = tesData[0]; // já ordenado por data_te DESC
+      const embriao = Array.isArray(teRecente.embrioes) ? teRecente.embrioes[0] : teRecente.embrioes;
+      if (embriao?.lote_fiv_acasalamento_id) {
+        const acInfo = acasalamentosMap.get(embriao.lote_fiv_acasalamento_id);
+        if (acInfo) {
+          cruzamento = { doadora: acInfo.doadora, touro: acInfo.touro };
+        }
+      }
+    }
+
+    return { receptoraData, items, itemsAdmin, stats, cruzamento };
   }, []);
 
   const loadData = useCallback(async (receptoraId: string) => {
@@ -501,6 +522,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
       setHistorico(result.items);
       setHistoricoAdmin(result.itemsAdmin);
       setEstatisticas(result.stats);
+      setCruzamentoAtual(result.cruzamento);
     } catch (error) {
       toast({
         title: 'Erro ao carregar histórico',
@@ -518,6 +540,7 @@ export function useReceptoraHistoricoData(): UseReceptoraHistoricoDataReturn {
     historico,
     historicoAdmin,
     estatisticas,
+    cruzamentoAtual,
     loadData,
     setReceptora,
   };

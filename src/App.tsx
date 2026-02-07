@@ -58,6 +58,11 @@ const GeneticaDoadoraDetail = lazy(() => import('./pages/genetica/GeneticaDoador
 const GeneticaTouros = lazy(() => import('./pages/genetica/GeneticaTouros'));
 const GeneticaTouroDetail = lazy(() => import('./pages/genetica/GeneticaTouroDetail'));
 
+// Páginas do Hub Cliente
+const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
+const ClienteRelatorios = lazy(() => import('./pages/cliente/ClienteRelatorios'));
+const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -194,6 +199,11 @@ const AppRoutes = () => {
             <Route path="/genetica/doadoras/:id" element={<GeneticaDoadoraDetail />} />
             <Route path="/genetica/touros" element={<GeneticaTouros />} />
             <Route path="/genetica/touros/:id" element={<GeneticaTouroDetail />} />
+
+            {/* Hub Cliente */}
+            <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
+            <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
+            <Route path="/cliente/botijao" element={<ClienteBotijao />} />
           </Route>
 
           {/* Rota 404 */}

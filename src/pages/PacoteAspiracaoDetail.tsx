@@ -317,7 +317,7 @@ export default function PacoteAspiracaoDetail() {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Média:</span>
-                <CountBadge value={aspiracoes.length > 0 ? (totalOocitos / aspiracoes.length).toFixed(1) : '0'} variant="info" />
+                <CountBadge value={aspiracoes.length > 0 ? Math.round(totalOocitos / aspiracoes.length) : 0} variant="info" />
               </div>
             </div>
           </div>

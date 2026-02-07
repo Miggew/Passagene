@@ -30,7 +30,10 @@
       "Bash(do echo \"=== $component ===\")",
       "Bash(done)",
       "Bash(xargs -I {} bash -c \"echo ''=== {} ===''; grep -c ''className='' {}\")",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(git checkout:*)",
+      "Bash(del \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\\\\src\\\\pages\\\\cliente\\\\ClienteNumeros.tsx\")",
+      "Bash(del \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\\\\src\\\\pages\\\\cliente\\\\ClienteFazendaDetail.tsx\")"
     ]
   }
 }

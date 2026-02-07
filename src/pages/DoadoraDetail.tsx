@@ -26,7 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import LoadingScreen from '@/components/shared/LoadingScreen';
 import EmptyState from '@/components/shared/EmptyState';
 import CountBadge from '@/components/shared/CountBadge';
 import { DataTable } from '@/components/shared/DataTable';
@@ -35,11 +35,13 @@ import { formatDate } from '@/lib/utils';
 import { ArrowLeft, Save, Star, Gem, History, Edit, ChevronDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import GenealogiaTree, { type GenealogiaData } from '@/components/shared/GenealogiaTree';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function DoadoraDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isCliente } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [doadora, setDoadora] = useState<Doadora | null>(null);
@@ -300,7 +302,7 @@ export default function DoadoraDetail() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingScreen />;
   }
 
   if (!doadora) {
@@ -414,64 +416,66 @@ export default function DoadoraDetail() {
         </CardContent>
       </Card>
 
-      {/* Tabs: Histórico e Edição */}
-      <div className="rounded-xl border border-border bg-card p-1.5">
-        <div className="flex gap-1">
-          <button
-            onClick={() => setActiveTab('historico')}
-            className={`
-              relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-              text-sm font-medium transition-all duration-200
-              ${activeTab === 'historico'
-                ? 'bg-muted/80 text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-              }
-            `}
-          >
-            {activeTab === 'historico' && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
-            )}
-            <div className={`
-              flex items-center justify-center w-7 h-7 rounded-md transition-colors
-              ${activeTab === 'historico' ? 'bg-primary/15' : 'bg-muted/50'}
-            `}>
-              <History className={`w-4 h-4 ${activeTab === 'historico' ? 'text-primary' : 'text-muted-foreground'}`} />
-            </div>
-            <span>Histórico</span>
-            {stats.total > 0 && (
-              <span className={`
-                inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold rounded-full
-                ${activeTab === 'historico' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}
+      {/* Tabs: Histórico e Edição (edição oculta para clientes) */}
+      {!isCliente ? (
+        <div className="rounded-xl border border-border bg-card p-1.5">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setActiveTab('historico')}
+              className={`
+                relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                text-sm font-medium transition-all duration-200
+                ${activeTab === 'historico'
+                  ? 'bg-muted/80 text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                }
+              `}
+            >
+              {activeTab === 'historico' && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
+              )}
+              <div className={`
+                flex items-center justify-center w-7 h-7 rounded-md transition-colors
+                ${activeTab === 'historico' ? 'bg-primary/15' : 'bg-muted/50'}
               `}>
-                {stats.total}
-              </span>
-            )}
-          </button>
+                <History className={`w-4 h-4 ${activeTab === 'historico' ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <span>Histórico</span>
+              {stats.total > 0 && (
+                <span className={`
+                  inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold rounded-full
+                  ${activeTab === 'historico' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}
+                `}>
+                  {stats.total}
+                </span>
+              )}
+            </button>
 
-          <button
-            onClick={() => setActiveTab('editar')}
-            className={`
-              relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-              text-sm font-medium transition-all duration-200
-              ${activeTab === 'editar'
-                ? 'bg-muted/80 text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-              }
-            `}
-          >
-            {activeTab === 'editar' && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
-            )}
-            <div className={`
-              flex items-center justify-center w-7 h-7 rounded-md transition-colors
-              ${activeTab === 'editar' ? 'bg-primary/15' : 'bg-muted/50'}
-            `}>
-              <Edit className={`w-4 h-4 ${activeTab === 'editar' ? 'text-primary' : 'text-muted-foreground'}`} />
-            </div>
-            <span>Editar Dados</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('editar')}
+              className={`
+                relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                text-sm font-medium transition-all duration-200
+                ${activeTab === 'editar'
+                  ? 'bg-muted/80 text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                }
+              `}
+            >
+              {activeTab === 'editar' && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
+              )}
+              <div className={`
+                flex items-center justify-center w-7 h-7 rounded-md transition-colors
+                ${activeTab === 'editar' ? 'bg-primary/15' : 'bg-muted/50'}
+              `}>
+                <Edit className={`w-4 h-4 ${activeTab === 'editar' ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <span>Editar Dados</span>
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* Conteúdo das Tabs */}
       {activeTab === 'historico' && (

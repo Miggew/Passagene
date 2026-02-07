@@ -591,3 +591,343 @@ const colorClasses = getStatusColor('PRENHE_FEMEA'); // para uso em renderCell
 | `src/pages/relatorios/RelatoriosMaterial.tsx` | Correção coluna quantidade |
 | `src/pages/relatorios/RelatoriosProducao.tsx` | Correções data_abertura, pacote_aspiracao_id |
 | `src/hooks/useKPIData.ts` | Reescrita completa das funções de ranking |
+
+---
+
+## Hub do Cliente - Redesign Completo (02/02/2026)
+
+> **Status:** CONCLUÍDO
+
+### Visão Geral
+
+Redesign completo da experiência do cliente com foco em:
+- Informações acionáveis (não apenas números)
+- Mobile-first sem scroll horizontal
+- Cards expansíveis para detalhes
+- Cruzamento do embrião visível em receptoras prenhes
+
+### Estrutura de Navegação
+
+```
+🏠 Home | 🐄 Rebanho | 📋 Serviços | ❄️ Botijão
+```
+
+### 1. Home Dashboard (`src/components/home/HomeDashboardCliente.tsx`)
+
+**Simplificado para snapshot rápido:**
+
+| Seção | Conteúdo |
+|-------|----------|
+| Meu Rebanho | Pipeline visual: Vazias → Servidas → Prenhes + Taxa prenhez |
+| Doadoras/Botijão | Linha compacta lado a lado |
+| KPIs | Taxa Prenhez DG, Aproveitamento, Virada (6 meses) |
+
+**Removido do Home:**
+- ❌ Próximos Serviços (movido para página Serviços)
+- ❌ Atividade Recente (movido para página Serviços)
+
+### 2. Nova Página Serviços (`src/pages/cliente/ClienteServicos.tsx`)
+
+**Cards expansíveis com indicadores de urgência:**
+
+| Card | Dados | Urgência (vermelho) |
+|------|-------|---------------------|
+| Aguardando DG | Receptoras SERVIDA, dias desde TE | ≥27 dias |
+| Aguardando Sexagem | Receptoras PRENHE, dias desde DG | ≥50 dias |
+| Partos em 14 dias | Receptoras com parto próximo | ≤3 dias |
+
+**Atividades Recentes (últimas 3 de cada):**
+- TEs realizadas (receptoras + classificação)
+- DGs realizados (taxa prenhez)
+- Aspirações (oócitos por doadora)
+
+**Comportamento:**
+- Mostra até 8 itens inline
+- Link "Ver todas" navega para Rebanho filtrado
+- Cada item clicável → vai para histórico
+
+### 3. Cruzamento do Embrião
+
+**Onde aparece:**
+
+| Local | Componente | Condição |
+|-------|------------|----------|
+| Rebanho | `ReceptoraCard.tsx` | Receptora PRENHE |
+| Detalhes | `ReceptoraHistorico.tsx` | Card destacado se PRENHE |
+| Timeline | `ReceptoraTimelineTable.tsx` | Eventos TE/DG (já existia) |
+
+**Formato:** `Doadora × Touro` com ícone DNA
+
+**Query de dados:**
+```
+receptora → transferencias_embrioes → embrioes → lote_fiv_acasalamentos → aspiracoes_doadoras/doses_semen → doadoras/touros
+```
+
+### 4. Timeline Expansível (`src/components/receptoraHistorico/ReceptoraTimelineTable.tsx`)
+
+**Mudança:** Cards agora são clicáveis e expansíveis
+
+- Todos os cards têm chevron indicador
+- Clique expande para mostrar texto completo (resumo + detalhes)
+- Sem truncamento quando expandido
+- Borda verde lateral no conteúdo expandido
+
+### 5. Arquivos Modificados/Criados
+
+| Arquivo | Ação |
+|---------|------|
+| `src/components/home/HomeDashboardCliente.tsx` | Redesenhado - KPIs, sem próximos serviços |
+| `src/pages/cliente/ClienteServicos.tsx` | **NOVO** - Página de serviços expansível |
+| `src/pages/cliente/ClienteRebanho.tsx` | Adicionado cruzamento do embrião |
+| `src/components/cliente/ReceptoraCard.tsx` | Adicionado cruzamento (Doadora × Touro) |
+| `src/pages/ReceptoraHistorico.tsx` | Card destacado de cruzamento |
+| `src/hooks/receptoraHistorico/useReceptoraHistoricoData.ts` | Retorna `cruzamentoAtual` |
+| `src/components/receptoraHistorico/ReceptoraTimelineTable.tsx` | Cards expansíveis |
+| `src/components/layout/MobileNav.tsx` | Rota `/cliente/servicos` |
+| `src/App.tsx` | Rota `/cliente/servicos` |
+| `src/pages/cliente/index.ts` | Export `ClienteServicos` |
+
+### 6. Regras de Urgência
+
+| Serviço | Normal | Atenção | Crítico |
+|---------|--------|---------|---------|
+| DG | < 27 dias | - | ≥ 27 dias |
+| Sexagem | < 50 dias | - | ≥ 50 dias |
+| Parto | > 3 dias | - | ≤ 3 dias |
+
+### 7. Interface do Card Expansível
+
+```tsx
+interface ExpandableCardProps {
+  icon: React.ElementType;
+  iconColor: 'violet' | 'pink' | 'amber' | 'emerald';
+  title: string;
+  count: number;
+  urgentCount?: number;
+  urgentLabel?: string;
+  subtitle?: string;
+  date?: Date;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+```
+
+### 8. Cores por Tipo de Serviço
+
+| Tipo | Cor | Uso |
+|------|-----|-----|
+| DG | violet | Aguardando diagnóstico |
+| Sexagem | pink | Aguardando sexagem |
+| Parto | amber | Partos próximos |
+| TE | violet | Transferências realizadas |
+| DG (atividade) | emerald | DGs realizados |
+| Aspiração | amber | Aspirações realizadas |
+
+---
+
+## Hub Cliente - Refatoração Visual Premium (03/02/2026)
+
+> **Status:** CONCLUÍDO
+
+### Objetivo
+
+Refatoração visual completa do hub cliente mobile mantendo funcionalidades:
+- Design simples, elegante, harmônico e profissional
+- Barras de progresso melhor posicionadas (centralizadas)
+- Cores diferenciadas para prenhes sexadas vs aguardando sexagem
+
+### Cores Atuais - Prenhes e Sexagem (Semiótica Universal)
+
+| Status | Cor | Justificativa |
+|--------|-----|---------------|
+| `PRENHE` | green | Sucesso (prenha confirmada) |
+| `PRENHE_RETOQUE` | amber | Atenção (retoque necessário) |
+| `PRENHE_FEMEA` | pink | Semiótica universal (fêmea = rosa) |
+| `PRENHE_MACHO` | blue | Semiótica universal (macho = azul) |
+| `PRENHE_2_SEXOS` | indigo | Especial (gêmeos) |
+| `PRENHE_SEM_SEXO` | purple | Indefinido |
+| `VAZIA` | red | Perda/negativo |
+
+### Padrão Visual Premium Aplicado
+
+#### Cards (Todos os componentes)
+
+```tsx
+// Container
+className="rounded-xl border border-border/60 bg-card shadow-sm"
+
+// Ícone com gradiente
+className="w-10 h-10 rounded-lg bg-gradient-to-br from-[color]/20 to-[color]/5 border border-[color]/15"
+
+// Hover com seta
+className="group cursor-pointer hover:shadow-md hover:border-primary/30"
+<ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary" />
+```
+
+#### Barras de Progresso (Home Dashboard)
+
+```tsx
+// Posicionamento centralizado
+<div className="w-16 shrink-0 flex flex-col items-center">
+  <span className="text-lg font-bold text-[color]">{percentage}%</span>
+  <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-1">
+    <div className="h-full bg-gradient-to-r from-[color]/80 to-[color] rounded-full" />
+  </div>
+  <span className="text-[9px] text-muted-foreground mt-0.5">label</span>
+</div>
+```
+
+#### Tabs Premium (Rebanho/Botijão)
+
+```tsx
+// Container
+<div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+
+// Tab ativa
+<TabsTrigger className="relative h-12 gap-2 rounded-lg data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm">
+  // Indicador inferior colorido
+  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-[color] rounded-full" />
+</TabsTrigger>
+
+// Ícone em container
+<div className={cn('w-7 h-7 rounded-md flex items-center justify-center', isActive ? 'bg-[color]/15' : 'bg-muted/50')}>
+```
+
+#### Seções com Indicador
+
+```tsx
+<div className="flex items-center gap-2 px-0.5">
+  <div className="w-1 h-5 rounded-full bg-primary/50" />
+  <h2 className="text-sm font-semibold text-foreground">Título</h2>
+</div>
+```
+
+### Arquivos Modificados
+
+| Arquivo | Mudanças |
+|---------|----------|
+| `src/components/home/HomeDashboardCliente.tsx` | Cards premium, barras reposicionadas, separadores verticais |
+| `src/components/cliente/ReceptoraCard.tsx` | Cores semióticas (pink=fêmea, blue=macho), gradientes, seta hover |
+| `src/components/cliente/DoadoraCard.tsx` | Stats inline, gradiente no ícone |
+| `src/components/cliente/TouroCard.tsx` | Destaque quantidade, gradiente |
+| `src/components/cliente/EmbrioCard.tsx` | Contagem destacada, gradiente por tipo |
+| `src/pages/cliente/ClienteRebanho.tsx` | Tabs premium, busca refinada |
+| `src/pages/cliente/ClienteBotijao.tsx` | Tabs premium, sub-tabs embriões |
+| `src/pages/cliente/ClienteServicos.tsx` | ExpandableCard premium, headers de seção |
+| `src/components/shared/StatusBadge.tsx` | Cores semânticas (PRENHE→green, FEMEA→pink, MACHO→blue, VAZIA→red) |
+| `src/pages/Home.tsx` | Header cliente compacto |
+
+### Tokens Visuais Aplicados
+
+| Elemento | Classes |
+|----------|---------|
+| Card base | `rounded-xl border-border/60 bg-card shadow-sm` |
+| Ícone gradiente | `bg-gradient-to-br from-[color]/20 to-[color]/5 border-[color]/15` |
+| Barra progresso | `h-1.5 bg-muted rounded-full` + `bg-gradient-to-r from-[color]/80 to-[color]` |
+| Separador vertical | `w-px h-8 bg-border/50` |
+| Indicador seção | `w-1 h-5 rounded-full bg-primary/50` |
+| Hover card | `hover:shadow-md hover:border-primary/30` |
+| Tab indicador | `w-10 h-0.5 bg-[color] rounded-full` (bottom) |
+
+### Cores por Contexto no Hub Cliente
+
+| Contexto | Cor |
+|----------|-----|
+| Receptoras/Prenhez | primary (verde) |
+| Protocolos | violet |
+| DG/Prenhez aguardando | rose |
+| Sexagem/Prenhes sexadas | pink (fêmea) / blue (macho) |
+| Doadoras | amber |
+| Doses sêmen | indigo |
+| Embriões congelados | cyan |
+
+---
+
+## Loading Screen Padrão (04/02/2026)
+
+> **Status:** CONCLUÍDO - Componente reutilizável com logo PassaGene
+
+### Componente
+
+**Arquivo:** `src/components/shared/LoadingScreen.tsx`
+
+### Uso Padrão (Hub Cliente e outras páginas)
+
+```tsx
+import LoadingScreen from '@/components/shared/LoadingScreen';
+
+// Uso padrão - centralizado na tela
+if (loading) {
+  return <LoadingScreen />;
+}
+```
+
+**IMPORTANTE:** Não envolver em divs extras. O componente já tem altura mínima para centralizar.
+
+### Props Disponíveis
+
+| Prop | Tipo | Default | Descrição |
+|------|------|---------|-----------|
+| `text` | string | - | Texto opcional abaixo da logo |
+| `size` | 'sm' \| 'md' \| 'lg' | 'lg' | Tamanho da logo |
+| `fullScreen` | boolean | false | Ocupa tela toda (fixed, com backdrop) |
+| `className` | string | - | Classes adicionais |
+
+### Estilos Internos
+
+- Logo: `src/assets/logosimples.svg`
+- Animação: `animate-pulse` (1.5s)
+- Altura padrão: `min-h-[calc(100dvh-180px)]` (centraliza na área visível)
+- Círculo de fundo: `animate-ping` (2s)
+
+### Páginas que usam LoadingScreen
+
+| Página | Uso |
+|--------|-----|
+| `HomeDashboardCliente` | `<LoadingScreen />` |
+| `ClienteServicos` | `<LoadingScreen />` |
+| `ClienteRebanho` | `<LoadingScreen />` |
+| `ClienteBotijao` | `<LoadingScreen />` |
+
+### Versão Inline (para seções)
+
+```tsx
+import { LoadingInline } from '@/components/shared/LoadingScreen';
+
+<LoadingInline text="Carregando..." />
+```
+
+---
+
+## Fix: Navegação Cards Pendentes → Protocolo de Origem (06/02/2026)
+
+> **Status:** CONCLUÍDO
+
+### Problema
+
+Os cards de "Próximo Serviço" (DG pendente, Sexagem pendente, Parto) no Home do cliente navegavam para protocolos errados. A query em `protocolo_receptoras` não filtrava por `status`, retornando protocolos históricos (ex: protocolo antigo onde a receptora foi INAPTA), resultando em IDs incorretos e contagens divergentes no relatório.
+
+### Causa Raiz
+
+A query buscava qualquer vínculo `protocolo_receptoras` da receptora, sem considerar que uma receptora pode ter participado de múltiplos protocolos ao longo do tempo. Apenas o protocolo onde `status = 'UTILIZADA'` corresponde à TE que gerou a pendência atual.
+
+### Correção
+
+**Arquivo:** `src/components/home/HomeDashboardCliente.tsx` (~linha 267)
+
+Adicionado filtro `.eq('status', 'UTILIZADA')` na query batch de `protocolo_receptoras`:
+
+```tsx
+const { data: protLinks } = await supabase
+  .from('protocolo_receptoras')
+  .select('receptora_id, protocolo_id')
+  .in('receptora_id', needProtIds)
+  .eq('status', 'UTILIZADA');  // ← filtro adicionado
+```
+
+### Regra de Negócio
+
+- `UTILIZADA` = receptora que efetivamente recebeu embrião na TE
+- Garante que o protocolo retornado é o que originou o status atual (SERVIDA/PRENHE)
+- Protocolos antigos (INAPTA, INICIADA, etc.) são ignorados corretamente

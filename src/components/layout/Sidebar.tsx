@@ -65,7 +65,7 @@ const routeLabels: Record<string, string> = {
 
 export default function Sidebar() {
   const location = useLocation();
-  const { getHubForRoute } = usePermissions();
+  const { isCliente, getHubForRoute } = usePermissions();
 
   // Encontra o hub atual baseado na rota
   const currentHub = getHubForRoute(location.pathname);
@@ -75,6 +75,11 @@ export default function Sidebar() {
     // Evita que /embrioes-congelados ative /embrioes
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
+
+  // Clientes não veem sidebar - usam apenas a navegação mobile
+  if (isCliente) {
+    return null;
+  }
 
   // Se não há hub atual, não mostra nada
   if (!currentHub) {
