@@ -7,9 +7,10 @@ import AdminClientesTab from '@/components/admin/AdminClientesTab';
 import AdminFazendasTab from '@/components/admin/AdminFazendasTab';
 import AdminUsuariosTab from '@/components/admin/AdminUsuariosTab';
 import AdminCatalogoTab from '@/components/admin/AdminCatalogoTab';
-import { LayoutDashboard, Users, Home, Shield, Dna } from 'lucide-react';
+import AdminEmbryoScoreTab from '@/components/admin/AdminEmbryoScoreTab';
+import { LayoutDashboard, Users, Home, Shield, Dna, Brain } from 'lucide-react';
 
-type TabType = 'visao-geral' | 'clientes' | 'fazendas' | 'catalogo' | 'usuarios';
+type TabType = 'visao-geral' | 'clientes' | 'fazendas' | 'catalogo' | 'embryoscore' | 'usuarios';
 
 interface TabConfig {
   value: TabType;
@@ -23,6 +24,7 @@ const TABS_CONFIG: TabConfig[] = [
   { value: 'clientes', label: 'Clientes', icon: Users },
   { value: 'fazendas', label: 'Fazendas', icon: Home },
   { value: 'catalogo', label: 'Catalogo', icon: Dna, adminOnly: true },
+  { value: 'embryoscore', label: 'EmbryoScore', icon: Brain, adminOnly: true },
   { value: 'usuarios', label: 'Usuarios', icon: Shield, adminOnly: true },
 ];
 
@@ -111,6 +113,7 @@ export default function Administrativo() {
       {activeTab === 'clientes' && <AdminClientesTab />}
       {activeTab === 'fazendas' && <AdminFazendasTab />}
       {activeTab === 'catalogo' && isAdmin && <AdminCatalogoTab />}
+      {activeTab === 'embryoscore' && isAdmin && <AdminEmbryoScoreTab />}
       {activeTab === 'usuarios' && isAdmin && <AdminUsuariosTab />}
     </div>
   );

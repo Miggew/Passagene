@@ -597,7 +597,6 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
     ? Math.round((ultimoDG.prenhes / ultimoDG.total) * 100) : 0;
 
   const destaque = proximosServicos[0] || null;
-  const outrosPendentes = proximosServicos.slice(1);
 
   const quadrosServico = [
     ultimaTE.totalSincronizadas > 0 && {
@@ -726,42 +725,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         </div>
       </div>
 
-      {/* ── C: OUTROS PENDENTES (linhas tappable 56px) ── */}
-      {outrosPendentes.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 px-0.5">
-            <div className="w-1 h-5 rounded-full bg-primary/50" />
-            <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Pendentes</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-            {outrosPendentes.map((s, idx) => {
-              const cor = semaforoClasses[s.corSemaforo];
-              const config = servicoConfig[s.tipo];
-              const Icon = config.icon;
-              const timing = getTimingText(s);
-              return (
-                <div
-                  key={s.tipo}
-                  onClick={() => navigate(getServicoRota(s))}
-                  className={`flex items-center gap-3 px-4 min-h-[56px] cursor-pointer group hover:bg-muted/40 transition-colors border-l-[3px] ${cor.border.replace('border-', 'border-l-')} ${idx > 0 ? 'border-t border-border/50' : ''}`}
-                >
-                  <Icon className={`w-5 h-5 ${cor.text} shrink-0`} />
-                  <span className="text-base font-semibold">{config.label}</span>
-                  <span className="text-base text-muted-foreground">
-                    {s.total} receptora{s.total !== 1 ? 's' : ''}
-                  </span>
-                  <div className="ml-auto flex items-center gap-2 shrink-0">
-                    <span className={`text-lg font-bold ${cor.text}`}>{timing.valor}</span>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── D: ÚLTIMOS RESULTADOS (linhas tappable 56px, flex-1 para preencher) ── */}
+      {/* ── C: ÚLTIMOS RESULTADOS (linhas tappable 56px, flex-1 para preencher) ── */}
       {quadrosServico.length > 0 && (
         <div className="flex flex-col gap-1.5 flex-1">
           <div className="flex items-center gap-2 px-0.5">

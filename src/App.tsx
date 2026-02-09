@@ -62,6 +62,7 @@ const GeneticaTouroDetail = lazy(() => import('./pages/genetica/GeneticaTouroDet
 const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
 const ClienteRelatorios = lazy(() => import('./pages/cliente/ClienteRelatorios'));
 const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
+const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfiguracoes'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -204,6 +205,7 @@ const AppRoutes = () => {
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
+            <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />
           </Route>
 
           {/* Rota 404 */}

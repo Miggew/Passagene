@@ -259,6 +259,9 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
       ]);
 
       if (acasalamentosResult.error) throw acasalamentosResult.error;
+      if (lotesFivResult.error) {
+        console.warn('[Embrioes] Erro ao buscar lotes_fiv (continuando sem dados de lote):', lotesFivResult.error.message);
+      }
       const acasalamentosData = acasalamentosResult.data || [];
       const lotesFivData = lotesFivResult.data || [];
 
@@ -449,11 +452,20 @@ export function useEmbrioesData(): UseEmbrioesDataReturn {
       });
 
       // Filter packages by fazenda destino if selected
-      const pacotesFiltrados = selectedFazendaDestinoId
-        ? Array.from(pacotesMap.values()).filter((pacote) =>
-            pacote.fazendas_destino_ids.includes(selectedFazendaDestinoId)
-          )
-        : Array.from(pacotesMap.values());
+      const todosPacotes = Array.from(pacotesMap.values());
+      let pacotesFiltrados: PacoteEmbrioes[];
+      if (selectedFazendaDestinoId) {
+        pacotesFiltrados = todosPacotes.filter((pacote) =>
+          pacote.fazendas_destino_ids.includes(selectedFazendaDestinoId)
+        );
+        // Se o filtro excluiu tudo mas há pacotes, mostrar todos (filtro inválido/desatualizado)
+        if (pacotesFiltrados.length === 0 && todosPacotes.length > 0) {
+          console.warn('[Embrioes] Filtro de fazenda não encontrou pacotes, mostrando todos');
+          pacotesFiltrados = todosPacotes;
+        }
+      } else {
+        pacotesFiltrados = todosPacotes;
+      }
 
       // Sort packages
       const pacotesArray = pacotesFiltrados.sort((a, b) => {

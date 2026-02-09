@@ -73,6 +73,21 @@ export default defineConfig({
               },
             },
           },
+          // Cache de OpenCV.js WASM - Cache First (raramente muda)
+          {
+            urlPattern: /^https:\/\/docs\.opencv\.org\/.*opencv\.js$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'opencv-wasm-cache',
+              expiration: {
+                maxEntries: 1,
+                maxAgeSeconds: 60 * 60 * 24 * 90, // 90 dias
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
         ],
       },
     }),

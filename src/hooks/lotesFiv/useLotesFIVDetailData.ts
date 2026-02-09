@@ -354,6 +354,7 @@ export function useLotesFIVDetailData({
           );
         });
 
+        // Filtrar aspirações: só mostrar doadoras com oócitos ainda disponíveis
         const aspiracoesDisponiveisFiltradas = (todasAspiracoesData || []).filter((a) => {
           const oocitosTotal = a.viaveis ?? 0;
           const oocitosUsados = oocitosUsadosPorAspiracao.get(a.id) || 0;
@@ -363,7 +364,7 @@ export function useLotesFIVDetailData({
 
         const aspiracoesComOocitosDisponiveis = aspiracoesDisponiveisFiltradas.map((a) => ({
           ...a,
-          oocitos_disponiveis: (a.viaveis ?? 0) - (oocitosUsadosPorAspiracao.get(a.id) || 0),
+          oocitos_disponiveis: Math.max(0, (a.viaveis ?? 0) - (oocitosUsadosPorAspiracao.get(a.id) || 0)),
         }));
 
         setAspiracoesDisponiveis(aspiracoesComOocitosDisponiveis);

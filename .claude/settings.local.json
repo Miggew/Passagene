@@ -33,7 +33,30 @@
       "Bash(pnpm tsc:*)",
       "Bash(git checkout:*)",
       "Bash(del \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\\\\src\\\\pages\\\\cliente\\\\ClienteNumeros.tsx\")",
-      "Bash(del \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\\\\src\\\\pages\\\\cliente\\\\ClienteFazendaDetail.tsx\")"
+      "Bash(del \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\\\\src\\\\pages\\\\cliente\\\\ClienteFazendaDetail.tsx\")",
+      "Bash(du:*)",
+      "Bash(findstr:*)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase functions list:*)",
+      "Bash(npx supabase functions deploy:*)",
+      "Bash(npx supabase secrets set:*)",
+      "WebFetch(domain:veteriankey.com)",
+      "WebFetch(domain:etschool.com)",
+      "Bash(xargs:*)",
+      "Bash(npx netlify deploy:*)",
+      "Bash(netlify deploy:*)",
+      "Bash(npx netlify-cli deploy:*)",
+      "Bash(npx supabase db execute:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:universe.roboflow.com)",
+      "WebFetch(domain:roboflow.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:pmc.ncbi.nlm.nih.gov)",
+      "WebFetch(domain:study.marearts.com)",
+      "WebFetch(domain:www.fao.org)",
+      "WebFetch(domain:amscope.com)",
+      "Bash(npx supabase functions serve:*)"
     ]
   }
 }

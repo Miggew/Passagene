@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { DoseSemen } from '@/lib/types';
@@ -29,11 +29,20 @@ import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { useLotesFiltros } from '@/hooks/useLotesFiltros';
 import { useLotesFIVData } from '@/hooks/useLotesFIVData';
-import { Eye, X, Filter, Calendar } from 'lucide-react';
+import { Eye, X, Filter, Calendar, ChevronRight } from 'lucide-react';
 import { formatDate, extractDateOnly, diffDays, getTodayDateString } from '@/lib/utils';
+import { loadOpenCV } from '@/lib/embryoscore/detectCircles';
 import { getNomeDia, getCorDia } from '@/lib/lotesFivUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NovoLoteDialog } from '@/components/lotes/NovoLoteDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { LoteDetailView, AcasalamentoForm } from '@/components/lotes/LoteDetailView';
 import { LotesHistoricoTab } from '@/components/lotes/LotesHistoricoTab';
 import { carregarFiltrosLotesFiv } from '@/lib/lotesFivUtils';
@@ -45,8 +54,21 @@ export default function LotesFIV() {
 
   // Estados locais (não movidos para o hook)
   const [submitting, setSubmitting] = useState(false);
+  const [showDespachoSemVideoWarning, setShowDespachoSemVideoWarning] = useState(false);
+  const [showDespachoSemBboxWarning, setShowDespachoSemBboxWarning] = useState(false);
+  const [acsSemVideoNomes, setAcsSemVideoNomes] = useState<string[]>([]);
   const [editQuantidadeEmbrioes, setEditQuantidadeEmbrioes] = useState<{ [key: string]: string }>({});
   const [editClivados, setEditClivados] = useState<{ [key: string]: string }>({});
+  const [editOocitos, setEditOocitos] = useState<{ [key: string]: string }>({});
+  const [videoMediaIds, setVideoMediaIds] = useState<{ [acasalamentoId: string]: string[] }>({});
+  const [videoDetections, setVideoDetections] = useState<{
+    [acasalamentoId: string]: Array<{
+      mediaId: string;
+      bboxes: import('@/lib/types').DetectedBbox[];
+      confidence: 'high' | 'medium' | 'low';
+      cropPaths?: string[] | null;
+    }>;
+  }>({});
 
   // Estado local de paginação do histórico para quebrar dependência circular
   const [historicoPageLocal, setHistoricoPageLocal] = useState<number>(() => {
@@ -147,6 +169,70 @@ export default function LotesFIV() {
   const historicoPage = historicoPageLocal;
   const setHistoricoPage = handleSetHistoricoPage;
 
+  // Pre-load OpenCV.js em background quando a página abre
+  useEffect(() => {
+    loadOpenCV().catch(() => {
+      // Silencioso — será carregado sob demanda quando necessário
+    });
+  }, []);
+
+  // Carregar vídeos existentes do banco quando o lote é selecionado
+  useEffect(() => {
+    if (!selectedLote || !showLoteDetail || acasalamentos.length === 0) return;
+
+    const acIds = acasalamentos.map(ac => ac.id);
+
+    (async () => {
+      // Buscar vídeos já enviados para esses acasalamentos
+      const { data: medias } = await supabase
+        .from('acasalamento_embrioes_media')
+        .select('id, lote_fiv_acasalamento_id')
+        .in('lote_fiv_acasalamento_id', acIds)
+        .eq('tipo_media', 'VIDEO')
+        .order('created_at', { ascending: false });
+
+      if (medias && medias.length > 0) {
+        const ids: { [acId: string]: string[] } = {};
+        for (const m of medias) {
+          if (!ids[m.lote_fiv_acasalamento_id]) {
+            ids[m.lote_fiv_acasalamento_id] = [];
+          }
+          ids[m.lote_fiv_acasalamento_id].push(m.id);
+        }
+        setVideoMediaIds(prev => ({ ...prev, ...ids }));
+      }
+
+      // Buscar detecções (bboxes) da fila de análise
+      const { data: queues } = await supabase
+        .from('embryo_analysis_queue')
+        .select('lote_fiv_acasalamento_id, media_id, detected_bboxes, detection_confidence, crop_paths')
+        .in('lote_fiv_acasalamento_id', acIds)
+        .order('created_at', { ascending: false });
+
+      if (queues && queues.length > 0) {
+        const dets: typeof videoDetections = {};
+        const seenMediaIds = new Set<string>();
+        for (const q of queues) {
+          if (!q.detected_bboxes || !q.media_id) continue;
+          // Evitar duplicatas do mesmo media_id (pegar só o mais recente)
+          if (seenMediaIds.has(q.media_id)) continue;
+          seenMediaIds.add(q.media_id);
+
+          if (!dets[q.lote_fiv_acasalamento_id]) {
+            dets[q.lote_fiv_acasalamento_id] = [];
+          }
+          dets[q.lote_fiv_acasalamento_id].push({
+            mediaId: q.media_id,
+            bboxes: q.detected_bboxes,
+            confidence: q.detection_confidence || 'medium',
+            cropPaths: q.crop_paths || null,
+          });
+        }
+        setVideoDetections(prev => ({ ...prev, ...dets }));
+      }
+    })();
+  }, [selectedLote?.id, showLoteDetail, acasalamentos.length]);
+
   // Despachar embriões no D7
   const despacharEmbrioes = async () => {
     if (!selectedLote) return;
@@ -185,7 +271,7 @@ export default function LotesFIV() {
       }
 
       const acasalamentosComQuantidade = acasalamentos.filter(ac => {
-        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || ac.quantidade_embrioes?.toString() || '0');
+        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || '0');
         return quantidade > 0;
       });
 
@@ -199,7 +285,7 @@ export default function LotesFIV() {
       }
 
       for (const ac of acasalamentosComQuantidade) {
-        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || ac.quantidade_embrioes?.toString() || '0');
+        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || '0');
         const quantidadeOocitos = ac.quantidade_oocitos ?? 0;
         // Usa clivados como limite se preenchido, senão usa oócitos
         const clivadosEditado = editClivados[ac.id];
@@ -217,6 +303,40 @@ export default function LotesFIV() {
           });
           return;
         }
+      }
+
+      // Warning: acasalamentos SEM vídeo
+      const acsSemVideo = acasalamentosComQuantidade.filter(ac => !videoMediaIds[ac.id]?.length);
+      if (acsSemVideo.length > 0 && !showDespachoSemVideoWarning) {
+        const nomes = acsSemVideo.map(ac => ac.doadora_nome || ac.doadora_registro || 'Doadora');
+        setAcsSemVideoNomes(nomes);
+        setShowDespachoSemVideoWarning(true);
+        setSubmitting(false);
+        return; // Pausa para confirmação do usuário
+      }
+      // Resetar flag se confirmou
+      if (showDespachoSemVideoWarning) {
+        setShowDespachoSemVideoWarning(false);
+        setAcsSemVideoNomes([]);
+      }
+
+      // Warning: acasalamentos COM vídeo mas SEM bboxes detectadas
+      const acsSemBboxes = acasalamentosComQuantidade.filter(ac => {
+        const hasVideo = !!videoMediaIds[ac.id]?.length;
+        const detections = videoDetections[ac.id] || [];
+        const totalBboxes = detections.reduce((sum, d) => sum + (d.bboxes?.length || 0), 0);
+        return hasVideo && totalBboxes === 0;
+      });
+      if (acsSemBboxes.length > 0 && !showDespachoSemBboxWarning) {
+        const nomes = acsSemBboxes.map(ac => ac.doadora_nome || ac.doadora_registro || 'Doadora').join(', ');
+        setAcsSemVideoNomes(nomes.split(', '));
+        setShowDespachoSemBboxWarning(true);
+        setSubmitting(false);
+        return; // Pausa para confirmação do usuário
+      }
+      // Resetar flag se confirmou
+      if (showDespachoSemBboxWarning) {
+        setShowDespachoSemBboxWarning(false);
       }
 
       const nomePacote = `${fazendaOrigemNome} - ${fazendasDestinoNomes.join(', ')}`;
@@ -304,18 +424,173 @@ export default function LotesFIV() {
         }
       }
 
+      // Guardar IDs dos embriões criados por acasalamento (para vincular media_id apenas nos novos)
+      const embrioesIdsPorAcasalamento: { [acasalamentoId: string]: string[] } = {};
+
       if (embrioesParaCriar.length > 0) {
-        const { error: embrioesError } = await supabase
+        const { data: embrioesInseridos, error: embrioesError } = await supabase
           .from('embrioes')
-          .insert(embrioesParaCriar);
+          .insert(embrioesParaCriar)
+          .select('id, lote_fiv_acasalamento_id');
 
         if (embrioesError) {
           throw embrioesError;
         }
+
+        // Agrupar IDs por acasalamento
+        if (embrioesInseridos) {
+          for (const emb of embrioesInseridos) {
+            const acId = emb.lote_fiv_acasalamento_id;
+            if (!embrioesIdsPorAcasalamento[acId]) {
+              embrioesIdsPorAcasalamento[acId] = [];
+            }
+            embrioesIdsPorAcasalamento[acId].push(emb.id);
+          }
+        }
       }
 
+      // EmbryoScore: vincular vídeos aos embriões RECÉM-CRIADOS e criar jobs de análise
+      // (opcional — falhas aqui NÃO devem bloquear o despacho)
+      // Agora iteramos por VÍDEO (não por acasalamento), distribuindo embriões proporcionalmente
+      for (const ac of acasalamentosDespachados) {
+        const mediaIds = videoMediaIds[ac.acasalamento_id];
+        if (!mediaIds?.length) continue;
+
+        // IDs dos embriões recém-criados DESTE acasalamento
+        const novosEmbrioesIds = embrioesIdsPorAcasalamento[ac.acasalamento_id] || [];
+        const detections = videoDetections[ac.acasalamento_id] || [];
+
+        // Distribuir embriões entre vídeos proporcionalmente ao número de bboxes detectados
+        // Ex: vídeo1 detectou 6 bboxes, vídeo2 detectou 4 → vídeo1 fica com 6 embriões, vídeo2 com 4
+        let embrioesDistribuidos = 0;
+
+        for (let vIdx = 0; vIdx < mediaIds.length; vIdx++) {
+          const mediaId = mediaIds[vIdx];
+          const detection = detections.find(d => d.mediaId === mediaId);
+          const bboxCount = detection?.bboxes?.length || 0;
+
+          // Calcular quantos embriões este vídeo recebe
+          let countForVideo: number;
+          if (vIdx === mediaIds.length - 1) {
+            // Último vídeo: recebe os restantes
+            countForVideo = ac.quantidade - embrioesDistribuidos;
+          } else {
+            countForVideo = bboxCount > 0 ? bboxCount : 0;
+          }
+          if (countForVideo <= 0) continue;
+
+          // IDs dos embriões alocados a este vídeo
+          const embrioesDoVideo = novosEmbrioesIds.slice(embrioesDistribuidos, embrioesDistribuidos + countForVideo);
+          embrioesDistribuidos += countForVideo;
+
+          try {
+            // 1. Verificar que o registro de mídia realmente existe
+            const { data: mediaExists } = await supabase
+              .from('acasalamento_embrioes_media')
+              .select('id')
+              .eq('id', mediaId)
+              .maybeSingle();
+
+            if (!mediaExists) {
+              console.warn(`EmbryoScore: media_id ${mediaId} não encontrado. Pulando.`);
+              continue;
+            }
+
+            // 2. Vincular media_id aos embriões deste vídeo
+            if (embrioesDoVideo.length > 0) {
+              await supabase
+                .from('embrioes')
+                .update({ acasalamento_media_id: mediaId })
+                .in('id', embrioesDoVideo)
+                .then(({ error }) => {
+                  if (error) {
+                    console.warn('EmbryoScore: falha ao vincular vídeo (não-bloqueante):', error.message);
+                  }
+                });
+            }
+
+            // 3-5. Criar job de análise SOMENTE se há bboxes+crops (MODO A)
+            // Sem bboxes o resultado é impreciso — pular análise
+            const bboxCount = detection?.bboxes?.length || 0;
+            const hasCropsForVideo = detection?.cropPaths && detection.cropPaths.length > 0;
+
+            if (bboxCount > 0 && hasCropsForVideo) {
+              let selectedBboxes = detection?.bboxes ?? null;
+              let detConfidence = detection?.confidence ?? null;
+
+              if (selectedBboxes && selectedBboxes.length > countForVideo) {
+                selectedBboxes = [...selectedBboxes]
+                  .sort((a, b) => b.radius_px - a.radius_px)
+                  .slice(0, countForVideo);
+                detConfidence = 'medium';
+              } else if (selectedBboxes && selectedBboxes.length < countForVideo) {
+                detConfidence = 'low';
+              }
+
+              let selectedCropPaths = detection?.cropPaths ?? null;
+              if (selectedBboxes && selectedCropPaths && selectedBboxes.length < (detection?.bboxes?.length ?? 0)) {
+                const indexedBboxes = (detection?.bboxes ?? []).map((b, i) => ({ b, i }));
+                const sortedIndexes = indexedBboxes
+                  .sort((a, b) => b.b.radius_px - a.b.radius_px)
+                  .slice(0, countForVideo)
+                  .map(x => x.i);
+                selectedCropPaths = sortedIndexes.map(i => selectedCropPaths![i]).filter(Boolean);
+              }
+
+              const { data: queueData, error: queueError } = await supabase
+                .from('embryo_analysis_queue')
+                .insert({
+                  media_id: mediaId,
+                  lote_fiv_acasalamento_id: ac.acasalamento_id,
+                  status: 'pending',
+                  detected_bboxes: selectedBboxes,
+                  detection_confidence: detConfidence,
+                  expected_count: countForVideo,
+                  crop_paths: selectedCropPaths,
+                })
+                .select('id')
+                .single();
+
+              if (queueError) {
+                console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
+              }
+
+              // 4. Vincular queue_id aos embriões deste vídeo
+              if (queueData?.id && embrioesDoVideo.length > 0) {
+                supabase
+                  .from('embrioes')
+                  .update({ queue_id: queueData.id })
+                  .in('id', embrioesDoVideo)
+                  .then(({ error }) => {
+                    if (error) {
+                      console.warn('EmbryoScore: falha ao vincular queue_id (não-bloqueante):', error.message);
+                    }
+                  });
+              }
+
+              // 5. Invocar Edge Function fire-and-forget
+              if (queueData?.id) {
+                supabase.functions.invoke('embryo-analyze', {
+                  body: { queue_id: queueData.id },
+                }).catch((err: unknown) => {
+                  console.warn('EmbryoScore: falha ao invocar análise (será reprocessado):', err);
+                });
+              }
+            } else {
+              console.log(`EmbryoScore: vídeo ${mediaId} sem bboxes/crops — análise pulada, embrião vinculado ao vídeo`);
+            }
+          } catch (embryoScoreErr) {
+            console.warn('EmbryoScore: erro não-bloqueante no processamento de vídeo:', embryoScoreErr);
+          }
+        }
+      }
+
+      // Limpar vídeos e detecções após despacho
+      setVideoMediaIds({});
+      setVideoDetections({});
+
       const historicoDespacho = {
-        id: `${selectedLote.id}-${dataDespacho}`,
+        id: `${selectedLote.id}-${dataDespacho}-${Date.now()}`,
         data_despacho: dataDespacho,
         acasalamentos: acasalamentosDespachados,
       };
@@ -452,6 +727,7 @@ export default function LotesFIV() {
   // Se estiver visualizando um lote específico
   if (selectedLote && showLoteDetail) {
     return (
+      <>
       <LoteDetailView
         lote={selectedLote}
         acasalamentos={acasalamentos}
@@ -478,6 +754,18 @@ export default function LotesFIV() {
           });
         }}
         editQuantidadeEmbrioes={editQuantidadeEmbrioes}
+        editOocitos={editOocitos}
+        onUpdateOocitos={async (acasalamentoId, quantidade) => {
+          setEditOocitos(prev => ({ ...prev, [acasalamentoId]: quantidade }));
+          const valorNumerico = parseInt(quantidade) || null;
+          await supabase
+            .from('lote_fiv_acasalamentos')
+            .update({ quantidade_oocitos: valorNumerico })
+            .eq('id', acasalamentoId);
+        }}
+        onBlurOocitos={async () => {
+          if (selectedLote) await loadLoteDetail(selectedLote.id);
+        }}
         onUpdateClivados={async (acasalamentoId, quantidade) => {
           setEditClivados({
             ...editClivados,
@@ -491,7 +779,91 @@ export default function LotesFIV() {
             .eq('id', acasalamentoId);
         }}
         editClivados={editClivados}
+        videoMediaIds={videoMediaIds}
+        videoDetections={videoDetections}
+        onVideoUploadComplete={(acasalamentoId, mediaId, detectedBboxes, detectionConfidence, cropPaths) => {
+          setVideoMediaIds(prev => ({
+            ...prev,
+            [acasalamentoId]: [...(prev[acasalamentoId] || []), mediaId],
+          }));
+          if (detectedBboxes && detectionConfidence) {
+            setVideoDetections(prev => ({
+              ...prev,
+              [acasalamentoId]: [
+                ...(prev[acasalamentoId] || []),
+                { mediaId, bboxes: detectedBboxes, confidence: detectionConfidence, cropPaths },
+              ],
+            }));
+          }
+        }}
       />
+
+      {/* Dialog: Warning despacho sem vídeo */}
+      <Dialog open={showDespachoSemVideoWarning} onOpenChange={setShowDespachoSemVideoWarning}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Despachar sem análise de IA?</DialogTitle>
+            <DialogDescription>
+              {acsSemVideoNomes.length} acasalamento(s) não têm vídeo: {acsSemVideoNomes.join(', ')}.
+              Sem vídeo, a análise EmbryoScore não será realizada para esses embriões.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDespachoSemVideoWarning(false);
+                setSubmitting(false);
+              }}
+            >
+              Voltar e filmar
+            </Button>
+            <Button
+              onClick={() => {
+                // Continua o despacho — a flag showDespachoSemVideoWarning está true,
+                // o despacharEmbrioes vai pular o warning check
+                despacharEmbrioes();
+              }}
+            >
+              Continuar sem análise
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Warning despacho com vídeo mas sem detecção */}
+      <Dialog open={showDespachoSemBboxWarning} onOpenChange={setShowDespachoSemBboxWarning}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Embriões não detectados no vídeo</DialogTitle>
+            <DialogDescription>
+              Alguns acasalamentos têm vídeo mas a detecção automática não encontrou embriões.
+              A análise EmbryoScore será feita em modo simplificado (sem posição individual).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDespachoSemBboxWarning(false);
+                setSubmitting(false);
+              }}
+            >
+              Voltar e redetectar
+            </Button>
+            <Button
+              onClick={() => {
+                // Continua o despacho — a flag showDespachoSemBboxWarning está true,
+                // o despacharEmbrioes vai pular o bbox check
+                despacharEmbrioes();
+              }}
+            >
+              Continuar mesmo assim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </>
     );
   }
 
@@ -646,66 +1018,130 @@ export default function LotesFIV() {
                   }
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Aspiração</TableHead>
-                      <TableHead>Fazendas Destino</TableHead>
-                      <TableHead>Dia do Cultivo</TableHead>
-                      <TableHead>Acasalamentos</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lotesFiltrados.map((lote) => (
-                      <TableRow key={lote.id}>
-                        <TableCell>
-                          {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0 ? (
-                              lote.fazendas_destino_nomes.map((nome, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {nome}
+                <>
+                  {/* Mobile Card Layout */}
+                  <div className="md:hidden space-y-2">
+                    {lotesFiltrados.map((lote) => {
+                      const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual && lote.dia_atual > 9 ? 8 : (lote.dia_atual ?? 0) - 1);
+                      return (
+                        <div
+                          key={lote.id}
+                          onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
+                          className="rounded-lg border border-border bg-card p-3 cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              {/* Fazenda nome */}
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-medium text-foreground truncate">
+                                  {lote.pacote_nome}
+                                </span>
+                              </div>
+
+                              {/* Dia cultivo e acasalamentos */}
+                              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                                {lote.dia_atual !== undefined ? (
+                                  <Badge
+                                    variant="outline"
+                                    className={`font-semibold text-[10px] ${getCorDia(diaCultivo)}`}
+                                  >
+                                    {diaCultivo === -1
+                                      ? `D-1 - ${getNomeDia(diaCultivo)}`
+                                      : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`}
+                                  </Badge>
+                                ) : null}
+                                <span>·</span>
+                                <span>{lote.quantidade_acasalamentos ?? 0} acasalamentos</span>
+                              </div>
+
+                              {/* Destino */}
+                              <div className="text-xs text-muted-foreground truncate">
+                                <span className="font-medium">Destino: </span>
+                                {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0
+                                  ? lote.fazendas_destino_nomes.join(', ')
+                                  : '-'}
+                              </div>
+
+                              {/* Status badge */}
+                              <div className="mt-2">
+                                <Badge variant="outline" className="text-[10px]">
+                                  ABERTO
                                 </Badge>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                              </div>
+                            </div>
+
+                            {/* Chevron */}
+                            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-1" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {lote.dia_atual !== undefined ? (
-                            <Badge
-                              variant="outline"
-                              className={`font-semibold ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
-                            >
-                              {(() => {
-                                const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1);
-                                return diaCultivo === -1
-                                  ? `D-1 - ${getNomeDia(diaCultivo)}`
-                                  : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`;
-                              })()}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{lote.quantidade_acasalamentos ?? 0}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table Layout */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Aspiração</TableHead>
+                          <TableHead>Fazendas Destino</TableHead>
+                          <TableHead>Dia do Cultivo</TableHead>
+                          <TableHead>Acasalamentos</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lotesFiltrados.map((lote) => (
+                          <TableRow key={lote.id}>
+                            <TableCell>
+                              {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0 ? (
+                                  lote.fazendas_destino_nomes.map((nome, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs">
+                                      {nome}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {lote.dia_atual !== undefined ? (
+                                <Badge
+                                  variant="outline"
+                                  className={`font-semibold ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
+                                >
+                                  {(() => {
+                                    const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1);
+                                    return diaCultivo === -1
+                                      ? `D-1 - ${getNomeDia(diaCultivo)}`
+                                      : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`;
+                                  })()}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{lote.quantidade_acasalamentos ?? 0}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
         </CardContent>
       </Card>

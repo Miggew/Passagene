@@ -32,6 +32,13 @@ export type {
   LoteFIVAcasalamento,
   AcasalamentoEmbrioesMedia,
 
+  // EmbryoScore (análise IA)
+  EmbryoScore,
+  EmbryoAnalysisQueue,
+  EmbryoScoreConfig,
+  EmbriaoComScore,
+  ClassificacaoEmbriao,
+
   // Doses e Transferencias
   DoseSemen,
   TransferenciaEmbriao,

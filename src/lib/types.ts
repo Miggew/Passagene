@@ -408,14 +408,17 @@ export interface LoteFIVAcasalamento {
   updated_at?: string;
 }
 
+export type ClassificacaoEmbriao = 'BE' | 'BN' | 'BX' | 'BL' | 'BI';
+
 export interface Embriao {
   id: string;
   lote_fiv_id: string;
   lote_fiv_acasalamento_id?: string;
   acasalamento_media_id?: string;
+  queue_id?: string;
   identificacao?: string;
   numero_lote?: number; // Número sequencial do embrião dentro do lote (1, 2, 3, ...)
-  classificacao?: string;
+  classificacao?: ClassificacaoEmbriao | string;
   tipo_embriao?: string;
   status_atual: 'FRESCO' | 'CONGELADO' | 'TRANSFERIDO' | 'DESCARTADO';
   cliente_id?: string; // ID do cliente dono do estoque (apenas para embriões congelados)
@@ -449,6 +452,135 @@ export interface AcasalamentoEmbrioesMedia {
   observacoes?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+// EmbryoScore — análise por IA
+export interface EmbryoScore {
+  id: string;
+  embriao_id: string;
+  media_id?: string;
+
+  // Score final
+  embryo_score: number;
+  classification: 'Excelente' | 'Bom' | 'Regular' | 'Borderline' | 'Inviavel';
+  transfer_recommendation: 'priority' | 'recommended' | 'conditional' | 'second_opinion' | 'discard';
+  confidence: 'high' | 'medium' | 'low';
+  reasoning?: string;
+
+  // Morfologia
+  morph_score?: number;
+  stage?: string;
+  icm_grade?: 'A' | 'B' | 'C';
+  icm_description?: string;
+  te_grade?: 'A' | 'B' | 'C';
+  te_description?: string;
+  zp_status?: string;
+  fragmentation?: string;
+  morph_notes?: string;
+
+  // Cinética
+  kinetic_score?: number;
+  global_motion?: string;
+  icm_activity?: string;
+  te_activity?: string;
+  blastocele_pulsation?: string;
+  blastocele_pattern?: string;
+  expansion_observed?: boolean;
+  stability?: string;
+  motion_asymmetry?: string;
+  most_active_region?: string;
+  kinetic_notes?: string;
+  viability_indicators?: string[];
+
+  // Posição no vídeo
+  position_description?: string;
+  bbox_x_percent?: number;
+  bbox_y_percent?: number;
+  bbox_width_percent?: number;
+  bbox_height_percent?: number;
+  crop_image_path?: string;
+
+  // Meta
+  model_used?: string;
+  morph_weight?: number;
+  kinetic_weight?: number;
+  prompt_version?: string;
+  processing_time_ms?: number;
+
+  // Histórico de versões
+  is_current?: boolean;
+  analysis_version?: number;
+
+  // Feedback do biólogo (Sprint 5)
+  biologo_concorda?: boolean | null;
+  biologo_nota?: string | null;
+
+  // Resposta bruta da IA (inclui _meta com info de divergência)
+  raw_response?: {
+    total_embryos_detected?: number;
+    _meta?: {
+      embryos_in_db: number;
+      embryos_detected_by_ai: number;
+      count_mismatch: boolean;
+    };
+    [key: string]: unknown;
+  };
+
+  created_at?: string;
+}
+
+export interface DetectedBbox {
+  x_percent: number;      // centro X como % da largura do frame (0-100)
+  y_percent: number;      // centro Y como % da altura do frame (0-100)
+  width_percent: number;  // largura bbox como % (= diâmetro, quadrado)
+  height_percent: number; // altura bbox como % (= diâmetro, quadrado)
+  radius_px: number;      // raio original em pixels (para debug/ranking)
+  per_bbox_confidence?: 'high' | 'medium' | 'low'; // confiança por bbox (multi-frame)
+  detection_count?: number; // em quantos frames foi detectado (1-3)
+}
+
+export interface EmbryoAnalysisQueue {
+  id: string;
+  media_id: string;
+  lote_fiv_acasalamento_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  error_message?: string;
+  retry_count?: number;
+  started_at?: string;
+  completed_at?: string;
+  created_at?: string;
+  // OpenCV circle detection (do browser)
+  detected_bboxes?: DetectedBbox[] | null;
+  detection_confidence?: 'high' | 'medium' | 'low' | null;
+  expected_count?: number | null;
+  // Crop JPEG paths no Storage (bússola visual para Gemini)
+  crop_paths?: string[] | null;
+}
+
+export interface EmbryoScoreConfig {
+  id: string;
+  morph_weight: number;
+  kinetic_weight: number;
+  model_name: string;
+  prompt_version: string;
+  active: boolean;
+  notes?: string;
+  calibration_prompt?: string;  // System prompt (NULL = usar padrão hardcoded)
+  analysis_prompt?: string;     // User prompt de análise (NULL = usar padrão hardcoded)
+  created_at?: string;
+}
+
+export interface EmbryoScoreSecret {
+  id: string;
+  key_name: string;
+  key_value: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+// Embrião com score (para listagens)
+export interface EmbriaoComScore extends Embriao {
+  score?: EmbryoScore | null;
 }
 
 export interface HistoricoEmbriao {

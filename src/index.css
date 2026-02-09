@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fonte grande para uso no campo */
+html.font-grande {
+  font-size: 18px;
+}
+
 @layer base {
   :root {
     /* Design Tokens PassaGene - Light Mode */
@@ -197,4 +202,10 @@
       font-size: 16px;
     }
   }
+}
+
+/* EmbryoAnalysisBar shimmer animation */
+@keyframes embryo-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
 }

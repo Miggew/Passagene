@@ -1,7 +1,10 @@
 import { usePermissions } from '@/hooks/usePermissions';
 import { useUserClientes } from '@/hooks/useUserClientes';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import ThemeToggle from '@/components/shared/ThemeToggle';
 import logoEscrito from '@/assets/logoescrito.svg';
+import { useNavigate } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 import {
   HomeDashboardCliente,
   HomeDashboardOperacional,
@@ -11,6 +14,7 @@ import {
 export default function Home() {
   const { isAdmin, isCliente, isOperacional, profile, clienteId } = usePermissions();
   const { clienteIds, clientes, loading: loadingClientes } = useUserClientes();
+  const navigate = useNavigate();
 
   // Determinar saudação baseado no tipo de usuário
   const getSaudacao = () => {
@@ -35,14 +39,24 @@ export default function Home() {
   if (isCliente && clienteId) {
     return (
       <div className="flex flex-col overflow-y-auto" style={{ height: 'calc(100dvh - 16px - 96px)' }}>
-        {/* Header compacto: Logo + Saudação */}
-        <div className="flex items-center justify-between gap-3 pb-2 pr-12 shrink-0">
+        {/* Header: Configurações esquerda + Logo central + ThemeToggle direita */}
+        <div className="relative flex items-center justify-center pb-3 shrink-0">
+          {/* Botão configurações - canto superior esquerdo */}
+          <div className="absolute left-0 top-0">
+            <button
+              onClick={() => navigate('/cliente/configuracoes')}
+              className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted/50 hover:bg-muted border border-border/50 hover:border-border transition-all active:scale-95"
+            >
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Logo centralizada */}
           <img src={logoEscrito} alt="PassaGene" className="h-9 w-auto" />
-          <div className="shrink-0 text-right">
-            <h1 className="text-base font-semibold text-foreground leading-tight">
-              {getSaudacao()}, {profile?.nome?.split(' ')[0] || 'Usuário'}
-            </h1>
-            <p className="text-sm text-muted-foreground">{getSubtitulo()}</p>
+
+          {/* ThemeToggle - canto superior direito */}
+          <div className="absolute right-0 top-0">
+            <ThemeToggle />
           </div>
         </div>
 

@@ -42,8 +42,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Lock, X, Users, FileText, Package, Plus } from 'lucide-react';
-import { formatDate, extractDateOnly, addDays, diffDays, formatDateString, getDayOfWeekName, getTodayDateString } from '@/lib/utils';
+import { ArrowLeft, Lock, X, Users, FileText, Package, Plus, ChevronDown, Video } from 'lucide-react';
+import { VideoUploadButton, LoteScoreDashboard } from '@/components/embryoscore';
+import { cn, formatDate, extractDateOnly, addDays, diffDays, formatDateString, getDayOfWeekName, getTodayDateString } from '@/lib/utils';
 import { getDiaCultivo } from '@/lib/lotesFivUtils';
 
 interface LoteDetailViewProps {
@@ -64,8 +65,20 @@ interface LoteDetailViewProps {
   onDespacharEmbrioes: () => Promise<void>;
   onUpdateQuantidadeEmbrioes: (acasalamentoId: string, quantidade: string) => void;
   editQuantidadeEmbrioes: { [key: string]: string };
+  onUpdateOocitos?: (acasalamentoId: string, quantidade: string) => void;
+  editOocitos?: { [key: string]: string };
+  onBlurOocitos?: () => void;
   onUpdateClivados?: (acasalamentoId: string, quantidade: string) => void;
   editClivados?: { [key: string]: string };
+  videoMediaIds?: { [acasalamentoId: string]: string[] };
+  videoDetections?: { [acasalamentoId: string]: Array<{ mediaId: string; bboxes: import('@/lib/types').DetectedBbox[]; confidence: 'high' | 'medium' | 'low'; cropPaths?: string[] | null }> };
+  onVideoUploadComplete?: (
+    acasalamentoId: string,
+    mediaId: string,
+    detectedBboxes?: import('@/lib/types').DetectedBbox[] | null,
+    detectionConfidence?: 'high' | 'medium' | 'low' | null,
+    cropPaths?: string[] | null,
+  ) => void;
 }
 
 export interface AcasalamentoForm {
@@ -113,8 +126,14 @@ export function LoteDetailView({
   onDespacharEmbrioes,
   onUpdateQuantidadeEmbrioes,
   editQuantidadeEmbrioes,
+  onUpdateOocitos,
+  editOocitos = {},
+  onBlurOocitos,
   onUpdateClivados,
   editClivados = {},
+  videoMediaIds = {},
+  videoDetections = {},
+  onVideoUploadComplete,
 }: LoteDetailViewProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -122,6 +141,7 @@ export function LoteDetailView({
   // Estados locais do componente
   const [showAddAcasalamento, setShowAddAcasalamento] = useState(false);
   const [showRelatorioDialog, setShowRelatorioDialog] = useState(false);
+  const [expandedAcasalamento, setExpandedAcasalamento] = useState<string | null>(null);
   const [recomendacaoAspiracaoSelecionada, setRecomendacaoAspiracaoSelecionada] = useState('');
   const [acasalamentoForm, setAcasalamentoForm] = useState<AcasalamentoForm>({
     aspiracao_doadora_id: '',
@@ -207,6 +227,18 @@ export function LoteDetailView({
     navigate('/lotes-fiv');
   };
 
+  // Calcular max de oócitos para um acasalamento (viáveis - usado por outros acasalamentos)
+  const calcMaxOocitos = (acId: string) => {
+    const ac = acasalamentos.find(a => a.id === acId);
+    if (!ac?.viaveis) return 9999;
+    const usedByOthers = acasalamentos
+      .filter(a => a.aspiracao_doadora_id === ac.aspiracao_doadora_id && a.id !== acId)
+      .reduce((sum, a) => sum + (
+        editOocitos[a.id] != null ? parseInt(editOocitos[a.id]) || 0 : a.quantidade_oocitos || 0
+      ), 0);
+    return Math.max(0, ac.viaveis - usedByOthers);
+  };
+
   // Encontrar doadora pelo ID da aspiração
   const getDoadoraByAspiracaoId = (aspiracaoId: string) => {
     const aspiracao = aspiracoesDisponiveis.find((a) => a.id === aspiracaoId);
@@ -217,13 +249,14 @@ export function LoteDetailView({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={handleBackClick}>
+      <div className="flex items-center gap-3 md:gap-4">
+        <Button variant="ghost" size="sm" onClick={handleBackClick} className="shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Detalhes do Lote FIV</h1>
-          <div className="text-muted-foreground mt-1 flex items-center gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold text-foreground">Detalhes do Lote FIV</h1>
+          {/* Desktop: inline */}
+          <div className="hidden md:flex text-muted-foreground mt-1 items-center gap-2">
             <span>
               Data de fecundação (D0): {formatDate(lote.data_abertura)} |
               {dataAspiracaoStr && ` Data aspiração (D-1): ${formatDateString(dataAspiracaoStr)} |`}
@@ -235,6 +268,17 @@ export function LoteDetailView({
               {' '}Status:
             </span>
             <Badge variant={lote.status === 'FECHADO' ? 'default' : 'secondary'}>
+              {lote.status}
+            </Badge>
+          </div>
+          {/* Mobile: stacked */}
+          <div className="md:hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span>D0: {formatDate(lote.data_abertura)}</span>
+            <span>|</span>
+            <span className="font-medium text-foreground">
+              {diaCultivo === -1 ? 'D-1' : `D${diaCultivo}`} - {getNomeDiaDetalhe(diaCultivo)}
+            </span>
+            <Badge variant={lote.status === 'FECHADO' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
               {lote.status}
             </Badge>
           </div>
@@ -334,6 +378,14 @@ export function LoteDetailView({
         </CardContent>
       </Card>
 
+      {/* Dashboard EmbryoScore do Lote (visível D7+) */}
+      {diaAtual >= 8 && (
+        <LoteScoreDashboard
+          loteFivId={lote.id}
+          totalEmbrioes={acasalamentos.reduce((sum, ac) => sum + (ac.total_embrioes_produzidos || 0), 0) || undefined}
+        />
+      )}
+
       {/* Tabela de acasalamentos */}
       <Card>
         <CardHeader>
@@ -370,94 +422,321 @@ export function LoteDetailView({
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Doadora</TableHead>
-                  <TableHead>Touro</TableHead>
-                  <TableHead className="text-center">Oócitos</TableHead>
-                  <TableHead className="text-center">D3 Clivados</TableHead>
-                  <TableHead className="text-center">Qtd. Embriões</TableHead>
-                  <TableHead className="text-center">%</TableHead>
-                  <TableHead>Observações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: Cards empilhados */}
+              <div className="md:hidden space-y-3">
                 {acasalamentos.map((acasalamento) => {
-                  // Prioriza quantidade_oocitos (salvo no acasalamento), fallback para viaveis (retrocompatibilidade)
-                  const quantidadeOocitos = acasalamento.quantidade_oocitos || acasalamento.viaveis || 0;
-                  // Clivados: usa valor editado, ou valor salvo, ou vazio
+                  const quantidadeOocitos = editOocitos[acasalamento.id] != null
+                    ? (parseInt(editOocitos[acasalamento.id]) || 0)
+                    : (acasalamento.quantidade_oocitos || acasalamento.viaveis || 0);
                   const clivadosEditado = editClivados[acasalamento.id];
                   const clivadosSalvo = acasalamento.embrioes_clivados_d3;
                   const clivadosValor = clivadosEditado !== undefined ? clivadosEditado : (clivadosSalvo?.toString() ?? '');
                   const clivadosNumero = parseInt(clivadosValor) || 0;
-
-                  // Limite para embriões: usa clivados se preenchido, senão oócitos
                   const limiteEmbrioes = clivadosNumero > 0 ? clivadosNumero : quantidadeOocitos;
-
-                  const quantidadeEmbrioes =
-                    editQuantidadeEmbrioes[acasalamento.id] !== undefined
-                      ? parseInt(editQuantidadeEmbrioes[acasalamento.id]) || 0
-                      : acasalamento.total_embrioes_produzidos || 0;
-
-                  // Percentual sobre oócitos (original)
+                  const embrioesDespachados = acasalamento.total_embrioes_produzidos || 0;
+                  const quantidadeNovoDespacho = editQuantidadeEmbrioes[acasalamento.id] !== undefined
+                    ? parseInt(editQuantidadeEmbrioes[acasalamento.id]) || 0 : 0;
+                  const quantidadeEmbrioes = quantidadeNovoDespacho > 0 ? quantidadeNovoDespacho : embrioesDespachados;
                   const percentual = quantidadeOocitos > 0 ? ((quantidadeEmbrioes / quantidadeOocitos) * 100).toFixed(1) : '0.0';
+                  const isExpanded = expandedAcasalamento === acasalamento.id;
 
                   return (
-                    <TableRow key={acasalamento.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{acasalamento.doadora_registro || '-'}</p>
-                          {acasalamento.doadora_nome && (
-                            <p className="text-sm text-muted-foreground">{acasalamento.doadora_nome}</p>
+                    <div
+                      key={acasalamento.id}
+                      className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden"
+                    >
+                      {/* Header do card - sempre visível */}
+                      <button
+                        type="button"
+                        className="w-full text-left px-4 py-3.5 flex items-center gap-3 active:bg-muted/50 transition-colors"
+                        onClick={() => setExpandedAcasalamento(isExpanded ? null : acasalamento.id)}
+                      >
+                        {/* Indicador lateral */}
+                        <div className="w-1 h-10 rounded-full bg-primary/40 shrink-0" />
+
+                        {/* Info principal */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-sm truncate">
+                              {acasalamento.doadora_registro || acasalamento.doadora_nome || 'Doadora'}
+                            </span>
+                            <span className="text-muted-foreground text-xs">×</span>
+                            <span className="text-sm text-muted-foreground truncate">
+                              {acasalamento.dose_nome || 'Touro'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>{quantidadeOocitos} oóc.</span>
+                            {clivadosNumero > 0 && <span>{clivadosNumero} cliv.</span>}
+                            <span className="font-medium text-foreground">
+                              {quantidadeEmbrioes > 0 ? `${quantidadeEmbrioes} embr.` : '-'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Badges à direita */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {(videoMediaIds[acasalamento.id]?.length ?? 0) > 0 && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                                <Video className="w-3.5 h-3.5 text-primary" />
+                              </div>
+                              {(videoMediaIds[acasalamento.id]?.length ?? 0) > 1 && (
+                                <span className="text-[9px] font-medium text-primary">{videoMediaIds[acasalamento.id].length}</span>
+                              )}
+                            </div>
+                          )}
+                          <Badge variant={parseFloat(percentual) >= 30 ? 'default' : 'secondary'} className="text-xs">
+                            {percentual}%
+                          </Badge>
+                          <ChevronDown className={cn(
+                            'w-4 h-4 text-muted-foreground transition-transform',
+                            isExpanded && 'rotate-180'
+                          )} />
+                        </div>
+                      </button>
+
+                      {/* Conteúdo expandido */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-1 border-t border-border/50 space-y-3">
+                          {/* Doadora nome completo */}
+                          {acasalamento.doadora_nome && acasalamento.doadora_registro && (
+                            <p className="text-xs text-muted-foreground">{acasalamento.doadora_nome}</p>
+                          )}
+
+                          {/* Inputs editáveis */}
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Oócitos */}
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                Oócitos
+                              </label>
+                              {lote.status === 'ABERTO' && onUpdateOocitos ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={calcMaxOocitos(acasalamento.id)}
+                                  className="h-10 text-center mt-1"
+                                  value={editOocitos[acasalamento.id] ?? acasalamento.quantidade_oocitos ?? ''}
+                                  onChange={(e) => onUpdateOocitos(acasalamento.id, e.target.value)}
+                                  onBlur={() => onBlurOocitos?.()}
+                                  placeholder="-"
+                                />
+                              ) : (
+                                <p className="text-sm font-medium mt-1">{quantidadeOocitos}</p>
+                              )}
+                            </div>
+
+                            {/* D3 Clivados */}
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                D3 Clivados
+                              </label>
+                              {lote.status === 'ABERTO' && diaCultivo >= 3 && onUpdateClivados ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={quantidadeOocitos}
+                                  className="h-10 text-center mt-1"
+                                  value={clivadosValor}
+                                  onChange={(e) => onUpdateClivados(acasalamento.id, e.target.value)}
+                                  placeholder="-"
+                                />
+                              ) : (
+                                <p className="text-sm font-medium mt-1">{clivadosNumero > 0 ? clivadosNumero : '-'}</p>
+                              )}
+                            </div>
+
+                            {/* Embriões */}
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                Embriões
+                              </label>
+                              {lote.status === 'ABERTO' && diaAtual >= 7 ? (
+                                <div className="mt-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={limiteEmbrioes}
+                                    className="h-10 text-center"
+                                    value={editQuantidadeEmbrioes[acasalamento.id] ?? ''}
+                                    onChange={(e) => onUpdateQuantidadeEmbrioes(acasalamento.id, e.target.value)}
+                                    placeholder="0"
+                                  />
+                                  {embrioesDespachados > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium mt-1">
+                                      Despachados {embrioesDespachados}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm font-medium mt-1">{embrioesDespachados}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Vídeo upload */}
+                          {lote.status === 'ABERTO' && diaAtual >= 7 && (
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                Vídeo EmbryoScore
+                              </label>
+                              <div className="mt-1 flex items-center gap-2">
+                                <VideoUploadButton
+                                  acasalamentoId={acasalamento.id}
+                                  loteFivId={lote.id}
+                                  disabled={quantidadeEmbrioes <= 0}
+                                  videoCount={videoMediaIds[acasalamento.id]?.length ?? 0}
+                                  expectedEmbryoCount={quantidadeEmbrioes > 0 ? quantidadeEmbrioes : undefined}
+                                  detectedCount={(videoDetections[acasalamento.id] || []).reduce((sum, d) => sum + (d.bboxes?.length || 0), 0)}
+                                  onUploadComplete={(acId, mediaId, bboxes, confidence, cropPaths) => onVideoUploadComplete?.(acId, mediaId, bboxes, confidence, cropPaths)}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Observações */}
+                          {acasalamento.observacoes && (
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                Observações
+                              </label>
+                              <p className="text-sm text-muted-foreground mt-0.5">{acasalamento.observacoes}</p>
+                            </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>{acasalamento.dose_nome || '-'}</TableCell>
-                      <TableCell className="text-center">{quantidadeOocitos}</TableCell>
-                      <TableCell className="text-center">
-                        {lote.status === 'ABERTO' && diaCultivo >= 3 && onUpdateClivados ? (
-                          <Input
-                            type="number"
-                            min="0"
-                            max={quantidadeOocitos}
-                            className="w-20 text-center"
-                            value={clivadosValor}
-                            onChange={(e) => onUpdateClivados(acasalamento.id, e.target.value)}
-                            placeholder="-"
-                          />
-                        ) : (
-                          <span>{clivadosNumero > 0 ? clivadosNumero : '-'}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {lote.status === 'ABERTO' && diaAtual >= 7 ? (
-                          <Input
-                            type="number"
-                            min="0"
-                            max={limiteEmbrioes}
-                            className="w-20 text-center"
-                            value={editQuantidadeEmbrioes[acasalamento.id] ?? acasalamento.total_embrioes_produzidos ?? ''}
-                            onChange={(e) => onUpdateQuantidadeEmbrioes(acasalamento.id, e.target.value)}
-                            placeholder="0"
-                          />
-                        ) : (
-                          <span>{quantidadeEmbrioes}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={parseFloat(percentual) >= 30 ? 'default' : 'secondary'}>
-                          {percentual}%
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {acasalamento.observacoes || '-'}
-                      </TableCell>
-                    </TableRow>
+                      )}
+                    </div>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop: Tabela original */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Doadora</TableHead>
+                      <TableHead>Touro</TableHead>
+                      <TableHead className="text-center">Oócitos</TableHead>
+                      <TableHead className="text-center">D3 Clivados</TableHead>
+                      <TableHead className="text-center">Embriões</TableHead>
+                      {lote.status === 'ABERTO' && diaAtual >= 7 && (
+                        <TableHead className="text-center">Vídeo</TableHead>
+                      )}
+                      <TableHead className="text-center">%</TableHead>
+                      <TableHead>Observações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {acasalamentos.map((acasalamento) => {
+                      const quantidadeOocitos = editOocitos[acasalamento.id] != null
+                        ? (parseInt(editOocitos[acasalamento.id]) || 0)
+                        : (acasalamento.quantidade_oocitos || acasalamento.viaveis || 0);
+                      const clivadosEditado = editClivados[acasalamento.id];
+                      const clivadosSalvo = acasalamento.embrioes_clivados_d3;
+                      const clivadosValor = clivadosEditado !== undefined ? clivadosEditado : (clivadosSalvo?.toString() ?? '');
+                      const clivadosNumero = parseInt(clivadosValor) || 0;
+                      const limiteEmbrioes = clivadosNumero > 0 ? clivadosNumero : quantidadeOocitos;
+                      const embrioesDespachados = acasalamento.total_embrioes_produzidos || 0;
+                      const quantidadeNovoDespacho = editQuantidadeEmbrioes[acasalamento.id] !== undefined
+                        ? parseInt(editQuantidadeEmbrioes[acasalamento.id]) || 0 : 0;
+                      const quantidadeEmbrioes = quantidadeNovoDespacho > 0 ? quantidadeNovoDespacho : embrioesDespachados;
+                      const percentual = quantidadeOocitos > 0 ? ((quantidadeEmbrioes / quantidadeOocitos) * 100).toFixed(1) : '0.0';
+
+                      return (
+                        <TableRow key={acasalamento.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{acasalamento.doadora_registro || '-'}</p>
+                              {acasalamento.doadora_nome && (
+                                <p className="text-sm text-muted-foreground">{acasalamento.doadora_nome}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{acasalamento.dose_nome || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            {lote.status === 'ABERTO' && onUpdateOocitos ? (
+                              <Input
+                                type="number"
+                                min="0"
+                                max={calcMaxOocitos(acasalamento.id)}
+                                className="w-20 text-center"
+                                value={editOocitos[acasalamento.id] ?? acasalamento.quantidade_oocitos ?? ''}
+                                onChange={(e) => onUpdateOocitos(acasalamento.id, e.target.value)}
+                                onBlur={() => onBlurOocitos?.()}
+                                placeholder="-"
+                              />
+                            ) : (
+                              <span>{quantidadeOocitos}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {lote.status === 'ABERTO' && diaCultivo >= 3 && onUpdateClivados ? (
+                              <Input
+                                type="number"
+                                min="0"
+                                max={quantidadeOocitos}
+                                className="w-20 text-center"
+                                value={clivadosValor}
+                                onChange={(e) => onUpdateClivados(acasalamento.id, e.target.value)}
+                                placeholder="-"
+                              />
+                            ) : (
+                              <span>{clivadosNumero > 0 ? clivadosNumero : '-'}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {lote.status === 'ABERTO' && diaAtual >= 7 ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={limiteEmbrioes}
+                                  className="w-20 text-center"
+                                  value={editQuantidadeEmbrioes[acasalamento.id] ?? ''}
+                                  onChange={(e) => onUpdateQuantidadeEmbrioes(acasalamento.id, e.target.value)}
+                                  placeholder="0"
+                                />
+                                {embrioesDespachados > 0 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium">
+                                    Despachados {embrioesDespachados}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span>{embrioesDespachados}</span>
+                            )}
+                          </TableCell>
+                          {lote.status === 'ABERTO' && diaAtual >= 7 && (
+                            <TableCell className="text-center">
+                              <VideoUploadButton
+                                acasalamentoId={acasalamento.id}
+                                loteFivId={lote.id}
+                                disabled={quantidadeEmbrioes <= 0}
+                                videoCount={videoMediaIds[acasalamento.id]?.length ?? 0}
+                                expectedEmbryoCount={quantidadeEmbrioes > 0 ? quantidadeEmbrioes : undefined}
+                                detectedCount={(videoDetections[acasalamento.id] || []).reduce((sum, d) => sum + (d.bboxes?.length || 0), 0)}
+                                onUploadComplete={(acId, mediaId, bboxes, confidence, cropPaths) => onVideoUploadComplete?.(acId, mediaId, bboxes, confidence, cropPaths)}
+                              />
+                            </TableCell>
+                          )}
+                          <TableCell className="text-center">
+                            <Badge variant={parseFloat(percentual) >= 30 ? 'default' : 'secondary'}>
+                              {percentual}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">
+                            {acasalamento.observacoes || '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
