@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { DoseSemen } from '@/lib/types';
+import type { DoseSemen } from '@/lib/types';
 import { AcasalamentoComNomes, LoteFIVComNomes, PacoteComNomes } from '@/lib/types/lotesFiv';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +31,7 @@ import { useLotesFiltros } from '@/hooks/useLotesFiltros';
 import { useLotesFIVData } from '@/hooks/useLotesFIVData';
 import { Eye, X, Filter, Calendar, ChevronRight } from 'lucide-react';
 import { formatDate, extractDateOnly, diffDays, getTodayDateString } from '@/lib/utils';
-import { loadOpenCV } from '@/lib/embryoscore/detectCircles';
+
 import { getNomeDia, getCorDia } from '@/lib/lotesFivUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NovoLoteDialog } from '@/components/lotes/NovoLoteDialog';
@@ -55,20 +55,11 @@ export default function LotesFIV() {
   // Estados locais (não movidos para o hook)
   const [submitting, setSubmitting] = useState(false);
   const [showDespachoSemVideoWarning, setShowDespachoSemVideoWarning] = useState(false);
-  const [showDespachoSemBboxWarning, setShowDespachoSemBboxWarning] = useState(false);
   const [acsSemVideoNomes, setAcsSemVideoNomes] = useState<string[]>([]);
   const [editQuantidadeEmbrioes, setEditQuantidadeEmbrioes] = useState<{ [key: string]: string }>({});
   const [editClivados, setEditClivados] = useState<{ [key: string]: string }>({});
   const [editOocitos, setEditOocitos] = useState<{ [key: string]: string }>({});
   const [videoMediaIds, setVideoMediaIds] = useState<{ [acasalamentoId: string]: string[] }>({});
-  const [videoDetections, setVideoDetections] = useState<{
-    [acasalamentoId: string]: Array<{
-      mediaId: string;
-      bboxes: import('@/lib/types').DetectedBbox[];
-      confidence: 'high' | 'medium' | 'low';
-      cropPaths?: string[] | null;
-    }>;
-  }>({});
 
   // Estado local de paginação do histórico para quebrar dependência circular
   const [historicoPageLocal, setHistoricoPageLocal] = useState<number>(() => {
@@ -169,13 +160,6 @@ export default function LotesFIV() {
   const historicoPage = historicoPageLocal;
   const setHistoricoPage = handleSetHistoricoPage;
 
-  // Pre-load OpenCV.js em background quando a página abre
-  useEffect(() => {
-    loadOpenCV().catch(() => {
-      // Silencioso — será carregado sob demanda quando necessário
-    });
-  }, []);
-
   // Carregar vídeos existentes do banco quando o lote é selecionado
   useEffect(() => {
     if (!selectedLote || !showLoteDetail || acasalamentos.length === 0) return;
@@ -201,35 +185,6 @@ export default function LotesFIV() {
         }
         setVideoMediaIds(prev => ({ ...prev, ...ids }));
       }
-
-      // Buscar detecções (bboxes) da fila de análise
-      const { data: queues } = await supabase
-        .from('embryo_analysis_queue')
-        .select('lote_fiv_acasalamento_id, media_id, detected_bboxes, detection_confidence, crop_paths')
-        .in('lote_fiv_acasalamento_id', acIds)
-        .order('created_at', { ascending: false });
-
-      if (queues && queues.length > 0) {
-        const dets: typeof videoDetections = {};
-        const seenMediaIds = new Set<string>();
-        for (const q of queues) {
-          if (!q.detected_bboxes || !q.media_id) continue;
-          // Evitar duplicatas do mesmo media_id (pegar só o mais recente)
-          if (seenMediaIds.has(q.media_id)) continue;
-          seenMediaIds.add(q.media_id);
-
-          if (!dets[q.lote_fiv_acasalamento_id]) {
-            dets[q.lote_fiv_acasalamento_id] = [];
-          }
-          dets[q.lote_fiv_acasalamento_id].push({
-            mediaId: q.media_id,
-            bboxes: q.detected_bboxes,
-            confidence: q.detection_confidence || 'medium',
-            cropPaths: q.crop_paths || null,
-          });
-        }
-        setVideoDetections(prev => ({ ...prev, ...dets }));
-      }
     })();
   }, [selectedLote?.id, showLoteDetail, acasalamentos.length]);
 
@@ -240,8 +195,14 @@ export default function LotesFIV() {
     try {
       setSubmitting(true);
 
+      // Buscar pacote direto do banco (o array `pacotes` do state só contém pacotes não-usados)
+      const { data: pacote } = await supabase
+        .from('pacotes_aspiracao')
+        .select('*')
+        .eq('id', selectedLote.pacote_aspiracao_id)
+        .maybeSingle();
+
       // Calcular dia atual para validar se ainda está no período permitido (até D8)
-      const pacote = pacotes.find(p => p.id === selectedLote.pacote_aspiracao_id);
       let dataAspiracaoStr = extractDateOnly(pacote?.data_aspiracao || null);
 
       if (!dataAspiracaoStr) {
@@ -318,25 +279,6 @@ export default function LotesFIV() {
       if (showDespachoSemVideoWarning) {
         setShowDespachoSemVideoWarning(false);
         setAcsSemVideoNomes([]);
-      }
-
-      // Warning: acasalamentos COM vídeo mas SEM bboxes detectadas
-      const acsSemBboxes = acasalamentosComQuantidade.filter(ac => {
-        const hasVideo = !!videoMediaIds[ac.id]?.length;
-        const detections = videoDetections[ac.id] || [];
-        const totalBboxes = detections.reduce((sum, d) => sum + (d.bboxes?.length || 0), 0);
-        return hasVideo && totalBboxes === 0;
-      });
-      if (acsSemBboxes.length > 0 && !showDespachoSemBboxWarning) {
-        const nomes = acsSemBboxes.map(ac => ac.doadora_nome || ac.doadora_registro || 'Doadora').join(', ');
-        setAcsSemVideoNomes(nomes.split(', '));
-        setShowDespachoSemBboxWarning(true);
-        setSubmitting(false);
-        return; // Pausa para confirmação do usuário
-      }
-      // Resetar flag se confirmou
-      if (showDespachoSemBboxWarning) {
-        setShowDespachoSemBboxWarning(false);
       }
 
       const nomePacote = `${fazendaOrigemNome} - ${fazendasDestinoNomes.join(', ')}`;
@@ -449,145 +391,81 @@ export default function LotesFIV() {
         }
       }
 
-      // EmbryoScore: vincular vídeos aos embriões RECÉM-CRIADOS e criar jobs de análise
-      // (opcional — falhas aqui NÃO devem bloquear o despacho)
-      // Agora iteramos por VÍDEO (não por acasalamento), distribuindo embriões proporcionalmente
+      // EmbryoScore: vincular vídeos aos embriões e criar jobs de análise (server-side detection)
+      // Falhas aqui NÃO bloqueiam o despacho
       for (const ac of acasalamentosDespachados) {
         const mediaIds = videoMediaIds[ac.acasalamento_id];
         if (!mediaIds?.length) continue;
 
-        // IDs dos embriões recém-criados DESTE acasalamento
         const novosEmbrioesIds = embrioesIdsPorAcasalamento[ac.acasalamento_id] || [];
-        const detections = videoDetections[ac.acasalamento_id] || [];
+        const mediaId = mediaIds[mediaIds.length - 1]; // Vídeo mais recente
 
-        // Distribuir embriões entre vídeos proporcionalmente ao número de bboxes detectados
-        // Ex: vídeo1 detectou 6 bboxes, vídeo2 detectou 4 → vídeo1 fica com 6 embriões, vídeo2 com 4
-        let embrioesDistribuidos = 0;
+        try {
+          // 1. Verificar que o registro de mídia existe
+          const { data: mediaExists } = await supabase
+            .from('acasalamento_embrioes_media')
+            .select('id')
+            .eq('id', mediaId)
+            .maybeSingle();
 
-        for (let vIdx = 0; vIdx < mediaIds.length; vIdx++) {
-          const mediaId = mediaIds[vIdx];
-          const detection = detections.find(d => d.mediaId === mediaId);
-          const bboxCount = detection?.bboxes?.length || 0;
-
-          // Calcular quantos embriões este vídeo recebe
-          let countForVideo: number;
-          if (vIdx === mediaIds.length - 1) {
-            // Último vídeo: recebe os restantes
-            countForVideo = ac.quantidade - embrioesDistribuidos;
-          } else {
-            countForVideo = bboxCount > 0 ? bboxCount : 0;
+          if (!mediaExists) {
+            console.warn(`EmbryoScore: media_id ${mediaId} não encontrado. Pulando.`);
+            continue;
           }
-          if (countForVideo <= 0) continue;
 
-          // IDs dos embriões alocados a este vídeo
-          const embrioesDoVideo = novosEmbrioesIds.slice(embrioesDistribuidos, embrioesDistribuidos + countForVideo);
-          embrioesDistribuidos += countForVideo;
-
-          try {
-            // 1. Verificar que o registro de mídia realmente existe
-            const { data: mediaExists } = await supabase
-              .from('acasalamento_embrioes_media')
-              .select('id')
-              .eq('id', mediaId)
-              .maybeSingle();
-
-            if (!mediaExists) {
-              console.warn(`EmbryoScore: media_id ${mediaId} não encontrado. Pulando.`);
-              continue;
+          // 2. Vincular media_id aos embriões
+          if (novosEmbrioesIds.length > 0) {
+            const { error: mediaLinkError } = await supabase
+              .from('embrioes')
+              .update({ acasalamento_media_id: mediaId })
+              .in('id', novosEmbrioesIds);
+            if (mediaLinkError) {
+              console.warn('EmbryoScore: falha ao vincular vídeo (não-bloqueante):', mediaLinkError.message);
             }
-
-            // 2. Vincular media_id aos embriões deste vídeo
-            if (embrioesDoVideo.length > 0) {
-              await supabase
-                .from('embrioes')
-                .update({ acasalamento_media_id: mediaId })
-                .in('id', embrioesDoVideo)
-                .then(({ error }) => {
-                  if (error) {
-                    console.warn('EmbryoScore: falha ao vincular vídeo (não-bloqueante):', error.message);
-                  }
-                });
-            }
-
-            // 3-5. Criar job de análise SOMENTE se há bboxes+crops (MODO A)
-            // Sem bboxes o resultado é impreciso — pular análise
-            const bboxCount = detection?.bboxes?.length || 0;
-            const hasCropsForVideo = detection?.cropPaths && detection.cropPaths.length > 0;
-
-            if (bboxCount > 0 && hasCropsForVideo) {
-              let selectedBboxes = detection?.bboxes ?? null;
-              let detConfidence = detection?.confidence ?? null;
-
-              if (selectedBboxes && selectedBboxes.length > countForVideo) {
-                selectedBboxes = [...selectedBboxes]
-                  .sort((a, b) => b.radius_px - a.radius_px)
-                  .slice(0, countForVideo);
-                detConfidence = 'medium';
-              } else if (selectedBboxes && selectedBboxes.length < countForVideo) {
-                detConfidence = 'low';
-              }
-
-              let selectedCropPaths = detection?.cropPaths ?? null;
-              if (selectedBboxes && selectedCropPaths && selectedBboxes.length < (detection?.bboxes?.length ?? 0)) {
-                const indexedBboxes = (detection?.bboxes ?? []).map((b, i) => ({ b, i }));
-                const sortedIndexes = indexedBboxes
-                  .sort((a, b) => b.b.radius_px - a.b.radius_px)
-                  .slice(0, countForVideo)
-                  .map(x => x.i);
-                selectedCropPaths = sortedIndexes.map(i => selectedCropPaths![i]).filter(Boolean);
-              }
-
-              const { data: queueData, error: queueError } = await supabase
-                .from('embryo_analysis_queue')
-                .insert({
-                  media_id: mediaId,
-                  lote_fiv_acasalamento_id: ac.acasalamento_id,
-                  status: 'pending',
-                  detected_bboxes: selectedBboxes,
-                  detection_confidence: detConfidence,
-                  expected_count: countForVideo,
-                  crop_paths: selectedCropPaths,
-                })
-                .select('id')
-                .single();
-
-              if (queueError) {
-                console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
-              }
-
-              // 4. Vincular queue_id aos embriões deste vídeo
-              if (queueData?.id && embrioesDoVideo.length > 0) {
-                supabase
-                  .from('embrioes')
-                  .update({ queue_id: queueData.id })
-                  .in('id', embrioesDoVideo)
-                  .then(({ error }) => {
-                    if (error) {
-                      console.warn('EmbryoScore: falha ao vincular queue_id (não-bloqueante):', error.message);
-                    }
-                  });
-              }
-
-              // 5. Invocar Edge Function fire-and-forget
-              if (queueData?.id) {
-                supabase.functions.invoke('embryo-analyze', {
-                  body: { queue_id: queueData.id },
-                }).catch((err: unknown) => {
-                  console.warn('EmbryoScore: falha ao invocar análise (será reprocessado):', err);
-                });
-              }
-            } else {
-              console.log(`EmbryoScore: vídeo ${mediaId} sem bboxes/crops — análise pulada, embrião vinculado ao vídeo`);
-            }
-          } catch (embryoScoreErr) {
-            console.warn('EmbryoScore: erro não-bloqueante no processamento de vídeo:', embryoScoreErr);
           }
+
+          // 3. Criar job de análise (sem bboxes/crops — detecção será server-side)
+          const { data: queueData, error: queueError } = await supabase
+            .from('embryo_analysis_queue')
+            .insert({
+              media_id: mediaId,
+              lote_fiv_acasalamento_id: ac.acasalamento_id,
+              status: 'pending',
+              expected_count: ac.quantidade,
+            })
+            .select('id')
+            .single();
+
+          if (queueError) {
+            console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
+          }
+
+          // 4. Vincular queue_id aos embriões
+          if (queueData?.id && novosEmbrioesIds.length > 0) {
+            const { error: queueLinkError } = await supabase
+              .from('embrioes')
+              .update({ queue_id: queueData.id })
+              .in('id', novosEmbrioesIds);
+            if (queueLinkError) {
+              console.warn('EmbryoScore: falha ao vincular queue_id:', queueLinkError.message);
+            }
+          }
+
+          // 5. Invocar Edge Function fire-and-forget
+          if (queueData?.id) {
+            supabase.functions.invoke('embryo-analyze', {
+              body: { queue_id: queueData.id },
+            }).catch((err: unknown) => {
+              console.warn('EmbryoScore: falha ao invocar análise (será reprocessado):', err);
+            });
+          }
+        } catch (embryoScoreErr) {
+          console.warn('EmbryoScore: erro não-bloqueante no processamento de vídeo:', embryoScoreErr);
         }
       }
 
-      // Limpar vídeos e detecções após despacho
+      // Limpar vídeos após despacho
       setVideoMediaIds({});
-      setVideoDetections({});
 
       const historicoDespacho = {
         id: `${selectedLote.id}-${dataDespacho}-${Date.now()}`,
@@ -780,21 +658,11 @@ export default function LotesFIV() {
         }}
         editClivados={editClivados}
         videoMediaIds={videoMediaIds}
-        videoDetections={videoDetections}
-        onVideoUploadComplete={(acasalamentoId, mediaId, detectedBboxes, detectionConfidence, cropPaths) => {
+        onVideoUploadComplete={(acasalamentoId, mediaId) => {
           setVideoMediaIds(prev => ({
             ...prev,
             [acasalamentoId]: [...(prev[acasalamentoId] || []), mediaId],
           }));
-          if (detectedBboxes && detectionConfidence) {
-            setVideoDetections(prev => ({
-              ...prev,
-              [acasalamentoId]: [
-                ...(prev[acasalamentoId] || []),
-                { mediaId, bboxes: detectedBboxes, confidence: detectionConfidence, cropPaths },
-              ],
-            }));
-          }
         }}
       />
 
@@ -831,38 +699,6 @@ export default function LotesFIV() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Warning despacho com vídeo mas sem detecção */}
-      <Dialog open={showDespachoSemBboxWarning} onOpenChange={setShowDespachoSemBboxWarning}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Embriões não detectados no vídeo</DialogTitle>
-            <DialogDescription>
-              Alguns acasalamentos têm vídeo mas a detecção automática não encontrou embriões.
-              A análise EmbryoScore será feita em modo simplificado (sem posição individual).
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDespachoSemBboxWarning(false);
-                setSubmitting(false);
-              }}
-            >
-              Voltar e redetectar
-            </Button>
-            <Button
-              onClick={() => {
-                // Continua o despacho — a flag showDespachoSemBboxWarning está true,
-                // o despacharEmbrioes vai pular o bbox check
-                despacharEmbrioes();
-              }}
-            >
-              Continuar mesmo assim
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       </>
     );
   }

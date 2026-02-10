@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -67,124 +68,133 @@ export function PacoteEmbrioesTable({
   onToggleEstrela,
 }: PacoteEmbrioesTableProps) {
   const [expandedScoreId, setExpandedScoreId] = useState<string | null>(null);
-  const [redetecting, setRedetecting] = useState<string | null>(null);
+  const [redetectProgress, setRedetectProgress] = useState<{ id: string; step: number; label: string } | null>(null);
+  const [redetectedMap, setRedetectedMap] = useState<Map<string, number>>(new Map());
+  const queryClient = useQueryClient();
   const retryAnalysis = useRetryAnalysis();
   const cancelAnalysis = useCancelAnalysis();
   const { toast } = useToast();
 
-  // Redetectar IA: baixar video → OpenCV → novo crop → criar queue → invocar edge function
+  // Polling forçado de scores enquanto houver embriões redetectados aguardando novo score
+  const redetectedMapRef = useRef(redetectedMap);
+  redetectedMapRef.current = redetectedMap;
+  const completionHandledRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (redetectedMap.size === 0) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['embryo-scores-batch'] });
+      queryClient.invalidateQueries({ queryKey: ['embryo-analysis-status-batch'] });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [redetectedMap.size, queryClient]);
+
+  // (detection cache removed — detection is now server-side)
+
+  // Redetectar IA: buscar media → criar queue job (sem bboxes/crops) → invocar edge function (server-side detection)
   const handleRedetect = useCallback(async (embriao: EmbrioCompleto) => {
-    const mediaId = embriao.acasalamento_media_id;
-    if (!mediaId) return;
+    if (!embriao.lote_fiv_acasalamento_id && !embriao.acasalamento_media_id) return;
 
-    setRedetecting(embriao.id);
+    const TOTAL_STEPS = 3;
+    const progress = (step: number, label: string) =>
+      setRedetectProgress({ id: embriao.id, step, label });
+
     try {
-      // 1. Buscar path do video no Storage
-      const { data: mediaData } = await supabase
-        .from('acasalamento_embrioes_media')
-        .select('arquivo_path, lote_fiv_acasalamento_id')
-        .eq('id', mediaId)
-        .single();
+      // 1. Buscar vídeo
+      progress(1, 'Buscando vídeo...');
+      let mediaData: { id: string; lote_fiv_acasalamento_id: string } | null = null;
 
-      if (!mediaData?.arquivo_path) {
-        toast({ title: 'Erro', description: 'Video nao encontrado no Storage.', variant: 'destructive' });
+      if (embriao.lote_fiv_acasalamento_id) {
+        const { data } = await supabase
+          .from('acasalamento_embrioes_media')
+          .select('id, lote_fiv_acasalamento_id')
+          .eq('lote_fiv_acasalamento_id', embriao.lote_fiv_acasalamento_id)
+          .eq('tipo_media', 'VIDEO')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) mediaData = data;
+      }
+
+      if (!mediaData && embriao.acasalamento_media_id) {
+        const { data } = await supabase
+          .from('acasalamento_embrioes_media')
+          .select('id, lote_fiv_acasalamento_id')
+          .eq('id', embriao.acasalamento_media_id)
+          .single();
+        if (data) mediaData = data;
+      }
+
+      if (!mediaData) {
+        toast({ title: 'Erro', description: 'Vídeo não encontrado.', variant: 'destructive' });
         return;
       }
 
-      // 2. Baixar video
-      const { data: videoBlob } = await supabase.storage
-        .from('embryo-videos')
-        .download(mediaData.arquivo_path);
-
-      if (!videoBlob) {
-        toast({ title: 'Erro', description: 'Falha ao baixar video para redeteccao.', variant: 'destructive' });
-        return;
+      // Buscar expected count (irmãos no acasalamento)
+      const acasId = mediaData.lote_fiv_acasalamento_id || embriao.lote_fiv_acasalamento_id;
+      let expectedCount = 1;
+      if (acasId) {
+        const { count } = await supabase
+          .from('embrioes')
+          .select('*', { count: 'exact', head: true })
+          .eq('lote_fiv_acasalamento_id', acasId);
+        if (count && count > 0) expectedCount = count;
       }
 
-      // 3. Converter para File e rodar OpenCV
-      const ext = mediaData.arquivo_path.split('.').pop() || 'mp4';
-      const mimeType = ext === 'mov' ? 'video/quicktime' : ext === 'webm' ? 'video/webm' : 'video/mp4';
-      const file = new File([videoBlob], `redetect.${ext}`, { type: mimeType });
-
-      const { detectEmbryoCircles, isOpenCVAvailable, loadOpenCV } = await import('@/lib/embryoscore/detectCircles');
-      if (!isOpenCVAvailable()) {
-        toast({ title: 'Carregando OpenCV...', description: 'Aguarde alguns segundos.' });
-        try {
-          await loadOpenCV(20_000);
-        } catch {
-          toast({ title: 'OpenCV nao carregou', description: 'Falha ao carregar OpenCV. Tente novamente.', variant: 'destructive' });
-          return;
-        }
-      }
-
-      toast({ title: 'Redetectando...', description: 'Analisando video com OpenCV.' });
-      const detection = await detectEmbryoCircles(file, 20);
-
-      if (!detection.bboxes.length) {
-        toast({ title: 'Nenhum embriao detectado', description: 'OpenCV nao encontrou circulos no video.', variant: 'destructive' });
-        return;
-      }
-
-      // 4. Upload crops
-      let cropPaths: string[] | null = null;
-      if (detection.cropBlobs.length > 0) {
-        const cropTimestamp = Date.now();
-        const acId = mediaData.lote_fiv_acasalamento_id || embriao.lote_fiv_acasalamento_id;
-        const uploadedPaths = await Promise.all(
-          detection.cropBlobs.map(async (blob, i) => {
-            const cropPath = `${embriao.lote_fiv_id}/${acId}/crops/${cropTimestamp}_${i}.jpg`;
-            const { error: cropErr } = await supabase.storage
-              .from('embryo-videos')
-              .upload(cropPath, blob, { contentType: 'image/jpeg', upsert: false });
-            if (cropErr) return null;
-            return cropPath;
-          })
-        );
-        const validPaths = uploadedPaths.filter((p): p is string => p !== null);
-        cropPaths = validPaths.length > 0 ? validPaths : null;
-      }
-
-      // 5. Criar queue entry para este embriao
+      // 2. Criar queue job (sem bboxes/crops — detecção server-side)
+      progress(2, 'Criando job de análise...');
       const { data: queueData, error: queueError } = await supabase
         .from('embryo_analysis_queue')
         .insert({
-          media_id: mediaId,
+          media_id: mediaData.id,
           lote_fiv_acasalamento_id: embriao.lote_fiv_acasalamento_id,
           status: 'pending',
-          detected_bboxes: detection.bboxes,
-          detection_confidence: detection.confidence,
-          expected_count: 1,
-          crop_paths: cropPaths,
+          expected_count: expectedCount,
         })
         .select('id')
         .single();
 
       if (queueError) {
-        toast({ title: 'Erro', description: 'Falha ao criar job de analise.', variant: 'destructive' });
+        toast({ title: 'Erro', description: 'Falha ao criar job de análise.', variant: 'destructive' });
         return;
       }
 
-      // 6. Vincular queue_id ao embriao
+      const updateFields: Record<string, unknown> = { queue_id: queueData.id };
+      if (mediaData.id !== embriao.acasalamento_media_id) {
+        updateFields.acasalamento_media_id = mediaData.id;
+      }
       await supabase
         .from('embrioes')
-        .update({ queue_id: queueData.id })
+        .update(updateFields)
         .eq('id', embriao.id);
 
-      // 7. Invocar Edge Function
+      // 3. Invocar Edge Function (fire-and-forget)
+      progress(3, 'Iniciando análise IA...');
       supabase.functions.invoke('embryo-analyze', {
         body: { queue_id: queueData.id },
       }).catch((err: unknown) => {
         console.warn('EmbryoScore: falha ao invocar analise:', err);
       });
 
-      toast({ title: 'Redeteccao iniciada', description: `${detection.bboxes.length} embriao(es) detectado(s). Analise IA em andamento.` });
+      // Registrar como redetectado → suprime score antigo na UI + inicia polling forçado
+      setRedetectedMap(prev => new Map(prev).set(embriao.id, Date.now()));
+      queryClient.invalidateQueries({ queryKey: ['embryo-scores-batch'] });
+      queryClient.invalidateQueries({ queryKey: ['embryo-analysis-status-batch'] });
+
+      // Sucesso — barra some após 1.5s
+      progress(TOTAL_STEPS, 'Análise IA em andamento');
+      setTimeout(() => setRedetectProgress(prev => prev?.id === embriao.id ? null : prev), 1500);
+      return;
     } catch (err) {
       console.error('[Redetect]', err);
-      toast({ title: 'Erro na redeteccao', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
+      toast({ title: 'Erro na redetecção', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
     } finally {
-      setRedetecting(null);
+      setRedetectProgress(prev => {
+        if (!prev || prev.id !== embriao.id) return prev;
+        if (prev.step >= TOTAL_STEPS) return prev;
+        return null;
+      });
     }
-  }, [toast]);
+  }, [toast, queryClient]);
 
   // Após despacho, só permite descarte
   const jaFoiDespachado = pacote.disponivel_para_transferencia === true;
@@ -208,11 +218,94 @@ export function PacoteEmbrioesTable({
   const allEmbriaoIds = embrioesOrdenados.map(e => e.id);
   const { data: scoresMap = {} } = useEmbryoScoresBatch(allEmbriaoIds);
 
-  // Monitorar status da fila por acasalamento_id (batch) — apenas embriões sem score
+  // Limpar redetectedMap quando novo score chegar (created_at > redetect timestamp)
+  useEffect(() => {
+    if (redetectedMap.size === 0) return;
+    let changed = false;
+    const next = new Map(redetectedMap);
+    for (const [embId, redetectTime] of redetectedMap) {
+      const score = scoresMap[embId];
+      if (score?.created_at && new Date(score.created_at).getTime() > redetectTime) {
+        next.delete(embId);
+        changed = true;
+      }
+    }
+    if (changed) setRedetectedMap(next);
+  }, [scoresMap, redetectedMap]);
+
+  // Helper: score efetivo (null se aguardando redetect)
+  const getEffectiveScore = (embId: string) => {
+    const redetectTime = redetectedMap.get(embId);
+    if (!redetectTime) return scoresMap[embId] ?? null;
+    const score = scoresMap[embId];
+    // Score é novo (posterior ao redetect) → mostrar
+    if (score?.created_at && new Date(score.created_at).getTime() > redetectTime) return score;
+    // Score é antigo → suprimir
+    return null;
+  };
+
+  // Acasalamentos com redetect em andamento (para evitar que irmãos mostrem barra de análise)
+  const acasWithRedetect = new Set<string>();
+  if (redetectedMap.size > 0) {
+    for (const e of embrioesOrdenados) {
+      if (redetectedMap.has(e.id) && e.lote_fiv_acasalamento_id) {
+        acasWithRedetect.add(e.lote_fiv_acasalamento_id);
+      }
+    }
+  }
+
+  // Monitorar status da fila — embriões sem score efetivo (inclui redetectados)
   const acasalamentoIdsWithoutScore = embrioesOrdenados
-    .filter(e => e.lote_fiv_acasalamento_id && !scoresMap[e.id])
+    .filter(e => e.lote_fiv_acasalamento_id && !getEffectiveScore(e.id))
     .map(e => e.lote_fiv_acasalamento_id!);
   const { data: analysisStatusMap = {} } = useEmbryoAnalysisStatusBatch(acasalamentoIdsWithoutScore);
+
+  // Quando qualquer análise completa, forçar refetch dos scores
+  const prevStatusRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const prevStatuses = prevStatusRef.current;
+    let shouldRefetch = false;
+
+    for (const [acasId, queue] of Object.entries(analysisStatusMap)) {
+      const prevStatus = prevStatuses[acasId];
+      if (queue.status === 'completed' && prevStatus && prevStatus !== 'completed') {
+        shouldRefetch = true;
+      }
+      prevStatuses[acasId] = queue.status;
+    }
+
+    if (shouldRefetch) {
+      // Refetch com pequeno delay para garantir que scores foram escritos no DB
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['embryo-scores-batch'] });
+      }, 1000);
+    }
+  }, [analysisStatusMap, queryClient]);
+
+  // Event-driven: quando análise completa para embrião redetectado, buscar score novo
+  useEffect(() => {
+    if (redetectedMap.size === 0) {
+      completionHandledRef.current.clear();
+      return;
+    }
+
+    for (const [embId, redetectTime] of redetectedMap) {
+      if (completionHandledRef.current.has(embId)) continue;
+
+      const embriao = pacote.embrioes.find(e => e.id === embId);
+      if (!embriao?.lote_fiv_acasalamento_id) continue;
+
+      const status = analysisStatusMap[embriao.lote_fiv_acasalamento_id];
+      if (status?.status === 'completed' && status.completed_at) {
+        const completedAt = new Date(status.completed_at).getTime();
+        if (completedAt > redetectTime) {
+          completionHandledRef.current.add(embId);
+          queryClient.refetchQueries({ queryKey: ['embryo-scores-batch'] });
+          return;
+        }
+      }
+    }
+  }, [analysisStatusMap, redetectedMap, pacote.embrioes, queryClient]);
 
   return (
     <div className="space-y-3">
@@ -254,6 +347,7 @@ export function PacoteEmbrioesTable({
           const classificacao = getClassificacaoAtual(embriao);
           const isFresco = embriao.status_atual === 'FRESCO';
           const isCongelado = embriao.status_atual === 'CONGELADO';
+          const score = getEffectiveScore(embriao.id);
           const analysisStatus = embriao.lote_fiv_acasalamento_id
             ? analysisStatusMap[embriao.lote_fiv_acasalamento_id]
             : undefined;
@@ -330,13 +424,13 @@ export function PacoteEmbrioesTable({
                   </Badge>
                 )}
                 {/* EmbryoScore badge */}
-                {scoresMap[embriao.id] ? (
+                {score ? (
                   <button
                     onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}
                     className="flex items-center gap-0.5"
                   >
-                    <EmbryoScoreBadge score={scoresMap[embriao.id]} compact />
-                    {classificacao && getDiscrepancy(classificacao, scoresMap[embriao.id].embryo_score) && (
+                    <EmbryoScoreBadge score={score} compact />
+                    {classificacao && getDiscrepancy(classificacao, score.embryo_score) && (
                       <AlertTriangle className="w-3 h-3 text-amber-500" title="Divergência IA vs Biólogo" />
                     )}
                   </button>
@@ -352,7 +446,7 @@ export function PacoteEmbrioesTable({
               {/* Menu de ações */}
               <div className="flex items-center gap-1 sm:ml-2">
                 {/* Botão expandir score (se tiver) */}
-                {scoresMap[embriao.id] && (
+                {score && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -403,7 +497,7 @@ export function PacoteEmbrioesTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    {scoresMap[embriao.id] && (
+                    {score && (
                       <>
                         <DropdownMenuItem onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}>
                           <Brain className="w-4 h-4 mr-2 text-primary" />
@@ -417,10 +511,10 @@ export function PacoteEmbrioesTable({
                     {embriao.acasalamento_media_id && (
                       <DropdownMenuItem
                         onClick={() => handleRedetect(embriao)}
-                        disabled={redetecting === embriao.id}
+                        disabled={redetectProgress?.id === embriao.id}
                       >
-                        <ScanSearch className={`w-4 h-4 mr-2 text-violet-500 ${redetecting === embriao.id ? 'animate-pulse' : ''}`} />
-                        {redetecting === embriao.id ? 'Redetectando...' : 'Redetectar IA'}
+                        <ScanSearch className={`w-4 h-4 mr-2 text-violet-500 ${redetectProgress?.id === embriao.id ? 'animate-pulse' : ''}`} />
+                        {redetectProgress?.id === embriao.id ? 'Redetectando...' : 'Redetectar IA'}
                       </DropdownMenuItem>
                     )}
 
@@ -481,10 +575,10 @@ export function PacoteEmbrioesTable({
               </div>
 
               {/* EmbryoScore expandido */}
-              {expandedScoreId === embriao.id && scoresMap[embriao.id] && (
+              {expandedScoreId === embriao.id && score && (
                 <div className="col-span-full mt-2 sm:ml-8">
                   <EmbryoScoreCard
-                    score={scoresMap[embriao.id]}
+                    score={score}
                     allScores={Object.values(scoresMap)}
                     defaultExpanded
                     classificacaoManual={classificacao || undefined}
@@ -492,8 +586,29 @@ export function PacoteEmbrioesTable({
                 </div>
               )}
 
+              {/* Barra de redetecção inline */}
+              {redetectProgress?.id === embriao.id && (
+                <div className="mt-2 -mx-3 -mb-3 px-3 py-1.5 rounded-b-lg bg-violet-500/5 border-t border-violet-500/20">
+                  <div className="h-1 rounded-full overflow-hidden mb-1 bg-violet-500/10">
+                    <div
+                      className="h-full bg-violet-500/60 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${(redetectProgress.step / 3) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ScanSearch className="w-3 h-3 text-violet-500 animate-pulse" />
+                    <span className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">
+                      {redetectProgress.label}
+                    </span>
+                    <span className="text-[10px] text-violet-500/50 ml-auto">
+                      {redetectProgress.step}/3
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Barra de análise IA no rodapé do card */}
-              {!scoresMap[embriao.id] && analysisStatus?.status && ['pending', 'processing', 'failed'].includes(analysisStatus.status) && (
+              {redetectProgress?.id !== embriao.id && !score && analysisStatus?.status && ['pending', 'processing', 'failed'].includes(analysisStatus.status) && (redetectedMap.has(embriao.id) || !acasWithRedetect.has(embriao.lote_fiv_acasalamento_id || '')) && (
                 <EmbryoAnalysisBar
                   status={analysisStatus.status as 'pending' | 'processing' | 'failed'}
                   startedAt={analysisStatus.started_at}
@@ -513,7 +628,7 @@ export function PacoteEmbrioesTable({
           const selecionado = embrioesSelecionados.has(embriao.id);
           const classificacao = getClassificacaoAtual(embriao);
           const isFresco = embriao.status_atual === 'FRESCO';
-          const score = scoresMap[embriao.id];
+          const score = getEffectiveScore(embriao.id);
           const analysisStatus = embriao.lote_fiv_acasalamento_id
             ? analysisStatusMap[embriao.lote_fiv_acasalamento_id]
             : undefined;
@@ -608,10 +723,10 @@ export function PacoteEmbrioesTable({
                     {embriao.acasalamento_media_id && (
                       <DropdownMenuItem
                         onClick={() => handleRedetect(embriao)}
-                        disabled={redetecting === embriao.id}
+                        disabled={redetectProgress?.id === embriao.id}
                       >
-                        <ScanSearch className={`w-4 h-4 mr-2 text-violet-500 ${redetecting === embriao.id ? 'animate-pulse' : ''}`} />
-                        {redetecting === embriao.id ? 'Redetectando...' : 'Redetectar IA'}
+                        <ScanSearch className={`w-4 h-4 mr-2 text-violet-500 ${redetectProgress?.id === embriao.id ? 'animate-pulse' : ''}`} />
+                        {redetectProgress?.id === embriao.id ? 'Redetectando...' : 'Redetectar IA'}
                       </DropdownMenuItem>
                     )}
 
@@ -684,8 +799,29 @@ export function PacoteEmbrioesTable({
                 {embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}
               </div>
 
+              {/* Barra de redetecção inline */}
+              {redetectProgress?.id === embriao.id && (
+                <div className="mt-2 -mx-3 -mb-3 px-3 py-1.5 rounded-b-lg bg-violet-500/5 border-t border-violet-500/20">
+                  <div className="h-1 rounded-full overflow-hidden mb-1 bg-violet-500/10">
+                    <div
+                      className="h-full bg-violet-500/60 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${(redetectProgress.step / 3) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ScanSearch className="w-3 h-3 text-violet-500 animate-pulse" />
+                    <span className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">
+                      {redetectProgress.label}
+                    </span>
+                    <span className="text-[10px] text-violet-500/50 ml-auto">
+                      {redetectProgress.step}/3
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Barra de análise IA no rodapé do card */}
-              {!score && analysisStatus?.status && ['pending', 'processing', 'failed'].includes(analysisStatus.status) && (
+              {redetectProgress?.id !== embriao.id && !score && analysisStatus?.status && ['pending', 'processing', 'failed'].includes(analysisStatus.status) && (redetectedMap.has(embriao.id) || !acasWithRedetect.has(embriao.lote_fiv_acasalamento_id || '')) && (
                 <EmbryoAnalysisBar
                   status={analysisStatus.status as 'pending' | 'processing' | 'failed'}
                   startedAt={analysisStatus.started_at}

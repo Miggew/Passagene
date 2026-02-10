@@ -261,16 +261,23 @@ Suas observações DEVEM ser objetivas, específicas e baseadas no que você rea
   • CORRETO: "Sem pulsação detectável nos 15s de vídeo; expansão estável da blastocele sem colapso"
   • ERRADO: "Cinética compatível com viabilidade" (vago, não informativo)
 Seja CRÍTICO e HONESTO: embrião mediano recebe score mediano (50-65), não 80+.
-Não infle scores — a calibração depende de avaliações realistas.`;
+Não infle scores — a calibração depende de avaliações realistas.
+
+═══════════════════════════════════════════════
+IDIOMA (OBRIGATÓRIO)
+═══════════════════════════════════════════════
+TODAS as respostas textuais — reasoning, notes, descrições (icm_description, te_description, blastocele_pattern, motion_asymmetry, most_active_region, icm_activity, te_activity), e viability_indicators — DEVEM ser escritas em PORTUGUÊS BRASILEIRO.
+NÃO use inglês em nenhum campo de texto livre. Campos enum (confidence, transfer_recommendation) mantêm seus valores técnicos.`;
 
 const ANALYSIS_PROMPT_SINGLE = `Analise o embrião mostrado na imagem de recorte (crop) anexa.
 Use o vídeo para avaliar cinética: procure pulsação da blastocele, movimentos celulares, expansão/contração.
 Embriões PIV: citoplasma mais escuro e MCI menos compacta são NORMAIS — NÃO penalizar.
 
 INSTRUÇÕES DE QUALIDADE:
-- "reasoning": Escreva 2-3 frases ESPECÍFICAS descrevendo o que você observou. Cite características concretas (ex: "MCI compacta no polo superior, ZP afinada, sem fragmentação visível"). NÃO use frases genéricas como "embrião de boa qualidade" ou "morfologia adequada".
-- "morphology.notes": Descreva detalhes morfológicos CONCRETOS que você observou — forma, simetria, coloração, debris, estado da ZP, qualidade da MCI/TE. Se algo é normal para PIV, diga "normal para PIV" mas descreva o que viu.
-- "kinetics.notes": Descreva o que observou no vídeo — presença ou ausência de pulsação, comportamento da blastocele, movimentos celulares, ou ausência total de dinâmica. Se o vídeo é curto demais para avaliar, diga isso explicitamente.
+- IDIOMA: TODAS as respostas textuais DEVEM ser em PORTUGUÊS BRASILEIRO. NÃO escreva em inglês.
+- "reasoning": Escreva 2-3 frases ESPECÍFICAS em português descrevendo o que você observou. Cite características concretas (ex: "MCI compacta no polo superior, ZP afinada, sem fragmentação visível"). NÃO use frases genéricas como "embrião de boa qualidade" ou "morfologia adequada".
+- "morphology.notes": Descreva em português detalhes morfológicos CONCRETOS que você observou — forma, simetria, coloração, debris, estado da ZP, qualidade da MCI/TE. Se algo é normal para PIV, diga "normal para PIV" mas descreva o que viu.
+- "kinetics.notes": Descreva em português o que observou no vídeo — presença ou ausência de pulsação, comportamento da blastocele, movimentos celulares, ou ausência total de dinâmica. Se o vídeo é curto demais para avaliar, diga isso explicitamente.
 - Seja CRÍTICO: embrião mediano = score 50-65, não 80+. Não infle scores.
 
 Responda JSON puro (sem markdown):
@@ -279,32 +286,32 @@ Responda JSON puro (sem markdown):
   "classification": "Excelente"|"Bom"|"Regular"|"Borderline"|"Inviavel",
   "transfer_recommendation": "priority"|"recommended"|"conditional"|"second_opinion"|"discard",
   "confidence": "high"|"medium"|"low",
-  "reasoning": "<2-3 frases ESPECÍFICAS sobre o que observou>",
+  "reasoning": "<2-3 frases ESPECÍFICAS em PORTUGUÊS sobre o que observou>",
   "morphology": {
     "score": <0-100>,
     "stage": "<estágio IETS, ex: Blastocisto expandido (Bx, código 7)>",
     "icm_grade": "A"|"B"|"C",
-    "icm_description": "<descrição CONCRETA da MCI: compactação, posição, delimitação>",
+    "icm_description": "<descrição CONCRETA em português da MCI: compactação, posição, delimitação>",
     "te_grade": "A"|"B"|"C",
-    "te_description": "<descrição CONCRETA do TE: continuidade, regularidade, espessura>",
+    "te_description": "<descrição CONCRETA em português do TE: continuidade, regularidade, espessura>",
     "zp_status": "<íntegra|afinada|rompida|ausente>",
     "fragmentation": "<nenhuma|mínima|leve|moderada|severa>",
-    "notes": "<observações morfológicas ESPECÍFICAS — o que você viu, não generalidades>"
+    "notes": "<observações morfológicas ESPECÍFICAS em português — o que você viu, não generalidades>"
   },
   "kinetics": {
     "score": <0-100>,
     "global_motion": "<ativo|moderado|sutil|estático>",
-    "icm_activity": "<descrição do que observou na MCI no vídeo>",
-    "te_activity": "<descrição do que observou no TE no vídeo>",
-    "blastocele_pulsation": "none"|"subtle"|"moderate"|"active",
-    "blastocele_pattern": "<descrição: expansão estável, colapso/re-expansão, sem variação>",
+    "icm_activity": "<descrição em português do que observou na MCI no vídeo>",
+    "te_activity": "<descrição em português do que observou no TE no vídeo>",
+    "blastocele_pulsation": "nenhuma"|"sutil"|"moderada"|"ativa",
+    "blastocele_pattern": "<descrição em português: expansão estável, colapso/re-expansão, sem variação>",
     "expansion_observed": <true/false>,
-    "stability": "stable"|"shifting"|"collapsing",
-    "motion_asymmetry": "<descrição de assimetria no movimento, ou 'não observada'>",
-    "most_active_region": "<região mais ativa, ou 'nenhuma atividade detectada'>",
-    "notes": "<observações cinéticas ESPECÍFICAS — o que viu no vídeo, não suposições>"
+    "stability": "estável"|"oscilante"|"colapsando",
+    "motion_asymmetry": "<descrição em português de assimetria no movimento, ou 'não observada'>",
+    "most_active_region": "<região mais ativa em português, ou 'nenhuma atividade detectada'>",
+    "notes": "<observações cinéticas ESPECÍFICAS em português — o que viu no vídeo, não suposições>"
   },
-  "viability_indicators": ["<lista de indicadores positivos e negativos CONCRETOS observados>"]
+  "viability_indicators": ["<lista de indicadores positivos e negativos CONCRETOS em PORTUGUÊS>"]
 }`;
 
 // ============================================================
@@ -397,10 +404,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const startTime = Date.now();
+  let queue_id: string | null = null;
 
   try {
     // Validar request
-    const { queue_id } = await req.json();
+    const body = await req.json();
+    queue_id = body.queue_id;
     if (!queue_id) {
       return new Response(
         JSON.stringify({ error: 'queue_id é obrigatório' }),
@@ -516,28 +525,32 @@ Deno.serve(async (req: Request) => {
     const fewShotExamples = (config as Record<string, unknown>)?.few_shot_examples as string | null;
 
     // ── 5b. Buscar embriões do banco ──
+    // Prioridade: queue_id (mais específico) → media_id → acasalamento_id (fallback)
     let embrioes: { id: string; identificacao: string }[] | null = null;
 
-    const { data: embrioesMedia, error: embrioesMediaError } = await supabase
+    // 1. Tentar por queue_id (vinculado no despacho — só embriões DESTE job)
+    const { data: embrioesQueue } = await supabase
       .from('embrioes')
       .select('id, identificacao')
-      .eq('acasalamento_media_id', job.media_id)
+      .eq('queue_id', queue_id)
       .order('identificacao', { ascending: true });
 
-    if (!embrioesMediaError && embrioesMedia && embrioesMedia.length > 0) {
-      embrioes = embrioesMedia;
-      console.log(`Encontrados ${embrioes.length} embriões vinculados ao media_id ${job.media_id}`);
+    if (embrioesQueue && embrioesQueue.length > 0) {
+      embrioes = embrioesQueue;
+      console.log(`Encontrados ${embrioes.length} embriões vinculados ao queue_id ${queue_id}`);
     } else {
-      const { data: embrioesQueue } = await supabase
+      // 2. Tentar por media_id (pode incluir embriões de despachos anteriores)
+      const { data: embrioesMedia } = await supabase
         .from('embrioes')
         .select('id, identificacao')
-        .eq('queue_id', queue_id)
+        .eq('acasalamento_media_id', job.media_id)
         .order('identificacao', { ascending: true });
 
-      if (embrioesQueue && embrioesQueue.length > 0) {
-        embrioes = embrioesQueue;
-        console.log(`Encontrados ${embrioes.length} embriões vinculados ao queue_id ${queue_id}`);
+      if (embrioesMedia && embrioesMedia.length > 0) {
+        embrioes = embrioesMedia;
+        console.log(`Encontrados ${embrioes.length} embriões vinculados ao media_id ${job.media_id}`);
       } else {
+        // 3. Fallback por acasalamento_id
         const { data: embrioesAcas, error: embrioesAcasError } = await supabase
           .from('embrioes')
           .select('id, identificacao')
@@ -562,21 +575,294 @@ Deno.serve(async (req: Request) => {
       height_percent: number;
       radius_px: number;
     }
-    const detectedBboxes = (job.detected_bboxes as DetectedBbox[] | null) || null;
-    const detectionConfidence = (job.detection_confidence as string | null) || null;
+    let detectedBboxes = (job.detected_bboxes as DetectedBbox[] | null) || null;
+    let detectionConfidence = (job.detection_confidence as string | null) || null;
     const expectedCount = (job.expected_count as number | null) || embryoCountInDb;
-    const hasOpenCVBboxes = detectedBboxes && detectedBboxes.length > 0;
-    const cropPaths = (job.crop_paths as string[] | null) || null;
-    const hasCrops = cropPaths && cropPaths.length > 0;
+    let hasOpenCVBboxes = detectedBboxes && detectedBboxes.length > 0;
+    let cropPaths = (job.crop_paths as string[] | null) || null;
+    let hasCrops = cropPaths && cropPaths.length > 0;
 
-    console.log(`OpenCV bboxes: ${hasOpenCVBboxes ? detectedBboxes.length + ' detectados' : 'N/A'}, ` +
-      `crops: ${hasCrops ? cropPaths.length : 'N/A'}, confidence: ${detectionConfidence || 'N/A'}, expected: ${expectedCount}`);
+    console.log(`Bboxes: ${hasOpenCVBboxes ? detectedBboxes!.length + ' detectados' : 'N/A'}, ` +
+      `crops: ${hasCrops ? cropPaths!.length : 'N/A'}, confidence: ${detectionConfidence || 'N/A'}, expected: ${expectedCount}`);
 
     const mimeType = media.mime_type || 'video/mp4';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
 
     // Timeout de 120s por chamada Gemini
     const GEMINI_TIMEOUT_MS = 120_000;
+
+    // ═══════════════════════════════════════════════
+    // SERVER-SIDE DETECTION: Frame extraction + Gemini detect + crop (via Cloud Run)
+    // Roda quando o job NÃO tem bboxes/crops (fluxo novo sem detecção client-side)
+    // ═══════════════════════════════════════════════
+    const FRAME_EXTRACTOR_URL = Deno.env.get('FRAME_EXTRACTOR_URL') ?? '';
+
+    if (!hasCrops && !hasOpenCVBboxes && FRAME_EXTRACTOR_URL && expectedCount > 0) {
+      console.log(`[SERVER-DETECT] Iniciando detecção server-side: expected=${expectedCount}`);
+
+      try {
+        // Passo 1: Signed URL do vídeo
+        const { data: signedUrlData } = await supabase.storage
+          .from('embryo-videos')
+          .createSignedUrl(media.arquivo_path, 600); // 10 min
+
+        if (!signedUrlData?.signedUrl) {
+          throw new Error('Falha ao criar signed URL do vídeo');
+        }
+
+        // Passo 2: Buscar lote_fiv_id (para path dos crops)
+        const { data: acasData } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select('lote_fiv_id')
+          .eq('id', job.lote_fiv_acasalamento_id)
+          .single();
+
+        const loteFivId = acasData?.lote_fiv_id || 'unknown';
+
+        // Passo 3: Cloud Run extrai frame
+        console.log(`[SERVER-DETECT] Extraindo frame via ${FRAME_EXTRACTOR_URL}`);
+        const frameResp = await fetch(`${FRAME_EXTRACTOR_URL}/extract-frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ video_url: signedUrlData.signedUrl, position: 0.5 }),
+        });
+
+        if (!frameResp.ok) {
+          const errText = await frameResp.text();
+          throw new Error(`Cloud Run extract-frame falhou (${frameResp.status}): ${errText.substring(0, 200)}`);
+        }
+
+        const { frame_base64, width: frameWidth, height: frameHeight } = await frameResp.json();
+        if (!frame_base64) throw new Error('Cloud Run retornou frame vazio');
+
+        console.log(`[SERVER-DETECT] Frame extraído: ${frameWidth}x${frameHeight}`);
+
+        // Passo 4: Gemini box_2d detecção (mesma lógica do embryo-detect)
+        const detectionPrompt = `Detect EXACTLY ${expectedCount} bovine embryos in this IVF stereomicroscope image.
+
+RULES:
+- Return EXACTLY ${expectedCount} detections. No more, no less.
+- Each detection must have box_2d as [ymin, xmin, ymax, xmax] normalized to 0-1000 and label "embryo".
+- Embryos are DARK, OPAQUE, circular/oval structures (100-400 μm) sitting ON the culture medium.
+- All real embryos in the same plate have SIMILAR sizes (within 2x of each other).
+
+REJECT these (NOT embryos):
+- Bubbles: BRIGHT, TRANSPARENT, have light reflections/highlights inside
+- Debris: very small irregular fragments, much smaller than embryos
+- Well edges: large curved lines at image borders
+- Shadows: semi-transparent dark areas without defined borders
+- Culture medium droplets: uniform light circles without internal structure
+
+If you see fewer than ${expectedCount} clear embryos, return only the ones you are confident about. Do NOT pad with bubbles or debris to reach the count.`;
+
+        const detController = new AbortController();
+        const detTimeoutId = setTimeout(() => detController.abort(), 60_000);
+
+        const detResp = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: detController.signal,
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { inline_data: { mime_type: 'image/jpeg', data: frame_base64 } },
+                { text: detectionPrompt },
+              ],
+            }],
+            generation_config: {
+              temperature: 0,
+              max_output_tokens: 8192,
+              response_mime_type: 'application/json',
+            },
+          }),
+        });
+
+        clearTimeout(detTimeoutId);
+
+        if (!detResp.ok) {
+          const errText = await detResp.text();
+          throw new Error(`Gemini detection falhou (${detResp.status}): ${errText.substring(0, 200)}`);
+        }
+
+        const detData = await detResp.json();
+        const rawDetText = detData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawDetText) throw new Error('Gemini detection: sem texto na resposta');
+
+        // Parse robusto (mesma lógica do embryo-detect)
+        interface GeminiBox2dItem {
+          box_2d: [number, number, number, number];
+          label?: string;
+        }
+
+        let detJson = rawDetText.trim();
+        if (detJson.startsWith('```')) {
+          detJson = detJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        }
+
+        let parsedBoxes: GeminiBox2dItem[];
+        try {
+          const rawParsed = JSON.parse(detJson);
+          if (Array.isArray(rawParsed)) {
+            parsedBoxes = rawParsed;
+          } else if (rawParsed && typeof rawParsed === 'object') {
+            const arrayProp = Object.values(rawParsed).find(
+              (v) => Array.isArray(v) && v.length > 0 && (v[0] as GeminiBox2dItem)?.box_2d
+            ) as GeminiBox2dItem[] | undefined;
+            parsedBoxes = arrayProp || rawParsed.items || rawParsed.embryos || rawParsed.detections || rawParsed.objects || [];
+          } else {
+            parsedBoxes = [];
+          }
+        } catch {
+          // Fallback: JSON truncado
+          if (detJson.startsWith('[') && !detJson.trimEnd().endsWith(']')) {
+            const lastComplete = detJson.lastIndexOf('}');
+            if (lastComplete > 0) {
+              try {
+                parsedBoxes = JSON.parse(detJson.substring(0, lastComplete + 1) + ']');
+              } catch { parsedBoxes = []; }
+            } else { parsedBoxes = []; }
+          } else {
+            const arrayMatch = detJson.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+              try { parsedBoxes = JSON.parse(arrayMatch[0]); } catch { parsedBoxes = []; }
+            } else { parsedBoxes = []; }
+          }
+        }
+
+        // Converter box_2d (0-1000) → DetectedBbox (percent)
+        const fw = frameWidth || 1920;
+        const fh = frameHeight || 1080;
+
+        let rawBboxes: DetectedBbox[] = parsedBoxes
+          .filter(item => item.box_2d && Array.isArray(item.box_2d) && item.box_2d.length === 4)
+          .map(item => {
+            const [y_min, x_min, y_max, x_max] = item.box_2d;
+            const x_percent = (x_min + x_max) / 2 / 10;
+            const y_percent = (y_min + y_max) / 2 / 10;
+            const width_percent = (x_max - x_min) / 10;
+            const height_percent = (y_max - y_min) / 10;
+            const radius_px = (width_percent / 100 * fw) / 2;
+            return { x_percent, y_percent, width_percent, height_percent, radius_px };
+          });
+
+        console.log(`[SERVER-DETECT] ${rawBboxes.length} bboxes brutos de ${parsedBoxes.length} items`);
+
+        // Filtro 1: outliers de tamanho (mediana ± 4x)
+        if (rawBboxes.length > 1) {
+          const areas = rawBboxes.map(b => b.width_percent * b.height_percent);
+          const sortedAreas = [...areas].sort((a, b) => a - b);
+          const medianArea = sortedAreas[Math.floor(sortedAreas.length / 2)];
+          rawBboxes = rawBboxes.filter((_, i) => {
+            const ratio = areas[i] / medianArea;
+            return ratio >= 0.25 && ratio <= 4.0;
+          });
+        }
+
+        // Filtro 2: limitar a expectedCount (mais próximos da mediana)
+        if (rawBboxes.length > expectedCount) {
+          const areas = rawBboxes.map(b => b.width_percent * b.height_percent);
+          const sortedAreas = [...areas].sort((a, b) => a - b);
+          const medianArea = sortedAreas[Math.floor(sortedAreas.length / 2)];
+          const indexed = rawBboxes.map((b, i) => ({ bbox: b, dist: Math.abs(areas[i] - medianArea) }));
+          indexed.sort((a, b) => a.dist - b.dist);
+          rawBboxes = indexed.slice(0, expectedCount).map(item => item.bbox);
+        }
+
+        // Ordenar em reading order (esquerda→direita, cima→baixo)
+        if (rawBboxes.length > 1) {
+          const avgHeight = rawBboxes.reduce((s, b) => s + b.height_percent, 0) / rawBboxes.length;
+          const rowTolerance = avgHeight * 0.7;
+          const sorted = [...rawBboxes].sort((a, b) => a.y_percent - b.y_percent);
+          const rows: DetectedBbox[][] = [];
+          let currentRow: DetectedBbox[] = [sorted[0]];
+          for (let i = 1; i < sorted.length; i++) {
+            if (Math.abs(sorted[i].y_percent - currentRow[0].y_percent) < rowTolerance) {
+              currentRow.push(sorted[i]);
+            } else {
+              rows.push(currentRow);
+              currentRow = [sorted[i]];
+            }
+          }
+          rows.push(currentRow);
+          for (const row of rows) row.sort((a, b) => a.x_percent - b.x_percent);
+          rawBboxes = rows.flat();
+        }
+
+        const sortedBboxes = rawBboxes;
+        const detConf = sortedBboxes.length === expectedCount ? 'high'
+          : sortedBboxes.length < expectedCount ? 'low' : 'medium';
+
+        console.log(`[SERVER-DETECT] ${sortedBboxes.length} bboxes finais (confiança: ${detConf})`);
+
+        if (sortedBboxes.length === 0) {
+          throw new Error('Nenhum embrião detectado pelo Gemini');
+        }
+
+        // Passo 5: Cloud Run cropa frame
+        console.log(`[SERVER-DETECT] Cropando ${sortedBboxes.length} embriões via Cloud Run`);
+        const cropResp = await fetch(`${FRAME_EXTRACTOR_URL}/crop-frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            frame_base64,
+            width: frameWidth,
+            height: frameHeight,
+            bboxes: sortedBboxes,
+            padding: 0.20,
+            output_size: 400,
+          }),
+        });
+
+        if (!cropResp.ok) {
+          const errText = await cropResp.text();
+          throw new Error(`Cloud Run crop-frame falhou (${cropResp.status}): ${errText.substring(0, 200)}`);
+        }
+
+        const { crops } = await cropResp.json();
+        if (!crops || crops.length === 0) throw new Error('Cloud Run retornou crops vazios');
+
+        // Passo 6: Upload crops pro Storage
+        const timestamp = Date.now();
+        const cropPathsUploaded: string[] = [];
+        for (let i = 0; i < crops.length; i++) {
+          const path = `${loteFivId}/${job.lote_fiv_acasalamento_id}/crops/${timestamp}_${i}.jpg`;
+          const bytes = Uint8Array.from(atob(crops[i]), (c: string) => c.charCodeAt(0));
+          const { error: uploadErr } = await supabase.storage
+            .from('embryo-videos')
+            .upload(path, bytes, { contentType: 'image/jpeg' });
+          if (uploadErr) {
+            console.warn(`[SERVER-DETECT] Crop ${i} upload falhou: ${uploadErr.message}`);
+          } else {
+            cropPathsUploaded.push(path);
+          }
+        }
+
+        console.log(`[SERVER-DETECT] ${cropPathsUploaded.length}/${crops.length} crops uploaded`);
+
+        // Passo 7: Atualizar queue com dados de detecção
+        await supabase.from('embryo_analysis_queue').update({
+          detected_bboxes: sortedBboxes,
+          detection_confidence: detConf,
+          crop_paths: cropPathsUploaded,
+        }).eq('id', queue_id);
+
+        // Passo 8: Atualizar variáveis locais para que MODO A rode normalmente
+        detectedBboxes = sortedBboxes;
+        detectionConfidence = detConf;
+        cropPaths = cropPathsUploaded;
+        hasOpenCVBboxes = true;
+        hasCrops = true;
+
+        console.log(`[SERVER-DETECT] Detecção server-side completa. Prosseguindo para análise MODO A.`);
+
+      } catch (serverDetectErr) {
+        const errMsg = serverDetectErr instanceof Error ? serverDetectErr.message : 'Erro desconhecido';
+        console.error(`[SERVER-DETECT] Falha: ${errMsg}`);
+
+        // Falha na detecção server-side → job vai para "skipped" (bloco abaixo tratará)
+        // Não throw — deixa cair no bloco else que marca como skipped
+      }
+    }
 
     // ═══════════════════════════════════════════════
     // MODO A: Crop JPEG como bússola + Vídeo via Files API (1 call/embrião, paralelo)
@@ -719,7 +1005,7 @@ Deno.serve(async (req: Request) => {
             system_instruction: { parts: [{ text: calibrationSingleWithWeights }] },
             contents: [{ parts }],
             generation_config: {
-              temperature: 0.2,
+              temperature: 0,
               max_output_tokens: 4096,
               response_mime_type: 'application/json',
             },
@@ -775,6 +1061,29 @@ Deno.serve(async (req: Request) => {
 
       rawAiCount = filteredEmbryos.length;
 
+      // Se TODAS as chamadas Gemini falharam, marcar como 'failed' e abortar
+      if (filteredEmbryos.length === 0) {
+        const errorDetails = failedResults
+          .map((r: ParallelResult) => `#${r.index}: ${r.error?.substring(0, 80)}`)
+          .join('; ');
+        const errorMsg = `Todas as ${parallelResults.length} chamadas Gemini falharam: ${errorDetails}`.substring(0, 500);
+        console.error(`[MODO A] ${errorMsg}`);
+
+        await supabase
+          .from('embryo_analysis_queue')
+          .update({
+            status: 'failed',
+            error_message: errorMsg,
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', queue_id);
+
+        return new Response(
+          JSON.stringify({ success: false, queue_id, error: errorMsg }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
     } else {
       // ═══════════════════════════════════════════════
       // SEM CROPS/BBOXES → análise não roda (skipped)
@@ -786,7 +1095,7 @@ Deno.serve(async (req: Request) => {
         .update({
           status: 'skipped',
           completed_at: new Date().toISOString(),
-          error_message: 'Sem crops/bboxes detectados — análise requer detecção OpenCV prévia',
+          error_message: 'Sem crops/bboxes detectados — análise requer detecção prévia',
         })
         .eq('id', queue_id);
 
@@ -795,7 +1104,7 @@ Deno.serve(async (req: Request) => {
           success: false,
           queue_id,
           status: 'skipped',
-          reason: 'Sem crops/bboxes — análise requer detecção OpenCV prévia',
+          reason: 'Sem crops/bboxes — análise requer detecção prévia',
         }),
         {
           status: 200,
@@ -896,6 +1205,8 @@ Deno.serve(async (req: Request) => {
           ? (detectedBboxes[origIdx]?.height_percent ?? null)
           : clampBbox(aiEmbryo.bbox_height_percent, 1),
 
+        crop_image_path: cropPaths?.[origIdx] ?? null,
+
         model_used: modelName,
         morph_weight: morphWeight,
         kinetic_weight: kineticWeight,
@@ -908,7 +1219,7 @@ Deno.serve(async (req: Request) => {
             embryos_in_db: embryoCount,
             embryos_detected_by_ai: aiCount,
             count_mismatch: countMismatch,
-            detection_source: hasOpenCVBboxes ? 'opencv' : 'gemini',
+            detection_source: hasOpenCVBboxes ? 'gemini' : 'none',
             detection_confidence: detectionConfidence,
             server_calculated: true,
             gemini_original_score: geminiOriginalScore,
@@ -919,6 +1230,27 @@ Deno.serve(async (req: Request) => {
     });
 
     const validScores = scoresToInsert.filter((s: { embriao_id: string | null }) => s.embriao_id);
+
+    // Se Gemini retornou resultados mas nenhum embrião foi vinculado, é falha de matching
+    if (validScores.length === 0 && scoresToInsert.length > 0) {
+      const errorMsg = `Matching falhou: ${scoresToInsert.length} resultado(s) da IA mas nenhum vinculado a embriões do banco. ` +
+        `embrioes encontrados: ${embryoCountInDb}, indices usados: [${originalIndexes.join(',')}]`;
+      console.error(`[EmbryoAnalyze] ${errorMsg}`);
+
+      await supabase
+        .from('embryo_analysis_queue')
+        .update({
+          status: 'failed',
+          error_message: errorMsg.substring(0, 500),
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', queue_id);
+
+      return new Response(
+        JSON.stringify({ success: false, queue_id, error: errorMsg }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (validScores.length > 0) {
       const embriaoIds = validScores.map((s: { embriao_id: string }) => s.embriao_id);
@@ -972,9 +1304,8 @@ Deno.serve(async (req: Request) => {
     console.error('embryo-analyze error:', errorMessage);
 
     // Tentar atualizar job para 'failed'
-    try {
-      const { queue_id } = await req.clone().json().catch(() => ({ queue_id: null }));
-      if (queue_id) {
+    if (queue_id) {
+      try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -987,9 +1318,9 @@ Deno.serve(async (req: Request) => {
             completed_at: new Date().toISOString(),
           })
           .eq('id', queue_id);
+      } catch {
+        console.error('Falha ao atualizar job para failed');
       }
-    } catch {
-      console.error('Falha ao atualizar job para failed');
     }
 
     return new Response(

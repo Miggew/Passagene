@@ -142,15 +142,13 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
     },
     enabled: embriaoIds.length > 0,
     refetchInterval: (query) => {
-      // Se Realtime está conectado, não precisa de polling
-      if (realtimeConnected.current) return false;
-      // Fallback: polling enquanto nem todos os embriões têm score
+      // Polling enquanto nem todos os embriões têm score
       const scoresMap = query.state.data;
       if (!scoresMap) return 5000;
       const allHaveScores = embriaoIds.every(id => scoresMap[id]);
       return allHaveScores ? false : 5000;
     },
-    staleTime: 30_000,
+    staleTime: 5_000,
   });
 }
 

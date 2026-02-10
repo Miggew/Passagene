@@ -71,13 +71,9 @@ interface LoteDetailViewProps {
   onUpdateClivados?: (acasalamentoId: string, quantidade: string) => void;
   editClivados?: { [key: string]: string };
   videoMediaIds?: { [acasalamentoId: string]: string[] };
-  videoDetections?: { [acasalamentoId: string]: Array<{ mediaId: string; bboxes: import('@/lib/types').DetectedBbox[]; confidence: 'high' | 'medium' | 'low'; cropPaths?: string[] | null }> };
   onVideoUploadComplete?: (
     acasalamentoId: string,
     mediaId: string,
-    detectedBboxes?: import('@/lib/types').DetectedBbox[] | null,
-    detectionConfidence?: 'high' | 'medium' | 'low' | null,
-    cropPaths?: string[] | null,
   ) => void;
 }
 
@@ -132,7 +128,6 @@ export function LoteDetailView({
   onUpdateClivados,
   editClivados = {},
   videoMediaIds = {},
-  videoDetections = {},
   onVideoUploadComplete,
 }: LoteDetailViewProps) {
   const navigate = useNavigate();
@@ -588,9 +583,7 @@ export function LoteDetailView({
                                   loteFivId={lote.id}
                                   disabled={quantidadeEmbrioes <= 0}
                                   videoCount={videoMediaIds[acasalamento.id]?.length ?? 0}
-                                  expectedEmbryoCount={quantidadeEmbrioes > 0 ? quantidadeEmbrioes : undefined}
-                                  detectedCount={(videoDetections[acasalamento.id] || []).reduce((sum, d) => sum + (d.bboxes?.length || 0), 0)}
-                                  onUploadComplete={(acId, mediaId, bboxes, confidence, cropPaths) => onVideoUploadComplete?.(acId, mediaId, bboxes, confidence, cropPaths)}
+                                  onUploadComplete={(acId, mediaId) => onVideoUploadComplete?.(acId, mediaId)}
                                 />
                               </div>
                             </div>
@@ -716,9 +709,7 @@ export function LoteDetailView({
                                 loteFivId={lote.id}
                                 disabled={quantidadeEmbrioes <= 0}
                                 videoCount={videoMediaIds[acasalamento.id]?.length ?? 0}
-                                expectedEmbryoCount={quantidadeEmbrioes > 0 ? quantidadeEmbrioes : undefined}
-                                detectedCount={(videoDetections[acasalamento.id] || []).reduce((sum, d) => sum + (d.bboxes?.length || 0), 0)}
-                                onUploadComplete={(acId, mediaId, bboxes, confidence, cropPaths) => onVideoUploadComplete?.(acId, mediaId, bboxes, confidence, cropPaths)}
+                                onUploadComplete={(acId, mediaId) => onVideoUploadComplete?.(acId, mediaId)}
                               />
                             </TableCell>
                           )}

@@ -83,6 +83,33 @@ function getConfidenceColor(confidence: string) {
   }
 }
 
+/** Traduz valores enum de pulsação (fallback para dados antigos em inglês) */
+function translatePulsation(val: string) {
+  const map: Record<string, string> = {
+    none: 'Nenhuma', subtle: 'Sutil', moderate: 'Moderada', active: 'Ativa',
+    nenhuma: 'Nenhuma', sutil: 'Sutil', moderada: 'Moderada', ativa: 'Ativa',
+  };
+  return map[val.toLowerCase()] || val;
+}
+
+/** Traduz valores enum de estabilidade (fallback para dados antigos em inglês) */
+function translateStability(val: string) {
+  const map: Record<string, string> = {
+    stable: 'Estável', shifting: 'Oscilante', collapsing: 'Colapsando',
+    'estável': 'Estável', oscilante: 'Oscilante', colapsando: 'Colapsando',
+  };
+  return map[val.toLowerCase()] || val;
+}
+
+/** Traduz valores enum de movimento global (fallback para dados antigos em inglês) */
+function translateMotion(val: string) {
+  const map: Record<string, string> = {
+    active: 'Ativo', moderate: 'Moderado', subtle: 'Sutil', static: 'Estático',
+    ativo: 'Ativo', moderado: 'Moderado', sutil: 'Sutil', 'estático': 'Estático',
+  };
+  return map[val.toLowerCase()] || val;
+}
+
 export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, classificacaoManual }: EmbryoScoreCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const colors = getScoreColor(score.embryo_score);
@@ -207,13 +234,13 @@ export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, cla
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
               {score.global_motion && (
-                <DetailRow label="Movimento" value={score.global_motion} />
+                <DetailRow label="Movimento" value={translateMotion(score.global_motion)} />
               )}
               {score.blastocele_pulsation && (
-                <DetailRow label="Pulsação" value={score.blastocele_pulsation} />
+                <DetailRow label="Pulsação" value={translatePulsation(score.blastocele_pulsation)} />
               )}
               {score.stability && (
-                <DetailRow label="Estabilidade" value={score.stability} />
+                <DetailRow label="Estabilidade" value={translateStability(score.stability)} />
               )}
               {score.icm_activity && (
                 <DetailRow label="Atividade ICM" value={score.icm_activity} />

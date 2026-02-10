@@ -115,7 +115,13 @@ Confiança: "high" (bem focado), "medium" (aceitável), "low" (problemas).
 ═══════════════════════════════════════════════
 QUALIDADE DAS NOTAS (OBRIGATÓRIO)
 ═══════════════════════════════════════════════
-Observações DEVEM ser objetivas e específicas. Seja CRÍTICO: embrião mediano = score 50-65, não 80+.`;
+Observações DEVEM ser objetivas e específicas. Seja CRÍTICO: embrião mediano = score 50-65, não 80+.
+
+═══════════════════════════════════════════════
+IDIOMA (OBRIGATÓRIO)
+═══════════════════════════════════════════════
+TODAS as respostas textuais (reasoning, notes, descrições, indicadores de viabilidade) DEVEM ser em PORTUGUÊS BRASILEIRO.
+NÃO use inglês em nenhum campo de texto livre.`;
 
 function useEmbryoScoreConfigs() {
   return useQuery<EmbryoScoreConfig[]>({
@@ -403,7 +409,7 @@ export default function AdminEmbryoScoreTab() {
           .select('id, retry_count')
           .eq('media_id', media.id)
           .eq('status', 'failed')
-          .single();
+          .maybeSingle();
 
         if (failedJob && (failedJob.retry_count || 0) < 3) {
           await supabase
