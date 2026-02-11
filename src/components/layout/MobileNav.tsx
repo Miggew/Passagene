@@ -6,9 +6,11 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Home,
   Menu,
+  LogOut,
   Syringe,
   TestTube,
   ArrowRightLeft,
@@ -93,6 +95,7 @@ const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios', '/cl
 export default function MobileNav() {
   const location = useLocation();
   const { isCliente, getHubForRoute, getAccessibleHubs } = usePermissions();
+  const { signOut } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const currentHub = getHubForRoute(location.pathname);
@@ -157,7 +160,7 @@ export default function MobileNav() {
                 </button>
               </SheetTrigger>
 
-              <SheetContent side="right" className="w-80 p-0">
+              <SheetContent side="right" className="w-80 p-0 flex flex-col">
                 <SheetHeader className="p-5 border-b border-border">
                   <div className="flex items-center justify-between">
                     <SheetTitle className="text-left text-xl">Menu</SheetTitle>
@@ -219,6 +222,18 @@ export default function MobileNav() {
                       <span className="text-base font-medium">Início</span>
                     </Link>
                   </div>
+
+                </div>
+
+                {/* Sair — fixo no rodapé */}
+                <div className="p-3 border-t border-border mt-auto">
+                  <button
+                    onClick={() => { setSheetOpen(false); signOut(); }}
+                    className="flex items-center gap-4 px-5 py-4 rounded-xl w-full text-red-500 active:bg-red-500/10 transition-colors"
+                  >
+                    <LogOut className="w-6 h-6" />
+                    <span className="text-base font-medium">Sair</span>
+                  </button>
                 </div>
               </SheetContent>
             </Sheet>

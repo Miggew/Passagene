@@ -6,7 +6,7 @@ import logoEscrito from '@/assets/logoescrito.svg';
 import { useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import {
-  HomeDashboardCliente,
+  HomeDashboardClienteAI,
   HomeDashboardOperacional,
   HomeDashboardAdmin,
 } from '@/components/home';
@@ -61,7 +61,7 @@ export default function Home() {
         </div>
 
         {/* Dashboard Cliente - flex-1 preenche tudo */}
-        <HomeDashboardCliente
+        <HomeDashboardClienteAI
           clienteId={clienteId}
           clienteNome={clientes.find(c => c.id === clienteId)?.nome}
         />

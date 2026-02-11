@@ -10,3 +10,5 @@ export {
   type EmbriaoBase,
   type ClienteHubData,
 } from './useClienteHubData';
+
+export { useDailySummary } from './useDailySummary';
