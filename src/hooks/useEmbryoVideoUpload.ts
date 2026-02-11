@@ -94,7 +94,10 @@ export function useEmbryoVideoUpload() {
           upsert: false,
         });
 
-      if (uploadError) throw new Error(`Erro no upload: ${uploadError.message}`);
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError.message, 'statusCode:', (uploadError as unknown as { statusCode?: string }).statusCode, 'error:', uploadError);
+        throw new Error(`Erro no upload: ${uploadError.message}`);
+      }
       setState(prev => ({ ...prev, progress: 70 }));
 
       // Obter URL pública (signed URL 1 ano)

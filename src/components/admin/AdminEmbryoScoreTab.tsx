@@ -1,14 +1,14 @@
 /**
- * Aba de administração do EmbryoScore IA
+ * Aba de administração do EmbryoScore IA (v4)
  *
  * Permite:
- * - Visualizar config atual (morph_weight / kinetic_weight)
- * - Editar pesos e salvar nova config
+ * - Editar modelo, prompt customizado, few-shot examples
  * - Histórico de configs anteriores
  * - Estatísticas de uso (total análises, concordância biólogo, etc.)
+ * - Correlação score × prenhez
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -38,90 +38,22 @@ import {
 import { ScorePregnancyCorrelation } from '@/components/embryoscore/ScorePregnancyCorrelation';
 import { ConcordanceReport } from '@/components/embryoscore/ConcordanceReport';
 
-// Prompt padrão (fallback) — espelho do prompt hardcoded na Edge Function
+// Prompt padrão v4 (fallback) — espelho do prompt hardcoded na Edge Function
 // Usado como placeholder quando a config não define prompt customizado
-const DEFAULT_CALIBRATION_PROMPT = `Você é um embriologista bovino especialista em análise morfocinética de embriões produzidos in vitro (PIV/IVP).
+const DEFAULT_CALIBRATION_PROMPT = `[Prompt v4 — hardcoded na Edge Function]
 
-═══════════════════════════════════════════════
-TAREFA
-═══════════════════════════════════════════════
-Analise UM ÚNICO embrião bovino. Você receberá:
-1. Uma IMAGEM JPEG de recorte (crop) mostrando o embrião isolado
-2. Um VÍDEO da placa completa para avaliar cinética
+O prompt padrão está embutido na Edge Function embryo-analyze.
+Deixe este campo VAZIO para usar o prompt v4 padrão.
 
-REGRA ABSOLUTA: Analise SOMENTE o embrião mostrado na imagem de recorte.
-O vídeo serve APENAS para observar movimento/pulsação deste embrião específico.
-NÃO mencione outros embriões. NÃO forneça bounding boxes. NÃO conte embriões.
+Só preencha se quiser sobrescrever com um prompt customizado.
 
-═══════════════════════════════════════════════
-PARÂMETROS DE CALIBRAÇÃO
-═══════════════════════════════════════════════
-- Peso morfologia: {morph_weight}
-- Peso cinética: {kinetic_weight}
-- EmbryoScore final = (morphology_score × {morph_weight}) + (kinetic_score × {kinetic_weight})
-
-═══════════════════════════════════════════════
-CONTEXTO DO EQUIPAMENTO
-═══════════════════════════════════════════════
-- Estereomicroscópio: Nikon SMZ 645 (zoom 6.7x–50x, resolução óptica ~600 lp/mm)
-- Captura de imagem: Adaptador digital OptiREC (Custom Surgical) acoplado a Samsung Galaxy S23
-- Gravação: Samsung Video Pro, tipicamente 10–20 segundos por placa
-- Visualização: Vista superior (top-down) da placa de cultivo
-- Aumento habitual: 20x–40x para avaliação embrionária
-- LIMITAÇÃO IMPORTANTE: Neste aumento, NÃO é possível contar blastômeros individuais nem avaliar ultraestrutura celular.
-
-═══════════════════════════════════════════════
-ESTÁGIOS DE DESENVOLVIMENTO — CÓDIGO IETS (1-9)
-═══════════════════════════════════════════════
-Código 1 — Zigoto/1-célula. Código 2 — Clivagem (2-12 células). Código 3 — Mórula inicial (13-32 células).
-Código 4 — Mórula compacta (>32 células, ZP visível). Código 5 — Blastocisto inicial (Bi, <50% blastocele).
-Código 6 — Blastocisto (Bl, >50% blastocele). Código 7 — Blastocisto expandido (Bx, ZP afinada — ideal PIV).
-Código 8 — Blastocisto em eclosão (Bh, herniação). Código 9 — Blastocisto eclodido (Be).
-
-═══════════════════════════════════════════════
-GRAUS IETS (1-4)
-═══════════════════════════════════════════════
-Grau 1: ≥85% intacta, simétrica, ZP íntegra, MCI compacta, TE contínuo, <5% fragmentação.
-Grau 2: 50-85% intacta, assimetria leve, MCI menos definida, fragmentação 5-20%.
-Grau 3: 25-50% intacta, assimetria marcada, MCI difusa, TE descontínuo, fragmentação 20-50%.
-Grau 4: <25% viável, desorganizado, necrose/lise, >50% fragmentação.
-
-═══════════════════════════════════════════════
-PARTICULARIDADES PIV (CRÍTICO)
-═══════════════════════════════════════════════
-• Citoplasma mais escuro (lipídios) — NORMAL, NÃO penalizar
-• MCI menos compacta que in vivo — NORMAL
-• Bx (código 7) é o estágio ótimo para transferência PIV
-
-═══════════════════════════════════════════════
-INDICADORES MORFOCINÉTICOS (VÍDEO)
-═══════════════════════════════════════════════
-1. Pulsação da blastocele (principal indicador)
-2. Expansão/contração da blastocele
-3. Movimento do trofectoderma
-4. Atividade da MCI
-5. Sinais de eclosão
-NOTA: Vídeos 10-20s podem não capturar ciclo completo — não penalize excessivamente.
-
-═══════════════════════════════════════════════
-PONTUAÇÃO
-═══════════════════════════════════════════════
-morphology_score (0-100): 90-100=Grau1 pleno, 80-89=Grau1, 70-79=1-2, 60-69=Grau2, 50-59=2-3, 40-49=Grau3, 30-39=3 avançado, 10-29=3-4, 0-9=Grau4.
-kinetic_score (0-100): 90-100=Pulsação ativa, 80-89=Boa atividade, 70-79=Leve, 60-69=Discreto, 50-59=Sutil, 40-49=Estático, 20-39=Sem movimento, 0-19=Degeneração.
-
-Classificação: 80-100="Excelente"/"priority", 60-79="Bom"/"recommended", 40-59="Regular"/"conditional", 20-39="Borderline"/"second_opinion", 0-19="Inviavel"/"discard".
-Confiança: "high" (bem focado), "medium" (aceitável), "low" (problemas).
-
-═══════════════════════════════════════════════
-QUALIDADE DAS NOTAS (OBRIGATÓRIO)
-═══════════════════════════════════════════════
-Observações DEVEM ser objetivas e específicas. Seja CRÍTICO: embrião mediano = score 50-65, não 80+.
-
-═══════════════════════════════════════════════
-IDIOMA (OBRIGATÓRIO)
-═══════════════════════════════════════════════
-TODAS as respostas textuais (reasoning, notes, descrições, indicadores de viabilidade) DEVEM ser em PORTUGUÊS BRASILEIRO.
-NÃO use inglês em nenhum campo de texto livre.`;
+Resumo do prompt v4:
+- Foco D7: sub-scoring por componente (MCI 35%, TE 35%, ZP+Forma 20%, Fragmentação 10%)
+- 3 frames (não 10)
+- Kinetic_score refinado pelo Gemini com contexto morfológico
+- Cross context: dados da doadora/touro injetados automaticamente
+- Classificação: ≥82 Excelente, ≥65 Bom, ≥48 Regular, ≥25 Borderline, <25 Inviável
+- Anti-inflação: score médio esperado 62-68`;
 
 function useEmbryoScoreConfigs() {
   return useQuery<EmbryoScoreConfig[]>({
@@ -208,10 +140,8 @@ export default function AdminEmbryoScoreTab() {
 
   const activeConfig = configs.find(c => c.active);
 
-  const [morphWeight, setMorphWeight] = useState(0.7);
-  const [kineticWeight, setKineticWeight] = useState(0.3);
   const [modelName, setModelName] = useState('gemini-2.5-flash');
-  const [promptVersion, setPromptVersion] = useState('v1');
+  const [promptVersion, setPromptVersion] = useState('v4');
   const [notes, setNotes] = useState('');
   const [reprocessLog, setReprocessLog] = useState<string[]>([]);
   const [calibrationPrompt, setCalibrationPrompt] = useState('');
@@ -276,27 +206,12 @@ export default function AdminEmbryoScoreTab() {
   // Sincronizar com config ativa
   useEffect(() => {
     if (activeConfig) {
-      setMorphWeight(activeConfig.morph_weight);
-      setKineticWeight(activeConfig.kinetic_weight);
       setModelName(activeConfig.model_name);
       setPromptVersion(activeConfig.prompt_version);
       setCalibrationPrompt(activeConfig.calibration_prompt || '');
       setFewShotExamples((activeConfig as unknown as Record<string, unknown>).few_shot_examples as string || '');
     }
   }, [activeConfig]);
-
-  // Manter soma = 1.0
-  const handleMorphChange = useCallback((val: string) => {
-    const v = Math.min(1, Math.max(0, parseFloat(val) || 0));
-    setMorphWeight(v);
-    setKineticWeight(Math.round((1 - v) * 100) / 100);
-  }, []);
-
-  const handleKineticChange = useCallback((val: string) => {
-    const v = Math.min(1, Math.max(0, parseFloat(val) || 0));
-    setKineticWeight(v);
-    setMorphWeight(Math.round((1 - v) * 100) / 100);
-  }, []);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -308,12 +223,12 @@ export default function AdminEmbryoScoreTab() {
           .eq('id', activeConfig.id);
       }
 
-      // Criar nova config ativa
+      // Criar nova config ativa (v4: pesos fixos 1.0/0, kinetic_score refinado pelo Gemini)
       const { error } = await supabase
         .from('embryo_score_config')
         .insert({
-          morph_weight: morphWeight,
-          kinetic_weight: kineticWeight,
+          morph_weight: 1.0,
+          kinetic_weight: 0,
           model_name: modelName,
           prompt_version: promptVersion,
           active: true,
@@ -479,9 +394,7 @@ export default function AdminEmbryoScoreTab() {
   });
 
   const hasChanges = activeConfig
-    ? morphWeight !== activeConfig.morph_weight ||
-      kineticWeight !== activeConfig.kinetic_weight ||
-      modelName !== activeConfig.model_name ||
+    ? modelName !== activeConfig.model_name ||
       promptVersion !== activeConfig.prompt_version ||
       calibrationPrompt !== (activeConfig.calibration_prompt || '') ||
       fewShotExamples !== ((activeConfig as unknown as Record<string, unknown>).few_shot_examples as string || '')
@@ -508,7 +421,7 @@ export default function AdminEmbryoScoreTab() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-foreground">EmbryoScore IA</h2>
-          <p className="text-xs text-muted-foreground">Configuração de pesos e monitoramento da análise por IA</p>
+          <p className="text-xs text-muted-foreground">Configuração e monitoramento da análise por IA (v4)</p>
         </div>
       </div>
 
@@ -785,52 +698,12 @@ export default function AdminEmbryoScoreTab() {
           </div>
 
           <div className="p-4 space-y-4">
-            {/* Pesos */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Peso Morfologia</Label>
-                <Input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  max="1"
-                  value={morphWeight}
-                  onChange={(e) => handleMorphChange(e.target.value)}
-                  className="h-9"
-                />
-                <p className="text-[10px] text-muted-foreground">{(morphWeight * 100).toFixed(0)}% do score final</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Peso Cinética</Label>
-                <Input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  max="1"
-                  value={kineticWeight}
-                  onChange={(e) => handleKineticChange(e.target.value)}
-                  className="h-9"
-                />
-                <p className="text-[10px] text-muted-foreground">{(kineticWeight * 100).toFixed(0)}% do score final</p>
-              </div>
-            </div>
-
-            {/* Barra visual dos pesos */}
-            <div className="h-3 rounded-full overflow-hidden flex bg-muted">
-              <div
-                className="bg-gradient-to-r from-blue-500 to-blue-400 transition-all"
-                style={{ width: `${morphWeight * 100}%` }}
-                title={`Morfologia: ${(morphWeight * 100).toFixed(0)}%`}
-              />
-              <div
-                className="bg-gradient-to-r from-amber-400 to-amber-500 transition-all"
-                style={{ width: `${kineticWeight * 100}%` }}
-                title={`Cinética: ${(kineticWeight * 100).toFixed(0)}%`}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground -mt-2">
-              <span className="text-blue-500">Morfologia {(morphWeight * 100).toFixed(0)}%</span>
-              <span className="text-amber-500">Cinética {(kineticWeight * 100).toFixed(0)}%</span>
+            {/* v4: Scores independentes — morph_score (visual) + kinetic_score (Gemini refined) */}
+            <div className="rounded-lg bg-muted/30 border border-border/30 p-3">
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-semibold text-foreground">v4</span> — embryo_score = morph_score (sub-scoring MCI/TE/ZP/Frag).
+                kinetic_score refinado pelo Gemini com contexto morfológico. 3 frames + dados do cruzamento.
+              </p>
             </div>
 
             {/* Modelo e versão */}

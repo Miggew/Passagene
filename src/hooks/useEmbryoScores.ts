@@ -225,20 +225,48 @@ export function useEmbryoAnalysisStatusBatch(acasalamentoIds: string[]) {
 }
 
 /**
- * Contagem global de jobs pendentes/processando na fila de análise.
- * Polling leve (10s) para badge no layout.
+ * Dados estruturados da fila global de análise.
+ * Polling leve (10s) para barra de status no layout.
  */
+export interface GlobalAnalysisQueueData {
+  pending: number;
+  processing: number;
+  total: number;
+  oldestStartedAt: string | null;
+  newestExpectedCount: number | null;
+}
+
 export function useGlobalAnalysisQueue() {
-  return useQuery<number>({
+  return useQuery<GlobalAnalysisQueueData>({
     queryKey: ['global-analysis-queue-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from('embryo_analysis_queue')
-        .select('id', { count: 'exact', head: true })
-        .in('status', ['pending', 'processing']);
+        .select('id, status, started_at, expected_count')
+        .in('status', ['pending', 'processing'])
+        .order('created_at', { ascending: true });
 
-      if (error) return 0;
-      return count || 0;
+      if (error || !data) return { pending: 0, processing: 0, total: 0, oldestStartedAt: null, newestExpectedCount: null };
+
+      let pending = 0;
+      let processing = 0;
+      let oldestStartedAt: string | null = null;
+      let newestExpectedCount: number | null = null;
+
+      for (const job of data) {
+        if (job.status === 'pending') pending++;
+        if (job.status === 'processing') {
+          processing++;
+          if (job.started_at && (!oldestStartedAt || job.started_at < oldestStartedAt)) {
+            oldestStartedAt = job.started_at;
+          }
+          if (job.expected_count != null) {
+            newestExpectedCount = job.expected_count;
+          }
+        }
+      }
+
+      return { pending, processing, total: pending + processing, oldestStartedAt, newestExpectedCount };
     },
     refetchInterval: 10_000,
     staleTime: 5_000,

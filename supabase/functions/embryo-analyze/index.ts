@@ -1,18 +1,19 @@
 /**
- * Edge Function: embryo-analyze (v3.1)
+ * Edge Function: embryo-analyze (v4)
  *
  * Processa vídeos de embriões com análise de atividade (pixel subtraction) + Gemini AI.
  *
- * Fluxo v3.1:
+ * Fluxo v4:
  * 1. Recebe queue_id via POST
  * 2. Busca job na embryo_analysis_queue (status = 'pending')
  * 3. Atualiza status → 'processing'
  * 4. Server-side detection (se necessário): extract-frame → Gemini detect → crop-frame
- * 5. Cloud Run /analyze-activity: extrai frames, calcula kinetic_profile + kinetic_quality_score
- * 6. Gemini recebe 10 frames LIMPOS (morfologia) + perfil cinético como TEXTO (interpreta números)
- * 7. embryo_score = morph_score (scores independentes, sem peso combinado)
- * 8. Soft-delete scores antigos + INSERT novos
- * 9. Atualiza job → 'completed' ou 'failed'
+ * 5. Cloud Run /analyze-activity: extrai 1 key frame, calcula kinetic_profile + kinetic_quality_score
+ * 6. Busca dados do cruzamento (doadora/touro) para cross_context
+ * 7. Gemini recebe 1 frame LIMPO + perfil cinético + cross_context → sub-scores + kinetic refinement
+ * 8. embryo_score = morph_score, kinetic_score = Gemini refined
+ * 9. Soft-delete scores antigos + INSERT novos
+ * 10. Atualiza job → 'completed' ou 'failed'
  *
  * Secrets necessários:
  *   GEMINI_API_KEY - chave da API Google Gemini
@@ -33,54 +34,112 @@ const corsHeaders = {
 };
 
 // ============================================================
-// Prompts v3 — Multi-frame + Activity Score
+// Prompts v4 — D7-focused, sub-scoring, kinetic refinement, cross context
 // ============================================================
-const CALIBRATION_PROMPT_V3 = `Você é um embriologista bovino especialista em análise morfocinética de embriões produzidos in vitro (PIV/IVP).
+const CALIBRATION_PROMPT_V4 = `Você é um embriologista bovino especialista em análise morfocinética de embriões PIV (produzidos in vitro).
 
 ═══════════════════════════════════════════════
 TAREFA
 ═══════════════════════════════════════════════
-Analise UM ÚNICO embrião bovino. Você receberá:
-1. 10 IMAGENS do embrião cropado (frames sequenciais, ~1 por segundo) — para avaliação MORFOLÓGICA.
-2. PERFIL CINÉTICO OBJETIVO — dados numéricos medidos por análise computacional de pixels:
-   - activity_score (0-100): nível geral de atividade
-   - core_activity: atividade no centro/MCI (0-100)
-   - periphery_activity: atividade na borda/TE/ZP (0-100)
-   - temporal_pattern: padrão temporal (stable/increasing/decreasing/irregular)
-   - symmetry: simetria da atividade (0-1)
-   - focal_activity: atividade focal concentrada (possível hatching)
-3. Dia pós-FIV (quando disponível).
+Analise UM ÚNICO embrião bovino D7 pós-FIV. Você receberá:
+1. 1 IMAGEM do embrião cropado (frame central do vídeo) — para avaliação MORFOLÓGICA.
+2. PERFIL CINÉTICO OBJETIVO — dados numéricos medidos por análise computacional de pixels.
+3. CONTEXTO DO CRUZAMENTO — dados genéticos da doadora e touro (quando disponíveis).
 
-REGRA ABSOLUTA: Analise SOMENTE o embrião mostrado nas imagens.
+REGRA ABSOLUTA: Analise SOMENTE o embrião mostrado na imagem.
 
 SUA RESPONSABILIDADE:
-A) MORFOLOGIA: Avalie visualmente usando os 10 frames (checklist + rubrica abaixo)
-B) INTERPRETAÇÃO CINÉTICA: Interprete clinicamente os NÚMEROS fornecidos
-   - NÃO tente medir movimento ou atividade nas imagens
-   - Os dados cinéticos já foram medidos computacionalmente com precisão matemática
-   - Foque em: o que esses números significam clinicamente para este embrião
-C) VIABILIDADE: Combine morfologia + interpretação cinética para avaliação integrada
+A) MORFOLOGIA: Avalie visualmente na imagem usando sub-scoring por componente
+B) KINETIC_SCORE REFINADO: Use o kinetic_quality_score do servidor como base e REFINE usando contexto morfológico
+C) VIABILIDADE: Integre morfologia + cinética + contexto genético
 
 ═══════════════════════════════════════════════
-SCORES INDEPENDENTES
+EQUIPAMENTO
 ═══════════════════════════════════════════════
-- morphology_score (0-100): SUA avaliação visual pura, baseada nos 10 frames
-- kinetic_quality_score: calculado separadamente no servidor (não influencia morphology_score)
-- Os dois scores são salvos INDEPENDENTES para correlação futura com resultados de prenhez
-- Foque em dar um morphology_score justo e calibrado — NÃO ajuste pela cinética.
+Estereomicroscópio Nikon SMZ 645 (20-40x), captura OptiREC + Samsung Galaxy S23, vista top-down.
+LIMITAÇÃO: Neste aumento, NÃO é possível contar blastômeros individuais.
 
 ═══════════════════════════════════════════════
-CONTEXTO DO EQUIPAMENTO
+FOCO D7 (CRÍTICO)
 ═══════════════════════════════════════════════
-- Estereomicroscópio: Nikon SMZ 645 (zoom 6.7x–50x)
-- Captura: OptiREC (Custom Surgical) + Samsung Galaxy S23
-- Visualização: Vista superior (top-down), aumento 20x–40x
-- LIMITAÇÃO: Neste aumento, NÃO é possível contar blastômeros individuais.
+O embrião foi avaliado em D7 pós-FIV (raramente D8). Neste estágio, espera-se:
+- Blastocisto (Bl, código 6): MCI/TE diferenciados, blastocele >50%
+- Blastocisto expandido (Bx, código 7): ZP afinada, blastocele dominante — IDEAL
+- Blastocisto em eclosão (Bh, código 8): herniação pela ZP
+- Blastocisto eclodido (Be, código 9): fora da ZP
+
+PENALIZAÇÃO POR ATRASO:
+- Bi (código 5) em D7 = penalizar morph_score em -10 a -15 pontos
+- Mórula compacta em D7 = morph_score ≤35 (atraso severo)
+
+PARTICULARIDADES PIV:
+- Citoplasma mais escuro (gotas lipídicas) — NÃO penalizar
+- MCI pode ser menos compacta que in vivo — NÃO penalizar excessivamente
+
+═══════════════════════════════════════════════
+MORFOLOGIA — SUB-SCORING POR COMPONENTE (0-100 cada)
+═══════════════════════════════════════════════
+Avalie CADA componente separadamente. morph_score = média ponderada.
+
+MCI (35% do morph_score):
+  90-100: Densa, compacta, distinta, bem delimitada
+  70-89:  Visível mas menos compacta, contorno levemente difuso
+  50-69:  Pouco definida, difícil distinguir do TE
+  30-49:  Mal reconhecível, dispersa
+  0-29:   Ausente ou degenerada
+
+TE (35% do morph_score):
+  90-100: Anel contínuo, células uniformes, sem falhas
+  70-89:  Contínuo com 1-2 irregularidades menores
+  50-69:  Descontinuidades visíveis, células irregulares
+  30-49:  Fragmentado, falhas significativas
+  0-29:   Ausente ou severamente danificado
+
+ZP + Forma (20% do morph_score):
+  90-100: ZP uniforme, forma esférica perfeita
+  70-89:  ZP levemente irregular OU forma levemente oval
+  50-69:  ZP claramente irregular ou muito fina
+  30-49:  ZP rompida/ausente com forma distorcida
+  0-29:   Degeneração visível da estrutura
+
+Fragmentação + Debris (10% do morph_score):
+  100:    Nenhuma fragmentação, sem debris
+  80:     Fragmentação mínima (<5%), debris ausente
+  60:     Fragmentação leve (5-10%)
+  40:     Fragmentação moderada (10-20%)
+  20:     Fragmentação severa (>20%)
+  0:      Majoritariamente fragmentado
+
+morph_score = (MCI × 0.35) + (TE × 0.35) + (ZP_Forma × 0.20) + (Frag × 0.10)
+Arredonde para inteiro.
+
+═══════════════════════════════════════════════
+CHECKLIST DE QUALIDADE (OBRIGATÓRIO)
+═══════════════════════════════════════════════
+Antes do sub-scoring, responda SIM/NÃO:
+□ MCI visível como ponto/região densa distinta?
+□ TE forma anel contínuo sem interrupções?
+□ Forma geral esférica/oval sem reentrâncias?
+□ Sem fragmentação visível (manchas claras soltas)?
+□ ZP com espessura uniforme ao redor?
+
+5/5 → score ≥82  |  3-4/5 → score 65-81  |  1-2/5 → score 48-64  |  0/5 → score <48
+
+═══════════════════════════════════════════════
+CALIBRAÇÃO ANTI-INFLAÇÃO
+═══════════════════════════════════════════════
+Em um lote D7 típico de 8-12 embriões:
+- 1-2 serão excelentes (≥82)
+- 3-4 serão bons (65-81)
+- 2-3 serão regulares (48-64)
+- 1-2 serão borderline/inviáveis (<48)
+Score médio esperado de um lote: 62-68. Se seu score médio > 75, reduza.
+DIFERENCIAÇÃO: Dois embriões "bons" NÃO devem ter o mesmo score. Use a escala completa dentro de cada faixa.
 
 ═══════════════════════════════════════════════
 INTERPRETAÇÃO DO PERFIL CINÉTICO
 ═══════════════════════════════════════════════
-Todos os dados abaixo são OBJETIVOS (matemática de pixels, não opinião).
+Dados OBJETIVOS (matemática de pixels, não opinião).
 
 activity_score (atividade geral):
 - 0-5: Completamente estático → pode ser calmo OU morto
@@ -96,7 +155,6 @@ Zonas (core vs periphery):
 
 Padrões:
 - stable: Embrião em repouso — normal
-- pulsating: Ciclos de expansão/contração da blastocele — sinal de VITALIDADE
 - increasing: Atividade crescente — possível início de expansão
 - decreasing: Atividade decrescente — estabilização ou perda de vitalidade
 - irregular: Padrão irregular — necessita contextualização
@@ -105,93 +163,35 @@ Detecções especiais:
 - focal_activity: Atividade concentrada num ponto da periferia — possível hatching
 - symmetry baixa (<0.5): Atividade assimétrica — descrever significado
 
-NOTA: Pulsação blastocélica e expansão NÃO são medidas (vídeo de 10s é curto demais para esses fenômenos que ocorrem em escala de minutos/horas).
+NOTA: Pulsação blastocélica e expansão NÃO são medidas (vídeo de 10s é curto demais).
+
+KINETIC_SCORE REFINADO:
+Produza um kinetic_score (0-100) que REFINE o kinetic_quality_score do servidor.
+Use seu entendimento da morfologia para contextualizar:
+- activity_score de 5 num Bx saudável = repouso normal (score alto, 65-80)
+- activity_score de 5 num embrião fragmentado = possível morte (score baixo, 15-30)
+- activity_score de 45 num Bh = expansão ativa positiva (score alto, 75-90)
+- activity_score de 45 num Bl com TE descontínuo = possível estresse (score moderado, 40-55)
 
 ═══════════════════════════════════════════════
-CONTEXTO DE DIA PÓS-FIV
+DADOS DO CRUZAMENTO (quando disponíveis)
 ═══════════════════════════════════════════════
-{dias_pos_fiv_context}
+{cross_context}
 
-═══════════════════════════════════════════════
-CONTEXTO DO EMBRIÃO (futuro)
-═══════════════════════════════════════════════
-Quando disponível (ignorar campos vazios):
-- Doadora: {doadora_info}
-- Touro: {touro_info}
-- Receptora: {receptora_info}
-- Histórico cruzamento: {historico_info}
-Se dados presentes, incorporar na viability_prediction.
-
-═══════════════════════════════════════════════
-ESTÁGIOS DE DESENVOLVIMENTO — CÓDIGO IETS (1-9)
-═══════════════════════════════════════════════
-Código 1 — Zigoto/1-célula
-Código 2 — Clivagem (2-12 células)
-Código 3 — Mórula inicial: 13-32 células
-Código 4 — Mórula compacta: >32 células, massa totalmente compactada
-Código 5 — Blastocisto inicial (Bi): cavitação <50%
-Código 6 — Blastocisto (Bl): MCI/TE diferenciados, blastocele >50%
-Código 7 — Blastocisto expandido (Bx): ZP afinada, blastocele dominante
-Código 8 — Blastocisto em eclosão (Bh): herniação pela ZP
-Código 9 — Blastocisto eclodido (Be): fora da ZP
-
-═══════════════════════════════════════════════
-PARTICULARIDADES PIV (CRÍTICO)
-═══════════════════════════════════════════════
-- Citoplasma frequentemente mais escuro (gotas lipídicas) — NÃO penalizar
-- MCI pode ser menos compacta que in vivo — NÃO penalizar excessivamente
-- ZP pode ter espessura diferente do padrão in vivo
-- Taxa prenhez esperada: 30-50% com embriões de boa qualidade
-
-═══════════════════════════════════════════════
-CHECKLIST DE QUALIDADE (OBRIGATÓRIO)
-═══════════════════════════════════════════════
-Antes de atribuir morph_score, responda SIM/NÃO para cada:
-□ MCI visível como ponto/região densa distinta?
-□ TE forma anel contínuo sem interrupções?
-□ Forma geral esférica/oval sem reentrâncias?
-□ Sem fragmentação visível (manchas claras soltas)?
-□ ZP com espessura uniforme ao redor?
-
-5/5 → score ≥80  |  3-4/5 → score 65-79  |  1-2/5 → score 45-64  |  0/5 → score <45
-
-═══════════════════════════════════════════════
-RUBRICA DE SCORING (morphology_score)
-═══════════════════════════════════════════════
-Critérios visuais reais (aumento 20-40x):
-  85-100: Esférico, contorno nítido, ZP uniforme, MCI densa e distinta,
-          TE contínuo, blastocele clara, sem debris. Impecável.
-  70-84:  Forma boa com 1-2 detalhes menores. Estrutura preservada.
-  55-69:  Irregularidades evidentes. Viável.
-  40-54:  Problemas significativos. Viabilidade duvidosa.
-  20-39:  Degeneração visível, estruturas mal reconhecíveis.
-  0-19:   Morto/degenerado.
-
-═══════════════════════════════════════════════
-ANÁLISE MORFOLÓGICA MULTI-FRAME
-═══════════════════════════════════════════════
-Avalie morfologia usando TODOS os 10 frames:
-- Use o frame com melhor foco/visibilidade como base
-- Confirme achados nos outros frames (consistência)
-- ZP: observe em múltiplos frames para avaliar espessura uniformemente
-
-═══════════════════════════════════════════════
-CALIBRAÇÃO ANTI-INFLAÇÃO
-═══════════════════════════════════════════════
-Em um lote PIV típico, a distribuição é:
-~20% Excelente (80+), ~30% Bom (60-79), ~30% Regular (40-59),
-~15% Borderline (20-39), ~5% Inviável (<20).
-Se todos os scores estão acima de 70, você está inflando.
-Seja CRÍTICO e HONESTO: embrião mediano = score 50-65, não 80+.
+Use esses dados para ajustar viability_prediction, NÃO o morph_score (morfologia é visual).
+Fatores relevantes:
+- Taxa de virada histórica alta → ajuste positivo na viabilidade
+- Sêmen sexado → pode reduzir taxa de prenhez em ~5-10%
+- Genética superior (GPTA alto, TPI alto) → maior potencial genético, não muda morfologia
 
 ═══════════════════════════════════════════════
 CLASSIFICAÇÃO FINAL
 ═══════════════════════════════════════════════
-- 80-100: "Excelente" → "priority"
-- 60-79: "Bom" → "recommended"
-- 40-59: "Regular" → "conditional"
-- 20-39: "Borderline" → "second_opinion"
-- 0-19: "Inviavel" → "discard"
+- 82-100: "Excelente" → "priority"
+- 65-81: "Bom" → "recommended"
+- 48-64: "Regular" → "conditional"
+- 25-47: "Borderline" → "second_opinion"
+- 0-24: "Inviavel" → "discard"
 
 ═══════════════════════════════════════════════
 CONFIANÇA
@@ -204,32 +204,36 @@ CONFIANÇA
 IDIOMA (OBRIGATÓRIO)
 ═══════════════════════════════════════════════
 TODAS as respostas textuais DEVEM ser em PORTUGUÊS BRASILEIRO.
-NÃO use inglês em nenhum campo de texto livre. Campos enum mantêm valores técnicos.`;
+Campos enum mantêm valores técnicos em inglês.`;
 
-const ANALYSIS_PROMPT_V3 = `Analise o embrião mostrado nos 10 frames limpos (avalie APENAS morfologia nas imagens).
+const ANALYSIS_PROMPT_V4 = `Avalie o embrião D7 na imagem.
 
-DADOS CINÉTICOS OBJETIVOS (medidos computacionalmente — NÃO tente verificar nas imagens):
+CINÉTICA (medida por servidor — NÃO verificar nas imagens):
 activity_score = {activity_score}/100
 kinetic_quality_score = {kinetic_quality_score}/100
 
 PERFIL CINÉTICO MEDIDO:
 {kinetic_profile_text}
 
+CONTEXTO DO CRUZAMENTO:
+{cross_context}
+
 Dia pós-FIV: {dias_pos_fiv}
-{contexto_adicional}
 
-PASSO 1: Responda a checklist de qualidade (sim/não para cada item) usando os 10 frames
-PASSO 2: Descreva morfologia observada nos frames
-PASSO 3: Interprete CLINICAMENTE os dados cinéticos fornecidos (números acima)
-PASSO 4: Atribua morph_score baseado nas observações visuais
+INSTRUÇÕES:
+1. Responda a checklist de qualidade (sim/não para cada item)
+2. Pontue cada componente morfológico separadamente (MCI, TE, ZP+Forma, Fragmentação)
+3. Calcule morph_score pela fórmula de pesos
+4. Atribua kinetic_score refinado usando contexto morfológico
+5. Avalie viabilidade integrando morfologia + cinética + contexto genético
 
-Responda JSON puro (sem markdown):
+JSON puro (sem markdown):
 {
   "embryo_score": <0-100>,
   "classification": "Excelente"|"Bom"|"Regular"|"Borderline"|"Inviavel",
   "transfer_recommendation": "priority"|"recommended"|"conditional"|"second_opinion"|"discard",
   "confidence": "high"|"medium"|"low",
-  "reasoning": "<2-3 frases integrando morfologia + cinética, em português>",
+  "reasoning": "<2-3 frases integrando morfologia + cinética + contexto, em português>",
 
   "quality_checklist": {
     "mci_distinct": <true/false>,
@@ -242,23 +246,31 @@ Responda JSON puro (sem markdown):
 
   "morphology": {
     "score": <0-100>,
+    "mci_score": <0-100>,
+    "te_score": <0-100>,
+    "zp_form_score": <0-100>,
+    "fragmentation_score": <0-100>,
     "stage": "<estágio IETS, ex: Blastocisto expandido (Bx, código 7)>",
     "icm_grade": "A"|"B"|"C",
-    "icm_description": "<descrição CONCRETA em português>",
+    "icm_description": "<descrição em português>",
     "te_grade": "A"|"B"|"C",
-    "te_description": "<descrição CONCRETA em português>",
+    "te_description": "<descrição em português>",
     "zp_status": "íntegra"|"afinada"|"rompida"|"ausente",
     "fragmentation": "nenhuma"|"mínima"|"leve"|"moderada"|"severa",
-    "best_frame": <0-9>,
-    "notes": "<observações morfológicas multi-frame em português>"
+    "best_frame": 0,
+    "notes": "<observações morfológicas em português>"
   },
 
-  "kinetic_interpretation": "<Interpretação clínica dos dados cinéticos em 2-3 frases em português. CITE os números fornecidos. Ex: 'Atividade de 23/100 é moderada, compatível com embrião saudável em repouso. Pulsação detectada (3 ciclos) sugere vitalidade ativa da blastocele. Atividade periférica dominante indica expansão do trofectoderma.'>",
+  "kinetic_assessment": {
+    "score": <0-100>,
+    "reasoning": "<Interpretação em português. CITE os números do perfil cinético. Explique como a morfologia influenciou o refinamento do score.>"
+  },
 
   "viability_prediction": {
     "morph_based": "<português>",
     "activity_based": "<português>",
-    "context_adjusted": null,
+    "genetic_context": "<análise do cruzamento em português, ou 'Dados não disponíveis'>",
+    "sex_indicators": null,
     "risk_factors": ["<riscos>"],
     "positive_factors": ["<positivos>"],
     "notes": "<português>"
@@ -282,17 +294,17 @@ function clampBbox(value: number | undefined | null, min = 0): number | null {
   return Math.max(min, Math.min(100, value));
 }
 
-/** Classificação determinística baseada no score */
+/** Classificação determinística baseada no score — v4 thresholds */
 function classifyScore(score: number): { classification: string; recommendation: string } {
-  if (score >= 80) return { classification: 'Excelente', recommendation: 'priority' };
-  if (score >= 60) return { classification: 'Bom', recommendation: 'recommended' };
-  if (score >= 40) return { classification: 'Regular', recommendation: 'conditional' };
-  if (score >= 20) return { classification: 'Borderline', recommendation: 'second_opinion' };
+  if (score >= 82) return { classification: 'Excelente', recommendation: 'priority' };
+  if (score >= 65) return { classification: 'Bom', recommendation: 'recommended' };
+  if (score >= 48) return { classification: 'Regular', recommendation: 'conditional' };
+  if (score >= 25) return { classification: 'Borderline', recommendation: 'second_opinion' };
   return { classification: 'Inviavel', recommendation: 'discard' };
 }
 
-/** Valida campos obrigatórios da resposta do Gemini v3 */
-function validateGeminiV3(parsed: GeminiV3Result): string | null {
+/** Valida campos obrigatórios da resposta do Gemini v4 */
+function validateGeminiV4(parsed: GeminiV4Result): string | null {
   if (parsed.morphology?.score == null) {
     return 'Resposta sem morphology.score';
   }
@@ -305,7 +317,7 @@ function validateGeminiV3(parsed: GeminiV3Result): string | null {
 // ============================================================
 // Tipos auxiliares
 // ============================================================
-interface GeminiV3Result {
+interface GeminiV4Result {
   embryo_score: number;
   classification: string;
   transfer_recommendation: string;
@@ -321,6 +333,10 @@ interface GeminiV3Result {
   };
   morphology?: {
     score?: number;
+    mci_score?: number;
+    te_score?: number;
+    zp_form_score?: number;
+    fragmentation_score?: number;
     stage?: string;
     icm_grade?: string;
     icm_description?: string;
@@ -331,11 +347,17 @@ interface GeminiV3Result {
     best_frame?: number;
     notes?: string;
   };
+  kinetic_assessment?: {
+    score?: number;
+    reasoning?: string;
+  };
+  // Legacy v3 field — kept for backward compat parsing
   kinetic_interpretation?: string;
   viability_prediction?: {
     morph_based?: string;
     activity_based?: string;
-    context_adjusted?: string | null;
+    genetic_context?: string;
+    sex_indicators?: unknown | null;
     risk_factors?: string[];
     positive_factors?: string[];
     notes?: string;
@@ -450,12 +472,10 @@ Deno.serve(async (req: Request) => {
       .limit(1)
       .single();
 
-    const morphWeight = config?.morph_weight ?? 0.7;
-    const kineticWeight = config?.kinetic_weight ?? 0.3;
     const modelName = config?.model_name ?? 'gemini-2.5-flash';
 
-    // Usar prompts do banco (se definidos) ou fallback hardcoded v3
-    const calibrationText = config?.calibration_prompt || CALIBRATION_PROMPT_V3;
+    // Usar prompts do banco (se definidos) ou fallback hardcoded v4
+    const calibrationText = config?.calibration_prompt || CALIBRATION_PROMPT_V4;
 
     // Few-shot examples do banco
     const fewShotExamples = (config as Record<string, unknown>)?.few_shot_examples as string | null;
@@ -827,9 +847,9 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
     }
 
     // ═══════════════════════════════════════════════
-    // V3: Activity Analysis + Multi-Frame Gemini (SEM vídeo)
+    // V4: Activity Analysis + 3-Frame Gemini + Cross Context
     // ═══════════════════════════════════════════════
-    let filteredEmbryos: GeminiV3Result[] = [];
+    let filteredEmbryos: GeminiV4Result[] = [];
     let originalIndexes: number[] = [];
     let rawAiCount = 0;
     let activityScores: number[] = [];
@@ -855,19 +875,18 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       cumulative_heatmap: string;
     }
     let activityEmbryos: ActivityEmbryoData[] = [];
-    let compositePathsMap: Record<number, { frames: string[]; heatmap: string }> = {};
 
     if (hasCrops && hasOpenCVBboxes) {
-      console.log(`[V3] Análise multi-frame + activity para ${detectedBboxes!.length} embriões`);
+      console.log(`[V4] Análise 1-frame + activity para ${detectedBboxes!.length} embriões`);
 
-      // Calibração v3.1 — scores independentes
+      // Calibração v4
       let calibrationWithWeights = calibrationText;
 
       if (fewShotExamples) {
         calibrationWithWeights += `\n\n═══════════════════════════════════════════════\nEXEMPLOS DE REFERÊNCIA (FEW-SHOT)\n═══════════════════════════════════════════════\n${fewShotExamples}`;
       }
 
-      // ── V3 Passo 1: Signed URL do vídeo para Cloud Run ──
+      // ── V4 Passo 1: Signed URL do vídeo para Cloud Run ──
       const { data: signedUrlData } = await supabase.storage
         .from('embryo-videos')
         .createSignedUrl(media.arquivo_path, 600);
@@ -876,8 +895,8 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         throw new Error('Falha ao criar signed URL do vídeo para activity analysis');
       }
 
-      // ── V3 Passo 2: Cloud Run /analyze-activity ──
-      console.log(`[V3] Chamando /analyze-activity com ${detectedBboxes!.length} bboxes`);
+      // ── V4 Passo 2: Cloud Run /analyze-activity ──
+      console.log(`[V4] Chamando /analyze-activity com ${detectedBboxes!.length} bboxes`);
       const activityResp = await fetch(`${FRAME_EXTRACTOR_URL}/analyze-activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -890,8 +909,9 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             height_percent: b.height_percent,
           })),
           fps: 8,
-          num_key_frames: 10,
+          num_key_frames: 1,
           output_size: 400,
+          skip_composites: true,
         }),
       });
 
@@ -904,38 +924,10 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       activityScores = activityData.activity_scores || [];
       activityEmbryos = activityData.embryos || [];
 
-      console.log(`[V3] Activity scores: [${activityScores.join(', ')}], frames_sampled: ${activityData.frames_sampled}`);
-      console.log(`[V3] Embryos: ${activityEmbryos.length}, fields per embryo: ${activityEmbryos[0] ? Object.keys(activityEmbryos[0]).join(',') : 'none'}`);
+      console.log(`[V4] Activity scores: [${activityScores.join(', ')}], frames_sampled: ${activityData.frames_sampled}`);
+      console.log(`[V4] Embryos: ${activityEmbryos.length}, fields per embryo: ${activityEmbryos[0] ? Object.keys(activityEmbryos[0]).join(',') : 'none'}`);
 
-      // ── V3 Passo 2b: Salvar composites + heatmaps no Storage (debug/inspeção) ──
-      try {
-        const uploadTs = Date.now();
-        const uploads: Promise<{ data: unknown; error: { message: string } | null }>[] = [];
-
-        for (let eIdx = 0; eIdx < activityEmbryos.length; eIdx++) {
-          const ae = activityEmbryos[eIdx];
-          compositePathsMap[eIdx] = { frames: [], heatmap: '' };
-
-          for (let fIdx = 0; fIdx < ae.composite_frames.length; fIdx++) {
-            const p = `${loteFivId}/${job.lote_fiv_acasalamento_id}/composites/${uploadTs}_e${eIdx}_f${fIdx}.jpg`;
-            compositePathsMap[eIdx].frames.push(p);
-            const bytes = Uint8Array.from(atob(ae.composite_frames[fIdx]), (c: string) => c.charCodeAt(0));
-            uploads.push(supabase.storage.from('embryo-videos').upload(p, bytes, { contentType: 'image/jpeg', upsert: true }));
-          }
-
-          const hp = `${loteFivId}/${job.lote_fiv_acasalamento_id}/composites/${uploadTs}_e${eIdx}_heatmap.jpg`;
-          compositePathsMap[eIdx].heatmap = hp;
-          const hBytes = Uint8Array.from(atob(ae.cumulative_heatmap), (c: string) => c.charCodeAt(0));
-          uploads.push(supabase.storage.from('embryo-videos').upload(hp, hBytes, { contentType: 'image/jpeg', upsert: true }));
-        }
-
-        await Promise.all(uploads);
-        console.log(`[V3] ${uploads.length} composites/heatmaps salvos no Storage`);
-      } catch (uploadErr) {
-        console.warn(`[V3] Composite upload falhou: ${uploadErr instanceof Error ? uploadErr.message : 'unknown'}`);
-      }
-
-      // ── V3 Passo 3: Buscar dia pós-FIV ──
+      // ── V4 Passo 3: Buscar dia pós-FIV ──
       let diasPosFiv: number | null = null;
       try {
         const { data: loteData } = await supabase
@@ -949,29 +941,102 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           diasPosFiv = Math.floor((Date.now() - new Date(dataAbertura).getTime()) / 86400000);
         }
       } catch {
-        console.warn('[V3] Não foi possível buscar dia pós-FIV');
+        console.warn('[V4] Não foi possível buscar dia pós-FIV');
       }
 
-      const diasPosFivContext = diasPosFiv != null
-        ? `Dia pós-FIV: D${diasPosFiv}\nD7: Espera-se Blastocisto (Bl) a Blastocisto expandido (Bx). Bx é ideal.\nD8: Espera-se Bx a Blastocisto em eclosão (Bh). Mórula em D8 = atraso.`
-        : 'Dia pós-FIV: não disponível';
+      // ── V4 Passo 3b: Buscar dados do cruzamento (doadora/touro) ──
+      let crossContext = 'Não disponível';
+      try {
+        const { data: acasData } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select(`
+            aspiracao_doadora_id,
+            dose_semen_id,
+            aspiracoes_doadoras(
+              viaveis,
+              doadoras(nome, raca, gpta, classificacao, beta_caseina)
+            ),
+            doses_semen(
+              tipo_semen,
+              touros(nome, raca, dados_geneticos)
+            )
+          `)
+          .eq('id', job.lote_fiv_acasalamento_id)
+          .single();
 
-      // Preencher placeholders de contexto na calibração
+        if (acasData) {
+          const parts: string[] = [];
+
+          // Doadora info
+          const aspDoadora = acasData.aspiracoes_doadoras as { viaveis?: number; doadoras?: { nome?: string; raca?: string; gpta?: number; classificacao?: string; beta_caseina?: string } } | null;
+          const doadora = aspDoadora?.doadoras;
+          if (doadora) {
+            let doadoraLine = `Doadora: ${doadora.nome || 'N/A'}`;
+            if (doadora.raca) doadoraLine += `, raça ${doadora.raca}`;
+            if (doadora.gpta != null) doadoraLine += `, GPTA ${doadora.gpta}`;
+            if (doadora.classificacao) doadoraLine += `, classificação ${doadora.classificacao}`;
+            if (doadora.beta_caseina) doadoraLine += `, beta-caseína ${doadora.beta_caseina}`;
+            if (aspDoadora?.viaveis != null) doadoraLine += `, ${aspDoadora.viaveis} oócitos viáveis nesta aspiração`;
+            parts.push(doadoraLine);
+          }
+
+          // Touro info
+          const doseSemen = acasData.doses_semen as { tipo_semen?: string; touros?: { nome?: string; raca?: string; dados_geneticos?: Record<string, unknown> } } | null;
+          const touro = doseSemen?.touros;
+          if (touro) {
+            let touroLine = `Touro: ${touro.nome || 'N/A'}`;
+            if (touro.raca) touroLine += `, raça ${touro.raca}`;
+            if (doseSemen?.tipo_semen) touroLine += `, sêmen ${doseSemen.tipo_semen.toLowerCase()}`;
+            if (touro.dados_geneticos) {
+              const dg = touro.dados_geneticos;
+              if (dg.tpi) touroLine += `, TPI ${dg.tpi}`;
+              if (dg.nm) touroLine += `, NM$ ${dg.nm}`;
+              if (dg.gpta) touroLine += `, GPTA ${dg.gpta}`;
+            }
+            parts.push(touroLine);
+          }
+
+          // Histórico do cruzamento (lotes anteriores da mesma doadora com mesmo touro)
+          if (acasData.aspiracao_doadora_id && acasData.dose_semen_id) {
+            try {
+              const { data: histData } = await supabase
+                .from('lote_fiv_acasalamentos')
+                .select('id')
+                .eq('aspiracao_doadora_id', acasData.aspiracao_doadora_id)
+                .neq('id', job.lote_fiv_acasalamento_id);
+
+              if (histData && histData.length > 0) {
+                parts.push(`Histórico: ${histData.length} lote(s) anterior(es) deste cruzamento`);
+              }
+            } catch {
+              // Ignorar erro de histórico
+            }
+          }
+
+          if (parts.length > 0) {
+            crossContext = parts.join('\n');
+          }
+        }
+      } catch (crossErr) {
+        console.warn(`[V4] Falha ao buscar cross_context: ${crossErr instanceof Error ? crossErr.message : 'unknown'}`);
+      }
+
+      console.log(`[V4] cross_context: ${crossContext.substring(0, 200)}`);
+
+      // Preencher placeholder de cross_context na calibração
       calibrationWithWeights = calibrationWithWeights
-        .replace('{dias_pos_fiv_context}', diasPosFivContext)
-        .replace('{doadora_info}', '')
-        .replace('{touro_info}', '')
-        .replace('{receptora_info}', '')
-        .replace('{historico_info}', '');
+        .replace('{cross_context}', crossContext);
 
-      // ── V3 Passo 4: N chamadas paralelas ao Gemini (10 frames LIMPOS + perfil cinético como TEXTO) ──
+      // ── V4 Passo 4: Gemini em lotes de 8 (1 frame LIMPO + perfil cinético + cross_context) ──
       interface ParallelResult {
         index: number;
         error: string | null;
-        result: GeminiV3Result | null;
+        result: GeminiV4Result | null;
       }
 
-      const geminiPromises: Promise<ParallelResult>[] = detectedBboxes!.map((_bbox: DetectedBbox, index: number) => {
+      const BATCH_SIZE = 8;
+
+      function buildGeminiPromise(index: number): Promise<ParallelResult> {
         const embryoActivity = activityEmbryos[index];
         if (!embryoActivity || !embryoActivity.clean_frames || embryoActivity.clean_frames.length === 0) {
           return Promise.resolve({ index, error: 'Sem dados de atividade para este embrião', result: null });
@@ -979,12 +1044,10 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
         const parts: Array<Record<string, unknown>> = [];
 
-        // 10 frames LIMPOS (sem overlay — Gemini avalia APENAS morfologia visual)
+        // 1 frame LIMPO (sem overlay — Gemini avalia APENAS morfologia visual)
         for (const frameB64 of embryoActivity.clean_frames) {
           parts.push({ inline_data: { mime_type: 'image/jpeg', data: frameB64 } });
         }
-
-        // NÃO envia heatmap ao Gemini — ele interpreta NÚMEROS, não imagens de atividade
 
         // Construir texto do perfil cinético para o Gemini interpretar clinicamente
         const kp = embryoActivity.kinetic_profile;
@@ -1000,16 +1063,16 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             `- Atividade focal concentrada: ${kp.focal_activity_detected ? 'SIM (possível hatching)' : 'NÃO'}`,
           ].join('\n');
         } else {
-          console.warn(`[V3] Embrião ${index}: kinetic_profile ausente no Cloud Run response`);
+          console.warn(`[V4] Embrião ${index}: kinetic_profile ausente no Cloud Run response`);
         }
 
-        // Prompt de análise v3 com valores substituídos
-        const analysisPrompt = ANALYSIS_PROMPT_V3
+        // Prompt de análise v4 com valores substituídos
+        const analysisPrompt = ANALYSIS_PROMPT_V4
           .replace('{activity_score}', String(embryoActivity.activity_score))
           .replace('{kinetic_quality_score}', String(embryoActivity.kinetic_quality_score))
           .replace('{kinetic_profile_text}', kineticProfileText)
-          .replace('{dias_pos_fiv}', diasPosFiv != null ? `D${diasPosFiv}` : 'não disponível')
-          .replace('{contexto_adicional}', '');
+          .replace('{cross_context}', crossContext)
+          .replace('{dias_pos_fiv}', diasPosFiv != null ? `D${diasPosFiv}` : 'não disponível');
 
         parts.push({ text: analysisPrompt });
 
@@ -1037,8 +1100,8 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           if (!raw) return { index, error: 'Gemini não retornou texto', result: null };
           let json = raw.trim();
           if (json.startsWith('```')) json = json.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-          const parsed = JSON.parse(json) as GeminiV3Result;
-          const validationError = validateGeminiV3(parsed);
+          const parsed = JSON.parse(json) as GeminiV4Result;
+          const validationError = validateGeminiV4(parsed);
           if (validationError) return { index, error: `Validação: ${validationError}`, result: null };
           return { index, error: null, result: parsed };
         }).catch((err: unknown) => {
@@ -1048,19 +1111,31 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             : String(err);
           return { index, error: msg, result: null };
         });
-      });
+      }
 
-      const parallelResults = await Promise.all(geminiPromises);
+      // Processar em lotes de BATCH_SIZE para evitar pico de memória/timeout
+      const allIndices = detectedBboxes!.map((_: DetectedBbox, i: number) => i);
+      const parallelResults: ParallelResult[] = [];
+
+      for (let batchStart = 0; batchStart < allIndices.length; batchStart += BATCH_SIZE) {
+        const batchIndices = allIndices.slice(batchStart, batchStart + BATCH_SIZE);
+        const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(allIndices.length / BATCH_SIZE);
+        console.log(`[V4] Lote Gemini ${batchNum}/${totalBatches}: embriões ${batchIndices[0]}-${batchIndices[batchIndices.length - 1]}`);
+
+        const batchResults = await Promise.all(batchIndices.map(buildGeminiPromise));
+        parallelResults.push(...batchResults);
+      }
 
       // Processar resultados
       const failedResults = parallelResults.filter((r: ParallelResult) => !r.result);
 
       if (failedResults.length > 0) {
-        console.warn(`[V3] ${failedResults.length} chamadas falharam:`,
+        console.warn(`[V4] ${failedResults.length} chamadas falharam:`,
           failedResults.map((r: ParallelResult) => `#${r.index}: ${r.error?.substring(0, 100)}`));
       }
 
-      console.log(`[V3] ${parallelResults.length - failedResults.length}/${parallelResults.length} análises bem-sucedidas`);
+      console.log(`[V4] ${parallelResults.length - failedResults.length}/${parallelResults.length} análises bem-sucedidas`);
 
       const successfulResults = parallelResults
         .sort((a: ParallelResult, b: ParallelResult) => a.index - b.index)
@@ -1076,7 +1151,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           .map((r: ParallelResult) => `#${r.index}: ${r.error?.substring(0, 80)}`)
           .join('; ');
         const errorMsg = `Todas as ${parallelResults.length} chamadas Gemini falharam: ${errorDetails}`.substring(0, 500);
-        console.error(`[V3] ${errorMsg}`);
+        console.error(`[V4] ${errorMsg}`);
 
         await supabase
           .from('embryo_analysis_queue')
@@ -1129,7 +1204,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
     const embryoCount = embryoCountInDb;
     const aiCount = filteredEmbryos.length;
     const countMismatch = embryoCount !== rawAiCount;
-    const analysisMode = 'v3-multiframe-activity';
+    const analysisMode = 'v4-1frame-subscore';
 
     // Buscar analysis_version máxima atual para incrementar
     let nextVersion = 1;
@@ -1146,24 +1221,29 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       }
     }
 
-    const scoresToInsert = filteredEmbryos.map((aiEmbryo: GeminiV3Result, i: number) => {
+    const scoresToInsert = filteredEmbryos.map((aiEmbryo: GeminiV4Result, i: number) => {
       const origIdx = originalIndexes[i];
       const embriao = embrioes?.[origIdx];
       const morph = aiEmbryo.morphology;
       const viability = aiEmbryo.viability_prediction;
       const checklist = aiEmbryo.quality_checklist;
+      const kineticAssessment = aiEmbryo.kinetic_assessment;
       const confidence = aiEmbryo.confidence || 'medium';
 
-      // Scores independentes — morfologia e cinética avaliadas separadamente
+      // Scores — morfologia do Gemini, cinética refinada pelo Gemini
       const morphScore = clamp(morph?.score ?? 0, 0, 100);
       const rawActivityScore = clamp(activityScores[origIdx] ?? 0, 0, 100);
       const embryoActivity = activityEmbryos[origIdx];
-      const kineticQuality = clamp(embryoActivity?.kinetic_quality_score ?? 0, 0, 100);
+      const cloudRunKineticScore = clamp(embryoActivity?.kinetic_quality_score ?? 0, 0, 100);
       const kineticProfile = embryoActivity?.kinetic_profile;
+      // v4: kinetic_score = Gemini refined, fallback to Cloud Run score
+      const geminiKineticScore = kineticAssessment?.score != null
+        ? clamp(kineticAssessment.score, 0, 100)
+        : cloudRunKineticScore;
       const calculatedScore = morphScore; // Score principal = morfologia
       const geminiOriginalScore = aiEmbryo.embryo_score;
 
-      // Classificação DETERMINÍSTICA baseada no score calculado
+      // Classificação DETERMINÍSTICA baseada no score calculado (v4 thresholds)
       const { classification, recommendation } = classifyScore(calculatedScore);
 
       return {
@@ -1179,7 +1259,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         confidence,
         reasoning: aiEmbryo.reasoning,
 
-        // Morfologia (do Gemini multi-frame)
+        // Morfologia (do Gemini — 1 frame)
         morph_score: morphScore,
         stage: morph?.stage,
         icm_grade: morph?.icm_grade,
@@ -1190,8 +1270,8 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         fragmentation: morph?.fragmentation,
         morph_notes: morph?.notes,
 
-        // Cinética v3 — dados do Cloud Run kinetic_profile + interpretação do Gemini
-        kinetic_score: kineticQuality,
+        // Cinética v4 — kinetic_score refinado pelo Gemini com contexto morfológico
+        kinetic_score: geminiKineticScore,
         global_motion: kineticProfile?.temporal_pattern || null,
         blastocele_pulsation: null,
         expansion_observed: null,
@@ -1204,10 +1284,10 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           : kineticProfile?.peak_zone === 'periphery' ? 'Periferia (TE/ZP)'
           : kineticProfile?.peak_zone === 'uniform' ? 'Uniforme' : null,
         motion_asymmetry: kineticProfile?.activity_symmetry != null ? String(kineticProfile.activity_symmetry) : null,
-        kinetic_notes: aiEmbryo.kinetic_interpretation || null,
+        kinetic_notes: kineticAssessment?.reasoning || aiEmbryo.kinetic_interpretation || null,
         viability_indicators: aiEmbryo.viability_indicators || [],
 
-        // Novos campos v3
+        // Campos v4
         activity_score: rawActivityScore,
         temporal_analysis: kineticProfile || null,
         viability_prediction: viability || null,
@@ -1233,7 +1313,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         model_used: modelName,
         morph_weight: 1.0,
         kinetic_weight: 0,
-        prompt_version: 'v3.1',
+        prompt_version: 'v4',
         processing_time_ms: processingTime,
         raw_response: {
           _meta: {
@@ -1248,12 +1328,18 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             gemini_original_score: geminiOriginalScore,
             gemini_original_classification: aiEmbryo.classification,
             activity_score_raw: rawActivityScore,
-            kinetic_quality_score: kineticQuality,
+            cloud_run_kinetic_score: cloudRunKineticScore,
+            gemini_kinetic_score: geminiKineticScore,
             morph_score_gemini: morphScore,
+            morph_sub_scores: {
+              mci_score: morph?.mci_score ?? null,
+              te_score: morph?.te_score ?? null,
+              zp_form_score: morph?.zp_form_score ?? null,
+              fragmentation_score: morph?.fragmentation_score ?? null,
+            },
+            kinetic_assessment: kineticAssessment || null,
             kinetic_profile: kineticProfile || null,
             best_frame: morph?.best_frame,
-            composite_paths: compositePathsMap[origIdx]?.frames || [],
-            heatmap_path: compositePathsMap[origIdx]?.heatmap || null,
           },
         },
       };

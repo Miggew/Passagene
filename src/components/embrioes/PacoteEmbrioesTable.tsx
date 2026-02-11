@@ -140,40 +140,69 @@ export function PacoteEmbrioesTable({
         if (count && count > 0) expectedCount = count;
       }
 
-      // 2. Criar queue job (sem bboxes/crops — detecção server-side)
+      // 2. Reutilizar job ativo existente ou criar novo
       progress(2, 'Criando job de análise...');
-      const { data: queueData, error: queueError } = await supabase
+
+      // Verificar se já existe job ativo para este vídeo (evita duplicatas)
+      const { data: existingJob } = await supabase
         .from('embryo_analysis_queue')
-        .insert({
-          media_id: mediaData.id,
-          lote_fiv_acasalamento_id: embriao.lote_fiv_acasalamento_id,
-          status: 'pending',
-          expected_count: expectedCount,
-        })
         .select('id')
-        .single();
+        .eq('media_id', mediaData.id)
+        .in('status', ['pending', 'processing'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (queueError) {
-        toast({ title: 'Erro', description: 'Falha ao criar job de análise.', variant: 'destructive' });
-        return;
+      let queueId: string;
+
+      if (existingJob) {
+        queueId = existingJob.id;
+      } else {
+        const { data: queueData, error: queueError } = await supabase
+          .from('embryo_analysis_queue')
+          .insert({
+            media_id: mediaData.id,
+            lote_fiv_acasalamento_id: embriao.lote_fiv_acasalamento_id,
+            status: 'pending',
+            expected_count: expectedCount,
+          })
+          .select('id')
+          .single();
+
+        if (queueError || !queueData) {
+          toast({ title: 'Erro', description: 'Falha ao criar job de análise.', variant: 'destructive' });
+          return;
+        }
+        queueId = queueData.id;
       }
 
-      const updateFields: Record<string, unknown> = { queue_id: queueData.id };
-      if (mediaData.id !== embriao.acasalamento_media_id) {
-        updateFields.acasalamento_media_id = mediaData.id;
+      // Vincular TODOS os embriões do acasalamento ao queue_id (matching por índice na Edge Function)
+      const acasIdForUpdate = mediaData.lote_fiv_acasalamento_id || embriao.lote_fiv_acasalamento_id;
+      if (acasIdForUpdate) {
+        const updateFields: Record<string, unknown> = { queue_id: queueId };
+        if (mediaData.id !== embriao.acasalamento_media_id) {
+          updateFields.acasalamento_media_id = mediaData.id;
+        }
+        await supabase
+          .from('embrioes')
+          .update(updateFields)
+          .eq('lote_fiv_acasalamento_id', acasIdForUpdate);
+      } else {
+        await supabase
+          .from('embrioes')
+          .update({ queue_id: queueId })
+          .eq('id', embriao.id);
       }
-      await supabase
-        .from('embrioes')
-        .update(updateFields)
-        .eq('id', embriao.id);
 
-      // 3. Invocar Edge Function (fire-and-forget)
+      // 3. Invocar Edge Function (fire-and-forget — skip se job já está ativo)
       progress(3, 'Iniciando análise IA...');
-      supabase.functions.invoke('embryo-analyze', {
-        body: { queue_id: queueData.id },
-      }).catch((err: unknown) => {
-        console.warn('EmbryoScore: falha ao invocar analise:', err);
-      });
+      if (!existingJob) {
+        supabase.functions.invoke('embryo-analyze', {
+          body: { queue_id: queueId },
+        }).catch((err: unknown) => {
+          console.warn('EmbryoScore: falha ao invocar analise:', err);
+        });
+      }
 
       // Registrar como redetectado → suprime score antigo na UI + inicia polling forçado
       setRedetectedMap(prev => new Map(prev).set(embriao.id, Date.now()));

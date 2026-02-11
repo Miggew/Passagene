@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return permissions.allowedHubs.includes(hub.code);
   }, [permissions, hubs]);
 
-  // Efeito principal - igual ao original que funcionava
+  // Efeito principal
   useEffect(() => {
     // 1. Busca a sessao atual
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -178,7 +178,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    // 3. Quando a aba volta ao foco, verifica se a sessão ainda é válida
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        supabase.auth.getSession().then(({ data: { session: currentSession }, error }) => {
+          if (error || !currentSession) {
+            console.warn('[Auth] Sessão expirada ao retornar à aba, fazendo logout');
+            setSession(null);
+            setUser(null);
+            setPermissions(null);
+            supabase.auth.signOut();
+          }
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Efeito separado para carregar permissões quando user mudar

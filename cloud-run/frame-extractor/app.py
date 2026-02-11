@@ -172,6 +172,7 @@ def analyze_activity():
     num_key_frames = data.get("num_key_frames", 10)
     output_size = data.get("output_size", 400)
     overlay_opacity = data.get("overlay_opacity", 0.4)
+    skip_composites = data.get("skip_composites", False)
 
     if not video_url:
         return jsonify({"error": "video_url é obrigatório"}), 400
@@ -306,7 +307,9 @@ def analyze_activity():
 
             # ── Key frames equidistantes ──
             total_sampled = len(color_frames)
-            if total_sampled <= num_key_frames:
+            if num_key_frames == 1:
+                key_indices = [total_sampled // 2]
+            elif total_sampled <= num_key_frames:
                 key_indices = list(range(total_sampled))
             else:
                 key_indices = [
@@ -355,70 +358,72 @@ def analyze_activity():
                     base64.b64encode(clean_buf.tobytes()).decode("ascii")
                 )
 
-                # Composite frame com overlay (para Storage/debug)
-                composite_crop = raw_crop.copy()
-                if ki > 0 and len(wide_diffs) > 0:
-                    wide_idx = min(max(0, frame_idx - gap), len(wide_diffs) - 1)
-                    diff_region = wide_diffs[wide_idx][
-                        crop_top:crop_bottom, crop_left:crop_right
-                    ]
-                    diff_norm = np.clip(
-                        diff_region.astype(np.float32) / global_diff_max * 255,
-                        0, 255,
-                    ).astype(np.uint8)
-                    diff_colored = cv2.applyColorMap(diff_norm, cv2.COLORMAP_HOT)
-                    diff_alpha = (
-                        diff_region.astype(np.float32)
-                        / global_diff_max
-                        * overlay_opacity
-                    )
-                    diff_alpha_3ch = np.stack([diff_alpha] * 3, axis=-1)
-                    composite_crop = (
-                        composite_crop.astype(np.float32) * (1 - diff_alpha_3ch)
-                        + diff_colored.astype(np.float32) * diff_alpha_3ch
-                    ).astype(np.uint8)
+                # Composite frames + heatmap (skipped when skip_composites=True)
+                if not skip_composites:
+                    composite_crop = raw_crop.copy()
+                    if ki > 0 and len(wide_diffs) > 0:
+                        wide_idx = min(max(0, frame_idx - gap), len(wide_diffs) - 1)
+                        diff_region = wide_diffs[wide_idx][
+                            crop_top:crop_bottom, crop_left:crop_right
+                        ]
+                        diff_norm = np.clip(
+                            diff_region.astype(np.float32) / global_diff_max * 255,
+                            0, 255,
+                        ).astype(np.uint8)
+                        diff_colored = cv2.applyColorMap(diff_norm, cv2.COLORMAP_HOT)
+                        diff_alpha = (
+                            diff_region.astype(np.float32)
+                            / global_diff_max
+                            * overlay_opacity
+                        )
+                        diff_alpha_3ch = np.stack([diff_alpha] * 3, axis=-1)
+                        composite_crop = (
+                            composite_crop.astype(np.float32) * (1 - diff_alpha_3ch)
+                            + diff_colored.astype(np.float32) * diff_alpha_3ch
+                        ).astype(np.uint8)
 
-                if composite_crop.shape[0] > 0 and composite_crop.shape[1] > 0:
-                    comp_resized = cv2.resize(
-                        composite_crop, (output_size, output_size),
+                    if composite_crop.shape[0] > 0 and composite_crop.shape[1] > 0:
+                        comp_resized = cv2.resize(
+                            composite_crop, (output_size, output_size),
+                            interpolation=cv2.INTER_LANCZOS4,
+                        )
+                    else:
+                        comp_resized = np.zeros(
+                            (output_size, output_size, 3), dtype=np.uint8
+                        )
+                    _, comp_buf = cv2.imencode(
+                        ".jpg", comp_resized, [cv2.IMWRITE_JPEG_QUALITY, 85]
+                    )
+                    composite_frames_b64.append(
+                        base64.b64encode(comp_buf.tobytes()).decode("ascii")
+                    )
+
+            heatmap_b64 = ""
+            if not skip_composites:
+                cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
+                for wd in wide_diffs:
+                    cumulative_heat += wd.astype(np.float64)
+
+                heat_crop = cumulative_heat[crop_top:crop_bottom, crop_left:crop_right]
+                if heat_crop.max() > 0:
+                    heat_norm = (heat_crop / heat_crop.max() * 255).astype(np.uint8)
+                else:
+                    heat_norm = np.zeros_like(heat_crop, dtype=np.uint8)
+
+                heat_colored = cv2.applyColorMap(heat_norm, cv2.COLORMAP_JET)
+                if heat_colored.shape[0] > 0 and heat_colored.shape[1] > 0:
+                    heat_resized = cv2.resize(
+                        heat_colored, (output_size, output_size),
                         interpolation=cv2.INTER_LANCZOS4,
                     )
                 else:
-                    comp_resized = np.zeros(
+                    heat_resized = np.zeros(
                         (output_size, output_size, 3), dtype=np.uint8
                     )
-                _, comp_buf = cv2.imencode(
-                    ".jpg", comp_resized, [cv2.IMWRITE_JPEG_QUALITY, 85]
+                _, heat_buf = cv2.imencode(
+                    ".jpg", heat_resized, [cv2.IMWRITE_JPEG_QUALITY, 85]
                 )
-                composite_frames_b64.append(
-                    base64.b64encode(comp_buf.tobytes()).decode("ascii")
-                )
-
-            # ── Heatmap acumulado ──
-            cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
-            for wd in wide_diffs:
-                cumulative_heat += wd.astype(np.float64)
-
-            heat_crop = cumulative_heat[crop_top:crop_bottom, crop_left:crop_right]
-            if heat_crop.max() > 0:
-                heat_norm = (heat_crop / heat_crop.max() * 255).astype(np.uint8)
-            else:
-                heat_norm = np.zeros_like(heat_crop, dtype=np.uint8)
-
-            heat_colored = cv2.applyColorMap(heat_norm, cv2.COLORMAP_JET)
-            if heat_colored.shape[0] > 0 and heat_colored.shape[1] > 0:
-                heat_resized = cv2.resize(
-                    heat_colored, (output_size, output_size),
-                    interpolation=cv2.INTER_LANCZOS4,
-                )
-            else:
-                heat_resized = np.zeros(
-                    (output_size, output_size, 3), dtype=np.uint8
-                )
-            _, heat_buf = cv2.imencode(
-                ".jpg", heat_resized, [cv2.IMWRITE_JPEG_QUALITY, 85]
-            )
-            heatmap_b64 = base64.b64encode(heat_buf.tobytes()).decode("ascii")
+                heatmap_b64 = base64.b64encode(heat_buf.tobytes()).decode("ascii")
 
             embryo_results.append({
                 "index": bbox_idx,

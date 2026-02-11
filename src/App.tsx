@@ -41,6 +41,7 @@ const Sexagem = lazy(() => import('./pages/Sexagem'));
 const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Administrativo = lazy(() => import('./pages/Administrativo'));
+const EmbryoScore = lazy(() => import('./pages/EmbryoScore'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
 
@@ -133,6 +134,7 @@ const AppRoutes = () => {
 
             {/* Painel Administrativo Unificado */}
             <Route path="/administrativo" element={<Administrativo />} />
+            <Route path="/embryoscore" element={<EmbryoScore />} />
 
             {/* Redirecionamentos das rotas antigas */}
             <Route path="/clientes" element={<Navigate to="/administrativo?tab=clientes" replace />} />

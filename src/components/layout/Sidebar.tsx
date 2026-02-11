@@ -13,6 +13,7 @@ import {
   FileBarChart,
   ClipboardList,
   TrendingUp,
+  Brain,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
@@ -22,6 +23,7 @@ import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 // Mapeamento de ícones por rota
 const routeIcons: Record<string, React.ElementType> = {
   '/administrativo': Shield,
+  '/embryoscore': Brain,
   '/doadoras': DonorCowIcon,
   '/touros': Sparkles,
   '/lotes-fiv': TestTube,
@@ -44,6 +46,7 @@ const routeIcons: Record<string, React.ElementType> = {
 // Labels das rotas
 const routeLabels: Record<string, string> = {
   '/administrativo': 'Painel Admin',
+  '/embryoscore': 'EmbryoScore IA',
   '/doadoras': 'Doadoras',
   '/touros': 'Catálogo de Touros',
   '/lotes-fiv': 'Lotes FIV',
