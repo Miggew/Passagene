@@ -6,7 +6,7 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/Passagene/',
+  base: '/',
   plugins: [
     react(),
     svgr(),
@@ -21,8 +21,8 @@ export default defineConfig({
         background_color: '#0a0a0a',
         display: 'standalone',
         orientation: 'portrait-primary',
-        scope: '/Passagene/',
-        start_url: '/Passagene/',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
