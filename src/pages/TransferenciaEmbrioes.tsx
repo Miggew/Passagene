@@ -778,15 +778,15 @@ export default function TransferenciaEmbrioes() {
       <div className="mt-4">
           {/* Barra de controles premium */}
           <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
-            <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
               {/* Grupo: Responsáveis */}
-              <div className="flex items-end gap-3">
-                <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-primary/40 self-center hidden md:block" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
                   <User className="w-3.5 h-3.5" />
                   <span>Responsáveis</span>
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Veterinário *
                   </label>
@@ -794,10 +794,10 @@ export default function TransferenciaEmbrioes() {
                     placeholder="Nome do veterinário"
                     value={formData.veterinario_responsavel}
                     onChange={(e) => setFormData({ ...formData, veterinario_responsavel: e.target.value })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                   />
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Técnico
                   </label>
@@ -805,22 +805,22 @@ export default function TransferenciaEmbrioes() {
                     placeholder="Nome do técnico"
                     value={formData.tecnico_responsavel}
                     onChange={(e) => setFormData({ ...formData, tecnico_responsavel: e.target.value })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                   />
                 </div>
               </div>
 
               {/* Separador */}
-              <div className="h-10 w-px bg-border hidden lg:block" />
+              <div className="h-10 w-px bg-border hidden md:block" />
 
               {/* Grupo: Local */}
-              <div className="flex items-end gap-3">
-                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center hidden md:block" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
                   <MapPin className="w-3.5 h-3.5" />
                   <span>Local</span>
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-full md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Fazenda {transferenciasIdsSessao.length > 0 ? '(sessão ativa)' : '*'}
                   </label>
@@ -829,7 +829,7 @@ export default function TransferenciaEmbrioes() {
                     onValueChange={handleFazendaChange}
                     disabled={!formData.veterinario_responsavel || transferenciasIdsSessao.length > 0}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-11 md:h-9">
                       <SelectValue placeholder="Selecione a fazenda" />
                     </SelectTrigger>
                     <SelectContent>
@@ -841,30 +841,30 @@ export default function TransferenciaEmbrioes() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-[140px] flex-shrink-0">
+                <div className="w-[calc(50%-0.375rem)] md:w-[140px] flex-shrink-0">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Data TE *
                   </label>
                   <DatePickerBR
                     value={formData.data_te}
                     onChange={(value) => setFormData({ ...formData, data_te: value || '' })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                   />
                 </div>
               </div>
 
               {/* Separador */}
-              <div className="h-10 w-px bg-border hidden lg:block" />
+              <div className="h-10 w-px bg-border hidden md:block" />
 
               {/* Grupo: Ações da Sessão */}
               {formData.fazenda_id && transferenciasIdsSessao.length > 0 && (
-                <div className="flex items-end gap-2 ml-auto">
+                <div className="flex items-end gap-2 w-full md:w-auto md:ml-auto">
                   <Button
                     type="button"
                     onClick={visualizarRelatorioSessao}
                     variant="outline"
                     disabled={submitting}
-                    className="h-9"
+                    className="h-11 md:h-9 flex-1 md:flex-initial"
                     title="Visualizar relatório da sessão atual"
                   >
                     <Eye className="w-4 h-4 mr-2" />
@@ -874,7 +874,7 @@ export default function TransferenciaEmbrioes() {
                     type="button"
                     onClick={handleEncerrarSessao}
                     disabled={submitting}
-                    className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm"
+                    className="h-11 md:h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm flex-1 md:flex-initial"
                   >
                     <Save className="w-4 h-4 mr-2" />
                     {submitting ? 'Encerrando...' : `Encerrar (${transferenciasIdsSessao.length})`}
@@ -885,25 +885,25 @@ export default function TransferenciaEmbrioes() {
 
             {/* Segunda linha de controles */}
             {formData.fazenda_id && (
-              <div className="flex flex-wrap items-end gap-4 mt-4 pt-4 border-t border-border/50">
+              <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end mt-4 pt-4 border-t border-border/50">
                 {/* Grupo: Filtros de Receptoras */}
-                <div className="flex items-end gap-3">
-                  <div className="w-1 h-6 rounded-full bg-blue-500/40 self-center" />
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-1 h-6 rounded-full bg-blue-500/40 self-center hidden md:block" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
                     <CalendarDays className="w-3.5 h-3.5" />
                     <span>Receptoras</span>
                   </div>
-                  <div className="w-[130px]">
+                  <div className="w-[calc(50%-0.375rem)] md:w-[130px]">
                     <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                       Data 2º Passo
                     </label>
                     <DatePickerBR
                       value={dataPasso2}
                       onChange={(value) => setDataPasso2(value || '')}
-                      className="h-9"
+                      className="h-11 md:h-9"
                     />
                   </div>
-                  <div className="flex items-center gap-2 h-9 self-end">
+                  <div className="flex items-center gap-2 h-11 md:h-9 self-end">
                     <Switch
                       id="permitir-segundo-embriao"
                       checked={permitirSegundoEmbriao}
@@ -916,12 +916,12 @@ export default function TransferenciaEmbrioes() {
                 </div>
 
                 {/* Separador */}
-                <div className="h-10 w-px bg-border hidden lg:block" />
+                <div className="h-10 w-px bg-border hidden md:block" />
 
                 {/* Grupo: Origem do Embrião */}
-                <div className="flex items-end gap-3">
-                  <div className="w-1 h-6 rounded-full bg-amber-500/40 self-center" />
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-1 h-6 rounded-full bg-amber-500/40 self-center hidden md:block" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
                     <Package className="w-3.5 h-3.5" />
                     <span>Origem</span>
                   </div>
@@ -931,7 +931,7 @@ export default function TransferenciaEmbrioes() {
                       variant={origemEmbriao === 'PACOTE' ? 'default' : 'outline'}
                       onClick={() => setOrigemEmbriao('PACOTE')}
                       size="sm"
-                      className="h-8"
+                      className="h-11 md:h-8"
                     >
                       <Package className="w-3.5 h-3.5 mr-1.5" />
                       Pacote
@@ -941,7 +941,7 @@ export default function TransferenciaEmbrioes() {
                       variant={origemEmbriao === 'CONGELADO' ? 'default' : 'outline'}
                       onClick={() => setOrigemEmbriao('CONGELADO')}
                       size="sm"
-                      className="h-8"
+                      className="h-11 md:h-8"
                     >
                       <Snowflake className="w-3.5 h-3.5 mr-1.5" />
                       Congelado
@@ -951,12 +951,12 @@ export default function TransferenciaEmbrioes() {
 
                 {/* Seleção de Pacote */}
                 {origemEmbriao === 'PACOTE' && (
-                  <div className="flex-1 min-w-[220px] max-w-[300px]">
+                  <div className="w-full md:w-auto md:flex-1 md:min-w-[220px] md:max-w-[300px]">
                     <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                       Pacote de Embriões *
                     </label>
                     <Select value={formData.pacote_id} onValueChange={handlePacoteChange}>
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-11 md:h-9">
                         <SelectValue placeholder="Selecione o pacote" />
                       </SelectTrigger>
                       <SelectContent>
@@ -973,12 +973,12 @@ export default function TransferenciaEmbrioes() {
                 {/* Filtros para Congelados */}
                 {origemEmbriao === 'CONGELADO' && (
                   <>
-                    <div className="flex-1 min-w-[160px] max-w-[200px]">
+                    <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px] md:max-w-[200px]">
                       <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                         Cliente
                       </label>
                       <Select value={filtroClienteId} onValueChange={setFiltroClienteId}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className="h-11 md:h-9">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
@@ -990,7 +990,7 @@ export default function TransferenciaEmbrioes() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex-1 min-w-[140px] max-w-[160px]">
+                    <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[140px] md:max-w-[160px]">
                       <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                         Raça
                       </label>
@@ -998,7 +998,7 @@ export default function TransferenciaEmbrioes() {
                         value={filtroRaca}
                         onChange={(e) => setFiltroRaca(e.target.value)}
                         placeholder="Digite a raça"
-                        className="h-9"
+                        className="h-11 md:h-9"
                       />
                     </div>
                   </>

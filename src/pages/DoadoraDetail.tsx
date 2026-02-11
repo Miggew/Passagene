@@ -337,28 +337,28 @@ export default function DoadoraDetail() {
         <CardContent className="pt-4 pb-4">
           {/* Linha 1: Identificação + Status */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-4">
+            <div className="grid grid-cols-2 gap-3 md:flex md:items-center md:gap-4 w-full md:w-auto">
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Registro</span>
                 <p className="text-base font-semibold text-foreground">{doadora.registro}</p>
               </div>
               {doadora.nome && (
                 <>
-                  <div className="h-8 w-px bg-border" />
+                  <div className="h-8 w-px bg-border hidden md:block" />
                   <div>
                     <span className="text-xs font-medium text-muted-foreground">Nome</span>
                     <p className="text-sm text-foreground">{doadora.nome}</p>
                   </div>
                 </>
               )}
-              <div className="h-8 w-px bg-border" />
+              <div className="h-8 w-px bg-border hidden md:block" />
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Raça</span>
                 <p className="text-sm text-foreground">{doadora.raca || '—'}</p>
               </div>
               {fazenda && (
                 <>
-                  <div className="h-8 w-px bg-border" />
+                  <div className="h-8 w-px bg-border hidden md:block" />
                   <div>
                     <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
                     <p className="text-sm text-foreground">{fazenda.nome}</p>
@@ -384,12 +384,12 @@ export default function DoadoraDetail() {
           </div>
 
           {/* Linha 2: Estatísticas de aspirações */}
-          <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-border">
+          <div className="flex flex-wrap items-center gap-3 md:gap-4 pt-3 border-t border-border">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground">Aspirações:</span>
               <CountBadge value={stats.total} variant="default" />
             </div>
-            <div className="h-4 w-px bg-border" />
+            <div className="h-4 w-px bg-border hidden md:block" />
             {/* Viáveis em destaque */}
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/20">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -397,7 +397,7 @@ export default function DoadoraDetail() {
               <span className="text-sm font-bold text-primary">{stats.totalViaveis}</span>
               <span className="text-[10px] text-primary/70">(média {stats.mediaViaveis})</span>
             </div>
-            <div className="h-4 w-px bg-border" />
+            <div className="h-4 w-px bg-border hidden md:block" />
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground">Total Oócitos:</span>
               <CountBadge value={stats.totalOocitos} variant="default" />
@@ -405,7 +405,7 @@ export default function DoadoraDetail() {
             </div>
             {stats.ultimaAspiracao && (
               <>
-                <div className="h-4 w-px bg-border" />
+                <div className="h-4 w-px bg-border hidden md:block" />
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">Última:</span>
                   <span className="text-xs font-medium text-foreground">{formatDate(stats.ultimaAspiracao)}</span>
@@ -490,8 +490,51 @@ export default function DoadoraDetail() {
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Tabela customizada para mostrar todos os tipos de oócitos */}
-                <div className="rounded-lg border border-border overflow-hidden">
+                {/* Mobile: Cards */}
+                <div className="md:hidden space-y-3">
+                  {aspiracoes.map((asp) => (
+                    <div key={asp.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground">{formatDate(asp.data_aspiracao)}</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <span className="text-xs font-bold text-primary">{asp.viaveis ?? 0} viáveis</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1 text-center mb-2">
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Total</span>
+                          <span className="text-sm font-semibold">{asp.total_oocitos ?? 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Exp</span>
+                          <span className="text-sm text-muted-foreground">{asp.expandidos ?? 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Des</span>
+                          <span className="text-sm text-muted-foreground">{asp.desnudos ?? 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Deg</span>
+                          <span className="text-sm text-muted-foreground">{asp.degenerados ?? 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Atr</span>
+                          <span className="text-sm text-muted-foreground">{asp.atresicos ?? 0}</span>
+                        </div>
+                      </div>
+                      {(asp.veterinario_responsavel || asp.tecnico_responsavel) && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t border-border/50">
+                          {asp.veterinario_responsavel && <span>Vet: {asp.veterinario_responsavel}</span>}
+                          {asp.tecnico_responsavel && <span>Téc: {asp.tecnico_responsavel}</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: Tabela customizada para mostrar todos os tipos de oócitos */}
+                <div className="hidden md:block rounded-lg border border-border overflow-hidden">
                   {/* Header */}
                   <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
                     <div className="grid grid-cols-[90px_50px_60px_45px_45px_45px_45px_1fr_1fr] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -581,7 +624,7 @@ export default function DoadoraDetail() {
                 </div>
 
                 {/* Legenda compacta */}
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <div className="hidden md:flex items-center gap-3 text-[10px] text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                     <span>Viáveis</span>
@@ -687,7 +730,7 @@ export default function DoadoraDetail() {
               </div>
 
               {/* Disponibilidade inline */}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-2">
                   <Switch
                     id="disponivel_aspiracao"
@@ -700,14 +743,14 @@ export default function DoadoraDetail() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="foto_url" className="text-xs">URL Foto:</Label>
+                  <Label htmlFor="foto_url" className="text-xs shrink-0">URL Foto:</Label>
                   <Input
                     id="foto_url"
                     type="url"
                     value={formData.foto_url}
                     onChange={(e) => setFormData({ ...formData, foto_url: e.target.value })}
                     placeholder="https://..."
-                    className="h-7 text-xs w-48"
+                    className="h-7 text-xs w-full md:w-48"
                   />
                 </div>
               </div>

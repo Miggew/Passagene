@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Search, X, Eye, History, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, X, Eye, History, FileText, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, MapPin } from 'lucide-react';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { CowIcon } from '@/components/icons/CowIcon';
 import { supabase } from '@/lib/supabase';
@@ -373,7 +373,7 @@ export default function RelatoriosAnimais() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <PageHeader
         title="Animais"
         description="Consulta de receptoras e doadoras"
@@ -421,29 +421,29 @@ export default function RelatoriosAnimais() {
 
         {/* Filtros Premium */}
         <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex flex-wrap items-stretch">
+          <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
             {/* Grupo: Busca */}
-            <div className="flex items-center px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
-              <div className="relative min-w-[200px] max-w-[280px]">
+            <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+              <div className="relative w-full md:min-w-[200px] md:max-w-[280px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/60" />
                 <Input
                   placeholder={tipoAnimal === 'receptoras' ? 'Buscar identificação, nome...' : 'Buscar registro, nome...'}
                   value={filtroBusca}
                   onChange={(e) => setFiltroBusca(e.target.value)}
-                  className="pl-9 h-9 bg-background/80 border-primary/20 focus:border-primary/40"
+                  className="pl-9 h-11 md:h-9 bg-background/80 border-primary/20 focus:border-primary/40"
                 />
               </div>
             </div>
 
             {/* Grupo: Filtros */}
-            <div className="flex items-center gap-3 px-4 py-3 border-r border-border">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-6 rounded-full bg-primary/40" />
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtros</span>
               </div>
 
               <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-                <SelectTrigger className="w-[160px] h-9 bg-background">
+                <SelectTrigger className="w-full md:w-[160px] h-11 md:h-9 bg-background">
                   <SelectValue placeholder="Fazenda" />
                 </SelectTrigger>
                 <SelectContent>
@@ -456,7 +456,7 @@ export default function RelatoriosAnimais() {
 
               {tipoAnimal === 'receptoras' && (
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="w-[150px] h-9 bg-background">
+                  <SelectTrigger className="w-full md:w-[150px] h-11 md:h-9 bg-background">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -473,7 +473,7 @@ export default function RelatoriosAnimais() {
               {tipoAnimal === 'doadoras' && (
                 <>
                   <Select value={filtroRaca} onValueChange={setFiltroRaca}>
-                    <SelectTrigger className="w-[140px] h-9 bg-background">
+                    <SelectTrigger className="w-full md:w-[140px] h-11 md:h-9 bg-background">
                       <SelectValue placeholder="Raça" />
                     </SelectTrigger>
                     <SelectContent>
@@ -485,7 +485,7 @@ export default function RelatoriosAnimais() {
                   </Select>
 
                   <Select value={filtroDisponivel} onValueChange={setFiltroDisponivel}>
-                    <SelectTrigger className="w-[140px] h-9 bg-background">
+                    <SelectTrigger className="w-full md:w-[140px] h-11 md:h-9 bg-background">
                       <SelectValue placeholder="Disponível" />
                     </SelectTrigger>
                     <SelectContent>
@@ -500,7 +500,7 @@ export default function RelatoriosAnimais() {
 
             {/* Grupo: Planejamento de aspiração (apenas para doadoras) */}
             {tipoAnimal === 'doadoras' && (
-              <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+              <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 rounded-full bg-primary/40" />
                   <CalendarCheck className="w-3.5 h-3.5 text-primary/60" />
@@ -510,7 +510,7 @@ export default function RelatoriosAnimais() {
                   value={dataAspiracao}
                   onChange={setDataAspiracao}
                   placeholder="Selecionar data"
-                  className="h-9 w-[140px] bg-background"
+                  className="h-11 md:h-9 w-full md:w-[140px] bg-background"
                 />
                 {dataAspiracao && (
                   <span className="text-[10px] text-muted-foreground">
@@ -526,7 +526,7 @@ export default function RelatoriosAnimais() {
 
             {/* Grupo: Ordenação (apenas para doadoras) */}
             {tipoAnimal === 'doadoras' && (
-              <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-muted/30">
+              <div className="flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-muted/30">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 rounded-full bg-amber-500/40" />
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ordenar</span>
@@ -534,7 +534,7 @@ export default function RelatoriosAnimais() {
                 <Button
                   variant={sortByDate !== 'none' ? 'default' : 'outline'}
                   size="sm"
-                  className="h-8 px-2.5"
+                  className="h-11 md:h-8 px-2.5"
                   onClick={() => {
                     // Cicla: none -> desc -> asc -> none
                     if (sortByDate === 'none') setSortByDate('desc');
@@ -556,13 +556,13 @@ export default function RelatoriosAnimais() {
             )}
 
             {/* Grupo: Ações */}
-            <div className="flex items-center gap-2 px-4 py-3 ml-auto bg-gradient-to-b from-muted/50 to-transparent">
+            <div className="flex items-center gap-2 px-4 py-3 md:ml-auto bg-gradient-to-b from-muted/50 to-transparent">
               {(filtroBusca || filtroFazenda !== 'all' || filtroStatus !== 'all' || filtroRaca !== 'all' || filtroDisponivel !== 'all' || sortByDate !== 'none' || dataAspiracao) && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleLimparFiltros}
-                  className="h-9 border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"
+                  className="h-11 md:h-9 border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Limpar
@@ -571,7 +571,7 @@ export default function RelatoriosAnimais() {
               <Button
                 size="sm"
                 onClick={() => loadData()}
-                className="h-9 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
+                className="h-11 md:h-9 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
               >
                 <Search className="w-4 h-4 mr-1" />
                 Buscar
@@ -581,7 +581,7 @@ export default function RelatoriosAnimais() {
                   variant="outline"
                   size="sm"
                   onClick={handleExportPdf}
-                  className="h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+                  className="h-11 md:h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
                 >
                   <FileText className="w-4 h-4 mr-1" />
                   PDF
@@ -602,7 +602,100 @@ export default function RelatoriosAnimais() {
               Nenhum registro encontrado
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <>
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-2">
+              {dadosPaginados.map((row: ReceptoraRow | DoadoraRow) => (
+                <div
+                  key={row.id}
+                  onClick={() => tipoAnimal === 'receptoras'
+                    ? navigate(`/receptoras/${row.id}/historico`)
+                    : navigate(`/doadoras/${row.id}`)
+                  }
+                  className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-medium text-foreground truncate">
+                        {tipoAnimal === 'receptoras' ? (row as ReceptoraRow).identificacao : (row as DoadoraRow).registro}
+                      </p>
+                      {row.nome && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{row.nome}</p>
+                      )}
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <MapPin className="w-3 h-3 text-muted-foreground/60" />
+                        <span className="text-xs text-muted-foreground truncate">{row.fazenda_nome}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      {tipoAnimal === 'receptoras' ? (
+                        <>
+                          <StatusBadge status={(row as ReceptoraRow).status_reprodutivo || ''} />
+                          {(row as ReceptoraRow).is_cio_livre && (
+                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
+                              CL
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {(row as DoadoraRow).raca && (
+                            <span className="text-xs text-muted-foreground">{(row as DoadoraRow).raca}</span>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-muted text-foreground rounded-md">
+                              {(row as DoadoraRow).total_aspiracoes} asp.
+                            </span>
+                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
+                              {(row as DoadoraRow).media_oocitos} med.
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+                    </div>
+                  </div>
+                  {tipoAnimal === 'doadoras' && (row as DoadoraRow).ultima_aspiracao_data && (
+                    <div className="mt-2 pt-2 border-t border-border/40">
+                      <span className="text-xs text-muted-foreground">
+                        Ult. asp.: {formatDateBR((row as DoadoraRow).ultima_aspiracao_data!)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Mobile Pagination */}
+              {totalPaginas > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                    {' '}de{' '}
+                    <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                      disabled={paginaAtual === 1}
+                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      Anterior
+                    </button>
+                    <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
+                    <button
+                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                      disabled={paginaAtual === totalPaginas}
+                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      Próximo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
               {/* Header da tabela com gradiente */}
               <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
                 <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${
@@ -782,6 +875,7 @@ export default function RelatoriosAnimais() {
                 </div>
               )}
             </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

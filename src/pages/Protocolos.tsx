@@ -701,10 +701,10 @@ export default function Protocolos() {
                 <>
                   {/* Barra Premium de Controles */}
                   <div className="rounded-xl border border-border bg-card overflow-hidden mb-4">
-                    <div className="flex flex-wrap items-stretch">
+                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
                       {/* Grupo: Responsáveis */}
-                      <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+                        <div className="flex items-center gap-2 w-full md:w-auto">
                           <div className="w-1 h-6 rounded-full bg-primary/40" />
                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Responsáveis</span>
                         </div>
@@ -712,19 +712,19 @@ export default function Protocolos() {
                           placeholder="Veterinário *"
                           value={protocoloData.veterinario}
                           onChange={(e) => setProtocoloData({ ...protocoloData, veterinario: e.target.value })}
-                          className="h-9 w-[160px] bg-background/80 border-primary/20 focus:border-primary/40"
+                          className="h-11 md:h-9 w-[calc(50%-0.375rem)] md:w-[160px] bg-background/80 border-primary/20 focus:border-primary/40"
                         />
                         <Input
                           placeholder="Técnico"
                           value={protocoloData.tecnico}
                           onChange={(e) => setProtocoloData({ ...protocoloData, tecnico: e.target.value })}
-                          className="h-9 w-[160px] bg-background"
+                          className="h-11 md:h-9 w-[calc(50%-0.375rem)] md:w-[160px] bg-background"
                         />
                       </div>
 
                       {/* Grupo: Local e Data */}
-                      <div className="flex items-center gap-3 px-4 py-3 border-r border-border">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border">
+                        <div className="flex items-center gap-2 w-full md:w-auto">
                           <div className="w-1 h-6 rounded-full bg-primary/40" />
                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Local</span>
                         </div>
@@ -733,7 +733,7 @@ export default function Protocolos() {
                           onValueChange={(value) => setProtocoloData({ ...protocoloData, fazenda_id: value })}
                           disabled={!protocoloData.veterinario}
                         >
-                          <SelectTrigger className="h-9 w-[180px] bg-background">
+                          <SelectTrigger className="h-11 md:h-9 w-full md:w-[180px] bg-background">
                             <SelectValue placeholder="Fazenda *" />
                           </SelectTrigger>
                           <SelectContent>
@@ -747,16 +747,16 @@ export default function Protocolos() {
                         <DatePickerBR
                           value={protocoloData.data_inicio}
                           onChange={(value) => setProtocoloData({ ...protocoloData, data_inicio: value || '' })}
-                          className="h-9 w-[130px] bg-background"
+                          className="h-11 md:h-9 w-full md:w-[130px] bg-background"
                         />
                       </div>
 
                       {/* Grupo: Ação */}
-                      <div className="flex items-center gap-2 px-4 py-3 ml-auto bg-gradient-to-b from-muted/50 to-transparent">
+                      <div className="flex items-center gap-2 px-4 py-3 w-full md:w-auto md:ml-auto bg-gradient-to-b from-muted/50 to-transparent">
                         <Button
                           onClick={handleContinueToReceptoras}
                           disabled={loadingPasso1 || !protocoloData.fazenda_id || !protocoloData.veterinario || !protocoloData.data_inicio}
-                          className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
+                          className="h-11 md:h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25 w-full md:w-auto"
                         >
                           Continuar
                         </Button>
@@ -902,10 +902,10 @@ export default function Protocolos() {
               {!protocoloSelecionadoId ? (
                 /* Etapa 1: Seleção do protocolo - Barra Premium */
                 <div className="rounded-xl border border-border bg-card overflow-hidden mb-4">
-                  <div className="flex flex-wrap items-stretch">
+                  <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
                     {/* Grupo: Responsável */}
-                    <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+                      <div className="flex items-center gap-2 w-full md:w-auto">
                         <div className="w-1 h-6 rounded-full bg-primary/40" />
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Responsável</span>
                       </div>
@@ -913,13 +913,13 @@ export default function Protocolos() {
                         placeholder="Nome do responsável *"
                         value={passo2Form.tecnico}
                         onChange={(e) => setPasso2Form(prev => ({ ...prev, tecnico: e.target.value }))}
-                        className="h-9 w-[180px] bg-background/80 border-primary/20 focus:border-primary/40"
+                        className="h-11 md:h-9 w-full md:w-[180px] bg-background/80 border-primary/20 focus:border-primary/40"
                       />
                     </div>
 
                     {/* Grupo: Fazenda */}
-                    <div className="flex items-center gap-3 px-4 py-3 border-r border-border">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border">
+                      <div className="flex items-center gap-2 w-full md:w-auto">
                         <div className="w-1 h-6 rounded-full bg-primary/40" />
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fazenda</span>
                       </div>
@@ -927,7 +927,7 @@ export default function Protocolos() {
                         value={fazendaFilterPasso2}
                         onValueChange={setFazendaFilterPasso2}
                       >
-                        <SelectTrigger className="h-9 w-[180px] bg-background">
+                        <SelectTrigger className="h-11 md:h-9 w-full md:w-[180px] bg-background">
                           <SelectValue placeholder="Selecione a fazenda" />
                         </SelectTrigger>
                         <SelectContent>
@@ -941,8 +941,8 @@ export default function Protocolos() {
                     </div>
 
                     {/* Grupo: Seleção */}
-                    <div className="flex items-center gap-3 px-4 py-3 border-r border-border flex-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border md:flex-1">
+                      <div className="flex items-center gap-2 w-full md:w-auto">
                         <div className="w-1 h-6 rounded-full bg-primary/40" />
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocolo</span>
                       </div>
@@ -953,7 +953,7 @@ export default function Protocolos() {
                         }}
                         disabled={!passo2Form.tecnico.trim() || !fazendaFilterPasso2}
                       >
-                        <SelectTrigger className="h-9 min-w-[280px] bg-background">
+                        <SelectTrigger className="h-11 md:h-9 w-full md:min-w-[280px] bg-background">
                           <SelectValue placeholder={!fazendaFilterPasso2 ? "Selecione a fazenda primeiro" : "Selecione um protocolo *"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -977,7 +977,7 @@ export default function Protocolos() {
                       <DatePickerBR
                         value={passo2Form.data}
                         onChange={(value) => setPasso2Form(prev => ({ ...prev, data: value || '' }))}
-                        className="h-9 w-[130px] bg-background"
+                        className="h-11 md:h-9 w-full md:w-[130px] bg-background"
                       />
                     </div>
                   </div>
@@ -1405,102 +1405,175 @@ function ReceptorasTablePasso1({
   onUpdateQualidade,
 }: ReceptorasTablePasso1Props) {
   return (
-    /* Container com scroll horizontal quando necessário */
-    <div className="overflow-x-auto rounded-lg border border-border">
-      {/* Tabela: min-w garante largura mínima, w-full distribui uniformemente */}
-      <div className="min-w-[700px] w-full">
-        {/* Cabeçalho - colunas fixas + flexíveis com minmax + separador de contexto */}
-        <div className="grid grid-cols-[minmax(160px,1.5fr)_36px_36px_36px_16px_90px_90px_minmax(100px,1fr)_40px] gap-0 bg-muted text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-          <div className="px-3 py-2">Receptora</div>
-          <div className="px-1 py-2 text-center" title="Protocolos">P</div>
-          <div className="px-1 py-2 text-center" title="Gestações">G</div>
-          <div className="px-1 py-2 text-center" title="Desde última">D</div>
-          <div className="border-r border-border/50"></div>
-          <div className="px-2 py-2 text-center">Ciclando</div>
-          <div className="px-2 py-2 text-center">Qualidade</div>
-          <div className="px-2 py-2">Obs.</div>
-          <div className="px-2 py-2"></div>
-        </div>
-
-        {/* Linhas */}
+    <>
+      {/* Mobile: Cards */}
+      <div className="md:hidden space-y-3">
         {receptorasLocais.map((r, index) => {
           const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
           const stats = r.historicoStats;
 
           return (
-            <div
-              key={rowKey}
-              className="group grid grid-cols-[minmax(160px,1.5fr)_36px_36px_36px_16px_90px_90px_minmax(100px,1fr)_40px] gap-0 items-center border-t border-border hover:bg-muted/50"
-            >
-            {/* Receptora */}
-            <div className="flex items-center gap-2 px-3 py-1.5">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0">
-                {index + 1}
-              </span>
-              <div className="flex flex-col min-w-0">
-                <span className="font-medium text-sm text-foreground truncate">{r.identificacao}</span>
-                {r.nome && <span className="text-[10px] text-muted-foreground truncate">{r.nome}</span>}
+            <div key={rowKey} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-base truncate block">{r.identificacao}</span>
+                    {r.nome && <span className="text-xs text-muted-foreground">{r.nome}</span>}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => onRemove(index)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Stats P/G/D */}
+              {stats && (
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-medium bg-muted text-foreground rounded">
+                    {stats.totalProtocolos}P
+                  </span>
+                  <span className="inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-medium bg-primary/15 text-primary rounded">
+                    {stats.gestacoes}G
+                  </span>
+                  <span className="inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-medium bg-orange-500/15 text-orange-600 dark:text-orange-400 rounded">
+                    {stats.protocolosDesdeUltimaGestacao}D
+                  </span>
+                </div>
+              )}
+
+              {/* Ciclando e Qualidade */}
+              <div className="flex items-center gap-4 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase">Ciclando</span>
+                  <CiclandoBadge
+                    value={r.ciclando_classificacao}
+                    onChange={(value) => onUpdateCiclando(index, value)}
+                    variant="editable"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase">Qualidade</span>
+                  <QualidadeSemaforo
+                    value={r.qualidade_semaforo}
+                    onChange={(value) => onUpdateQualidade(index, value)}
+                    variant="row"
+                  />
+                </div>
+              </div>
+
+              {r.observacoes && (
+                <p className="text-xs text-muted-foreground mt-1">{r.observacoes}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: Tabela Grid */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+        {/* Tabela: min-w garante largura mínima, w-full distribui uniformemente */}
+        <div className="min-w-[700px] w-full">
+          {/* Cabeçalho - colunas fixas + flexíveis com minmax + separador de contexto */}
+          <div className="grid grid-cols-[minmax(160px,1.5fr)_36px_36px_36px_16px_90px_90px_minmax(100px,1fr)_40px] gap-0 bg-muted text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="px-3 py-2">Receptora</div>
+            <div className="px-1 py-2 text-center" title="Protocolos">P</div>
+            <div className="px-1 py-2 text-center" title="Gestações">G</div>
+            <div className="px-1 py-2 text-center" title="Desde última">D</div>
+            <div className="border-r border-border/50"></div>
+            <div className="px-2 py-2 text-center">Ciclando</div>
+            <div className="px-2 py-2 text-center">Qualidade</div>
+            <div className="px-2 py-2">Obs.</div>
+            <div className="px-2 py-2"></div>
+          </div>
+
+          {/* Linhas */}
+          {receptorasLocais.map((r, index) => {
+            const rowKey = r.id && r.id.trim() !== '' ? r.id : `new-${index}`;
+            const stats = r.historicoStats;
+
+            return (
+              <div
+                key={rowKey}
+                className="group grid grid-cols-[minmax(160px,1.5fr)_36px_36px_36px_16px_90px_90px_minmax(100px,1fr)_40px] gap-0 items-center border-t border-border hover:bg-muted/50"
+              >
+              {/* Receptora */}
+              <div className="flex items-center gap-2 px-3 py-1.5">
+                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0">
+                  {index + 1}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium text-sm text-foreground truncate">{r.identificacao}</span>
+                  {r.nome && <span className="text-[10px] text-muted-foreground truncate">{r.nome}</span>}
+                </div>
+              </div>
+
+              {/* Histórico P G D */}
+              <div className="px-1 py-1.5 text-center">
+                <span className="inline-flex items-center justify-center w-6 h-5 text-[10px] font-medium bg-muted text-foreground rounded">
+                  {stats?.totalProtocolos ?? 0}
+                </span>
+              </div>
+              <div className="px-1 py-1.5 text-center">
+                <span className="inline-flex items-center justify-center w-6 h-5 text-[10px] font-medium bg-primary/15 text-primary rounded">
+                  {stats?.gestacoes ?? 0}
+                </span>
+              </div>
+              <div className="px-1 py-1.5 text-center">
+                <span className="inline-flex items-center justify-center w-6 h-5 text-[10px] font-medium bg-orange-500/15 text-orange-600 dark:text-orange-400 rounded">
+                  {stats?.protocolosDesdeUltimaGestacao ?? 0}
+                </span>
+              </div>
+
+              {/* Separador de contexto */}
+              <div className="border-r border-border/50 h-full"></div>
+
+              {/* Ciclando */}
+              <div className="px-2 py-1 flex justify-center">
+                <CiclandoBadge
+                  value={r.ciclando_classificacao}
+                  onChange={(value) => onUpdateCiclando(index, value)}
+                  variant="editable"
+                />
+              </div>
+
+              {/* Qualidade */}
+              <div className="px-2 py-1 flex justify-center">
+                <QualidadeSemaforo
+                  value={r.qualidade_semaforo}
+                  onChange={(value) => onUpdateQualidade(index, value)}
+                  variant="row"
+                />
+              </div>
+
+              {/* Obs */}
+              <div className="px-2 py-1.5 text-xs text-muted-foreground truncate">
+                {r.observacoes || '-'}
+              </div>
+
+              {/* Ação */}
+              <div className="px-1 py-1 flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => onRemove(index)}
+                >
+                  <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                </Button>
               </div>
             </div>
-
-            {/* Histórico P G D */}
-            <div className="px-1 py-1.5 text-center">
-              <span className="inline-flex items-center justify-center w-6 h-5 text-[10px] font-medium bg-muted text-foreground rounded">
-                {stats?.totalProtocolos ?? 0}
-              </span>
-            </div>
-            <div className="px-1 py-1.5 text-center">
-              <span className="inline-flex items-center justify-center w-6 h-5 text-[10px] font-medium bg-primary/15 text-primary rounded">
-                {stats?.gestacoes ?? 0}
-              </span>
-            </div>
-            <div className="px-1 py-1.5 text-center">
-              <span className="inline-flex items-center justify-center w-6 h-5 text-[10px] font-medium bg-orange-500/15 text-orange-600 dark:text-orange-400 rounded">
-                {stats?.protocolosDesdeUltimaGestacao ?? 0}
-              </span>
-            </div>
-
-            {/* Separador de contexto */}
-            <div className="border-r border-border/50 h-full"></div>
-
-            {/* Ciclando */}
-            <div className="px-2 py-1 flex justify-center">
-              <CiclandoBadge
-                value={r.ciclando_classificacao}
-                onChange={(value) => onUpdateCiclando(index, value)}
-                variant="editable"
-              />
-            </div>
-
-            {/* Qualidade */}
-            <div className="px-2 py-1 flex justify-center">
-              <QualidadeSemaforo
-                value={r.qualidade_semaforo}
-                onChange={(value) => onUpdateQualidade(index, value)}
-                variant="row"
-              />
-            </div>
-
-            {/* Obs */}
-            <div className="px-2 py-1.5 text-xs text-muted-foreground truncate">
-              {r.observacoes || '-'}
-            </div>
-
-            {/* Ação */}
-            <div className="px-1 py-1 flex justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onRemove(index)}
-              >
-                <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-              </Button>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

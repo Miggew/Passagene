@@ -275,7 +275,7 @@ export default function TouroDetail() {
             <CardTitle>Informações Básicas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="registro">Registro *</Label>
                 <Input
@@ -381,7 +381,7 @@ export default function TouroDetail() {
             <CardTitle>Pedigree</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pai_registro">Registro do Pai</Label>
                 <Input
@@ -438,7 +438,7 @@ export default function TouroDetail() {
             <CardTitle>Links e Mídia</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="link_catalogo">Link do Catálogo</Label>
                   <Input
@@ -507,17 +507,19 @@ export default function TouroDetail() {
         </Card>
 
         {/* Botões de Ação */}
-        <div className="flex gap-4 justify-end">
+        <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4 md:justify-end">
           <Button
             type="button"
             variant="outline"
             onClick={() => navigate('/touros')}
+            className="w-full md:w-auto"
           >
             Cancelar
           </Button>
           <Button
             type="submit"
             disabled={saving}
+            className="w-full md:w-auto"
           >
             <Save className="w-4 h-4 mr-2" />
             {saving ? 'Salvando...' : 'Salvar Alterações'}

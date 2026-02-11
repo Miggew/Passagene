@@ -449,7 +449,7 @@ export default function DosesSemen() {
 
       {/* Barra de Filtros Premium */}
       <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-        <div className="flex flex-wrap items-end gap-6">
+        <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
           {/* Grupo: Busca Touro */}
           <div className="flex items-end gap-3">
             <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
@@ -457,19 +457,19 @@ export default function DosesSemen() {
               <Search className="w-3.5 h-3.5" />
               <span>Touro</span>
             </div>
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative w-full md:w-auto md:flex-1 md:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Nome ou registro do touro..."
                 value={filtroTouro}
                 onChange={(e) => setFiltroTouro(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
           </div>
 
           {/* Separador */}
-          <div className="h-10 w-px bg-border hidden lg:block" />
+          <div className="h-10 w-px bg-border hidden md:block" />
 
           {/* Grupo: Cliente */}
           <div className="flex items-end gap-3">
@@ -478,19 +478,19 @@ export default function DosesSemen() {
               <Users className="w-3.5 h-3.5" />
               <span>Cliente</span>
             </div>
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative w-full md:w-auto md:flex-1 md:min-w-[180px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Nome do cliente..."
                 value={filtroCliente}
                 onChange={(e) => setFiltroCliente(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
           </div>
 
           {/* Separador */}
-          <div className="h-10 w-px bg-border hidden lg:block" />
+          <div className="h-10 w-px bg-border hidden md:block" />
 
           {/* Grupo: Tipo */}
           <div className="flex items-end gap-3">
@@ -499,9 +499,9 @@ export default function DosesSemen() {
               <Dna className="w-3.5 h-3.5" />
               <span>Tipo</span>
             </div>
-            <div className="w-[160px]">
+            <div className="w-full md:w-[160px]">
               <Select value={filtroTipo || 'all'} onValueChange={(value) => setFiltroTipo(value === 'all' ? '' : value)}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-11 md:h-9">
                   <SelectValue placeholder="Todos os tipos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -537,6 +537,55 @@ export default function DosesSemen() {
           <CardTitle>Lista de Doses de Sêmen ({dosesFiltradas.length})</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {dosesFiltradas.length === 0 ? (
+              <EmptyState title="Nenhuma dose cadastrada" description="Cadastre a primeira dose para começar." />
+            ) : (
+              dosesFiltradas.map((dose) => (
+                <div key={dose.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-medium text-base truncate">{dose.touro_nome || '-'}</span>
+                    {dose.tipo_semen && <Badge variant="secondary">{dose.tipo_semen}</Badge>}
+                  </div>
+                  {dose.touro_registro && (
+                    <p className="text-sm text-muted-foreground mb-2">{dose.touro_registro}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm mb-3">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground uppercase block">Raca</span>
+                      <span className="font-medium">{dose.touro_raca || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground uppercase block">Quantidade</span>
+                      <span className="font-medium text-base">{dose.quantidade ?? '-'}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-[10px] text-muted-foreground uppercase block">Cliente</span>
+                      <span className="font-medium">{dose.cliente_nome || '-'}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-3 border-t border-border/50">
+                    <Button variant="outline" size="sm" className="flex-1 h-11" onClick={() => handleEdit(dose)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-11 text-red-600 hover:text-red-700"
+                      onClick={() => { setDeletingDose(dose); setShowDeleteDialog(true); }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -594,6 +643,7 @@ export default function DosesSemen() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

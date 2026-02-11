@@ -247,14 +247,16 @@ export default function SexagemSessaoDetail() {
       {/* Card principal com informações da sessão */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          {/* Linha 1: Fazenda + Datas + Resumo */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-4">
+          {/* Mobile layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
                 <p className="text-base font-semibold text-foreground">{sessaoInfo.fazenda_nome}</p>
               </div>
-              <div className="h-8 w-px bg-border" />
+              <Badge variant="default" className="bg-primary hover:bg-primary-dark">Realizada</Badge>
+            </div>
+            <div className="flex items-center gap-4">
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Data TE</span>
                 <p className="text-sm text-foreground">{formatarData(sessaoInfo.data_te)}</p>
@@ -264,18 +266,14 @@ export default function SexagemSessaoDetail() {
                 <span className="text-xs font-medium text-muted-foreground">Data Sexagem</span>
                 <p className="text-sm text-foreground">{formatarData(sessaoInfo.data_sexagem)}</p>
               </div>
-              <div className="h-8 w-px bg-border" />
-              <Badge variant="default" className="bg-primary hover:bg-primary-dark">Realizada</Badge>
             </div>
-
-            {/* Resumo inline */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Total:</span>
                 <CountBadge value={stats.total} variant="default" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Fêmeas:</span>
+                <span className="text-xs text-muted-foreground">Femeas:</span>
                 <CountBadge value={stats.femeas} variant="pink" />
               </div>
               <div className="flex items-center gap-1.5">
@@ -287,17 +285,72 @@ export default function SexagemSessaoDetail() {
                 <CountBadge value={stats.vazias} variant="danger" />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinario</h4>
+                <p className="text-xs text-foreground">{sessaoInfo.veterinario_responsavel || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tecnico</h4>
+                <p className="text-xs text-foreground">{sessaoInfo.tecnico_responsavel || '—'}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Linha 2: Grid com detalhes */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-border">
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinário</h4>
-              <p className="text-xs text-foreground">{sessaoInfo.veterinario_responsavel || '—'}</p>
+          {/* Desktop layout */}
+          <div className="hidden md:block">
+            {/* Linha 1: Fazenda + Datas + Resumo */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
+                  <p className="text-base font-semibold text-foreground">{sessaoInfo.fazenda_nome}</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground">Data TE</span>
+                  <p className="text-sm text-foreground">{formatarData(sessaoInfo.data_te)}</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground">Data Sexagem</span>
+                  <p className="text-sm text-foreground">{formatarData(sessaoInfo.data_sexagem)}</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <Badge variant="default" className="bg-primary hover:bg-primary-dark">Realizada</Badge>
+              </div>
+
+              {/* Resumo inline */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Total:</span>
+                  <CountBadge value={stats.total} variant="default" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Fêmeas:</span>
+                  <CountBadge value={stats.femeas} variant="pink" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Machos:</span>
+                  <CountBadge value={stats.machos} variant="blue" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Perda:</span>
+                  <CountBadge value={stats.vazias} variant="danger" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Técnico</h4>
-              <p className="text-xs text-foreground">{sessaoInfo.tecnico_responsavel || '—'}</p>
+
+            {/* Linha 2: Grid com detalhes */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-border">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinário</h4>
+                <p className="text-xs text-foreground">{sessaoInfo.veterinario_responsavel || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Técnico</h4>
+                <p className="text-xs text-foreground">{sessaoInfo.tecnico_responsavel || '—'}</p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -306,14 +359,14 @@ export default function SexagemSessaoDetail() {
       {/* Lista de Receptoras */}
       <Card>
         <CardHeader className="pb-2 pt-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle className="text-base">Receptoras ({receptorasFiltradas.length})</CardTitle>
               <CardDescription>Lista de todas as receptoras sexadas na sessão</CardDescription>
             </div>
 
             {/* Busca */}
-            <div className="relative w-64">
+            <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar brinco ou nome..."
@@ -322,7 +375,7 @@ export default function SexagemSessaoDetail() {
                   setFiltroBusca(e.target.value);
                   setPaginaAtual(1);
                 }}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
           </div>
@@ -337,64 +390,108 @@ export default function SexagemSessaoDetail() {
             </div>
           ) : (
             <>
-              <DataTable<ReceptoraSexagem>
-                data={receptorasPaginadas}
-                rowKey="id"
-                rowNumber
-                emptyMessage="Nenhuma receptora encontrada"
-                columns={[
-                  { key: 'receptora_brinco', label: 'Receptora' },
-                  { key: 'data_te', label: 'Data TE', align: 'center' },
-                  { key: 'data_diagnostico', label: 'Data Sexagem', align: 'center' },
-                  { key: 'data_provavel_parto', label: 'Data Parto', align: 'center' },
-                  { key: 'sexagem', label: 'Sexagem', align: 'center' },
-                  { key: 'numero_gestacoes', label: 'Nº Gest.', align: 'center' },
-                  { key: 'observacoes', label: 'Observações' },
-                ]}
-                renderCell={(row, column) => {
-                  switch (column.key) {
-                    case 'receptora_brinco':
-                      return (
-                        <div>
-                          <span className="font-medium text-sm text-foreground">{row.receptora_brinco}</span>
+              {/* Mobile card layout */}
+              <div className="md:hidden space-y-2">
+                {receptorasPaginadas.map((row, index) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {((paginaAtual - 1) * ITENS_POR_PAGINA) + index + 1}.
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-base font-medium text-foreground truncate">{row.receptora_brinco}</p>
                           {row.receptora_nome && (
-                            <span className="text-[10px] text-muted-foreground block">{row.receptora_nome}</span>
+                            <p className="text-xs text-muted-foreground truncate">{row.receptora_nome}</p>
                           )}
                         </div>
-                      );
-                    case 'data_te':
-                      return <span className="text-muted-foreground">{formatarData(row.data_te)}</span>;
-                    case 'data_diagnostico':
-                      return <span className="text-foreground">{formatarData(row.data_diagnostico)}</span>;
-                    case 'data_provavel_parto':
-                      return <span className="text-muted-foreground">{row.data_provavel_parto ? formatarData(row.data_provavel_parto) : '—'}</span>;
-                    case 'sexagem':
-                      return (
-                        <ResultBadge
-                          result={getSexagemResult(row.sexagem, row.resultado)}
-                          label={getSexagemLabel(row.sexagem, row.resultado)}
-                        />
-                      );
-                    case 'numero_gestacoes':
-                      return <span className="text-muted-foreground">{row.numero_gestacoes || '—'}</span>;
-                    case 'observacoes':
-                      return <span className="text-muted-foreground truncate">{row.observacoes?.replace(/SEXAGENS:[^|]+\|?/, '').trim() || '—'}</span>;
-                    default:
-                      return null;
-                  }
-                }}
-              />
+                      </div>
+                      <ResultBadge
+                        result={getSexagemResult(row.sexagem, row.resultado)}
+                        label={getSexagemLabel(row.sexagem, row.resultado)}
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>TE: {formatarData(row.data_te)}</span>
+                      <span>Sexagem: {formatarData(row.data_diagnostico)}</span>
+                      {row.data_provavel_parto && (
+                        <span>Parto: {formatarData(row.data_provavel_parto)}</span>
+                      )}
+                      {row.numero_gestacoes && (
+                        <span>Gest.: {row.numero_gestacoes}</span>
+                      )}
+                    </div>
+                    {row.observacoes && (
+                      <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">
+                        {row.observacoes?.replace(/SEXAGENS:[^|]+\|?/, '').trim()}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden md:block">
+                <DataTable<ReceptoraSexagem>
+                  data={receptorasPaginadas}
+                  rowKey="id"
+                  rowNumber
+                  emptyMessage="Nenhuma receptora encontrada"
+                  columns={[
+                    { key: 'receptora_brinco', label: 'Receptora' },
+                    { key: 'data_te', label: 'Data TE', align: 'center' },
+                    { key: 'data_diagnostico', label: 'Data Sexagem', align: 'center' },
+                    { key: 'data_provavel_parto', label: 'Data Parto', align: 'center' },
+                    { key: 'sexagem', label: 'Sexagem', align: 'center' },
+                    { key: 'numero_gestacoes', label: 'Nº Gest.', align: 'center' },
+                    { key: 'observacoes', label: 'Observações' },
+                  ]}
+                  renderCell={(row, column) => {
+                    switch (column.key) {
+                      case 'receptora_brinco':
+                        return (
+                          <div>
+                            <span className="font-medium text-sm text-foreground">{row.receptora_brinco}</span>
+                            {row.receptora_nome && (
+                              <span className="text-[10px] text-muted-foreground block">{row.receptora_nome}</span>
+                            )}
+                          </div>
+                        );
+                      case 'data_te':
+                        return <span className="text-muted-foreground">{formatarData(row.data_te)}</span>;
+                      case 'data_diagnostico':
+                        return <span className="text-foreground">{formatarData(row.data_diagnostico)}</span>;
+                      case 'data_provavel_parto':
+                        return <span className="text-muted-foreground">{row.data_provavel_parto ? formatarData(row.data_provavel_parto) : '—'}</span>;
+                      case 'sexagem':
+                        return (
+                          <ResultBadge
+                            result={getSexagemResult(row.sexagem, row.resultado)}
+                            label={getSexagemLabel(row.sexagem, row.resultado)}
+                          />
+                        );
+                      case 'numero_gestacoes':
+                        return <span className="text-muted-foreground">{row.numero_gestacoes || '—'}</span>;
+                      case 'observacoes':
+                        return <span className="text-muted-foreground truncate">{row.observacoes?.replace(/SEXAGENS:[^|]+\|?/, '').trim() || '—'}</span>;
+                      default:
+                        return null;
+                    }
+                  }}
+                />
+              </div>
 
               {/* Paginação */}
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                  <span className="text-sm text-muted-foreground">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-4 pt-4 border-t border-border">
+                  <span className="text-sm text-muted-foreground text-center md:text-left">
                     Mostrando {((paginaAtual - 1) * ITENS_POR_PAGINA) + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, receptorasFiltradas.length)} de {receptorasFiltradas.length}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-9"
                       onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
                       disabled={paginaAtual === 1}
                     >
@@ -417,7 +514,7 @@ export default function SexagemSessaoDetail() {
                             key={pageNum}
                             variant={paginaAtual === pageNum ? 'default' : 'outline'}
                             size="sm"
-                            className={`w-9 h-9 p-0 ${paginaAtual === pageNum ? 'bg-primary hover:bg-primary-dark' : ''}`}
+                            className={`w-11 h-11 md:w-9 md:h-9 p-0 ${paginaAtual === pageNum ? 'bg-primary hover:bg-primary-dark' : ''}`}
                             onClick={() => setPaginaAtual(pageNum)}
                           >
                             {pageNum}
@@ -428,6 +525,7 @@ export default function SexagemSessaoDetail() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-11 md:h-9"
                       onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
                       disabled={paginaAtual === totalPaginas}
                     >

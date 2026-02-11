@@ -180,6 +180,7 @@ export default function Aspiracoes() {
   const [selectedDoadoraId, setSelectedDoadoraId] = useState('');
 
   // Edição inline - índice da linha em edição (null = nenhuma)
+  const [editingMobileIndex, setEditingMobileIndex] = useState<number | null>(null);
 
   // Form criar doadora
   const [createDoadoraForm, setCreateDoadoraForm] = useState({
@@ -870,15 +871,15 @@ export default function Aspiracoes() {
       <div className="mt-4 space-y-4">
           {/* Barra Superior Premium */}
           <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-            <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
               {/* Grupo: Responsáveis */}
-              <div className="flex items-end gap-3">
-                <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-primary/40 self-center hidden md:block" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
                   <User className="w-3.5 h-3.5" />
                   <span>Responsáveis</span>
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Veterinário *
                   </label>
@@ -886,11 +887,11 @@ export default function Aspiracoes() {
                     placeholder="Nome do veterinário"
                     value={formData.veterinario_responsavel}
                     onChange={(e) => setFormData({ ...formData, veterinario_responsavel: e.target.value })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Técnico *
                   </label>
@@ -898,23 +899,23 @@ export default function Aspiracoes() {
                     placeholder="Nome do técnico"
                     value={formData.tecnico_responsavel}
                     onChange={(e) => setFormData({ ...formData, tecnico_responsavel: e.target.value })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
               </div>
 
               {/* Separador */}
-              <div className="h-10 w-px bg-border hidden lg:block" />
+              <div className="h-10 w-px bg-border hidden md:block" />
 
               {/* Grupo: Local */}
-              <div className="flex items-end gap-3">
-                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center hidden md:block" />
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
                   <MapPin className="w-3.5 h-3.5" />
                   <span>Local</span>
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-full md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Fazenda *
                   </label>
@@ -923,7 +924,7 @@ export default function Aspiracoes() {
                     onValueChange={(value) => setFormData({ ...formData, fazenda_id: value })}
                     disabled={currentStep === 'doadoras'}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-11 md:h-9">
                       <SelectValue placeholder="Selecione a fazenda" />
                     </SelectTrigger>
                     <SelectContent>
@@ -935,18 +936,18 @@ export default function Aspiracoes() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-[130px] flex-shrink-0">
+                <div className="w-[calc(50%-0.375rem)] md:w-[130px] flex-shrink-0">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Data *
                   </label>
                   <DatePickerBR
                     value={formData.data_aspiracao}
                     onChange={(value) => setFormData({ ...formData, data_aspiracao: value || '' })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
-                <div className="w-[90px] flex-shrink-0">
+                <div className="w-[calc(50%-0.375rem)] md:w-[90px] flex-shrink-0">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Hora
                   </label>
@@ -954,22 +955,22 @@ export default function Aspiracoes() {
                     type="time"
                     value={formData.horario_inicio}
                     onChange={(e) => setFormData({ ...formData, horario_inicio: e.target.value })}
-                    className="h-9"
+                    className="h-11 md:h-9"
                     disabled={currentStep === 'doadoras'}
                   />
                 </div>
               </div>
 
               {/* Separador */}
-              <div className="h-10 w-px bg-border hidden lg:block" />
+              <div className="h-10 w-px bg-border hidden md:block" />
 
               {/* Grupo: Ação */}
-              <div className="flex items-end gap-3 ml-auto">
+              <div className="flex items-end gap-3 w-full md:w-auto md:ml-auto">
                 {currentStep === 'form' ? (
                   <Button
                     onClick={handleContinuar}
                     disabled={!formData.veterinario_responsavel || !formData.tecnico_responsavel || !formData.fazenda_id || !formData.data_aspiracao}
-                    className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm"
+                    className="h-11 md:h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm w-full md:w-auto"
                   >
                     <PlayCircle className="w-4 h-4 mr-2" />
                     Continuar
@@ -978,7 +979,7 @@ export default function Aspiracoes() {
                   <Button
                     variant="outline"
                     onClick={handleVoltar}
-                    className="h-9"
+                    className="h-11 md:h-9 w-full md:w-auto"
                   >
                     Voltar
                   </Button>
@@ -1141,158 +1142,218 @@ export default function Aspiracoes() {
                       Nenhuma doadora adicionada. Clique em "Adicionar" ou "Nova" para começar.
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      {/* Cabeçalho da tabela */}
-                      <div className="grid grid-cols-[minmax(140px,1fr)_80px_80px_repeat(5,40px)_45px_1fr_1fr_32px] gap-0 bg-muted text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        <div className="px-3 py-2">Doadora</div>
-                        <div className="px-2 py-2 text-center">Início</div>
-                        <div className="px-2 py-2 text-center">Fim</div>
-                        <div className="px-1 py-2 text-center">Atr</div>
-                        <div className="px-1 py-2 text-center">Deg</div>
-                        <div className="px-1 py-2 text-center">Exp</div>
-                        <div className="px-1 py-2 text-center">Des</div>
-                        <div className="px-1 py-2 text-center text-primary">Viáv</div>
-                        <div className="px-1 py-2 text-center text-primary font-bold">Total</div>
-                        <div className="px-2 py-2">Touro</div>
-                        <div className="px-2 py-2">Obs</div>
-                        <div></div>
-                      </div>
-                      {/* Linhas */}
-                      {doadoras.map((doadora, index) => (
-                        <div
-                          key={doadora.doadora_id}
-                          className="group grid grid-cols-[minmax(140px,1fr)_80px_80px_repeat(5,40px)_45px_1fr_1fr_32px] gap-0 items-center border-t border-border hover:bg-muted/50"
-                        >
-                          {/* Doadora */}
-                          <div className="flex items-center gap-2 px-3 py-1.5">
-                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0">
-                              {index + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-sm truncate">
-                                  {doadora.nome || doadora.registro}
+                    <>
+                      {/* Mobile: Cards */}
+                      <div className="md:hidden space-y-3">
+                        {doadoras.map((doadora, index) => (
+                          <div
+                            key={doadora.doadora_id}
+                            className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50 cursor-pointer"
+                            onClick={() => setEditingMobileIndex(index)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                                  {index + 1}
                                 </span>
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-medium text-base truncate block">
+                                    {doadora.nome || doadora.registro}
+                                  </span>
+                                  {doadora.nome && (
+                                    <span className="text-xs text-muted-foreground">{doadora.registro}</span>
+                                  )}
+                                </div>
                                 {doadora.raca && (
-                                  <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded shrink-0">
+                                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
                                     {doadora.raca}
                                   </span>
                                 )}
-                                {doadora.isNew && (
-                                  <span className="text-[9px] text-primary bg-primary/10 px-1 rounded shrink-0">N</span>
+                              </div>
+                              <div className="flex items-center gap-2 ml-2 shrink-0">
+                                <div className="text-center">
+                                  <span className="text-lg font-bold text-primary block leading-none">{doadora.total_oocitos || 0}</span>
+                                  <span className="text-[9px] text-muted-foreground uppercase">oóc.</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleRemoveDoadora(index); }}
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            {/* Mini summary row */}
+                            {doadora.total_oocitos > 0 && (
+                              <div className="flex gap-2 mt-2 pt-2 border-t border-border/50 text-[10px] text-muted-foreground">
+                                {doadora.atresicos > 0 && <span>A:{doadora.atresicos}</span>}
+                                {doadora.degenerados > 0 && <span>D:{doadora.degenerados}</span>}
+                                {doadora.expandidos > 0 && <span>E:{doadora.expandidos}</span>}
+                                {doadora.desnudos > 0 && <span>Dn:{doadora.desnudos}</span>}
+                                {doadora.viaveis > 0 && <span className="text-primary font-medium">V:{doadora.viaveis}</span>}
+                                {doadora.recomendacao_touro && <span className="ml-auto truncate max-w-[100px]">Touro: {doadora.recomendacao_touro}</span>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop: Tabela Grid */}
+                      <div className="hidden md:block rounded-lg border border-border overflow-hidden">
+                        {/* Cabeçalho da tabela */}
+                        <div className="grid grid-cols-[minmax(140px,1fr)_80px_80px_repeat(5,40px)_45px_1fr_1fr_32px] gap-0 bg-muted text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                          <div className="px-3 py-2">Doadora</div>
+                          <div className="px-2 py-2 text-center">Início</div>
+                          <div className="px-2 py-2 text-center">Fim</div>
+                          <div className="px-1 py-2 text-center">Atr</div>
+                          <div className="px-1 py-2 text-center">Deg</div>
+                          <div className="px-1 py-2 text-center">Exp</div>
+                          <div className="px-1 py-2 text-center">Des</div>
+                          <div className="px-1 py-2 text-center text-primary">Viáv</div>
+                          <div className="px-1 py-2 text-center text-primary font-bold">Total</div>
+                          <div className="px-2 py-2">Touro</div>
+                          <div className="px-2 py-2">Obs</div>
+                          <div></div>
+                        </div>
+                        {/* Linhas */}
+                        {doadoras.map((doadora, index) => (
+                          <div
+                            key={doadora.doadora_id}
+                            className="group grid grid-cols-[minmax(140px,1fr)_80px_80px_repeat(5,40px)_45px_1fr_1fr_32px] gap-0 items-center border-t border-border hover:bg-muted/50"
+                          >
+                            {/* Doadora */}
+                            <div className="flex items-center gap-2 px-3 py-1.5">
+                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0">
+                                {index + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium text-sm truncate">
+                                    {doadora.nome || doadora.registro}
+                                  </span>
+                                  {doadora.raca && (
+                                    <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded shrink-0">
+                                      {doadora.raca}
+                                    </span>
+                                  )}
+                                  {doadora.isNew && (
+                                    <span className="text-[9px] text-primary bg-primary/10 px-1 rounded shrink-0">N</span>
+                                  )}
+                                </div>
+                                {doadora.nome && (
+                                  <span className="text-[10px] text-muted-foreground block truncate">{doadora.registro}</span>
                                 )}
                               </div>
-                              {doadora.nome && (
-                                <span className="text-[10px] text-muted-foreground block truncate">{doadora.registro}</span>
-                              )}
+                            </div>
+                            {/* Início */}
+                            <div className="px-1 py-1">
+                              <Input
+                                type="time"
+                                value={doadora.horario_aspiracao || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'horario_aspiracao', e.target.value)}
+                                className="h-7 text-xs text-center px-1 w-full"
+                                disabled={index === 0}
+                              />
+                            </div>
+                            {/* Fim */}
+                            <div className="px-1 py-1">
+                              <Input
+                                type="time"
+                                value={doadora.hora_final || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'hora_final', e.target.value)}
+                                className="h-7 text-xs text-center px-1 w-full"
+                              />
+                            </div>
+                            {/* Oócitos */}
+                            <div className="px-0.5 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={doadora.atresicos || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'atresicos', parseInt(e.target.value) || 0)}
+                                className="h-7 text-xs text-center px-0 w-full"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="px-0.5 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={doadora.degenerados || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'degenerados', parseInt(e.target.value) || 0)}
+                                className="h-7 text-xs text-center px-0 w-full"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="px-0.5 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={doadora.expandidos || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'expandidos', parseInt(e.target.value) || 0)}
+                                className="h-7 text-xs text-center px-0 w-full"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="px-0.5 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={doadora.desnudos || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'desnudos', parseInt(e.target.value) || 0)}
+                                className="h-7 text-xs text-center px-0 w-full"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="px-0.5 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={doadora.viaveis || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'viaveis', parseInt(e.target.value) || 0)}
+                                className="h-7 text-xs text-center px-0 w-full ring-1 ring-primary/20"
+                                placeholder="0"
+                              />
+                            </div>
+                            {/* Total */}
+                            <div className="px-1 py-1 text-center">
+                              <span className="text-sm font-bold text-primary">{doadora.total_oocitos || 0}</span>
+                            </div>
+                            {/* Touro */}
+                            <div className="px-1 py-1">
+                              <Input
+                                value={doadora.recomendacao_touro || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'recomendacao_touro', e.target.value)}
+                                className="h-7 text-xs px-2 w-full"
+                                placeholder="Touro"
+                              />
+                            </div>
+                            {/* Obs */}
+                            <div className="px-1 py-1">
+                              <Input
+                                value={doadora.observacoes || ''}
+                                onChange={(e) => handleUpdateDoadora(index, 'observacoes', e.target.value)}
+                                className="h-7 text-xs px-2 w-full"
+                                placeholder="Obs"
+                              />
+                            </div>
+                            {/* Remover */}
+                            <div className="px-1 py-1 flex justify-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveDoadora(index)}
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
                             </div>
                           </div>
-                          {/* Início */}
-                          <div className="px-1 py-1">
-                            <Input
-                              type="time"
-                              value={doadora.horario_aspiracao || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'horario_aspiracao', e.target.value)}
-                              className="h-7 text-xs text-center px-1 w-full"
-                              disabled={index === 0}
-                            />
-                          </div>
-                          {/* Fim */}
-                          <div className="px-1 py-1">
-                            <Input
-                              type="time"
-                              value={doadora.hora_final || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'hora_final', e.target.value)}
-                              className="h-7 text-xs text-center px-1 w-full"
-                            />
-                          </div>
-                          {/* Oócitos */}
-                          <div className="px-0.5 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={doadora.atresicos || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'atresicos', parseInt(e.target.value) || 0)}
-                              className="h-7 text-xs text-center px-0 w-full"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div className="px-0.5 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={doadora.degenerados || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'degenerados', parseInt(e.target.value) || 0)}
-                              className="h-7 text-xs text-center px-0 w-full"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div className="px-0.5 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={doadora.expandidos || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'expandidos', parseInt(e.target.value) || 0)}
-                              className="h-7 text-xs text-center px-0 w-full"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div className="px-0.5 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={doadora.desnudos || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'desnudos', parseInt(e.target.value) || 0)}
-                              className="h-7 text-xs text-center px-0 w-full"
-                              placeholder="0"
-                            />
-                          </div>
-                          <div className="px-0.5 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={doadora.viaveis || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'viaveis', parseInt(e.target.value) || 0)}
-                              className="h-7 text-xs text-center px-0 w-full ring-1 ring-primary/20"
-                              placeholder="0"
-                            />
-                          </div>
-                          {/* Total */}
-                          <div className="px-1 py-1 text-center">
-                            <span className="text-sm font-bold text-primary">{doadora.total_oocitos || 0}</span>
-                          </div>
-                          {/* Touro */}
-                          <div className="px-1 py-1">
-                            <Input
-                              value={doadora.recomendacao_touro || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'recomendacao_touro', e.target.value)}
-                              className="h-7 text-xs px-2 w-full"
-                              placeholder="Touro"
-                            />
-                          </div>
-                          {/* Obs */}
-                          <div className="px-1 py-1">
-                            <Input
-                              value={doadora.observacoes || ''}
-                              onChange={(e) => handleUpdateDoadora(index, 'observacoes', e.target.value)}
-                              className="h-7 text-xs px-2 w-full"
-                              placeholder="Obs"
-                            />
-                          </div>
-                          {/* Remover */}
-                          <div className="px-1 py-1 flex justify-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveDoadora(index)}
-                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </>
                   )}
 
                   {/* Botão Finalizar */}
@@ -1393,6 +1454,157 @@ export default function Aspiracoes() {
               Adicionar
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar Doadora Mobile */}
+      <Dialog open={editingMobileIndex !== null} onOpenChange={(open) => { if (!open) setEditingMobileIndex(null); }}>
+        <DialogContent className="max-w-md">
+          {editingMobileIndex !== null && doadoras[editingMobileIndex] && (() => {
+            const doadora = doadoras[editingMobileIndex];
+            const idx = editingMobileIndex;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                      {idx + 1}
+                    </span>
+                    {doadora.nome || doadora.registro}
+                    {doadora.raca && (
+                      <span className="text-xs text-muted-foreground font-normal">({doadora.raca})</span>
+                    )}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {doadora.nome ? doadora.registro : 'Editar dados da aspiração'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {/* Horários */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                        Início
+                      </label>
+                      <Input
+                        type="time"
+                        value={doadora.horario_aspiracao || ''}
+                        onChange={(e) => handleUpdateDoadora(idx, 'horario_aspiracao', e.target.value)}
+                        className="h-11"
+                        disabled={idx === 0}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                        Fim
+                      </label>
+                      <Input
+                        type="time"
+                        value={doadora.hora_final || ''}
+                        onChange={(e) => handleUpdateDoadora(idx, 'hora_final', e.target.value)}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Oócitos */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        Oócitos
+                      </label>
+                      <span className="text-sm font-bold text-primary">Total: {doadora.total_oocitos || 0}</span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block text-center mb-1">Atr</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={doadora.atresicos || ''}
+                          onChange={(e) => handleUpdateDoadora(idx, 'atresicos', parseInt(e.target.value) || 0)}
+                          className="h-11 text-center px-1"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block text-center mb-1">Deg</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={doadora.degenerados || ''}
+                          onChange={(e) => handleUpdateDoadora(idx, 'degenerados', parseInt(e.target.value) || 0)}
+                          className="h-11 text-center px-1"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block text-center mb-1">Exp</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={doadora.expandidos || ''}
+                          onChange={(e) => handleUpdateDoadora(idx, 'expandidos', parseInt(e.target.value) || 0)}
+                          className="h-11 text-center px-1"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block text-center mb-1">Des</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={doadora.desnudos || ''}
+                          onChange={(e) => handleUpdateDoadora(idx, 'desnudos', parseInt(e.target.value) || 0)}
+                          className="h-11 text-center px-1"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-primary font-medium block text-center mb-1">Viáv</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={doadora.viaveis || ''}
+                          onChange={(e) => handleUpdateDoadora(idx, 'viaveis', parseInt(e.target.value) || 0)}
+                          className="h-11 text-center px-1 ring-1 ring-primary/20"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Touro e Obs */}
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                      Touro Recomendado
+                    </label>
+                    <Input
+                      value={doadora.recomendacao_touro || ''}
+                      onChange={(e) => handleUpdateDoadora(idx, 'recomendacao_touro', e.target.value)}
+                      className="h-11"
+                      placeholder="Nome do touro"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                      Observações
+                    </label>
+                    <Input
+                      value={doadora.observacoes || ''}
+                      onChange={(e) => handleUpdateDoadora(idx, 'observacoes', e.target.value)}
+                      className="h-11"
+                      placeholder="Observações"
+                    />
+                  </div>
+
+                  <Button onClick={() => setEditingMobileIndex(null)} className="w-full h-11 bg-primary hover:bg-primary-dark">
+                    Concluído
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

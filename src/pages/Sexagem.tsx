@@ -1058,15 +1058,15 @@ export default function Sexagem() {
       <div className="mt-4">
           {/* Barra de controles premium */}
           <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
-            <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
               {/* Grupo: Responsáveis */}
-              <div className="flex items-end gap-3">
+              <div className="flex flex-wrap items-end gap-3">
                 <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
                   <User className="w-3.5 h-3.5" />
                   <span>Responsáveis</span>
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-[calc(50%-0.75rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Veterinário *
                   </label>
@@ -1074,10 +1074,10 @@ export default function Sexagem() {
                     placeholder="Nome do veterinário"
                     value={loteFormData.veterinario_responsavel}
                     onChange={(e) => setLoteFormData(prev => ({ ...prev, veterinario_responsavel: e.target.value }))}
-                    className="h-9"
+                    className="h-11 md:h-9"
                   />
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-[calc(50%-0.75rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Técnico
                   </label>
@@ -1085,22 +1085,22 @@ export default function Sexagem() {
                     placeholder="Nome do técnico"
                     value={loteFormData.tecnico_responsavel}
                     onChange={(e) => setLoteFormData(prev => ({ ...prev, tecnico_responsavel: e.target.value }))}
-                    className="h-9"
+                    className="h-11 md:h-9"
                   />
                 </div>
               </div>
 
               {/* Separador */}
-              <div className="h-10 w-px bg-border hidden lg:block" />
+              <div className="h-10 w-px bg-border hidden md:block" />
 
               {/* Grupo: Local */}
-              <div className="flex items-end gap-3">
+              <div className="flex flex-wrap items-end gap-3">
                 <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
                   <MapPin className="w-3.5 h-3.5" />
                   <span>Local</span>
                 </div>
-                <div className="flex-1 min-w-[160px]">
+                <div className="w-full md:w-auto md:flex-1 md:min-w-[160px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Fazenda *
                   </label>
@@ -1109,7 +1109,7 @@ export default function Sexagem() {
                     onValueChange={setFazendaSelecionada}
                     disabled={!loteFormData.veterinario_responsavel}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-11 md:h-9">
                       <SelectValue placeholder="Selecione a fazenda" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1121,7 +1121,7 @@ export default function Sexagem() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex-1 min-w-[200px]">
+                <div className="w-full md:w-auto md:flex-1 md:min-w-[200px]">
                   <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
                     Lote TE *
                   </label>
@@ -1133,7 +1133,7 @@ export default function Sexagem() {
                     }}
                     disabled={!fazendaSelecionada || loadingLotes}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-11 md:h-9">
                       <SelectValue placeholder={loadingLotes ? 'Carregando...' : 'Selecione o lote'} />
                     </SelectTrigger>
                     <SelectContent>
@@ -1154,10 +1154,10 @@ export default function Sexagem() {
               </div>
 
               {/* Separador */}
-              <div className="h-10 w-px bg-border hidden lg:block" />
+              <div className="h-10 w-px bg-border hidden md:block" />
 
               {/* Grupo: Ação */}
-              <div className="flex items-end gap-3 ml-auto">
+              <div className="flex items-end gap-3 w-full md:w-auto md:ml-auto">
                 <Button
                   onClick={handleSalvarLote}
                   disabled={
@@ -1167,7 +1167,7 @@ export default function Sexagem() {
                     loteSelecionado?.status === 'FECHADO' ||
                     (loteSelecionado?.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.SEXAGEM)
                   }
-                  className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm"
+                  className="h-11 md:h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm w-full md:w-auto"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {submitting ? 'Salvando...' : 'Salvar Lote'}
@@ -1213,7 +1213,90 @@ export default function Sexagem() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="overflow-x-auto">
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-3">
+                  {receptoras.map((receptora) => {
+                    const dados = formData[receptora.receptora_id] || {
+                      data_sexagem: hoje,
+                      sexagens: new Array(receptora.numero_gestacoes).fill('').map(() => ''),
+                      observacoes: '',
+                    };
+                    const isDisabled = loteSelecionado.status === 'FECHADO';
+
+                    return (
+                      <div key={receptora.receptora_id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                        {/* Header: brinco + dias gestacao */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-base">{receptora.brinco}</span>
+                            {receptora.nome && <span className="text-muted-foreground text-xs">({receptora.nome})</span>}
+                          </div>
+                          <Badge variant="outline" className="font-mono">{receptora.dias_gestacao}d</Badge>
+                        </div>
+
+                        {/* Embriao info */}
+                        <div className="text-sm text-muted-foreground mb-3">
+                          {receptora.embrioes.map((embriao) => (
+                            <div key={embriao.te_id}>
+                              {embriao.doadora_registro || '-'}
+                              {embriao.touro_nome && ` × ${embriao.touro_nome}`}
+                            </div>
+                          ))}
+                          <span className="text-xs">{`N\u00BA Gesta\u00E7\u00F5es: ${receptora.numero_gestacoes}`}</span>
+                        </div>
+
+                        {/* Form fields */}
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-[10px] text-muted-foreground uppercase mb-1 block">Data Sexagem</label>
+                            <DatePickerBR
+                              value={dados.data_sexagem}
+                              onChange={(value) => handleFieldChange(receptora.receptora_id, 'data_sexagem', value || '')}
+                              disabled={isDisabled}
+                            />
+                          </div>
+                          <div className={`grid ${receptora.numero_gestacoes > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                            {Array.from({ length: receptora.numero_gestacoes }, (_, index) => {
+                              const valorAtual = dados.sexagens[index] || '';
+                              const label = receptora.numero_gestacoes > 1 ? `Gesta\u00E7\u00E3o ${index + 1}` : 'Sexagem';
+                              return (
+                                <div key={index}>
+                                  <label className="text-[10px] text-muted-foreground uppercase mb-1 block">{label}</label>
+                                  <Select
+                                    value={valorAtual}
+                                    onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
+                                    disabled={isDisabled}
+                                  >
+                                    <SelectTrigger className="h-11"><SelectValue placeholder="--" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="FEMEA">F\u00EAmea</SelectItem>
+                                      <SelectItem value="MACHO">Macho</SelectItem>
+                                      <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
+                                      <SelectItem value="VAZIA">Vazia</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted-foreground uppercase mb-1 block">Obs.</label>
+                            <Input
+                              value={dados.observacoes}
+                              onChange={(e) => handleFieldChange(receptora.receptora_id, 'observacoes', e.target.value)}
+                              placeholder="Obs."
+                              className="h-11"
+                              disabled={isDisabled}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

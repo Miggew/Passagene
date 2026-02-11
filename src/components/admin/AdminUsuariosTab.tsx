@@ -470,38 +470,38 @@ export default function AdminUsuariosTab() {
     <div className="space-y-4">
       {/* Barra de Filtros Premium */}
       <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-        <div className="flex flex-wrap items-end gap-6">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end md:gap-6">
           {/* Grupo: Busca */}
           <div className="flex items-end gap-3">
-            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center hidden md:block" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center hidden md:flex">
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative flex-1 min-w-[250px]">
+            <div className="relative flex-1 min-w-0 md:min-w-[250px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome ou email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
           </div>
 
           {/* Separador */}
-          <div className="h-10 w-px bg-border hidden lg:block" />
+          <div className="h-10 w-px bg-border hidden md:block" />
 
           {/* Grupo: Tipo */}
           <div className="flex items-end gap-3">
-            <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+            <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center hidden md:block" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center hidden md:flex">
               <Shield className="w-3.5 h-3.5" />
               <span>Tipo</span>
             </div>
-            <div className="w-[160px]">
+            <div className="w-full md:w-[160px]">
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-11 md:h-9">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -520,7 +520,7 @@ export default function AdminUsuariosTab() {
               variant="outline"
               size="sm"
               onClick={handleLimparFiltros}
-              className="h-9"
+              className="h-11 md:h-9 w-full md:w-auto"
             >
               <X className="w-4 h-4 mr-2" />
               Limpar
@@ -528,7 +528,7 @@ export default function AdminUsuariosTab() {
           )}
 
           {/* Botao Novo Usuario */}
-          <Button onClick={() => handleOpenDialog()} className="h-9 ml-auto">
+          <Button onClick={() => handleOpenDialog()} className="h-11 md:h-9 w-full md:w-auto md:ml-auto">
             <Plus className="w-4 h-4 mr-2" />
             Novo Usuario
           </Button>
@@ -552,8 +552,64 @@ export default function AdminUsuariosTab() {
         />
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* Header da tabela */}
-          <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
+          {/* Mobile: Cards */}
+          <div className="md:hidden divide-y divide-border/50">
+            {usersPaginados.map((user) => (
+              <div key={user.id} className={`p-3.5 ${!user.active ? 'opacity-50' : ''}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-base font-medium text-foreground block truncate">{user.nome || '-'}</span>
+                    <span className="text-xs text-muted-foreground block truncate">{user.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {getUserTypeBadge(user.user_type)}
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {user.user_type === 'admin' ? (
+                    <span className="text-primary font-medium">Acesso total</span>
+                  ) : user.user_type === 'operacional' && user.clientes_vinculados.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {user.clientes_vinculados.slice(0, 3).map(clienteId => {
+                        const cliente = clientes.find(c => c.id === clienteId);
+                        return (
+                          <Badge key={clienteId} className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30">
+                            {cliente?.nome?.substring(0, 15) || clienteId.substring(0, 8)}
+                          </Badge>
+                        );
+                      })}
+                      {user.clientes_vinculados.length > 3 && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">+{user.clientes_vinculados.length - 3}</Badge>
+                      )}
+                    </div>
+                  ) : user.hub_permissions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {user.hub_permissions.map(hub => (
+                        <Badge key={hub} variant="outline" className="text-[10px] px-1.5 py-0">{hub}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <span>Nenhum acesso</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={user.active}
+                      onCheckedChange={() => handleToggleActive(user)}
+                    />
+                    <span className="text-xs text-muted-foreground">{user.active ? 'Ativo' : 'Inativo'}</span>
+                  </div>
+                  <Button variant="outline" size="sm" className="h-11" onClick={() => handleOpenDialog(user)}>
+                    <Edit className="w-4 h-4 mr-1.5" />Editar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: Header da tabela */}
+          <div className="hidden md:block bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
             <div className="grid grid-cols-[1.5fr_1.5fr_0.8fr_1.5fr_0.6fr_0.6fr] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               <div className="px-4 py-3 flex items-center gap-2">
                 <div className="w-1 h-4 rounded-full bg-primary/40" />
@@ -567,8 +623,8 @@ export default function AdminUsuariosTab() {
             </div>
           </div>
 
-          {/* Linhas */}
-          <div className="divide-y divide-border/50">
+          {/* Desktop: Linhas */}
+          <div className="hidden md:block divide-y divide-border/50">
             {usersPaginados.map((user, index) => (
               <div
                 key={user.id}

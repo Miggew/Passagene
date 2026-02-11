@@ -384,30 +384,32 @@ export default function FazendaDetail() {
       </div>
 
       <Tabs defaultValue="resumo" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="resumo" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+          <TabsTrigger value="resumo" className="flex items-center gap-1.5 text-xs md:text-sm">
             <Activity className="w-4 h-4" />
             Resumo
             {totalPendencias > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+              <Badge variant="destructive" className="ml-0.5 h-5 w-5 p-0 flex items-center justify-center text-xs">
                 {totalPendencias}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="receptoras" className="flex items-center gap-2">
+          <TabsTrigger value="receptoras" className="flex items-center gap-1.5 text-xs md:text-sm">
             <Beef className="w-4 h-4" />
-            Receptoras
-            <Badge variant="secondary" className="ml-1">{receptoraStats.total}</Badge>
+            <span className="hidden md:inline">Receptoras</span>
+            <span className="md:hidden">Recep.</span>
+            <Badge variant="secondary" className="ml-0.5">{receptoraStats.total}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="doadoras" className="flex items-center gap-2">
+          <TabsTrigger value="doadoras" className="flex items-center gap-1.5 text-xs md:text-sm">
             <Dna className="w-4 h-4" />
             Doadoras
-            <Badge variant="secondary" className="ml-1">{doadoraStats.total}</Badge>
+            <Badge variant="secondary" className="ml-0.5">{doadoraStats.total}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="animais" className="flex items-center gap-2">
+          <TabsTrigger value="animais" className="flex items-center gap-1.5 text-xs md:text-sm">
             <Baby className="w-4 h-4" />
-            Nascimentos
-            <Badge variant="secondary" className="ml-1">{animaisNascidos.length}</Badge>
+            <span className="hidden md:inline">Nascimentos</span>
+            <span className="md:hidden">Nasc.</span>
+            <Badge variant="secondary" className="ml-0.5">{animaisNascidos.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -562,34 +564,69 @@ export default function FazendaDetail() {
                   description="Os nascimentos registrados aparecerão aqui."
                 />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Sexo</TableHead>
-                      <TableHead>Raça</TableHead>
-                      <TableHead>Receptora</TableHead>
-                      <TableHead>Doadora x Touro</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {animaisNascidos.map(animal => (
-                      <TableRow key={animal.id}>
-                        <TableCell>{formatDate(animal.data_nascimento)}</TableCell>
-                        <TableCell>
-                          <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
-                            {animal.sexo === 'FEMEA' ? 'F' : animal.sexo === 'MACHO' ? 'M' : '?'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{animal.raca || '-'}</TableCell>
-                        <TableCell>{animal.receptora_brinco || '-'}</TableCell>
-                        <TableCell className="text-sm">
-                          {animal.doadora || '?'} x {animal.touro || '?'}
-                        </TableCell>
+                <>
+                {/* Mobile: Cards */}
+                <div className="md:hidden space-y-3">
+                  {animaisNascidos.map(animal => (
+                    <div key={animal.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground">{formatDate(animal.data_nascimento)}</span>
+                        <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
+                          {animal.sexo === 'FEMEA' ? 'Fêmea' : animal.sexo === 'MACHO' ? 'Macho' : '?'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                        {animal.raca && (
+                          <div>
+                            <span className="text-[10px] text-muted-foreground uppercase">Raça</span>
+                            <span className="block text-foreground">{animal.raca}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-[10px] text-muted-foreground uppercase">Receptora</span>
+                          <span className="block text-foreground">{animal.receptora_brinco || '-'}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-[10px] text-muted-foreground uppercase">Doadora x Touro</span>
+                          <span className="block text-foreground">{animal.doadora || '?'} x {animal.touro || '?'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: Table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Sexo</TableHead>
+                        <TableHead>Raça</TableHead>
+                        <TableHead>Receptora</TableHead>
+                        <TableHead>Doadora x Touro</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {animaisNascidos.map(animal => (
+                        <TableRow key={animal.id}>
+                          <TableCell>{formatDate(animal.data_nascimento)}</TableCell>
+                          <TableCell>
+                            <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
+                              {animal.sexo === 'FEMEA' ? 'F' : animal.sexo === 'MACHO' ? 'M' : '?'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{animal.raca || '-'}</TableCell>
+                          <TableCell>{animal.receptora_brinco || '-'}</TableCell>
+                          <TableCell className="text-sm">
+                            {animal.doadora || '?'} x {animal.touro || '?'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                </>
               )}
             </CardContent>
           </Card>

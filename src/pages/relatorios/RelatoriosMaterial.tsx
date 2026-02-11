@@ -388,7 +388,7 @@ export default function RelatoriosMaterial() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <PageHeader
         title="Material Genético"
         description="Estoque de embriões congelados e doses de sêmen"
@@ -409,24 +409,24 @@ export default function RelatoriosMaterial() {
 
         {/* Filtros */}
         <div className="rounded-xl border border-border bg-card p-4 mt-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
             {/* Busca */}
-            <div className="relative flex-1 min-w-[200px] max-w-[280px]">
+            <div className="relative w-full md:flex-1 md:min-w-[200px] md:max-w-[280px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={tipoMaterial === 'embrioes' ? 'Buscar por doadora ou touro...' : 'Buscar por touro ou partida...'}
                 value={filtroBusca}
                 onChange={(e) => setFiltroBusca(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
 
-            <div className="h-6 w-px bg-border hidden sm:block" />
+            <div className="h-px w-full md:h-6 md:w-px bg-border hidden md:block" />
 
             {/* Cliente (somente para admin/operacional) */}
             {!clienteIdFilter && (
               <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className="w-full md:w-[180px] h-11 md:h-9">
                   <SelectValue placeholder="Cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -440,7 +440,7 @@ export default function RelatoriosMaterial() {
 
             {/* Touro */}
             <Select value={filtroTouro} onValueChange={setFiltroTouro}>
-              <SelectTrigger className="w-[180px] h-9">
+              <SelectTrigger className="w-full md:w-[180px] h-11 md:h-9">
                 <SelectValue placeholder="Touro" />
               </SelectTrigger>
               <SelectContent>
@@ -454,7 +454,7 @@ export default function RelatoriosMaterial() {
             {/* Filtros específicos de Embriões */}
             {tipoMaterial === 'embrioes' && (
               <Select value={filtroQualidade} onValueChange={setFiltroQualidade}>
-                <SelectTrigger className="w-[130px] h-9">
+                <SelectTrigger className="w-full md:w-[130px] h-11 md:h-9">
                   <SelectValue placeholder="Qualidade" />
                 </SelectTrigger>
                 <SelectContent>
@@ -469,7 +469,7 @@ export default function RelatoriosMaterial() {
             {/* Filtros específicos de Sêmen */}
             {tipoMaterial === 'semen' && (
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-[150px] h-9">
+                <SelectTrigger className="w-full md:w-[150px] h-11 md:h-9">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -482,12 +482,12 @@ export default function RelatoriosMaterial() {
             )}
 
             {/* Ações */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 md:ml-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleLimparFiltros}
-                className="h-9"
+                className="h-11 md:h-9"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -496,7 +496,7 @@ export default function RelatoriosMaterial() {
                   variant="outline"
                   size="sm"
                   onClick={handleExportPdf}
-                  className="h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+                  className="h-11 md:h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
                 >
                   <FileText className="w-4 h-4 mr-1" />
                   PDF
@@ -534,9 +534,47 @@ export default function RelatoriosMaterial() {
                 </div>
               ) : (
                 <>
-                  {/* Tabela de Embriões */}
+                  {/* Mobile Cards - Embriões */}
                   {tipoMaterial === 'embrioes' && (
-                    <div className="rounded-lg border border-border overflow-hidden">
+                    <div className="md:hidden space-y-2">
+                      {dadosPaginados.map((row: EmbriaoRow) => (
+                        <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-medium text-foreground truncate">
+                                {row.doadora_registro || 'Sem registro'}
+                              </p>
+                              {row.doadora_nome && (
+                                <p className="text-xs text-muted-foreground truncate">{row.doadora_nome}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1 truncate">
+                                Touro: {row.touro_nome || '-'}
+                              </p>
+                              {!clienteIdFilter && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {row.cliente_nome}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="inline-flex items-center justify-center min-w-8 h-7 px-2 text-sm font-semibold bg-primary/15 text-primary rounded-lg">
+                                {row.quantidade}
+                              </span>
+                              {getQualidadeBadge(row.qualidade)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/40">
+                            <span className="text-xs text-muted-foreground">{row.estadio || '-'}</span>
+                            <span className="text-xs text-muted-foreground">{formatDate(row.data_congelamento)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Desktop Table - Embriões */}
+                  {tipoMaterial === 'embrioes' && (
+                    <div className="hidden md:block rounded-lg border border-border overflow-hidden">
                       <div className="grid grid-cols-[1.5fr_1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr] gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         {!clienteIdFilter && <div className="px-4 py-3">Cliente</div>}
                         <div className={`px-3 py-3 ${clienteIdFilter ? 'px-4' : ''}`}>Doadora</div>
@@ -578,9 +616,44 @@ export default function RelatoriosMaterial() {
                     </div>
                   )}
 
-                  {/* Tabela de Doses de Sêmen */}
+                  {/* Mobile Cards - Doses de Sêmen */}
                   {tipoMaterial === 'semen' && (
-                    <div className="rounded-lg border border-border overflow-hidden">
+                    <div className="md:hidden space-y-2">
+                      {dadosPaginados.map((row: DoseSemenRow) => (
+                        <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-medium text-foreground truncate">
+                                {row.touro_nome}
+                              </p>
+                              {row.touro_registro && (
+                                <p className="text-xs text-muted-foreground truncate">{row.touro_registro}</p>
+                              )}
+                              {!clienteIdFilter && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                  {row.cliente_nome}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="inline-flex items-center justify-center min-w-8 h-7 px-2 text-sm font-semibold bg-primary/15 text-primary rounded-lg">
+                                {row.quantidade_disponivel}
+                              </span>
+                              {getTipoSemenBadge(row.tipo_semen)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/40">
+                            {row.partida && <span className="text-xs text-muted-foreground">Partida: {row.partida}</span>}
+                            <span className="text-xs text-muted-foreground">{formatDate(row.data_aquisicao)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Desktop Table - Doses de Sêmen */}
+                  {tipoMaterial === 'semen' && (
+                    <div className="hidden md:block rounded-lg border border-border overflow-hidden">
                       <div className={`grid gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide ${
                         clienteIdFilter
                           ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
@@ -626,50 +699,79 @@ export default function RelatoriosMaterial() {
 
                   {/* Paginação */}
                   {totalPaginas > 1 && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                      <span className="text-sm text-muted-foreground">
-                        Mostrando {((paginaAtual - 1) * ITENS_POR_PAGINA) + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)} de {dadosFiltrados.length}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                          disabled={paginaAtual === 1}
-                        >
-                          Anterior
-                        </Button>
+                    <>
+                      {/* Mobile Pagination */}
+                      <div className="md:hidden flex items-center justify-between mt-4 pt-4 border-t border-border">
+                        <span className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                          {' '}de{' '}
+                          <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                        </span>
                         <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                            let pageNum;
-                            if (totalPaginas <= 5) pageNum = i + 1;
-                            else if (paginaAtual <= 3) pageNum = i + 1;
-                            else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
-                            else pageNum = paginaAtual - 2 + i;
-
-                            return (
-                              <Button
-                                key={pageNum}
-                                variant={paginaAtual === pageNum ? 'default' : 'outline'}
-                                size="sm"
-                                className={`w-9 h-9 p-0 ${paginaAtual === pageNum ? 'bg-primary hover:bg-primary-dark' : ''}`}
-                                onClick={() => setPaginaAtual(pageNum)}
-                              >
-                                {pageNum}
-                              </Button>
-                            );
-                          })}
+                          <button
+                            onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                            disabled={paginaAtual === 1}
+                            className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                          >
+                            Anterior
+                          </button>
+                          <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
+                          <button
+                            onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                            disabled={paginaAtual === totalPaginas}
+                            className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                          >
+                            Próximo
+                          </button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                          disabled={paginaAtual === totalPaginas}
-                        >
-                          Próximo
-                        </Button>
                       </div>
-                    </div>
+
+                      {/* Desktop Pagination */}
+                      <div className="hidden md:flex items-center justify-between mt-4 pt-4 border-t border-border">
+                        <span className="text-sm text-muted-foreground">
+                          Mostrando {((paginaAtual - 1) * ITENS_POR_PAGINA) + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)} de {dadosFiltrados.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                            disabled={paginaAtual === 1}
+                          >
+                            Anterior
+                          </Button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                              let pageNum;
+                              if (totalPaginas <= 5) pageNum = i + 1;
+                              else if (paginaAtual <= 3) pageNum = i + 1;
+                              else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                              else pageNum = paginaAtual - 2 + i;
+
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={paginaAtual === pageNum ? 'default' : 'outline'}
+                                  size="sm"
+                                  className={`w-9 h-9 p-0 ${paginaAtual === pageNum ? 'bg-primary hover:bg-primary-dark' : ''}`}
+                                  onClick={() => setPaginaAtual(pageNum)}
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                            disabled={paginaAtual === totalPaginas}
+                          >
+                            Próximo
+                          </Button>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </>
               )}

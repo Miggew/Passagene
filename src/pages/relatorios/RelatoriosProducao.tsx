@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, X, Eye, Calendar, TrendingUp, Activity, Percent, FileText } from 'lucide-react';
+import { Search, X, Eye, Calendar, TrendingUp, Activity, Percent, FileText, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
 import PageHeader from '@/components/shared/PageHeader';
@@ -374,7 +374,7 @@ export default function RelatoriosProducao() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <PageHeader
         title="Produção"
         description="Métricas de produção e lotes de FIV"
@@ -481,23 +481,23 @@ export default function RelatoriosProducao() {
 
       {/* Filtros */}
       <div className="rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
           {/* Busca */}
-          <div className="relative flex-1 min-w-[200px] max-w-[280px]">
+          <div className="relative w-full md:flex-1 md:min-w-[200px] md:max-w-[280px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por código ou fazenda..."
               value={filtroBusca}
               onChange={(e) => setFiltroBusca(e.target.value)}
-              className="pl-9 h-9"
+              className="pl-9 h-11 md:h-9"
             />
           </div>
 
-          <div className="h-6 w-px bg-border hidden sm:block" />
+          <div className="h-px w-full md:h-6 md:w-px bg-border hidden md:block" />
 
           {/* Fazenda */}
           <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-            <SelectTrigger className="w-[180px] h-9">
+            <SelectTrigger className="w-full md:w-[180px] h-11 md:h-9">
               <SelectValue placeholder="Fazenda" />
             </SelectTrigger>
             <SelectContent>
@@ -510,7 +510,7 @@ export default function RelatoriosProducao() {
 
           {/* Status */}
           <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger className="w-[150px] h-9">
+            <SelectTrigger className="w-full md:w-[150px] h-11 md:h-9">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -520,32 +520,36 @@ export default function RelatoriosProducao() {
             </SelectContent>
           </Select>
 
-          <div className="h-6 w-px bg-border hidden sm:block" />
+          <div className="h-px w-full md:h-6 md:w-px bg-border hidden md:block" />
 
           {/* Período */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground text-xs">de</span>
-            <DatePickerBR
-              value={filtroDataInicio}
-              onChange={setFiltroDataInicio}
-              className="h-8 w-[120px] text-xs"
-            />
-            <span className="text-muted-foreground text-xs">até</span>
-            <DatePickerBR
-              value={filtroDataFim}
-              onChange={setFiltroDataFim}
-              className="h-8 w-[120px] text-xs"
-            />
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 px-3 py-2 md:py-1.5 rounded-lg bg-muted/50">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground text-xs">de</span>
+              <DatePickerBR
+                value={filtroDataInicio}
+                onChange={setFiltroDataInicio}
+                className="h-11 md:h-8 flex-1 md:w-[120px] text-xs"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-xs">até</span>
+              <DatePickerBR
+                value={filtroDataFim}
+                onChange={setFiltroDataFim}
+                className="h-11 md:h-8 flex-1 md:w-[120px] text-xs"
+              />
+            </div>
           </div>
 
           {/* Ações */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 md:ml-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={handleLimparFiltros}
-              className="h-9"
+              className="h-11 md:h-9"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -554,7 +558,7 @@ export default function RelatoriosProducao() {
                 variant="outline"
                 size="sm"
                 onClick={handleExportPdf}
-                className="h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+                className="h-11 md:h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
               >
                 <FileText className="w-4 h-4 mr-1" />
                 PDF
@@ -579,7 +583,50 @@ export default function RelatoriosProducao() {
             </div>
           ) : (
             <>
-              <div className="rounded-lg border border-border overflow-hidden">
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {dadosPaginados.map((row) => (
+                  <div
+                    key={row.id}
+                    onClick={() => navigate(`/lotes-fiv/${row.id}`)}
+                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-medium text-foreground truncate">
+                          {row.codigo}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{row.fazenda_nome}</p>
+                        <span className="text-xs text-muted-foreground">{formatDate(row.data_abertura)}</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        {getStatusBadge(row.status)}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/40">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">Oócitos</span>
+                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-medium bg-muted text-foreground rounded">
+                          {row.total_oocitos}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">Embriões</span>
+                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-medium bg-primary/15 text-primary rounded">
+                          {row.total_embrioes}
+                        </span>
+                      </div>
+                      <div className="ml-auto">
+                        {getTaxaBadge(row.taxa_sucesso)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block rounded-lg border border-border overflow-hidden">
                 <div className="grid grid-cols-[1fr_1.5fr_1fr_0.8fr_0.8fr_0.8fr_1fr_0.6fr] gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <div className="px-4 py-3">Código</div>
                   <div className="px-3 py-3">Fazenda</div>
@@ -622,50 +669,79 @@ export default function RelatoriosProducao() {
 
               {/* Paginação */}
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                  <span className="text-sm text-muted-foreground">
-                    Mostrando {((paginaAtual - 1) * ITENS_POR_PAGINA) + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)} de {dadosFiltrados.length}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                      disabled={paginaAtual === 1}
-                    >
-                      Anterior
-                    </Button>
+                <>
+                  {/* Mobile Pagination */}
+                  <div className="md:hidden flex items-center justify-between mt-4 pt-4 border-t border-border">
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                      {' '}de{' '}
+                      <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                    </span>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                        let pageNum;
-                        if (totalPaginas <= 5) pageNum = i + 1;
-                        else if (paginaAtual <= 3) pageNum = i + 1;
-                        else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
-                        else pageNum = paginaAtual - 2 + i;
-
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={paginaAtual === pageNum ? 'default' : 'outline'}
-                            size="sm"
-                            className={`w-9 h-9 p-0 ${paginaAtual === pageNum ? 'bg-primary hover:bg-primary-dark' : ''}`}
-                            onClick={() => setPaginaAtual(pageNum)}
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaAtual === 1}
+                        className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Anterior
+                      </button>
+                      <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                        className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Próximo
+                      </button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                      disabled={paginaAtual === totalPaginas}
-                    >
-                      Próximo
-                    </Button>
                   </div>
-                </div>
+
+                  {/* Desktop Pagination */}
+                  <div className="hidden md:flex items-center justify-between mt-4 pt-4 border-t border-border">
+                    <span className="text-sm text-muted-foreground">
+                      Mostrando {((paginaAtual - 1) * ITENS_POR_PAGINA) + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)} de {dadosFiltrados.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaAtual === 1}
+                      >
+                        Anterior
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                          let pageNum;
+                          if (totalPaginas <= 5) pageNum = i + 1;
+                          else if (paginaAtual <= 3) pageNum = i + 1;
+                          else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                          else pageNum = paginaAtual - 2 + i;
+
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={paginaAtual === pageNum ? 'default' : 'outline'}
+                              size="sm"
+                              className={`w-9 h-9 p-0 ${paginaAtual === pageNum ? 'bg-primary hover:bg-primary-dark' : ''}`}
+                              onClick={() => setPaginaAtual(pageNum)}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                      >
+                        Próximo
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </>
           )}

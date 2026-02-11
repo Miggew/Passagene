@@ -406,7 +406,7 @@ export default function EmbrioesCongelados() {
 
       {/* Barra de Filtros Premium */}
       <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-        <div className="flex flex-wrap items-end gap-6">
+        <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
           {/* Grupo: Busca */}
           <div className="flex items-end gap-3">
             <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
@@ -414,19 +414,19 @@ export default function EmbrioesCongelados() {
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative w-full md:w-auto md:flex-1 md:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar embrião..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
           </div>
 
           {/* Separador */}
-          <div className="h-10 w-px bg-border hidden lg:block" />
+          <div className="h-10 w-px bg-border hidden md:block" />
 
           {/* Grupo: Cliente */}
           <div className="flex items-end gap-3">
@@ -435,9 +435,9 @@ export default function EmbrioesCongelados() {
               <Users className="w-3.5 h-3.5" />
               <span>Cliente</span>
             </div>
-            <div className="w-[180px]">
+            <div className="w-full md:w-[180px]">
               <Select value={filtroCliente} onValueChange={setFiltroCliente}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-11 md:h-9">
                   <SelectValue placeholder="Cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -451,18 +451,18 @@ export default function EmbrioesCongelados() {
           </div>
 
           {/* Separador */}
-          <div className="h-10 w-px bg-border hidden lg:block" />
+          <div className="h-10 w-px bg-border hidden md:block" />
 
           {/* Grupo: Genética */}
-          <div className="flex items-end gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <div className="w-1 h-6 rounded-full bg-blue-500/40 self-center" />
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
               <Dna className="w-3.5 h-3.5" />
               <span>Genética</span>
             </div>
-            <div className="w-[150px]">
+            <div className="w-[calc(50%-0.5rem)] md:w-[150px]">
               <Select value={filtroRaca} onValueChange={setFiltroRaca}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-11 md:h-9">
                   <SelectValue placeholder="Raça" />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,9 +473,9 @@ export default function EmbrioesCongelados() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[150px]">
+            <div className="w-[calc(50%-0.5rem)] md:w-[150px]">
               <Select value={filtroClassificacao} onValueChange={setFiltroClassificacao}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-11 md:h-9">
                   <SelectValue placeholder="Classificação" />
                 </SelectTrigger>
                 <SelectContent>
@@ -486,9 +486,9 @@ export default function EmbrioesCongelados() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[180px]">
+            <div className="w-full md:w-[180px]">
               <Select value={filtroTouro} onValueChange={setFiltroTouro}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-11 md:h-9">
                   <SelectValue placeholder="Touro" />
                 </SelectTrigger>
                 <SelectContent>
@@ -513,7 +513,7 @@ export default function EmbrioesCongelados() {
                 setFiltroClassificacao('todos');
                 setFiltroTouro('todos');
               }}
-              className="h-9 ml-auto"
+              className="h-11 md:h-9 ml-auto"
             >
               <X className="w-4 h-4 mr-2" />
               Limpar Filtros
@@ -528,73 +528,135 @@ export default function EmbrioesCongelados() {
           <CardTitle>Embriões Congelados ({filteredEmbrioes.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredEmbrioes.length === 0 ? (
-            <EmptyState
-              title="Nenhum embrião encontrado"
-              description={searchTerm || filtroCliente !== 'todos' || filtroRaca !== 'todos' || filtroClassificacao !== 'todos' || filtroTouro !== 'todos'
-                ? "Tente ajustar os filtros"
-                : "Nenhum embrião congelado no estoque"
-              }
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Identificação</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Classificação</TableHead>
-                  <TableHead>Doadora</TableHead>
-                  <TableHead>Touro</TableHead>
-                  <TableHead>Raça</TableHead>
-                  <TableHead>Data Cong.</TableHead>
-                  <TableHead>Localização</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmbrioes.map((embriao) => {
-                  const acasalamento = embriao.acasalamento as any;
-                  const doadora = acasalamento?.aspiracao?.doadora;
-                  const touro = acasalamento?.dose_semen?.touro;
-                  const raca = doadora?.raca || touro?.raca;
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {filteredEmbrioes.length === 0 ? (
+              <EmptyState
+                title="Nenhum embrião encontrado"
+                description={searchTerm || filtroCliente !== 'todos' || filtroRaca !== 'todos' || filtroClassificacao !== 'todos' || filtroTouro !== 'todos'
+                  ? "Tente ajustar os filtros"
+                  : "Nenhum embrião congelado no estoque"
+                }
+              />
+            ) : (
+              filteredEmbrioes.map((embriao) => {
+                const acasalamento = embriao.acasalamento as any;
+                const doadora = acasalamento?.aspiracao?.doadora;
+                const touro = acasalamento?.dose_semen?.touro;
+                const raca = doadora?.raca || touro?.raca;
 
-                  return (
-                    <TableRow key={embriao.id}>
-                      <TableCell className="font-medium font-mono text-sm">
-                        {embriao.identificacao || '-'}
-                      </TableCell>
-                      <TableCell>{embriao.cliente?.nome || '-'}</TableCell>
-                      <TableCell>
-                        {embriao.classificacao ? (
-                          <Badge variant="secondary">{embriao.classificacao}</Badge>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell>{doadora?.registro || doadora?.nome || '-'}</TableCell>
-                      <TableCell>
-                        {touro?.nome || '-'}
-                        {touro?.registro && (
-                          <span className="text-muted-foreground text-xs ml-1">({touro.registro})</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{raca || '-'}</TableCell>
-                      <TableCell>{formatDate(embriao.data_congelamento)}</TableCell>
-                      <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEmbriaoDetalhe(embriao)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Detalhar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+                return (
+                  <div
+                    key={embriao.id}
+                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+                    onClick={() => setEmbriaoDetalhe(embriao)}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-medium text-base font-mono">{embriao.identificacao || '-'}</span>
+                      {embriao.classificacao && <Badge variant="secondary">{embriao.classificacao}</Badge>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase block">Doadora</span>
+                        <span className="font-medium">{doadora?.registro || doadora?.nome || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase block">Touro</span>
+                        <span className="font-medium">{touro?.nome || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase block">Cliente</span>
+                        <span className="font-medium">{embriao.cliente?.nome || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase block">Raça</span>
+                        <span className="font-medium">{raca || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase block">Data Cong.</span>
+                        <span className="font-medium">{formatDate(embriao.data_congelamento)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase block">Localização</span>
+                        <span className="font-medium">{embriao.localizacao_atual || '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            {filteredEmbrioes.length === 0 ? (
+              <EmptyState
+                title="Nenhum embrião encontrado"
+                description={searchTerm || filtroCliente !== 'todos' || filtroRaca !== 'todos' || filtroClassificacao !== 'todos' || filtroTouro !== 'todos'
+                  ? "Tente ajustar os filtros"
+                  : "Nenhum embrião congelado no estoque"
+                }
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Identificação</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Classificação</TableHead>
+                    <TableHead>Doadora</TableHead>
+                    <TableHead>Touro</TableHead>
+                    <TableHead>Raça</TableHead>
+                    <TableHead>Data Cong.</TableHead>
+                    <TableHead>Localização</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmbrioes.map((embriao) => {
+                    const acasalamento = embriao.acasalamento as any;
+                    const doadora = acasalamento?.aspiracao?.doadora;
+                    const touro = acasalamento?.dose_semen?.touro;
+                    const raca = doadora?.raca || touro?.raca;
+
+                    return (
+                      <TableRow key={embriao.id}>
+                        <TableCell className="font-medium font-mono text-sm">
+                          {embriao.identificacao || '-'}
+                        </TableCell>
+                        <TableCell>{embriao.cliente?.nome || '-'}</TableCell>
+                        <TableCell>
+                          {embriao.classificacao ? (
+                            <Badge variant="secondary">{embriao.classificacao}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>{doadora?.registro || doadora?.nome || '-'}</TableCell>
+                        <TableCell>
+                          {touro?.nome || '-'}
+                          {touro?.registro && (
+                            <span className="text-muted-foreground text-xs ml-1">({touro.registro})</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{raca || '-'}</TableCell>
+                        <TableCell>{formatDate(embriao.data_congelamento)}</TableCell>
+                        <TableCell>{embriao.localizacao_atual || '-'}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEmbriaoDetalhe(embriao)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Detalhar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -112,7 +112,7 @@ export default function Doadoras() {
         <>
           {/* Barra de Filtros Premium */}
           <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-6">
                 {/* Grupo: Busca */}
                 <div className="flex items-center gap-3">
@@ -121,7 +121,7 @@ export default function Doadoras() {
                     <Filter className="w-3.5 h-3.5" />
                     <span>Busca</span>
                   </div>
-                  <div className="flex-1 min-w-[220px]">
+                  <div className="w-full md:w-auto md:flex-1 md:min-w-[220px]">
                     <SearchInput
                       value={searchTerm}
                       onChange={setSearchTerm}
@@ -131,7 +131,7 @@ export default function Doadoras() {
                 </div>
 
                 {/* Separador */}
-                <div className="h-10 w-px bg-border hidden lg:block" />
+                <div className="h-10 w-px bg-border hidden md:block" />
 
                 {/* Grupo: Ordenação por Data */}
                 <div className="flex items-center gap-3">
@@ -167,7 +167,7 @@ export default function Doadoras() {
                 {/* Botão Limpar */}
                 {hasActiveFilters && (
                   <>
-                    <div className="h-10 w-px bg-border hidden lg:block" />
+                    <div className="h-10 w-px bg-border hidden md:block" />
                     <Button
                       variant="outline"
                       size="sm"
@@ -354,42 +354,121 @@ function DoadorasTable({
   setHistoricoDoadoraId,
 }: DoadorasTableProps) {
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Registro</TableHead>
-            <TableHead>Nome</TableHead>
-            <TableHead>Ultima Aspiracao</TableHead>
-            <TableHead>Oocitos</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Raca (Campos Especiais)</TableHead>
-            <TableHead>Classificacao</TableHead>
-            <TableHead className="text-right">Acoes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {doadoras.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground">
-                {searchTerm
-                  ? 'Nenhuma doadora encontrada'
-                  : 'Nenhuma doadora cadastrada nesta fazenda'}
-              </TableCell>
-            </TableRow>
-          ) : (
-            doadoras.map((doadora) => (
-              <DoadoraRow
-                key={doadora.id}
-                doadora={doadora}
-                navigate={navigate}
-                setHistoricoDoadoraId={setHistoricoDoadoraId}
-              />
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <>
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {doadoras.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">
+            {searchTerm ? 'Nenhuma doadora encontrada' : 'Nenhuma doadora cadastrada nesta fazenda'}
+          </p>
+        ) : (
+          doadoras.map((doadora) => (
+            <div
+              key={doadora.id}
+              className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+              onClick={() => navigate(`/doadoras/${doadora.id}`)}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-medium text-base truncate">{doadora.registro}</span>
+                <Badge
+                  variant="outline"
+                  className={doadora.disponivel_aspiracao
+                    ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30'
+                    : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30'
+                  }
+                >
+                  {doadora.disponivel_aspiracao ? 'Disponível' : 'Indisponível'}
+                </Badge>
+              </div>
+              {doadora.nome && <p className="text-sm text-muted-foreground mb-2">{doadora.nome}</p>}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block">Raça</span>
+                  <span className="font-medium">{doadora.raca || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block">Última Aspiração</span>
+                  <span className="font-medium">{doadora.ultima_aspiracao_data ? formatDateBR(doadora.ultima_aspiracao_data) : '-'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block">Oócitos</span>
+                  <span className="font-medium">{doadora.ultima_aspiracao_total_oocitos ?? '-'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block">Classificação</span>
+                  <span className="font-medium">{doadora.classificacao_genetica ? doadora.classificacao_genetica.replace('_', ' ') : '-'}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-11"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHistoricoDoadoraId(doadora.id);
+                  }}
+                >
+                  <History className="w-4 h-4 mr-2" />
+                  Histórico
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-11"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/doadoras/${doadora.id}`);
+                  }}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Registro</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Ultima Aspiracao</TableHead>
+                <TableHead>Oocitos</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Raca (Campos Especiais)</TableHead>
+                <TableHead>Classificacao</TableHead>
+                <TableHead className="text-right">Acoes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {doadoras.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    {searchTerm
+                      ? 'Nenhuma doadora encontrada'
+                      : 'Nenhuma doadora cadastrada nesta fazenda'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                doadoras.map((doadora) => (
+                  <DoadoraRow
+                    key={doadora.id}
+                    doadora={doadora}
+                    navigate={navigate}
+                    setHistoricoDoadoraId={setHistoricoDoadoraId}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </>
   );
 }
 

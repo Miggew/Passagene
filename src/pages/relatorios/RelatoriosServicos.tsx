@@ -20,6 +20,8 @@ import {
   ArrowRightLeft,
   ThumbsUp,
   FileText,
+  ChevronRight,
+  Stethoscope,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { supabase } from '@/lib/supabase';
@@ -699,7 +701,7 @@ export default function RelatoriosServicos() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <PageHeader
         title="Serviços de Campo"
         description="Histórico de protocolos, aspirações, transferências e diagnósticos"
@@ -761,22 +763,22 @@ export default function RelatoriosServicos() {
 
         {/* Filtros */}
         <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex flex-wrap items-stretch">
+          <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
             {/* Grupo: Busca */}
-            <div className="flex items-center px-4 py-3 border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
-              <div className="relative min-w-[200px] max-w-[280px]">
+            <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
+              <div className="relative w-full md:min-w-[200px] md:max-w-[280px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/60" />
                 <Input
                   placeholder="Buscar fazenda, veterinário..."
                   value={filtroBusca}
                   onChange={(e) => setFiltroBusca(e.target.value)}
-                  className="pl-9 h-9 bg-background/80 border-primary/20 focus:border-primary/40"
+                  className="pl-9 h-11 md:h-9 bg-background/80 border-primary/20 focus:border-primary/40"
                 />
               </div>
             </div>
 
             {/* Grupo: Filtros principais */}
-            <div className="flex items-center gap-3 px-4 py-3 border-r border-border">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border">
               {/* Indicador visual de seção */}
               <div className="flex items-center gap-2">
                 <div className="w-1 h-6 rounded-full bg-primary/40" />
@@ -785,7 +787,7 @@ export default function RelatoriosServicos() {
 
               {/* Fazenda */}
               <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-                <SelectTrigger className="w-[170px] h-9 bg-background">
+                <SelectTrigger className="w-full md:w-[170px] h-11 md:h-9 bg-background">
                   <SelectValue placeholder="Fazenda" />
                 </SelectTrigger>
                 <SelectContent>
@@ -799,7 +801,7 @@ export default function RelatoriosServicos() {
               {/* Status (apenas para protocolos e aspirações) */}
               {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="w-[140px] h-9 bg-background">
+                  <SelectTrigger className="w-full md:w-[140px] h-11 md:h-9 bg-background">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -815,7 +817,7 @@ export default function RelatoriosServicos() {
             </div>
 
             {/* Grupo: Período */}
-            <div className="flex items-center gap-3 px-4 py-3 border-r border-border bg-muted/30">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-muted/30">
               {/* Indicador visual de seção */}
               <div className="flex items-center gap-2">
                 <div className="w-1 h-6 rounded-full bg-primary/40" />
@@ -825,7 +827,7 @@ export default function RelatoriosServicos() {
               {/* Seletor de tipo de data (apenas para protocolos) */}
               {tipoServico === 'protocolos' && (
                 <Select value={filtroDataTipo} onValueChange={(v) => setFiltroDataTipo(v as 'data_inicio' | 'passo2_data')}>
-                  <SelectTrigger className="h-8 w-[90px] text-xs bg-background/60 border-dashed">
+                  <SelectTrigger className="h-11 md:h-8 w-full md:w-[90px] text-xs bg-background/60 border-dashed">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -840,9 +842,9 @@ export default function RelatoriosServicos() {
                   value={filtroDataInicio}
                   onChange={setFiltroDataInicio}
                   placeholder="Início"
-                  className="h-9 w-[120px] bg-background"
+                  className="h-11 md:h-9 w-full md:w-[120px] bg-background"
                 />
-                <div className="flex items-center gap-1">
+                <div className="hidden md:flex items-center gap-1">
                   <div className="w-2 h-px bg-primary/40" />
                   <div className="w-1 h-1 rounded-full bg-primary/60" />
                   <div className="w-2 h-px bg-primary/40" />
@@ -851,19 +853,19 @@ export default function RelatoriosServicos() {
                   value={filtroDataFim}
                   onChange={setFiltroDataFim}
                   placeholder="Fim"
-                  className="h-9 w-[120px] bg-background"
+                  className="h-11 md:h-9 w-full md:w-[120px] bg-background"
                 />
               </div>
             </div>
 
             {/* Grupo: Ações */}
-            <div className="flex items-center gap-2 px-4 py-3 ml-auto bg-gradient-to-b from-muted/50 to-transparent">
+            <div className="flex items-center gap-2 px-4 py-3 md:ml-auto bg-gradient-to-b from-muted/50 to-transparent">
               {(filtroBusca || filtroFazenda !== 'all' || filtroStatus !== 'all' || filtroDataInicio || filtroDataFim || filtroDataTipo !== 'data_inicio') && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleLimparFiltros}
-                  className="h-9 border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"
+                  className="h-11 md:h-9 border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Limpar
@@ -872,7 +874,7 @@ export default function RelatoriosServicos() {
               <Button
                 size="sm"
                 onClick={() => loadData()}
-                className="h-9 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
+                className="h-11 md:h-9 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
               >
                 <Search className="w-4 h-4 mr-1" />
                 Buscar
@@ -882,7 +884,7 @@ export default function RelatoriosServicos() {
                   variant="outline"
                   size="sm"
                   onClick={handleExportPdf}
-                  className="h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+                  className="h-11 md:h-9 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
                 >
                   <FileText className="w-4 h-4 mr-1" />
                   PDF
@@ -903,7 +905,83 @@ export default function RelatoriosServicos() {
               Nenhum registro encontrado
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <>
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-2">
+              {dadosPaginados.map((row: ProtocoloRow | AspiracaoRow | SessaoRow) => (
+                <div
+                  key={row.id}
+                  onClick={() => handleVerDetalhe(tipoServico, row)}
+                  className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-medium text-foreground truncate">
+                        {row.fazenda_nome}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(
+                            tipoServico === 'protocolos' ? (row as ProtocoloRow).data_inicio :
+                            tipoServico === 'aspiracoes' ? (row as AspiracaoRow).data_aspiracao :
+                            (row as SessaoRow).data
+                          )}
+                        </span>
+                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
+                          {tipoServico === 'protocolos' ? (row as ProtocoloRow).total_receptoras :
+                           tipoServico === 'aspiracoes' ? (row as AspiracaoRow).total_doadoras :
+                           (row as SessaoRow).total_registros}
+                          {' '}{tipoServico === 'protocolos' ? 'rec.' : tipoServico === 'aspiracoes' ? 'doad.' : 'reg.'}
+                        </span>
+                      </div>
+                      {row.veterinario_responsavel && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <Stethoscope className="w-3 h-3 text-muted-foreground/60" />
+                          <span className="text-xs text-muted-foreground truncate">{row.veterinario_responsavel}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
+                        getStatusBadge((row as ProtocoloRow | AspiracaoRow).status)
+                      )}
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Mobile Pagination */}
+              {totalPaginas > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                    {' '}de{' '}
+                    <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                      disabled={paginaAtual === 1}
+                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      Anterior
+                    </button>
+                    <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
+                    <button
+                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                      disabled={paginaAtual === totalPaginas}
+                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                      Próximo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
               {/* Header da tabela com gradiente */}
               <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
                 <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${
@@ -1043,6 +1121,7 @@ export default function RelatoriosServicos() {
                 </div>
               )}
             </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

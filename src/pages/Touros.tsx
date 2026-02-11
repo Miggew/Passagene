@@ -132,7 +132,7 @@ function TourosFilters({
 
   return (
     <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
-      <div className="flex flex-wrap items-end gap-6">
+      <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
         {/* Grupo: Busca */}
         <div className="flex items-end gap-3">
           <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
@@ -140,19 +140,19 @@ function TourosFilters({
             <Filter className="w-3.5 h-3.5" />
             <span>Busca</span>
           </div>
-          <div className="relative flex-1 min-w-[250px]">
+          <div className="relative w-full md:w-auto md:flex-1 md:min-w-[250px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome, registro ou raça..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-9"
+              className="pl-9 h-11 md:h-9"
             />
           </div>
         </div>
 
         {/* Separador */}
-        <div className="h-10 w-px bg-border hidden lg:block" />
+        <div className="h-10 w-px bg-border hidden md:block" />
 
         {/* Grupo: Raça */}
         <div className="flex items-end gap-3">
@@ -161,12 +161,12 @@ function TourosFilters({
             <Dna className="w-3.5 h-3.5" />
             <span>Raça</span>
           </div>
-          <div className="w-[180px]">
+          <div className="w-full md:w-[180px]">
             <Select
               value={filtroRaca || 'all'}
               onValueChange={(value) => setFiltroRaca(value === 'all' ? '' : value)}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-11 md:h-9">
                 <SelectValue placeholder="Todas as raças" />
               </SelectTrigger>
               <SelectContent>
@@ -190,7 +190,7 @@ function TourosFilters({
               setSearchTerm('');
               setFiltroRaca('');
             }}
-            className="h-9 ml-auto"
+            className="h-11 md:h-9 ml-auto"
           >
             <X className="w-4 h-4 mr-2" />
             Limpar Filtros
@@ -208,6 +208,44 @@ interface TourosTableProps {
 
 function TourosTable({ touros, navigate }: TourosTableProps) {
   return (
+    <>
+    {/* Mobile cards */}
+    <div className="md:hidden space-y-3">
+      {touros.length === 0 ? (
+        <EmptyState title="Nenhum touro cadastrado" description="Cadastre o primeiro touro para comecar." />
+      ) : (
+        touros.map((touro) => (
+          <div
+            key={touro.id}
+            className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+            onClick={() => navigate(`/touros/${touro.id}`)}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-medium text-base truncate">{touro.nome}</span>
+              {touro.raca && <Badge variant="outline">{touro.raca}</Badge>}
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">{touro.registro}</p>
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase block">NM$</span>
+                <span className="font-medium">{touro.nm_dolares != null ? `+${touro.nm_dolares}` : '-'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase block">TPI</span>
+                <span className="font-medium">{touro.tpi != null ? `+${touro.tpi}` : '-'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase block">PTAT</span>
+                <span className="font-medium">{touro.ptat != null ? `+${touro.ptat}` : '-'}</span>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+
+    {/* Desktop table */}
+    <div className="hidden md:block">
     <Table>
       <TableHeader>
         <TableRow>
@@ -235,6 +273,8 @@ function TourosTable({ touros, navigate }: TourosTableProps) {
         )}
       </TableBody>
     </Table>
+    </div>
+    </>
   );
 }
 

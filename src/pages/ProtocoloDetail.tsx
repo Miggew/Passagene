@@ -513,38 +513,61 @@ export default function ProtocoloDetail() {
           <CardTitle>Receptoras do Protocolo ({receptoras.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Brinco</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Observações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {receptoras.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    Nenhuma receptora adicionada ao protocolo
-                  </TableCell>
-                </TableRow>
-              ) : (
-                receptoras.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.identificacao}</TableCell>
-                    <TableCell>{r.nome || '-'}</TableCell>
-                    <TableCell>
+          {receptoras.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma receptora adicionada ao protocolo
+            </div>
+          ) : (
+            <>
+              {/* Mobile: Cards */}
+              <div className="md:hidden space-y-3">
+                {receptoras.map((r) => (
+                  <div key={r.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-base font-medium text-foreground">{r.identificacao}</span>
                       <Badge variant="secondary">
                         {r.pr_status === 'INICIADA' ? 'Em Sincronização' : r.pr_status}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">{r.pr_observacoes || '-'}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </div>
+                    {r.nome && (
+                      <p className="text-sm text-muted-foreground mb-1">{r.nome}</p>
+                    )}
+                    {r.pr_observacoes && (
+                      <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">{r.pr_observacoes}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Brinco</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Observações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {receptoras.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.identificacao}</TableCell>
+                        <TableCell>{r.nome || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {r.pr_status === 'INICIADA' ? 'Em Sincronização' : r.pr_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{r.pr_observacoes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

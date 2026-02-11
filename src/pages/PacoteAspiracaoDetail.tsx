@@ -253,7 +253,7 @@ export default function PacoteAspiracaoDetail() {
   return (
     <div className="space-y-6">
       {/* Header compacto */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4" />
@@ -262,6 +262,7 @@ export default function PacoteAspiracaoDetail() {
         </div>
         {!isFinalizado && (
           <Button
+            className="h-11 md:h-9 w-full md:w-auto"
             onClick={() => setShowFinalizarDialog(true)}
             disabled={submittingPacote || aspiracoes.length === 0}
           >
@@ -274,20 +275,14 @@ export default function PacoteAspiracaoDetail() {
       {/* Informações da Aspiração - Compacto */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          {/* Linha 1: Fazenda + Status + Resumo */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-4">
+          {/* Mobile layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
                 <p className="text-base font-semibold text-foreground">{fazendaNome}</p>
               </div>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <span className="text-xs font-medium text-muted-foreground">Data</span>
-                <p className="text-sm text-foreground">{formatDate(pacote.data_aspiracao)}</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div>
+              <div className="flex items-center gap-2">
                 <Badge
                   variant={isFinalizado ? 'default' : 'outline'}
                   className={isFinalizado
@@ -297,61 +292,148 @@ export default function PacoteAspiracaoDetail() {
                   {isFinalizado ? 'Finalizado' : 'Em Andamento'}
                 </Badge>
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div>
+                <span className="text-xs font-medium text-muted-foreground">Data</span>
+                <p className="text-sm text-foreground">{formatDate(pacote.data_aspiracao)}</p>
+              </div>
               {!isFinalizado && (
-                <Button variant="outline" size="sm" className="h-7" onClick={() => setShowEditPacote(true)}>
+                <Button variant="outline" size="sm" className="h-9" onClick={() => setShowEditPacote(true)}>
                   <Edit className="w-3.5 h-3.5 mr-1" />
                   Editar
                 </Button>
               )}
             </div>
-
-            {/* Resumo inline */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Doadoras:</span>
                 <CountBadge value={aspiracoes.length} variant="default" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Oócitos:</span>
+                <span className="text-xs text-muted-foreground">Oocitos:</span>
                 <CountBadge value={totalOocitos} variant="primary" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Média:</span>
+                <span className="text-xs text-muted-foreground">Media:</span>
                 <CountBadge value={aspiracoes.length > 0 ? Math.round(totalOocitos / aspiracoes.length) : 0} variant="info" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Inicio</h4>
+                <p className="text-xs text-foreground">{pacote.horario_inicio || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fim</h4>
+                <p className="text-xs text-foreground">{horarioFim || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinario</h4>
+                <p className="text-xs text-foreground">{pacote.veterinario_responsavel || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tecnico</h4>
+                <p className="text-xs text-foreground">{pacote.tecnico_responsavel || '—'}</p>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fazendas Destino</h4>
+                <div className="flex flex-wrap gap-1">
+                  {fazendasDestinoNomes.length > 0 ? (
+                    fazendasDestinoNomes.map((nome, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0">
+                        {nome}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Linha 2: Grid com detalhes */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 pt-3 border-t border-border">
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Início</h4>
-              <p className="text-xs text-foreground">{pacote.horario_inicio || '—'}</p>
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fim</h4>
-              <p className="text-xs text-foreground">{horarioFim || '—'}</p>
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinário</h4>
-              <p className="text-xs text-foreground">{pacote.veterinario_responsavel || '—'}</p>
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Técnico</h4>
-              <p className="text-xs text-foreground">{pacote.tecnico_responsavel || '—'}</p>
-            </div>
-            <div className="space-y-1 lg:col-span-2">
-              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fazendas Destino</h4>
-              <div className="flex flex-wrap gap-1">
-                {fazendasDestinoNomes.length > 0 ? (
-                  fazendasDestinoNomes.map((nome, index) => (
-                    <Badge key={index} variant="outline" className="text-[10px] px-1.5 py-0">
-                      {nome}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
+          {/* Desktop layout */}
+          <div className="hidden md:block">
+            {/* Linha 1: Fazenda + Status + Resumo */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
+                  <p className="text-base font-semibold text-foreground">{fazendaNome}</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground">Data</span>
+                  <p className="text-sm text-foreground">{formatDate(pacote.data_aspiracao)}</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div>
+                  <Badge
+                    variant={isFinalizado ? 'default' : 'outline'}
+                    className={isFinalizado
+                      ? 'bg-primary hover:bg-primary-dark'
+                      : 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}
+                  >
+                    {isFinalizado ? 'Finalizado' : 'Em Andamento'}
+                  </Badge>
+                </div>
+                {!isFinalizado && (
+                  <Button variant="outline" size="sm" className="h-7" onClick={() => setShowEditPacote(true)}>
+                    <Edit className="w-3.5 h-3.5 mr-1" />
+                    Editar
+                  </Button>
                 )}
+              </div>
+
+              {/* Resumo inline */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Doadoras:</span>
+                  <CountBadge value={aspiracoes.length} variant="default" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Oócitos:</span>
+                  <CountBadge value={totalOocitos} variant="primary" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Média:</span>
+                  <CountBadge value={aspiracoes.length > 0 ? Math.round(totalOocitos / aspiracoes.length) : 0} variant="info" />
+                </div>
+              </div>
+            </div>
+
+            {/* Linha 2: Grid com detalhes */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 pt-3 border-t border-border">
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Início</h4>
+                <p className="text-xs text-foreground">{pacote.horario_inicio || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fim</h4>
+                <p className="text-xs text-foreground">{horarioFim || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Veterinário</h4>
+                <p className="text-xs text-foreground">{pacote.veterinario_responsavel || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Técnico</h4>
+                <p className="text-xs text-foreground">{pacote.tecnico_responsavel || '—'}</p>
+              </div>
+              <div className="space-y-1 lg:col-span-2">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Fazendas Destino</h4>
+                <div className="flex flex-wrap gap-1">
+                  {fazendasDestinoNomes.length > 0 ? (
+                    fazendasDestinoNomes.map((nome, index) => (
+                      <Badge key={index} variant="outline" className="text-[10px] px-1.5 py-0">
+                        {nome}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -361,7 +443,7 @@ export default function PacoteAspiracaoDetail() {
       {/* Lista de Doadoras */}
       <Card>
         <CardHeader className="pb-2 pt-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <CardTitle className="text-base">Doadoras Aspiradas ({aspiracoes.length})</CardTitle>
             {!isFinalizado && (
               <Dialog
@@ -375,7 +457,7 @@ export default function PacoteAspiracaoDetail() {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" className="h-11 md:h-9 w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Doadora
                   </Button>
@@ -578,57 +660,123 @@ export default function PacoteAspiracaoDetail() {
           </div>
         </CardHeader>
         <CardContent className="pt-0 pb-2">
-          <DataTable
-            data={aspiracoes}
-            rowKey="id"
-            rowNumber
-            emptyMessage="Nenhuma doadora adicionada à aspiração"
-            columns={[
-              { key: 'doadora_nome', label: 'Doadora' },
-              { key: 'doadora_registro', label: 'Registro' },
-              { key: 'horario', label: 'Horário' },
-              { key: 'viaveis', label: 'Viáv.', align: 'center' },
-              { key: 'total_oocitos', label: 'Total', align: 'center' },
-              { key: 'recomendacao_touro', label: 'Rec. Touro' },
-              { key: 'observacoes', label: 'Obs.' },
-            ]}
-            renderCell={(row, column) => {
-              switch (column.key) {
-                case 'doadora_nome':
-                  return <span className="font-medium text-foreground">{row.doadora_nome || '—'}</span>;
-                case 'doadora_registro':
-                  return <span className="text-xs text-muted-foreground">{row.doadora_registro || '—'}</span>;
-                case 'horario':
-                  return (
-                    <span className="text-xs text-foreground whitespace-nowrap">
-                      {row.horario_aspiracao
-                        ? `${row.horario_aspiracao}${row.hora_final ? `-${row.hora_final}` : ''}`
-                        : '—'}
-                    </span>
-                  );
-                case 'viaveis':
-                  return <CountBadge value={row.viaveis || 0} variant="primary" />;
-                case 'total_oocitos':
-                  return <CountBadge value={row.total_oocitos || 0} variant="default" />;
-                case 'recomendacao_touro':
-                  return <span className="text-xs text-muted-foreground truncate">{row.recomendacao_touro || '—'}</span>;
-                case 'observacoes':
-                  return <span className="text-xs text-muted-foreground truncate">{row.observacoes || '—'}</span>;
-                default:
-                  return null;
-              }
-            }}
-            actions={!isFinalizado ? (row) => (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => editAspiracaoHook.openEdit(row)}
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
-            ) : undefined}
-          />
+          {aspiracoes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma doadora adicionada à aspiração
+            </div>
+          ) : (
+            <>
+              {/* Mobile card layout */}
+              <div className="md:hidden space-y-2">
+                {aspiracoes.map((row, index) => (
+                  <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-muted-foreground shrink-0">{index + 1}.</span>
+                        <div className="min-w-0">
+                          <p className="text-base font-medium text-foreground truncate">{row.doadora_nome || '—'}</p>
+                          {row.doadora_registro && (
+                            <p className="text-xs text-muted-foreground truncate">{row.doadora_registro}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">Viav.</span>
+                          <CountBadge value={row.viaveis || 0} variant="primary" />
+                        </div>
+                        {!isFinalizado && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-11 w-11 p-0"
+                            onClick={() => editAspiracaoHook.openEdit(row)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>Total: <span className="text-foreground font-medium">{row.total_oocitos || 0}</span></span>
+                      {row.horario_aspiracao && (
+                        <span>
+                          {row.horario_aspiracao}{row.hora_final ? `-${row.hora_final}` : ''}
+                        </span>
+                      )}
+                    </div>
+                    {(row.recomendacao_touro || row.observacoes) && (
+                      <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                        {row.recomendacao_touro && (
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Rec. Touro:</span> {row.recomendacao_touro}
+                          </p>
+                        )}
+                        {row.observacoes && (
+                          <p className="text-xs text-muted-foreground">{row.observacoes}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden md:block">
+                <DataTable
+                  data={aspiracoes}
+                  rowKey="id"
+                  rowNumber
+                  emptyMessage="Nenhuma doadora adicionada à aspiração"
+                  columns={[
+                    { key: 'doadora_nome', label: 'Doadora' },
+                    { key: 'doadora_registro', label: 'Registro' },
+                    { key: 'horario', label: 'Horário' },
+                    { key: 'viaveis', label: 'Viáv.', align: 'center' },
+                    { key: 'total_oocitos', label: 'Total', align: 'center' },
+                    { key: 'recomendacao_touro', label: 'Rec. Touro' },
+                    { key: 'observacoes', label: 'Obs.' },
+                  ]}
+                  renderCell={(row, column) => {
+                    switch (column.key) {
+                      case 'doadora_nome':
+                        return <span className="font-medium text-foreground">{row.doadora_nome || '—'}</span>;
+                      case 'doadora_registro':
+                        return <span className="text-xs text-muted-foreground">{row.doadora_registro || '—'}</span>;
+                      case 'horario':
+                        return (
+                          <span className="text-xs text-foreground whitespace-nowrap">
+                            {row.horario_aspiracao
+                              ? `${row.horario_aspiracao}${row.hora_final ? `-${row.hora_final}` : ''}`
+                              : '—'}
+                          </span>
+                        );
+                      case 'viaveis':
+                        return <CountBadge value={row.viaveis || 0} variant="primary" />;
+                      case 'total_oocitos':
+                        return <CountBadge value={row.total_oocitos || 0} variant="default" />;
+                      case 'recomendacao_touro':
+                        return <span className="text-xs text-muted-foreground truncate">{row.recomendacao_touro || '—'}</span>;
+                      case 'observacoes':
+                        return <span className="text-xs text-muted-foreground truncate">{row.observacoes || '—'}</span>;
+                      default:
+                        return null;
+                    }
+                  }}
+                  actions={!isFinalizado ? (row) => (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => editAspiracaoHook.openEdit(row)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  ) : undefined}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -408,17 +408,17 @@ export default function ProtocoloRelatorioFechado() {
         <CardContent className="pt-4 pb-4">
           {/* Linha 1: Fazenda + Status + Resumo */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-4">
+            <div className="grid grid-cols-2 gap-3 md:flex md:items-center md:gap-4 w-full md:w-auto">
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Fazenda</span>
                 <p className="text-base font-semibold text-foreground">{fazendaNome || '—'}</p>
               </div>
-              <div className="h-8 w-px bg-border" />
+              <div className="h-8 w-px bg-border hidden md:block" />
               <div>
                 <span className="text-xs font-medium text-muted-foreground">Data Início</span>
                 <p className="text-sm text-foreground">{protocolo.data_inicio ? formatDate(protocolo.data_inicio) : '—'}</p>
               </div>
-              <div className="h-8 w-px bg-border" />
+              <div className="h-8 w-px bg-border hidden md:block" />
               <div>
                 {protocolo.status === 'SINCRONIZADO' && (
                   <Badge variant="default" className="bg-primary hover:bg-primary-dark">Sincronizado</Badge>
@@ -436,7 +436,7 @@ export default function ProtocoloRelatorioFechado() {
             </div>
 
             {/* Resumo inline */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Total:</span>
                 <CountBadge value={resumo.totalIniciaram} variant="default" />
@@ -446,11 +446,11 @@ export default function ProtocoloRelatorioFechado() {
                 <CountBadge value={resumo.totalServidas} variant="violet" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Sincronizadas:</span>
+                <span className="text-xs text-muted-foreground">Sinc.:</span>
                 <CountBadge value={resumo.totalSincronizadas} variant="primary" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Descartadas:</span>
+                <span className="text-xs text-muted-foreground">Desc.:</span>
                 <CountBadge value={resumo.totalDescartadas} variant="danger" />
               </div>
               <div className="flex items-center gap-1.5">

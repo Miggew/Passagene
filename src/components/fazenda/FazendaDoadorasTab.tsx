@@ -230,20 +230,20 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
     <div className="space-y-4">
       {/* Barra de Filtros Premium */}
       <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
           <div className="flex items-end gap-3">
-            <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+            <div className="w-1 h-6 rounded-full bg-primary/40 self-center hidden md:block" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center hidden md:flex">
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative flex-1 min-w-[250px]">
+            <div className="relative flex-1 min-w-0 md:min-w-[250px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome ou registro..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9"
+                className="pl-9 h-11 md:h-9"
               />
             </div>
             {searchTerm && (
@@ -251,7 +251,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
                 variant="outline"
                 size="sm"
                 onClick={() => setSearchTerm('')}
-                className="h-9"
+                className="h-11 md:h-9"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -352,71 +352,122 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Registro</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Raca</TableHead>
-                    <TableHead>Classificacao</TableHead>
-                    <TableHead>Ultima Aspiracao</TableHead>
-                    <TableHead>Oocitos</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDoadoras.map((doadora) => (
-                    <TableRow
-                      key={doadora.id}
-                      className="cursor-pointer hover:bg-slate-50"
-                      onClick={() => navigate(`/doadoras/${doadora.id}`)}
-                    >
-                      <TableCell className="font-medium">{doadora.registro}</TableCell>
-                      <TableCell>{doadora.nome || '-'}</TableCell>
-                      <TableCell>{doadora.raca || '-'}</TableCell>
-                      <TableCell>{renderClassificacaoGenetica(doadora.classificacao_genetica)}</TableCell>
-                      <TableCell>
-                        {doadora.ultima_aspiracao_data ? formatDate(doadora.ultima_aspiracao_data) : '-'}
-                      </TableCell>
-                      <TableCell>{doadora.ultima_aspiracao_total_oocitos ?? '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={doadora.disponivel_aspiracao ? 'default' : 'secondary'}>
-                          {doadora.disponivel_aspiracao ? 'Disponivel' : 'Indisponivel'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setHistoricoDoadoraId(doadora.id);
-                            }}
-                            title="Ver historico de aspiracoes"
-                          >
-                            <History className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/doadoras/${doadora.id}`);
-                            }}
-                            title="Editar doadora"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <>
+              {/* Mobile: Cards */}
+              <div className="md:hidden space-y-3">
+                {filteredDoadoras.map((doadora) => (
+                  <div
+                    key={doadora.id}
+                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 cursor-pointer active:bg-muted/50"
+                    onClick={() => navigate(`/doadoras/${doadora.id}`)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base font-medium text-foreground truncate">{doadora.registro}</span>
+                        {doadora.nome && (
+                          <span className="text-sm text-muted-foreground truncate">{doadora.nome}</span>
+                        )}
+                        {renderClassificacaoGenetica(doadora.classificacao_genetica) !== '-' && (
+                          <span className="shrink-0">{renderClassificacaoGenetica(doadora.classificacao_genetica)}</span>
+                        )}
+                      </div>
+                      <Badge variant={doadora.disponivel_aspiracao ? 'default' : 'secondary'} className="shrink-0 ml-2">
+                        {doadora.disponivel_aspiracao ? 'Disponível' : 'Indisponível'}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-sm">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase">Raça</span>
+                        <span className="block text-foreground">{doadora.raca || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase">Últ. Asp.</span>
+                        <span className="block text-foreground">{doadora.ultima_aspiracao_data ? formatDate(doadora.ultima_aspiracao_data) : '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase">Oócitos</span>
+                        <span className="block text-foreground">{doadora.ultima_aspiracao_total_oocitos ?? '-'}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-2 mt-2 border-t border-border/50">
+                      <Button variant="outline" size="sm" className="flex-1 h-11" onClick={(e) => { e.stopPropagation(); setHistoricoDoadoraId(doadora.id); }}>
+                        <History className="w-4 h-4 mr-1.5" />Histórico
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1 h-11" onClick={(e) => { e.stopPropagation(); navigate(`/doadoras/${doadora.id}`); }}>
+                        <Pencil className="w-4 h-4 mr-1.5" />Editar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Registro</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Raca</TableHead>
+                      <TableHead>Classificacao</TableHead>
+                      <TableHead>Ultima Aspiracao</TableHead>
+                      <TableHead>Oocitos</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acoes</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDoadoras.map((doadora) => (
+                      <TableRow
+                        key={doadora.id}
+                        className="cursor-pointer hover:bg-slate-50"
+                        onClick={() => navigate(`/doadoras/${doadora.id}`)}
+                      >
+                        <TableCell className="font-medium">{doadora.registro}</TableCell>
+                        <TableCell>{doadora.nome || '-'}</TableCell>
+                        <TableCell>{doadora.raca || '-'}</TableCell>
+                        <TableCell>{renderClassificacaoGenetica(doadora.classificacao_genetica)}</TableCell>
+                        <TableCell>
+                          {doadora.ultima_aspiracao_data ? formatDate(doadora.ultima_aspiracao_data) : '-'}
+                        </TableCell>
+                        <TableCell>{doadora.ultima_aspiracao_total_oocitos ?? '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={doadora.disponivel_aspiracao ? 'default' : 'secondary'}>
+                            {doadora.disponivel_aspiracao ? 'Disponivel' : 'Indisponivel'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setHistoricoDoadoraId(doadora.id);
+                              }}
+                              title="Ver historico de aspiracoes"
+                            >
+                              <History className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/doadoras/${doadora.id}`);
+                              }}
+                              title="Editar doadora"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

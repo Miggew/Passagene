@@ -164,38 +164,38 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
     <div className="space-y-4">
       {/* Barra de Filtros Premium */}
       <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-end gap-6">
+        <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end md:gap-6">
             {/* Grupo: Busca */}
             <div className="flex items-end gap-3">
-              <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <div className="w-1 h-6 rounded-full bg-primary/40 self-center hidden md:block" />
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center hidden md:flex">
                 <Filter className="w-3.5 h-3.5" />
                 <span>Busca</span>
               </div>
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-0 md:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por brinco ou nome..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9"
+                  className="pl-9 h-11 md:h-9"
                 />
               </div>
             </div>
 
             {/* Separador */}
-            <div className="h-10 w-px bg-border hidden lg:block" />
+            <div className="h-10 w-px bg-border hidden md:block" />
 
             {/* Grupo: Status */}
             <div className="flex items-end gap-3">
-              <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
+              <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center hidden md:block" />
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center hidden md:flex">
                 <span>Status</span>
               </div>
-              <div className="w-[180px]">
+              <div className="w-full md:w-[180px]">
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger className="h-11 md:h-9">
                     <SelectValue placeholder="Filtrar status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -219,7 +219,7 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
                   setSearchTerm('');
                   setFiltroStatus('todos');
                 }}
-                className="h-9"
+                className="h-11 md:h-9 w-full md:w-auto"
               >
                 <X className="w-4 h-4 mr-2" />
                 Limpar
@@ -299,71 +299,114 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
               }
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Brinco</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data Provável Parto</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: Cards */}
+              <div className="md:hidden space-y-3">
                 {filteredReceptoras.map((receptora) => (
-                  <TableRow key={receptora.id}>
-                    <TableCell className="font-medium">
-                      {receptora.identificacao}
-                    </TableCell>
-                    <TableCell>{receptora.nome || '-'}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={receptora.status_calculado || receptora.status_reprodutivo || 'DISPONIVEL'} />
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(receptora.data_provavel_parto)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(receptora)}
-                          title="Editar"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/receptoras/${receptora.id}/historico`)}
-                          title="Histórico"
-                        >
-                          <History className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openMoverDialog(receptora)}
-                          title="Mover para outra fazenda"
-                        >
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
-                        {(receptora.status_calculado || '').includes('PRENHE') && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleAbrirNascimento(receptora)}
-                            title="Registrar nascimento"
-                          >
-                            <Baby className="w-4 h-4" />
-                          </Button>
+                  <div key={receptora.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <span className="text-base font-medium text-foreground">{receptora.identificacao}</span>
+                        {receptora.nome && (
+                          <span className="text-sm text-muted-foreground ml-2">{receptora.nome}</span>
                         )}
                       </div>
-                    </TableCell>
-                  </TableRow>
+                      <StatusBadge status={receptora.status_calculado || receptora.status_reprodutivo || 'DISPONIVEL'} />
+                    </div>
+                    {receptora.data_provavel_parto && (
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Parto previsto: <span className="font-medium text-foreground">{formatDate(receptora.data_provavel_parto)}</span>
+                      </p>
+                    )}
+                    <div className="flex gap-2 pt-2 border-t border-border/50">
+                      <Button variant="outline" size="sm" className="flex-1 h-11" onClick={() => handleEdit(receptora)}>
+                        <Edit className="w-4 h-4 mr-1.5" />Editar
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1 h-11" onClick={() => navigate(`/receptoras/${receptora.id}/historico`)}>
+                        <History className="w-4 h-4 mr-1.5" />Histórico
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-11" onClick={() => openMoverDialog(receptora)}>
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                      {(receptora.status_calculado || '').includes('PRENHE') && (
+                        <Button variant="outline" size="sm" className="h-11" onClick={() => handleAbrirNascimento(receptora)}>
+                          <Baby className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop: Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Brinco</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data Provável Parto</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredReceptoras.map((receptora) => (
+                      <TableRow key={receptora.id}>
+                        <TableCell className="font-medium">
+                          {receptora.identificacao}
+                        </TableCell>
+                        <TableCell>{receptora.nome || '-'}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={receptora.status_calculado || receptora.status_reprodutivo || 'DISPONIVEL'} />
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(receptora.data_provavel_parto)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(receptora)}
+                              title="Editar"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/receptoras/${receptora.id}/historico`)}
+                              title="Histórico"
+                            >
+                              <History className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openMoverDialog(receptora)}
+                              title="Mover para outra fazenda"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </Button>
+                            {(receptora.status_calculado || '').includes('PRENHE') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAbrirNascimento(receptora)}
+                                title="Registrar nascimento"
+                              >
+                                <Baby className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
