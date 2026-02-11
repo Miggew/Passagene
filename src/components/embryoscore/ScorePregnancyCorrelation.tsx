@@ -21,7 +21,7 @@ import {
   Cell,
   ReferenceLine,
 } from 'recharts';
-import { TrendingUp, Brain, Info } from 'lucide-react';
+import { TrendingUp, Brain, Info, Eye, Activity } from 'lucide-react';
 import { getScoreColor } from './EmbryoScoreBadge';
 
 interface CorrelationDataPoint {
@@ -156,8 +156,9 @@ function CustomTooltip({ active, payload }: any) {
 export function ScorePregnancyCorrelation() {
   const { data: correlationData = [], isLoading } = useScorePregnancyData();
   const [viewMode, setViewMode] = useState<'scatter' | 'buckets'>('buckets');
+  const [scoreType, setScoreType] = useState<'morph' | 'kinetic'>('morph');
 
-  // Agregar por faixas de score
+  // Agregar por faixas de score (morph ou kinetic)
   const buckets = useMemo<AggregatedBucket[]>(() => {
     const ranges = [
       { faixa: '0-19', min: 0, max: 19 },
@@ -167,9 +168,10 @@ export function ScorePregnancyCorrelation() {
       { faixa: '80-100', min: 80, max: 100 },
     ];
 
+    const key = scoreType === 'morph' ? 'morph_score' : 'kinetic_score';
     return ranges.map(r => {
       const inRange = correlationData.filter(
-        d => d.embryo_score >= r.min && d.embryo_score <= r.max
+        d => d[key] >= r.min && d[key] <= r.max
       );
       const prenhes = inRange.filter(d => d.prenhe).length;
       return {
@@ -179,27 +181,26 @@ export function ScorePregnancyCorrelation() {
         taxa: inRange.length > 0 ? (prenhes / inRange.length) * 100 : 0,
       };
     });
-  }, [correlationData]);
+  }, [correlationData, scoreType]);
 
-  // Estatísticas gerais
+  // Estatísticas gerais — morph e kinetic separados
   const stats = useMemo(() => {
     if (!correlationData.length) return null;
     const prenhes = correlationData.filter(d => d.prenhe);
-    const avgScorePrenhe = prenhes.length > 0
-      ? prenhes.reduce((s, d) => s + d.embryo_score, 0) / prenhes.length
-      : 0;
     const vazias = correlationData.filter(d => !d.prenhe);
-    const avgScoreVazia = vazias.length > 0
-      ? vazias.reduce((s, d) => s + d.embryo_score, 0) / vazias.length
-      : 0;
+
+    const avg = (arr: CorrelationDataPoint[], key: 'morph_score' | 'kinetic_score') =>
+      arr.length > 0 ? arr.reduce((s, d) => s + d[key], 0) / arr.length : 0;
 
     return {
       total: correlationData.length,
       prenhes: prenhes.length,
       vazias: vazias.length,
       taxaGeral: (prenhes.length / correlationData.length) * 100,
-      avgScorePrenhe,
-      avgScoreVazia,
+      avgMorphPrenhe: avg(prenhes, 'morph_score'),
+      avgMorphVazia: avg(vazias, 'morph_score'),
+      avgKineticPrenhe: avg(prenhes, 'kinetic_score'),
+      avgKineticVazia: avg(vazias, 'kinetic_score'),
     };
   }, [correlationData]);
 
@@ -248,48 +249,125 @@ export function ScorePregnancyCorrelation() {
       <div className="p-4 space-y-4">
         {/* Stats rápidos */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="text-center p-2 rounded-lg bg-muted/30">
-              <div className="text-lg font-bold text-foreground">{stats.total}</div>
-              <div className="text-[10px] text-muted-foreground">Total analisados</div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-2 rounded-lg bg-muted/30">
+                <div className="text-lg font-bold text-foreground">{stats.total}</div>
+                <div className="text-[10px] text-muted-foreground">Total analisados</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-emerald-500/10">
+                <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{stats.taxaGeral.toFixed(1)}%</div>
+                <div className="text-[10px] text-muted-foreground">Taxa prenhez geral</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-muted/30">
+                <div className="text-lg font-bold text-foreground">{stats.prenhes}/{stats.vazias}</div>
+                <div className="text-[10px] text-muted-foreground">Prenhes / Vazias</div>
+              </div>
             </div>
-            <div className="text-center p-2 rounded-lg bg-emerald-500/10">
-              <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{stats.taxaGeral.toFixed(1)}%</div>
-              <div className="text-[10px] text-muted-foreground">Taxa prenhez geral</div>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-emerald-500/10">
-              <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgScorePrenhe)}</div>
-              <div className="text-[10px] text-muted-foreground">Score médio (prenhes)</div>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-red-500/10">
-              <div className="text-lg font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgScoreVazia)}</div>
-              <div className="text-[10px] text-muted-foreground">Score médio (vazias)</div>
+
+            {/* Comparação Morph vs Kinetic */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Morfologia */}
+              <div className="rounded-lg border border-border/50 p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Eye className="w-3.5 h-3.5 text-primary/60" />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Morfologia</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-center">
+                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgMorphPrenhe)}</div>
+                    <div className="text-[9px] text-muted-foreground">Prenhes</div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">vs</div>
+                  <div className="text-center">
+                    <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgMorphVazia)}</div>
+                    <div className="text-[9px] text-muted-foreground">Vazias</div>
+                  </div>
+                  <div className="text-center border-l border-border/50 pl-3">
+                    <div className={`text-sm font-bold ${stats.avgMorphPrenhe - stats.avgMorphVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {stats.avgMorphPrenhe - stats.avgMorphVazia > 0 ? '+' : ''}{Math.round(stats.avgMorphPrenhe - stats.avgMorphVazia)}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground">Diff</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cinética */}
+              <div className="rounded-lg border border-border/50 p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Activity className="w-3.5 h-3.5 text-primary/60" />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Cinética</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-center">
+                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgKineticPrenhe)}</div>
+                    <div className="text-[9px] text-muted-foreground">Prenhes</div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">vs</div>
+                  <div className="text-center">
+                    <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgKineticVazia)}</div>
+                    <div className="text-[9px] text-muted-foreground">Vazias</div>
+                  </div>
+                  <div className="text-center border-l border-border/50 pl-3">
+                    <div className={`text-sm font-bold ${stats.avgKineticPrenhe - stats.avgKineticVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {stats.avgKineticPrenhe - stats.avgKineticVazia > 0 ? '+' : ''}{Math.round(stats.avgKineticPrenhe - stats.avgKineticVazia)}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground">Diff</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Toggle de visualização */}
-        <div className="flex gap-1 rounded-lg border border-border p-0.5 w-fit">
-          <button
-            onClick={() => setViewMode('buckets')}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              viewMode === 'buckets'
-                ? 'bg-muted text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Por faixa
-          </button>
-          <button
-            onClick={() => setViewMode('scatter')}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              viewMode === 'scatter'
-                ? 'bg-muted text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Scatter
-          </button>
+        {/* Toggles */}
+        <div className="flex items-center gap-3">
+          {/* Score type */}
+          <div className="flex gap-1 rounded-lg border border-border p-0.5">
+            <button
+              onClick={() => setScoreType('morph')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                scoreType === 'morph'
+                  ? 'bg-muted text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Morfologia
+            </button>
+            <button
+              onClick={() => setScoreType('kinetic')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                scoreType === 'kinetic'
+                  ? 'bg-muted text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Cinética
+            </button>
+          </div>
+          {/* View mode */}
+          <div className="flex gap-1 rounded-lg border border-border p-0.5">
+            <button
+              onClick={() => setViewMode('buckets')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                viewMode === 'buckets'
+                  ? 'bg-muted text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Por faixa
+            </button>
+            <button
+              onClick={() => setViewMode('scatter')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                viewMode === 'scatter'
+                  ? 'bg-muted text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Scatter
+            </button>
+          </div>
         </div>
 
         {/* Gráfico */}
@@ -300,11 +378,11 @@ export function ScorePregnancyCorrelation() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                 <XAxis
                   type="number"
-                  dataKey="embryo_score"
+                  dataKey={scoreType === 'morph' ? 'morph_score' : 'kinetic_score'}
                   domain={[0, 100]}
-                  name="EmbryoScore"
+                  name={scoreType === 'morph' ? 'Morfologia' : 'Cinética'}
                   tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                  label={{ value: 'EmbryoScore', position: 'bottom', offset: 5, style: { fontSize: 10, fill: 'var(--muted-foreground)' } }}
+                  label={{ value: scoreType === 'morph' ? 'Nota Morfologia' : 'Nota Cinética', position: 'bottom', offset: 5, style: { fontSize: 10, fill: 'var(--muted-foreground)' } }}
                 />
                 <YAxis
                   type="number"

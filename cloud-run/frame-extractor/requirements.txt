@@ -2,3 +2,5 @@ flask==3.0.*
 gunicorn==21.2.*
 Pillow==10.2.*
 requests==2.31.*
+opencv-python-headless==4.9.*
+numpy>=1.26,<2

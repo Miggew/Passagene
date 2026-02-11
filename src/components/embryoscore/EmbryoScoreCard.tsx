@@ -83,36 +83,19 @@ function getConfidenceColor(confidence: string) {
   }
 }
 
-/** Traduz valores enum de pulsação (fallback para dados antigos em inglês) */
-function translatePulsation(val: string) {
+/** Traduz padrão temporal (Cloud Run kinetic_profile.temporal_pattern) */
+function translateTemporalPattern(val: string) {
   const map: Record<string, string> = {
-    none: 'Nenhuma', subtle: 'Sutil', moderate: 'Moderada', active: 'Ativa',
-    nenhuma: 'Nenhuma', sutil: 'Sutil', moderada: 'Moderada', ativa: 'Ativa',
-  };
-  return map[val.toLowerCase()] || val;
-}
-
-/** Traduz valores enum de estabilidade (fallback para dados antigos em inglês) */
-function translateStability(val: string) {
-  const map: Record<string, string> = {
-    stable: 'Estável', shifting: 'Oscilante', collapsing: 'Colapsando',
-    'estável': 'Estável', oscilante: 'Oscilante', colapsando: 'Colapsando',
-  };
-  return map[val.toLowerCase()] || val;
-}
-
-/** Traduz valores enum de movimento global (fallback para dados antigos em inglês) */
-function translateMotion(val: string) {
-  const map: Record<string, string> = {
-    active: 'Ativo', moderate: 'Moderado', subtle: 'Sutil', static: 'Estático',
-    ativo: 'Ativo', moderado: 'Moderado', sutil: 'Sutil', 'estático': 'Estático',
+    stable: 'Estável', increasing: 'Crescente',
+    decreasing: 'Decrescente', irregular: 'Irregular',
   };
   return map[val.toLowerCase()] || val;
 }
 
 export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, classificacaoManual }: EmbryoScoreCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const colors = getScoreColor(score.embryo_score);
+  const morphColors = getScoreColor(score.morph_score ?? score.embryo_score);
+  const kineticColors = score.kinetic_score != null ? getScoreColor(score.kinetic_score) : null;
 
   return (
     <div className={`rounded-lg border border-border/60 overflow-hidden transition-all ${expanded ? 'shadow-sm' : ''}`}>
@@ -121,17 +104,30 @@ export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, cla
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors text-left"
       >
-        {/* Score circle */}
-        <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}>
-          <span className={`text-sm font-bold ${colors.text}`}>
-            {Math.round(score.embryo_score)}
-          </span>
+        {/* Dois scores lado a lado */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Morfologia (principal) */}
+          <div className={`w-10 h-10 rounded-lg ${morphColors.bg} flex flex-col items-center justify-center`}>
+            <span className={`text-sm font-bold leading-none ${morphColors.text}`}>
+              {Math.round(score.morph_score ?? score.embryo_score)}
+            </span>
+            <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Morfo</span>
+          </div>
+          {/* Cinética (secundário) */}
+          {kineticColors && score.kinetic_score != null && (
+            <div className={`w-10 h-10 rounded-lg ${kineticColors.bg} flex flex-col items-center justify-center`}>
+              <span className={`text-sm font-bold leading-none ${kineticColors.text}`}>
+                {Math.round(score.kinetic_score)}
+              </span>
+              <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Cinét</span>
+            </div>
+          )}
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-sm font-semibold ${colors.text}`}>
+            <span className={`text-sm font-semibold ${morphColors.text}`}>
               {score.classification}
             </span>
             {score.stage && (
@@ -154,20 +150,8 @@ export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, cla
           </div>
         </div>
 
-        {/* Scores compactos + chevron */}
-        <div className="flex items-center gap-3 shrink-0">
-          {score.morph_score != null && (
-            <div className="text-center hidden sm:block">
-              <div className="text-xs font-semibold text-foreground">{Math.round(score.morph_score)}</div>
-              <div className="text-[9px] text-muted-foreground">Morfo</div>
-            </div>
-          )}
-          {score.kinetic_score != null && (
-            <div className="text-center hidden sm:block">
-              <div className="text-xs font-semibold text-foreground">{Math.round(score.kinetic_score)}</div>
-              <div className="text-[9px] text-muted-foreground">Cinét</div>
-            </div>
-          )}
+        {/* Chevron */}
+        <div className="shrink-0">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
@@ -233,27 +217,29 @@ export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, cla
               )}
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
+              {score.activity_score != null && (
+                <DetailRow label="Atividade (raw)" value={`${score.activity_score}/100`} />
+              )}
               {score.global_motion && (
-                <DetailRow label="Movimento" value={translateMotion(score.global_motion)} />
-              )}
-              {score.blastocele_pulsation && (
-                <DetailRow label="Pulsação" value={translatePulsation(score.blastocele_pulsation)} />
-              )}
-              {score.stability && (
-                <DetailRow label="Estabilidade" value={translateStability(score.stability)} />
+                <DetailRow label="Padrão temporal" value={translateTemporalPattern(score.global_motion)} />
               )}
               {score.icm_activity && (
-                <DetailRow label="Atividade ICM" value={score.icm_activity} />
+                <DetailRow label="Atividade MCI" value={score.icm_activity} />
               )}
               {score.te_activity && (
                 <DetailRow label="Atividade TE" value={score.te_activity} />
               )}
               {score.most_active_region && (
-                <DetailRow label="Região mais ativa" value={score.most_active_region} />
+                <DetailRow label="Zona de pico" value={score.most_active_region} />
+              )}
+              {score.stability && (
+                <DetailRow label="Simetria" value={score.stability} />
               )}
             </div>
             {score.kinetic_notes && (
-              <p className="text-[11px] text-muted-foreground mt-1.5 pl-5 italic">{score.kinetic_notes}</p>
+              <div className="mt-2 pl-5 p-2 rounded-md bg-primary/5 border border-primary/10">
+                <p className="text-[11px] text-foreground/80 leading-relaxed">{score.kinetic_notes}</p>
+              </div>
             )}
           </div>
 

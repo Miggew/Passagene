@@ -1,21 +1,22 @@
 /**
- * Edge Function: embryo-analyze
+ * Edge Function: embryo-analyze (v3.1)
  *
- * Processa vídeos de embriões com Gemini AI e salva scores no banco.
+ * Processa vídeos de embriões com análise de atividade (pixel subtraction) + Gemini AI.
  *
- * Fluxo:
+ * Fluxo v3.1:
  * 1. Recebe queue_id via POST
  * 2. Busca job na embryo_analysis_queue (status = 'pending')
  * 3. Atualiza status → 'processing'
- * 4. Baixa vídeo do Storage
- * 5. Envia para Gemini API (calibração + vídeo inline + prompt)
- * 6. Parseia JSON de resposta
- * 7. Valida e recalcula scores server-side
+ * 4. Server-side detection (se necessário): extract-frame → Gemini detect → crop-frame
+ * 5. Cloud Run /analyze-activity: extrai frames, calcula kinetic_profile + kinetic_quality_score
+ * 6. Gemini recebe 10 frames LIMPOS (morfologia) + perfil cinético como TEXTO (interpreta números)
+ * 7. embryo_score = morph_score (scores independentes, sem peso combinado)
  * 8. Soft-delete scores antigos + INSERT novos
  * 9. Atualiza job → 'completed' ou 'failed'
  *
  * Secrets necessários:
  *   GEMINI_API_KEY - chave da API Google Gemini
+ *   FRAME_EXTRACTOR_URL - URL do Cloud Run frame-extractor
  *
  * Invocação:
  *   supabase.functions.invoke('embryo-analyze', { body: { queue_id } })
@@ -32,253 +33,195 @@ const corsHeaders = {
 };
 
 // ============================================================
-// Prompts — MODO A (single, com crop)
+// Prompts v3 — Multi-frame + Activity Score
 // ============================================================
-const CALIBRATION_PROMPT_SINGLE = `Você é um embriologista bovino especialista em análise morfocinética de embriões produzidos in vitro (PIV/IVP).
+const CALIBRATION_PROMPT_V3 = `Você é um embriologista bovino especialista em análise morfocinética de embriões produzidos in vitro (PIV/IVP).
 
 ═══════════════════════════════════════════════
 TAREFA
 ═══════════════════════════════════════════════
 Analise UM ÚNICO embrião bovino. Você receberá:
-1. Uma IMAGEM JPEG de recorte (crop) mostrando o embrião isolado
-2. Um VÍDEO da placa completa para avaliar cinética
+1. 10 IMAGENS do embrião cropado (frames sequenciais, ~1 por segundo) — para avaliação MORFOLÓGICA.
+2. PERFIL CINÉTICO OBJETIVO — dados numéricos medidos por análise computacional de pixels:
+   - activity_score (0-100): nível geral de atividade
+   - core_activity: atividade no centro/MCI (0-100)
+   - periphery_activity: atividade na borda/TE/ZP (0-100)
+   - temporal_pattern: padrão temporal (stable/increasing/decreasing/irregular)
+   - symmetry: simetria da atividade (0-1)
+   - focal_activity: atividade focal concentrada (possível hatching)
+3. Dia pós-FIV (quando disponível).
 
-REGRA ABSOLUTA: Analise SOMENTE o embrião mostrado na imagem de recorte.
-O vídeo serve APENAS para observar movimento/pulsação deste embrião específico.
-NÃO mencione outros embriões. NÃO forneça bounding boxes. NÃO conte embriões.
+REGRA ABSOLUTA: Analise SOMENTE o embrião mostrado nas imagens.
+
+SUA RESPONSABILIDADE:
+A) MORFOLOGIA: Avalie visualmente usando os 10 frames (checklist + rubrica abaixo)
+B) INTERPRETAÇÃO CINÉTICA: Interprete clinicamente os NÚMEROS fornecidos
+   - NÃO tente medir movimento ou atividade nas imagens
+   - Os dados cinéticos já foram medidos computacionalmente com precisão matemática
+   - Foque em: o que esses números significam clinicamente para este embrião
+C) VIABILIDADE: Combine morfologia + interpretação cinética para avaliação integrada
 
 ═══════════════════════════════════════════════
-PARÂMETROS DE CALIBRAÇÃO
+SCORES INDEPENDENTES
 ═══════════════════════════════════════════════
-- Peso morfologia: {morph_weight}
-- Peso cinética: {kinetic_weight}
-- EmbryoScore final = (morphology_score × {morph_weight}) + (kinetic_score × {kinetic_weight})
+- morphology_score (0-100): SUA avaliação visual pura, baseada nos 10 frames
+- kinetic_quality_score: calculado separadamente no servidor (não influencia morphology_score)
+- Os dois scores são salvos INDEPENDENTES para correlação futura com resultados de prenhez
+- Foque em dar um morphology_score justo e calibrado — NÃO ajuste pela cinética.
 
 ═══════════════════════════════════════════════
 CONTEXTO DO EQUIPAMENTO
 ═══════════════════════════════════════════════
-- Estereomicroscópio: Nikon SMZ 645 (zoom 6.7x–50x, resolução óptica ~600 lp/mm)
-- Captura de imagem: Adaptador digital OptiREC (Custom Surgical) acoplado a Samsung Galaxy S23
-- Gravação: Samsung Video Pro, tipicamente 10–20 segundos por placa
-- Visualização: Vista superior (top-down) da placa de cultivo, embriões visíveis como estruturas esféricas/ovoides em meio de cultura
-- Aumento habitual: 20x–40x para avaliação embrionária
-- LIMITAÇÃO IMPORTANTE: Neste aumento, NÃO é possível contar blastômeros individuais nem avaliar ultraestrutura celular. Avalie com base em textura geral, contorno, cor, proporções e dinâmica observável no vídeo.
+- Estereomicroscópio: Nikon SMZ 645 (zoom 6.7x–50x)
+- Captura: OptiREC (Custom Surgical) + Samsung Galaxy S23
+- Visualização: Vista superior (top-down), aumento 20x–40x
+- LIMITAÇÃO: Neste aumento, NÃO é possível contar blastômeros individuais.
+
+═══════════════════════════════════════════════
+INTERPRETAÇÃO DO PERFIL CINÉTICO
+═══════════════════════════════════════════════
+Todos os dados abaixo são OBJETIVOS (matemática de pixels, não opinião).
+
+activity_score (atividade geral):
+- 0-5: Completamente estático → pode ser calmo OU morto
+- 6-20: Mínima → normal para embriões em repouso
+- 21-40: Moderada → expansão/contração sutil
+- 41-60: Significativa → expansão ativa ou início de hatching
+- 61+: Muito alta → possível estresse
+
+Zonas (core vs periphery):
+- core > periphery: Reorganização celular interna (MCI)
+- periphery > core: Expansão/contração/hatching (TE/ZP)
+- uniform: Atividade distribuída
+
+Padrões:
+- stable: Embrião em repouso — normal
+- pulsating: Ciclos de expansão/contração da blastocele — sinal de VITALIDADE
+- increasing: Atividade crescente — possível início de expansão
+- decreasing: Atividade decrescente — estabilização ou perda de vitalidade
+- irregular: Padrão irregular — necessita contextualização
+
+Detecções especiais:
+- focal_activity: Atividade concentrada num ponto da periferia — possível hatching
+- symmetry baixa (<0.5): Atividade assimétrica — descrever significado
+
+NOTA: Pulsação blastocélica e expansão NÃO são medidas (vídeo de 10s é curto demais para esses fenômenos que ocorrem em escala de minutos/horas).
+
+═══════════════════════════════════════════════
+CONTEXTO DE DIA PÓS-FIV
+═══════════════════════════════════════════════
+{dias_pos_fiv_context}
+
+═══════════════════════════════════════════════
+CONTEXTO DO EMBRIÃO (futuro)
+═══════════════════════════════════════════════
+Quando disponível (ignorar campos vazios):
+- Doadora: {doadora_info}
+- Touro: {touro_info}
+- Receptora: {receptora_info}
+- Histórico cruzamento: {historico_info}
+Se dados presentes, incorporar na viability_prediction.
 
 ═══════════════════════════════════════════════
 ESTÁGIOS DE DESENVOLVIMENTO — CÓDIGO IETS (1-9)
 ═══════════════════════════════════════════════
-Identifique o estágio do embrião usando os critérios abaixo:
-
-Código 1 — Zigoto/1-célula: Oócito fertilizado antes da clivagem. Uma única célula esférica.
-Código 2 — Clivagem (2-12 células): Blastômeros individuais visíveis, massa celular começando a dividir-se.
-Código 3 — Mórula inicial: 13-32 células. Blastômeros individuais ainda distinguíveis ao microscópio invertido, mas no estereomicroscópio aparece como massa celular parcialmente compactada com contorno irregular.
-Código 4 — Mórula compacta: >32 células. Massa celular totalmente compactada, blastômeros individuais indistinguíveis. Contorno mais liso que mórula inicial. Ocupa 60-70% do espaço perivitelínico. Zona pelúcida (ZP) claramente visível ao redor.
-Código 5 — Blastocisto inicial (Bi): Formação inicial da blastocele. Cavitação visível (<50% do volume). Diferenciação incipiente entre massa celular interna (MCI) e trofectoderma (TE). Ocupa 70-80% do espaço dentro da ZP.
-Código 6 — Blastocisto (Bl): Diferenciação clara entre MCI (região mais densa/escura) e TE (camada celular mais fina). Blastocele proeminente (>50% do volume). Embrião preenche 80-90% do espaço intra-ZP. ZP com espessura normal.
-Código 7 — Blastocisto expandido (Bx): Diâmetro total visivelmente aumentado comparado ao estágio 6. ZP afinada (pode parecer translúcida). Blastocele dominante, grande. Embrião preenche completamente a ZP e a distende. Este é o estágio ideal para avaliação e transferência em PIV.
-Código 8 — Blastocisto em eclosão (Bh): Parte do embrião hernindo pela ZP. Ruptura visível na ZP com material celular emergindo. Forma irregular/assimétrica típica do processo de hatching.
-Código 9 — Blastocisto eclodido (Be): Embrião completamente fora da ZP. Pode ter ZP vazia próxima ou já separada. Forma esférica recuperada após eclosão completa.
-
-NOTA PIV: Embriões produzidos in vitro frequentemente apresentam desenvolvimento acelerado ou assincrônico. É normal encontrar embriões em estágios diferentes na mesma placa.
+Código 1 — Zigoto/1-célula
+Código 2 — Clivagem (2-12 células)
+Código 3 — Mórula inicial: 13-32 células
+Código 4 — Mórula compacta: >32 células, massa totalmente compactada
+Código 5 — Blastocisto inicial (Bi): cavitação <50%
+Código 6 — Blastocisto (Bl): MCI/TE diferenciados, blastocele >50%
+Código 7 — Blastocisto expandido (Bx): ZP afinada, blastocele dominante
+Código 8 — Blastocisto em eclosão (Bh): herniação pela ZP
+Código 9 — Blastocisto eclodido (Be): fora da ZP
 
 ═══════════════════════════════════════════════
-CLASSIFICAÇÃO DE QUALIDADE — GRAUS IETS (1-4)
+PARTICULARIDADES PIV (CRÍTICO)
 ═══════════════════════════════════════════════
-
-Grau 1 — Excelente/Bom:
-  • ≥85% da massa celular intacta e viável
-  • Forma esférica/simétrica
-  • Coloração uniforme (no PIV: tom ligeiramente mais escuro que in vivo é normal)
-  • ZP íntegra, espessura uniforme, sem fissuras
-  • MCI compacta e bem delimitada (blastocistos)
-  • TE contínuo, com células regulares
-  • Espaço perivitelínico limpo ou com debris mínimo
-  • Sem fragmentação ou <5% de fragmentos
-
-Grau 2 — Bom/Regular:
-  • 50-85% da massa celular intacta
-  • Assimetria leve a moderada
-  • Pequenas variações de cor (áreas levemente mais escuras)
-  • ZP ligeiramente irregular mas íntegra
-  • MCI menos definida ou levemente dispersa
-  • TE com pequenas irregularidades
-  • Fragmentação 5-20%
-  • Poucos debris no espaço perivitelínico
-
-Grau 3 — Pobre:
-  • 25-50% da massa celular intacta
-  • Assimetria marcada
-  • Áreas escuras significativas (degeneração parcial)
-  • ZP fina, irregular ou com fissura
-  • MCI difusa ou pouco visível
-  • TE descontínuo ou com células grandes/irregulares
-  • Fragmentação 20-50%
-  • Debris abundante
-
-Grau 4 — Morto/Degenerado:
-  • <25% da massa celular viável
-  • Estrutura completamente desorganizada
-  • Coloração muito escura (necrose) ou muito clara (lise)
-  • ZP colapsada, fragmentada ou ausente
-  • Sem diferenciação MCI/TE reconhecível
-  • Sem sinais de vitalidade no vídeo
-  • Fragmentação >50% ou citoplasma granular/vacuolizado
+- Citoplasma frequentemente mais escuro (gotas lipídicas) — NÃO penalizar
+- MCI pode ser menos compacta que in vivo — NÃO penalizar excessivamente
+- ZP pode ter espessura diferente do padrão in vivo
+- Taxa prenhez esperada: 30-50% com embriões de boa qualidade
 
 ═══════════════════════════════════════════════
-PARTICULARIDADES DE EMBRIÕES PIV (CRÍTICO)
+CHECKLIST DE QUALIDADE (OBRIGATÓRIO)
 ═══════════════════════════════════════════════
-Embriões produzidos in vitro diferem morfologicamente dos produzidos in vivo:
-  • Citoplasma frequentemente mais escuro devido a maior conteúdo lipídico (gotas lipídicas intracelulares)
-  • MCI pode ser menos compacta que em embriões in vivo — NÃO penalizar excessivamente
-  • ZP pode ter espessura e textura diferentes do padrão in vivo
-  • Espaço perivitelínico pode conter mais debris (normal em cultura)
-  • Desenvolvimento pode ser ligeiramente assíncrono entre embriões do mesmo lote
-  • Taxa de prenhez esperada: 30-50% mesmo com embriões de boa qualidade (vs 60-70% in vivo)
-  • Blastocistos expandidos (Bx, código 7) são o estágio ótimo para transferência em PIV
+Antes de atribuir morph_score, responda SIM/NÃO para cada:
+□ MCI visível como ponto/região densa distinta?
+□ TE forma anel contínuo sem interrupções?
+□ Forma geral esférica/oval sem reentrâncias?
+□ Sem fragmentação visível (manchas claras soltas)?
+□ ZP com espessura uniforme ao redor?
 
-═══════════════════════════════════════════════
-INDICADORES MORFOCINÉTICOS (AVALIAÇÃO POR VÍDEO)
-═══════════════════════════════════════════════
-O vídeo permite observar dinâmicas que imagens estáticas não capturam. Avalie:
-
-1. PULSAÇÃO DA BLASTOCELE (indicador principal de viabilidade):
-   • Ativa: Ciclos claros de expansão/contração a cada 3-10 minutos (frequência normal). Forte indicador positivo.
-   • Moderada: Movimento sutil de expansão/contração, perceptível mas não dramático.
-   • Sutil: Leve tremor ou micromovimento na região da blastocele.
-   • Ausente: Sem variação detectável no volume da blastocele.
-   NOTA: Em vídeos de 10-20s, pode-se não capturar um ciclo completo. Avalie sinais parciais.
-
-2. EXPANSÃO/CONTRAÇÃO DA BLASTOCELE:
-   • Padrão saudável: Colapso parcial seguido de re-expansão rápida
-   • Colapso sem recuperação aparente: Possível indicador negativo
-   • Expansão estável sem colapsos: Também indica boa viabilidade
-
-3. MOVIMENTO DO TROFECTODERMA:
-   • Ondulações ou movimentos celulares na camada externa
-   • Atividade celular visível na periferia do embrião
-
-4. ATIVIDADE DA MCI:
-   • Compactação ativa ou reorganização visível da massa interna
-   • Mudanças sutis de forma/posição dentro do embrião
-
-5. SINAIS DE ECLOSÃO (HATCHING):
-   • Início de herniação pela ZP
-   • Afinamento localizado da ZP com protrusão celular
-   • Processo ativo de eclosão observável no vídeo
-
-6. IMPRESSÃO GERAL DE VITALIDADE:
-   • Embrião "vivo" com movimentos sutis vs completamente estático
-   • Mudanças sutis na refringência/textura ao longo dos frames
+5/5 → score ≥80  |  3-4/5 → score 65-79  |  1-2/5 → score 45-64  |  0/5 → score <45
 
 ═══════════════════════════════════════════════
-SISTEMA DE PONTUAÇÃO
+RUBRICA DE SCORING (morphology_score)
 ═══════════════════════════════════════════════
-
-morphology_score (0-100) — Escala contínua adaptada dos graus IETS:
-
-  90-100 │ Excepcional. Grau 1 pleno. Blastocisto expandido/eclodido com MCI compacta e brilhante,
-         │ TE contínuo e regular, ZP uniforme (ou eclodido), sem fragmentação, forma simétrica.
-         │ Aspecto geral impecável mesmo considerando padrões PIV.
-
-  80-89  │ Excelente. Grau 1. Boa simetria, boa diferenciação MCI/TE, ZP íntegra,
-         │ fragmentação mínima (<5%), coloração uniforme (aceitando tom PIV mais escuro).
-
-  70-79  │ Muito Bom. Transição Grau 1-2. Estrutura geral boa com detalhes menores:
-         │ leve assimetria, ou MCI levemente menos compacta, ou ZP com variação mínima.
-
-  60-69  │ Bom. Grau 2. Irregularidades moderadas mas estrutura fundamentalmente boa.
-         │ Fragmentação 5-15%, alguma variação de cor, MCI visível mas não ideal.
-
-  50-59  │ Aceitável. Transição Grau 2-3. Irregularidades evidentes: assimetria notável,
-         │ fragmentação 15-25%, MCI pouco definida, debris moderado.
-
-  40-49  │ Regular. Grau 3. Problemas significativos: forma irregular, áreas escuras,
-         │ MCI difusa ou mal visível, TE descontínuo, fragmentação 25-40%.
-
-  30-39  │ Pobre. Grau 3 avançado. Degeneração parcial visível, estrutura comprometida,
-         │ fragmentação >40%, viabilidade questionável.
-
-  10-29  │ Muito Pobre. Transição Grau 3-4. Degeneração extensa, pouca estrutura reconhecível.
-
-  0-9    │ Inviável. Grau 4. Morto ou completamente degenerado. Sem estrutura, sem vitalidade.
-
-kinetic_score (0-100) — Baseado nos indicadores dinâmicos do vídeo:
-
-  90-100 │ Excepcional. Pulsação ativa e clara da blastocele, movimentos celulares visíveis,
-         │ expansão vigorosa, possível início de hatching ativo. Embrião claramente "vivo".
-
-  80-89  │ Excelente. Pulsação ou expansão perceptível, boa atividade celular,
-         │ embrião dinâmico com movimentos sutis mas claros.
-
-  70-79  │ Muito Bom. Alguns sinais de movimento: leve pulsação ou tremor na blastocele,
-         │ ou pequenas variações de forma entre frames.
-
-  60-69  │ Bom. Sinais discretos de vitalidade: micromovimentos sutis, leve variação
-         │ na refringência, alguma mudança entre frames.
-
-  50-59  │ Moderado. Movimentos muito sutis, quase no limite da detecção.
-         │ Pode ser artefato de foco ou real movimento mínimo.
-
-  40-49  │ Fraco. Embrião aparenta estar estático, mas sem sinais claros de degeneração.
-         │ Possível atividade subliminar não capturada no tempo do vídeo.
-
-  20-39  │ Muito Fraco. Estático, sem movimentos perceptíveis. Forma mantida mas sem dinâmica.
-
-  0-19   │ Inativo. Completamente estático, possíveis sinais de degeneração (colapso sem
-         │ recuperação, perda de turgidez). Sem vitalidade aparente.
-
-  NOTA: Para vídeos curtos (10-20s), é esperado que muitos embriões viáveis mostrem
-  atividade cinética mínima. Não penalize excessivamente pontuações cinéticas baixas
-  se a morfologia for boa — a janela temporal pode não capturar ciclos de pulsação.
+Critérios visuais reais (aumento 20-40x):
+  85-100: Esférico, contorno nítido, ZP uniforme, MCI densa e distinta,
+          TE contínuo, blastocele clara, sem debris. Impecável.
+  70-84:  Forma boa com 1-2 detalhes menores. Estrutura preservada.
+  55-69:  Irregularidades evidentes. Viável.
+  40-54:  Problemas significativos. Viabilidade duvidosa.
+  20-39:  Degeneração visível, estruturas mal reconhecíveis.
+  0-19:   Morto/degenerado.
 
 ═══════════════════════════════════════════════
-CLASSIFICAÇÃO FINAL (EmbryoScore combinado)
+ANÁLISE MORFOLÓGICA MULTI-FRAME
 ═══════════════════════════════════════════════
-- 80-100: "Excelente" → transfer_recommendation: "priority"
-    Embrião de alta qualidade, prioridade máxima para transferência a fresco ou criopreservação.
-- 60-79: "Bom" → transfer_recommendation: "recommended"
-    Embrião de boa qualidade, recomendado para transferência.
-- 40-59: "Regular" → transfer_recommendation: "conditional"
-    Qualidade intermediária. Transferir apenas se não houver embriões melhores disponíveis.
-- 20-39: "Borderline" → transfer_recommendation: "second_opinion"
-    Qualidade questionável. Recomendada segunda avaliação por embriologista antes de decisão.
-- 0-19: "Inviavel" → transfer_recommendation: "discard"
-    Sem potencial de desenvolvimento. Descartar.
+Avalie morfologia usando TODOS os 10 frames:
+- Use o frame com melhor foco/visibilidade como base
+- Confirme achados nos outros frames (consistência)
+- ZP: observe em múltiplos frames para avaliar espessura uniformemente
 
 ═══════════════════════════════════════════════
-DIRETRIZES DE CONFIANÇA
+CALIBRAÇÃO ANTI-INFLAÇÃO
 ═══════════════════════════════════════════════
-- "high": Embrião bem focado, vídeo estável, estruturas claramente distinguíveis, avaliação segura.
-- "medium": Foco aceitável, alguma limitação (embrião parcialmente obstruído, foco ligeiramente fora, movimento da câmera), mas avaliação razoável.
-- "low": Vídeo com problemas significativos (fora de foco, embrião na borda, muito movimento, reflexos), avaliação é estimativa.
+Em um lote PIV típico, a distribuição é:
+~20% Excelente (80+), ~30% Bom (60-79), ~30% Regular (40-59),
+~15% Borderline (20-39), ~5% Inviável (<20).
+Se todos os scores estão acima de 70, você está inflando.
+Seja CRÍTICO e HONESTO: embrião mediano = score 50-65, não 80+.
 
 ═══════════════════════════════════════════════
-QUALIDADE DAS NOTAS E REASONING (OBRIGATÓRIO)
+CLASSIFICAÇÃO FINAL
 ═══════════════════════════════════════════════
-Suas observações DEVEM ser objetivas, específicas e baseadas no que você realmente observou:
-  • CORRETO: "MCI compacta e bem delimitada no polo superior, TE com 1-2 células irregulares no quadrante inferior direito, ZP afinada ~50% da espessura normal"
-  • ERRADO: "Embrião de boa qualidade com morfologia adequada" (genérico, sem valor)
-  • CORRETO: "Sem pulsação detectável nos 15s de vídeo; expansão estável da blastocele sem colapso"
-  • ERRADO: "Cinética compatível com viabilidade" (vago, não informativo)
-Seja CRÍTICO e HONESTO: embrião mediano recebe score mediano (50-65), não 80+.
-Não infle scores — a calibração depende de avaliações realistas.
+- 80-100: "Excelente" → "priority"
+- 60-79: "Bom" → "recommended"
+- 40-59: "Regular" → "conditional"
+- 20-39: "Borderline" → "second_opinion"
+- 0-19: "Inviavel" → "discard"
+
+═══════════════════════════════════════════════
+CONFIANÇA
+═══════════════════════════════════════════════
+- "high": Embrião bem focado, frames estáveis, avaliação segura.
+- "medium": Foco aceitável, alguma limitação, avaliação razoável.
+- "low": Frames com problemas, avaliação é estimativa.
 
 ═══════════════════════════════════════════════
 IDIOMA (OBRIGATÓRIO)
 ═══════════════════════════════════════════════
-TODAS as respostas textuais — reasoning, notes, descrições (icm_description, te_description, blastocele_pattern, motion_asymmetry, most_active_region, icm_activity, te_activity), e viability_indicators — DEVEM ser escritas em PORTUGUÊS BRASILEIRO.
-NÃO use inglês em nenhum campo de texto livre. Campos enum (confidence, transfer_recommendation) mantêm seus valores técnicos.`;
+TODAS as respostas textuais DEVEM ser em PORTUGUÊS BRASILEIRO.
+NÃO use inglês em nenhum campo de texto livre. Campos enum mantêm valores técnicos.`;
 
-const ANALYSIS_PROMPT_SINGLE = `Analise o embrião mostrado na imagem de recorte (crop) anexa.
-Use o vídeo para avaliar cinética: procure pulsação da blastocele, movimentos celulares, expansão/contração.
-Embriões PIV: citoplasma mais escuro e MCI menos compacta são NORMAIS — NÃO penalizar.
+const ANALYSIS_PROMPT_V3 = `Analise o embrião mostrado nos 10 frames limpos (avalie APENAS morfologia nas imagens).
 
-INSTRUÇÕES DE QUALIDADE:
-- IDIOMA: TODAS as respostas textuais DEVEM ser em PORTUGUÊS BRASILEIRO. NÃO escreva em inglês.
-- "reasoning": Escreva 2-3 frases ESPECÍFICAS em português descrevendo o que você observou. Cite características concretas (ex: "MCI compacta no polo superior, ZP afinada, sem fragmentação visível"). NÃO use frases genéricas como "embrião de boa qualidade" ou "morfologia adequada".
-- "morphology.notes": Descreva em português detalhes morfológicos CONCRETOS que você observou — forma, simetria, coloração, debris, estado da ZP, qualidade da MCI/TE. Se algo é normal para PIV, diga "normal para PIV" mas descreva o que viu.
-- "kinetics.notes": Descreva em português o que observou no vídeo — presença ou ausência de pulsação, comportamento da blastocele, movimentos celulares, ou ausência total de dinâmica. Se o vídeo é curto demais para avaliar, diga isso explicitamente.
-- Seja CRÍTICO: embrião mediano = score 50-65, não 80+. Não infle scores.
+DADOS CINÉTICOS OBJETIVOS (medidos computacionalmente — NÃO tente verificar nas imagens):
+activity_score = {activity_score}/100
+kinetic_quality_score = {kinetic_quality_score}/100
+
+PERFIL CINÉTICO MEDIDO:
+{kinetic_profile_text}
+
+Dia pós-FIV: {dias_pos_fiv}
+{contexto_adicional}
+
+PASSO 1: Responda a checklist de qualidade (sim/não para cada item) usando os 10 frames
+PASSO 2: Descreva morfologia observada nos frames
+PASSO 3: Interprete CLINICAMENTE os dados cinéticos fornecidos (números acima)
+PASSO 4: Atribua morph_score baseado nas observações visuais
 
 Responda JSON puro (sem markdown):
 {
@@ -286,32 +229,42 @@ Responda JSON puro (sem markdown):
   "classification": "Excelente"|"Bom"|"Regular"|"Borderline"|"Inviavel",
   "transfer_recommendation": "priority"|"recommended"|"conditional"|"second_opinion"|"discard",
   "confidence": "high"|"medium"|"low",
-  "reasoning": "<2-3 frases ESPECÍFICAS em PORTUGUÊS sobre o que observou>",
+  "reasoning": "<2-3 frases integrando morfologia + cinética, em português>",
+
+  "quality_checklist": {
+    "mci_distinct": <true/false>,
+    "te_continuous": <true/false>,
+    "spherical_shape": <true/false>,
+    "no_fragmentation": <true/false>,
+    "zp_uniform": <true/false>,
+    "checklist_score": "<5/5, 4/5, etc>"
+  },
+
   "morphology": {
     "score": <0-100>,
     "stage": "<estágio IETS, ex: Blastocisto expandido (Bx, código 7)>",
     "icm_grade": "A"|"B"|"C",
-    "icm_description": "<descrição CONCRETA em português da MCI: compactação, posição, delimitação>",
+    "icm_description": "<descrição CONCRETA em português>",
     "te_grade": "A"|"B"|"C",
-    "te_description": "<descrição CONCRETA em português do TE: continuidade, regularidade, espessura>",
-    "zp_status": "<íntegra|afinada|rompida|ausente>",
-    "fragmentation": "<nenhuma|mínima|leve|moderada|severa>",
-    "notes": "<observações morfológicas ESPECÍFICAS em português — o que você viu, não generalidades>"
+    "te_description": "<descrição CONCRETA em português>",
+    "zp_status": "íntegra"|"afinada"|"rompida"|"ausente",
+    "fragmentation": "nenhuma"|"mínima"|"leve"|"moderada"|"severa",
+    "best_frame": <0-9>,
+    "notes": "<observações morfológicas multi-frame em português>"
   },
-  "kinetics": {
-    "score": <0-100>,
-    "global_motion": "<ativo|moderado|sutil|estático>",
-    "icm_activity": "<descrição em português do que observou na MCI no vídeo>",
-    "te_activity": "<descrição em português do que observou no TE no vídeo>",
-    "blastocele_pulsation": "nenhuma"|"sutil"|"moderada"|"ativa",
-    "blastocele_pattern": "<descrição em português: expansão estável, colapso/re-expansão, sem variação>",
-    "expansion_observed": <true/false>,
-    "stability": "estável"|"oscilante"|"colapsando",
-    "motion_asymmetry": "<descrição em português de assimetria no movimento, ou 'não observada'>",
-    "most_active_region": "<região mais ativa em português, ou 'nenhuma atividade detectada'>",
-    "notes": "<observações cinéticas ESPECÍFICAS em português — o que viu no vídeo, não suposições>"
+
+  "kinetic_interpretation": "<Interpretação clínica dos dados cinéticos em 2-3 frases em português. CITE os números fornecidos. Ex: 'Atividade de 23/100 é moderada, compatível com embrião saudável em repouso. Pulsação detectada (3 ciclos) sugere vitalidade ativa da blastocele. Atividade periférica dominante indica expansão do trofectoderma.'>",
+
+  "viability_prediction": {
+    "morph_based": "<português>",
+    "activity_based": "<português>",
+    "context_adjusted": null,
+    "risk_factors": ["<riscos>"],
+    "positive_factors": ["<positivos>"],
+    "notes": "<português>"
   },
-  "viability_indicators": ["<lista de indicadores positivos e negativos CONCRETOS em PORTUGUÊS>"]
+
+  "viability_indicators": ["<indicadores em português>"]
 }`;
 
 // ============================================================
@@ -338,35 +291,34 @@ function classifyScore(score: number): { classification: string; recommendation:
   return { classification: 'Inviavel', recommendation: 'discard' };
 }
 
-/** Valida campos obrigatórios da resposta do Gemini */
-function validateGeminiEmbryo(parsed: GeminiEmbryoResult): string | null {
-  if (parsed.morphology?.score == null && parsed.kinetics?.score == null) {
-    return 'Resposta sem morphology.score e kinetics.score';
+/** Valida campos obrigatórios da resposta do Gemini v3 */
+function validateGeminiV3(parsed: GeminiV3Result): string | null {
+  if (parsed.morphology?.score == null) {
+    return 'Resposta sem morphology.score';
   }
-  if (parsed.morphology?.score != null && (typeof parsed.morphology.score !== 'number')) {
+  if (typeof parsed.morphology.score !== 'number') {
     return 'morphology.score não é número';
   }
-  if (parsed.kinetics?.score != null && (typeof parsed.kinetics.score !== 'number')) {
-    return 'kinetics.score não é número';
-  }
-  return null; // válido
+  return null;
 }
 
 // ============================================================
 // Tipos auxiliares
 // ============================================================
-interface GeminiEmbryoResult {
-  embryo_index: number;
-  position_description?: string;
-  bbox_x_percent?: number;
-  bbox_y_percent?: number;
-  bbox_width_percent?: number;
-  bbox_height_percent?: number;
+interface GeminiV3Result {
   embryo_score: number;
   classification: string;
   transfer_recommendation: string;
   confidence: string;
   reasoning?: string;
+  quality_checklist?: {
+    mci_distinct?: boolean;
+    te_continuous?: boolean;
+    spherical_shape?: boolean;
+    no_fragmentation?: boolean;
+    zp_uniform?: boolean;
+    checklist_score?: string;
+  };
   morphology?: {
     score?: number;
     stage?: string;
@@ -376,19 +328,16 @@ interface GeminiEmbryoResult {
     te_description?: string;
     zp_status?: string;
     fragmentation?: string;
+    best_frame?: number;
     notes?: string;
   };
-  kinetics?: {
-    score?: number;
-    global_motion?: string;
-    icm_activity?: string;
-    te_activity?: string;
-    blastocele_pulsation?: string;
-    blastocele_pattern?: string;
-    expansion_observed?: boolean;
-    stability?: string;
-    motion_asymmetry?: string;
-    most_active_region?: string;
+  kinetic_interpretation?: string;
+  viability_prediction?: {
+    morph_based?: string;
+    activity_based?: string;
+    context_adjusted?: string | null;
+    risk_factors?: string[];
+    positive_factors?: string[];
     notes?: string;
   };
   viability_indicators?: string[];
@@ -492,19 +441,7 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Mídia não encontrada: ${job.media_id}`);
     }
 
-    // ── 4. Baixar vídeo do Storage ──
-    const { data: videoData, error: downloadError } = await supabase
-      .storage
-      .from('embryo-videos')
-      .download(media.arquivo_path);
-
-    if (downloadError || !videoData) {
-      throw new Error(`Erro ao baixar vídeo: ${downloadError?.message || 'dados vazios'}`);
-    }
-
-    const videoArrayBuffer = await videoData.arrayBuffer();
-
-    // ── 5. Buscar config de pesos ──
+    // ── 4. Buscar config de pesos ──
     const { data: config } = await supabase
       .from('embryo_score_config')
       .select('*')
@@ -516,19 +453,16 @@ Deno.serve(async (req: Request) => {
     const morphWeight = config?.morph_weight ?? 0.7;
     const kineticWeight = config?.kinetic_weight ?? 0.3;
     const modelName = config?.model_name ?? 'gemini-2.5-flash';
-    const promptVersion = config?.prompt_version ?? 'v2';
 
-    // Usar prompts do banco (se definidos) ou fallback hardcoded
-    const calibrationTextSingle = config?.calibration_prompt || CALIBRATION_PROMPT_SINGLE;
+    // Usar prompts do banco (se definidos) ou fallback hardcoded v3
+    const calibrationText = config?.calibration_prompt || CALIBRATION_PROMPT_V3;
 
-    // Few-shot examples do banco (campo texto livre configurado via admin)
+    // Few-shot examples do banco
     const fewShotExamples = (config as Record<string, unknown>)?.few_shot_examples as string | null;
 
-    // ── 5b. Buscar embriões do banco ──
-    // Prioridade: queue_id (mais específico) → media_id → acasalamento_id (fallback)
+    // ── 5. Buscar embriões do banco ──
     let embrioes: { id: string; identificacao: string }[] | null = null;
 
-    // 1. Tentar por queue_id (vinculado no despacho — só embriões DESTE job)
     const { data: embrioesQueue } = await supabase
       .from('embrioes')
       .select('id, identificacao')
@@ -539,7 +473,6 @@ Deno.serve(async (req: Request) => {
       embrioes = embrioesQueue;
       console.log(`Encontrados ${embrioes.length} embriões vinculados ao queue_id ${queue_id}`);
     } else {
-      // 2. Tentar por media_id (pode incluir embriões de despachos anteriores)
       const { data: embrioesMedia } = await supabase
         .from('embrioes')
         .select('id, identificacao')
@@ -550,7 +483,6 @@ Deno.serve(async (req: Request) => {
         embrioes = embrioesMedia;
         console.log(`Encontrados ${embrioes.length} embriões vinculados ao media_id ${job.media_id}`);
       } else {
-        // 3. Fallback por acasalamento_id
         const { data: embrioesAcas, error: embrioesAcasError } = await supabase
           .from('embrioes')
           .select('id, identificacao')
@@ -567,7 +499,20 @@ Deno.serve(async (req: Request) => {
 
     const embryoCountInDb = embrioes?.length ?? 0;
 
-    // ── 5c. Ler bboxes e crop_paths do job ──
+    // ── 5a. Buscar lote_fiv_id para paths do Storage ──
+    let loteFivId = 'unknown';
+    try {
+      const { data: acasLoteData } = await supabase
+        .from('lote_fiv_acasalamentos')
+        .select('lote_fiv_id')
+        .eq('id', job.lote_fiv_acasalamento_id)
+        .single();
+      loteFivId = acasLoteData?.lote_fiv_id || 'unknown';
+    } catch {
+      console.warn('Não foi possível buscar lote_fiv_id');
+    }
+
+    // ── 5b. Ler bboxes e crop_paths do job ──
     interface DetectedBbox {
       x_percent: number;
       y_percent: number;
@@ -585,41 +530,63 @@ Deno.serve(async (req: Request) => {
     console.log(`Bboxes: ${hasOpenCVBboxes ? detectedBboxes!.length + ' detectados' : 'N/A'}, ` +
       `crops: ${hasCrops ? cropPaths!.length : 'N/A'}, confidence: ${detectionConfidence || 'N/A'}, expected: ${expectedCount}`);
 
-    const mimeType = media.mime_type || 'video/mp4';
+    // ── 5c. Reutilizar bboxes/crops de análise anterior (evita thumbnail drift) ──
+    if (!hasOpenCVBboxes && !hasCrops) {
+      try {
+        const { data: prevJob } = await supabase
+          .from('embryo_analysis_queue')
+          .select('detected_bboxes, crop_paths, detection_confidence')
+          .eq('media_id', job.media_id)
+          .neq('id', queue_id)
+          .not('detected_bboxes', 'is', null)
+          .not('crop_paths', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (prevJob?.detected_bboxes && (prevJob.detected_bboxes as DetectedBbox[]).length > 0 &&
+            prevJob?.crop_paths && (prevJob.crop_paths as string[]).length > 0) {
+          detectedBboxes = prevJob.detected_bboxes as DetectedBbox[];
+          cropPaths = prevJob.crop_paths as string[];
+          hasOpenCVBboxes = true;
+          hasCrops = true;
+          detectionConfidence = 'reused';
+          await supabase.from('embryo_analysis_queue').update({
+            detected_bboxes: detectedBboxes,
+            crop_paths: cropPaths,
+            detection_confidence: 'reused',
+          }).eq('id', queue_id);
+          console.log(`[REUSE] Reutilizando ${detectedBboxes.length} bboxes/crops de análise anterior`);
+        }
+      } catch (reuseErr) {
+        console.warn(`[REUSE] Falha: ${reuseErr instanceof Error ? reuseErr.message : 'unknown'}`);
+      }
+    }
+
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
 
     // Timeout de 120s por chamada Gemini
     const GEMINI_TIMEOUT_MS = 120_000;
 
-    // ═══════════════════════════════════════════════
-    // SERVER-SIDE DETECTION: Frame extraction + Gemini detect + crop (via Cloud Run)
-    // Roda quando o job NÃO tem bboxes/crops (fluxo novo sem detecção client-side)
-    // ═══════════════════════════════════════════════
     const FRAME_EXTRACTOR_URL = Deno.env.get('FRAME_EXTRACTOR_URL') ?? '';
 
+    // ═══════════════════════════════════════════════
+    // SERVER-SIDE DETECTION (se necessário)
+    // ═══════════════════════════════════════════════
     if (!hasCrops && !hasOpenCVBboxes && FRAME_EXTRACTOR_URL && expectedCount > 0) {
       console.log(`[SERVER-DETECT] Iniciando detecção server-side: expected=${expectedCount}`);
 
       try {
-        // Passo 1: Signed URL do vídeo
+        // Signed URL do vídeo
         const { data: signedUrlData } = await supabase.storage
           .from('embryo-videos')
-          .createSignedUrl(media.arquivo_path, 600); // 10 min
+          .createSignedUrl(media.arquivo_path, 600);
 
         if (!signedUrlData?.signedUrl) {
           throw new Error('Falha ao criar signed URL do vídeo');
         }
 
-        // Passo 2: Buscar lote_fiv_id (para path dos crops)
-        const { data: acasData } = await supabase
-          .from('lote_fiv_acasalamentos')
-          .select('lote_fiv_id')
-          .eq('id', job.lote_fiv_acasalamento_id)
-          .single();
-
-        const loteFivId = acasData?.lote_fiv_id || 'unknown';
-
-        // Passo 3: Cloud Run extrai frame
+        // Cloud Run extrai frame (loteFivId já buscado no passo 5a)
         console.log(`[SERVER-DETECT] Extraindo frame via ${FRAME_EXTRACTOR_URL}`);
         const frameResp = await fetch(`${FRAME_EXTRACTOR_URL}/extract-frame`, {
           method: 'POST',
@@ -637,7 +604,7 @@ Deno.serve(async (req: Request) => {
 
         console.log(`[SERVER-DETECT] Frame extraído: ${frameWidth}x${frameHeight}`);
 
-        // Passo 4: Gemini box_2d detecção (mesma lógica do embryo-detect)
+        // Gemini box_2d detecção
         const detectionPrompt = `Detect EXACTLY ${expectedCount} bovine embryos in this IVF stereomicroscope image.
 
 RULES:
@@ -688,7 +655,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         const rawDetText = detData?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!rawDetText) throw new Error('Gemini detection: sem texto na resposta');
 
-        // Parse robusto (mesma lógica do embryo-detect)
+        // Parse robusto
         interface GeminiBox2dItem {
           box_2d: [number, number, number, number];
           label?: string;
@@ -713,7 +680,6 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             parsedBoxes = [];
           }
         } catch {
-          // Fallback: JSON truncado
           if (detJson.startsWith('[') && !detJson.trimEnd().endsWith(']')) {
             const lastComplete = detJson.lastIndexOf('}');
             if (lastComplete > 0) {
@@ -747,7 +713,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
         console.log(`[SERVER-DETECT] ${rawBboxes.length} bboxes brutos de ${parsedBoxes.length} items`);
 
-        // Filtro 1: outliers de tamanho (mediana ± 4x)
+        // Filtro 1: outliers de tamanho
         if (rawBboxes.length > 1) {
           const areas = rawBboxes.map(b => b.width_percent * b.height_percent);
           const sortedAreas = [...areas].sort((a, b) => a - b);
@@ -758,7 +724,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           });
         }
 
-        // Filtro 2: limitar a expectedCount (mais próximos da mediana)
+        // Filtro 2: limitar a expectedCount
         if (rawBboxes.length > expectedCount) {
           const areas = rawBboxes.map(b => b.width_percent * b.height_percent);
           const sortedAreas = [...areas].sort((a, b) => a - b);
@@ -768,7 +734,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           rawBboxes = indexed.slice(0, expectedCount).map(item => item.bbox);
         }
 
-        // Ordenar em reading order (esquerda→direita, cima→baixo)
+        // Ordenar em reading order
         if (rawBboxes.length > 1) {
           const avgHeight = rawBboxes.reduce((s, b) => s + b.height_percent, 0) / rawBboxes.length;
           const rowTolerance = avgHeight * 0.7;
@@ -798,7 +764,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           throw new Error('Nenhum embrião detectado pelo Gemini');
         }
 
-        // Passo 5: Cloud Run cropa frame
+        // Cloud Run cropa frame
         console.log(`[SERVER-DETECT] Cropando ${sortedBboxes.length} embriões via Cloud Run`);
         const cropResp = await fetch(`${FRAME_EXTRACTOR_URL}/crop-frame`, {
           method: 'POST',
@@ -821,7 +787,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         const { crops } = await cropResp.json();
         if (!crops || crops.length === 0) throw new Error('Cloud Run retornou crops vazios');
 
-        // Passo 6: Upload crops pro Storage
+        // Upload crops pro Storage
         const timestamp = Date.now();
         const cropPathsUploaded: string[] = [];
         for (let i = 0; i < crops.length; i++) {
@@ -839,161 +805,214 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
         console.log(`[SERVER-DETECT] ${cropPathsUploaded.length}/${crops.length} crops uploaded`);
 
-        // Passo 7: Atualizar queue com dados de detecção
+        // Atualizar queue com dados de detecção
         await supabase.from('embryo_analysis_queue').update({
           detected_bboxes: sortedBboxes,
           detection_confidence: detConf,
           crop_paths: cropPathsUploaded,
         }).eq('id', queue_id);
 
-        // Passo 8: Atualizar variáveis locais para que MODO A rode normalmente
         detectedBboxes = sortedBboxes;
         detectionConfidence = detConf;
         cropPaths = cropPathsUploaded;
         hasOpenCVBboxes = true;
         hasCrops = true;
 
-        console.log(`[SERVER-DETECT] Detecção server-side completa. Prosseguindo para análise MODO A.`);
+        console.log(`[SERVER-DETECT] Detecção server-side completa.`);
 
       } catch (serverDetectErr) {
         const errMsg = serverDetectErr instanceof Error ? serverDetectErr.message : 'Erro desconhecido';
         console.error(`[SERVER-DETECT] Falha: ${errMsg}`);
-
-        // Falha na detecção server-side → job vai para "skipped" (bloco abaixo tratará)
-        // Não throw — deixa cair no bloco else que marca como skipped
       }
     }
 
     // ═══════════════════════════════════════════════
-    // MODO A: Crop JPEG como bússola + Vídeo via Files API (1 call/embrião, paralelo)
+    // V3: Activity Analysis + Multi-Frame Gemini (SEM vídeo)
     // ═══════════════════════════════════════════════
-    let filteredEmbryos: GeminiEmbryoResult[] = [];
+    let filteredEmbryos: GeminiV3Result[] = [];
     let originalIndexes: number[] = [];
     let rawAiCount = 0;
+    let activityScores: number[] = [];
+
+    // Dados de atividade por embrião (do Cloud Run)
+    interface KineticProfile {
+      core_activity: number;
+      periphery_activity: number;
+      peak_zone: string;
+      temporal_pattern: string;
+      activity_timeline: number[];
+      temporal_variability: number;
+      activity_symmetry: number;
+      focal_activity_detected: boolean;
+    }
+    interface ActivityEmbryoData {
+      index: number;
+      activity_score: number;
+      kinetic_profile: KineticProfile;
+      kinetic_quality_score: number;
+      clean_frames: string[];
+      composite_frames: string[];
+      cumulative_heatmap: string;
+    }
+    let activityEmbryos: ActivityEmbryoData[] = [];
+    let compositePathsMap: Record<number, { frames: string[]; heatmap: string }> = {};
 
     if (hasCrops && hasOpenCVBboxes) {
-      console.log(`[MODO A] Files API + ${cropPaths.length} crops paralelos`);
+      console.log(`[V3] Análise multi-frame + activity para ${detectedBboxes!.length} embriões`);
 
-      // Calibração SINGLE (para Modo A) + few-shot examples
-      let calibrationSingleWithWeights = calibrationTextSingle
-        .replaceAll('{morph_weight}', morphWeight.toString())
-        .replaceAll('{kinetic_weight}', kineticWeight.toString());
+      // Calibração v3.1 — scores independentes
+      let calibrationWithWeights = calibrationText;
 
       if (fewShotExamples) {
-        calibrationSingleWithWeights += `\n\n═══════════════════════════════════════════════\nEXEMPLOS DE REFERÊNCIA (FEW-SHOT)\n═══════════════════════════════════════════════\n${fewShotExamples}`;
-        console.log(`[MODO A] Few-shot examples adicionados ao prompt (${fewShotExamples.length} chars)`);
+        calibrationWithWeights += `\n\n═══════════════════════════════════════════════\nEXEMPLOS DE REFERÊNCIA (FEW-SHOT)\n═══════════════════════════════════════════════\n${fewShotExamples}`;
       }
 
-      // A1. Upload vídeo para Gemini Files API (resumable)
-      const startUploadResp = await fetch(
-        `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'X-Goog-Upload-Protocol': 'resumable',
-            'X-Goog-Upload-Command': 'start',
-            'X-Goog-Upload-Header-Content-Length': String(videoArrayBuffer.byteLength),
-            'X-Goog-Upload-Header-Content-Type': mimeType,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ file: { display_name: `embryo-${queue_id}` } }),
-        }
-      );
+      // ── V3 Passo 1: Signed URL do vídeo para Cloud Run ──
+      const { data: signedUrlData } = await supabase.storage
+        .from('embryo-videos')
+        .createSignedUrl(media.arquivo_path, 600);
 
-      if (!startUploadResp.ok) {
-        const err = await startUploadResp.text();
-        throw new Error(`Gemini Files API start falhou: ${err.substring(0, 300)}`);
+      if (!signedUrlData?.signedUrl) {
+        throw new Error('Falha ao criar signed URL do vídeo para activity analysis');
       }
 
-      const uploadUrl = startUploadResp.headers.get('X-Goog-Upload-URL');
-      if (!uploadUrl) throw new Error('Gemini Files API não retornou upload URL');
-
-      // A2. Upload bytes binários
-      const uploadResp = await fetch(uploadUrl, {
+      // ── V3 Passo 2: Cloud Run /analyze-activity ──
+      console.log(`[V3] Chamando /analyze-activity com ${detectedBboxes!.length} bboxes`);
+      const activityResp = await fetch(`${FRAME_EXTRACTOR_URL}/analyze-activity`, {
         method: 'POST',
-        headers: {
-          'Content-Length': String(videoArrayBuffer.byteLength),
-          'X-Goog-Upload-Offset': '0',
-          'X-Goog-Upload-Command': 'upload, finalize',
-        },
-        body: videoArrayBuffer,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_url: signedUrlData.signedUrl,
+          bboxes: detectedBboxes!.map((b: DetectedBbox) => ({
+            x_percent: b.x_percent,
+            y_percent: b.y_percent,
+            width_percent: b.width_percent,
+            height_percent: b.height_percent,
+          })),
+          fps: 8,
+          num_key_frames: 10,
+          output_size: 400,
+        }),
       });
 
-      if (!uploadResp.ok) {
-        const err = await uploadResp.text();
-        throw new Error(`Gemini Files API upload falhou: ${err.substring(0, 300)}`);
+      if (!activityResp.ok) {
+        const errText = await activityResp.text();
+        throw new Error(`Cloud Run analyze-activity falhou (${activityResp.status}): ${errText.substring(0, 300)}`);
       }
 
-      const fileInfo = await uploadResp.json();
-      const fileUri = fileInfo?.file?.uri;
-      const fileName = fileInfo?.file?.name;
-      if (!fileUri) throw new Error('Gemini Files API não retornou file URI');
+      const activityData = await activityResp.json();
+      activityScores = activityData.activity_scores || [];
+      activityEmbryos = activityData.embryos || [];
 
-      console.log(`[MODO A] Vídeo uploaded: ${fileName}, URI: ${fileUri}`);
+      console.log(`[V3] Activity scores: [${activityScores.join(', ')}], frames_sampled: ${activityData.frames_sampled}`);
+      console.log(`[V3] Embryos: ${activityEmbryos.length}, fields per embryo: ${activityEmbryos[0] ? Object.keys(activityEmbryos[0]).join(',') : 'none'}`);
 
-      // A3. Esperar vídeo ficar ACTIVE
-      let fileState = fileInfo?.file?.state || 'PROCESSING';
-      let pollAttempts = 0;
-      while (fileState === 'PROCESSING' && pollAttempts < 30) {
-        await new Promise(r => setTimeout(r, 2000));
-        const stateResp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${geminiApiKey}`
-        );
-        if (stateResp.ok) {
-          const stateData = await stateResp.json();
-          fileState = stateData?.state || 'PROCESSING';
-        }
-        pollAttempts++;
-      }
+      // ── V3 Passo 2b: Salvar composites + heatmaps no Storage (debug/inspeção) ──
+      try {
+        const uploadTs = Date.now();
+        const uploads: Promise<{ data: unknown; error: { message: string } | null }>[] = [];
 
-      if (fileState !== 'ACTIVE') {
-        throw new Error(`Vídeo no Gemini Files API ficou em estado ${fileState} após polling`);
-      }
+        for (let eIdx = 0; eIdx < activityEmbryos.length; eIdx++) {
+          const ae = activityEmbryos[eIdx];
+          compositePathsMap[eIdx] = { frames: [], heatmap: '' };
 
-      console.log(`[MODO A] Vídeo ACTIVE após ${pollAttempts} polls`);
-
-      // A4. Download crops do Storage (paralelo)
-      const cropBase64List = await Promise.all(
-        cropPaths.map(async (path: string) => {
-          try {
-            const { data } = await supabase.storage.from('embryo-videos').download(path);
-            if (!data) return null;
-            const ab = await data.arrayBuffer();
-            return btoa(new Uint8Array(ab).reduce((d: string, b: number) => d + String.fromCharCode(b), ''));
-          } catch {
-            console.warn(`[MODO A] Crop download falhou: ${path}`);
-            return null;
+          for (let fIdx = 0; fIdx < ae.composite_frames.length; fIdx++) {
+            const p = `${loteFivId}/${job.lote_fiv_acasalamento_id}/composites/${uploadTs}_e${eIdx}_f${fIdx}.jpg`;
+            compositePathsMap[eIdx].frames.push(p);
+            const bytes = Uint8Array.from(atob(ae.composite_frames[fIdx]), (c: string) => c.charCodeAt(0));
+            uploads.push(supabase.storage.from('embryo-videos').upload(p, bytes, { contentType: 'image/jpeg', upsert: true }));
           }
-        })
-      );
 
-      console.log(`[MODO A] ${cropBase64List.filter(Boolean).length}/${cropPaths.length} crops baixados`);
+          const hp = `${loteFivId}/${job.lote_fiv_acasalamento_id}/composites/${uploadTs}_e${eIdx}_heatmap.jpg`;
+          compositePathsMap[eIdx].heatmap = hp;
+          const hBytes = Uint8Array.from(atob(ae.cumulative_heatmap), (c: string) => c.charCodeAt(0));
+          uploads.push(supabase.storage.from('embryo-videos').upload(hp, hBytes, { contentType: 'image/jpeg', upsert: true }));
+        }
 
-      // A5. N chamadas paralelas — crop PRIMEIRO, texto SEGUNDO, vídeo POR ÚLTIMO
+        await Promise.all(uploads);
+        console.log(`[V3] ${uploads.length} composites/heatmaps salvos no Storage`);
+      } catch (uploadErr) {
+        console.warn(`[V3] Composite upload falhou: ${uploadErr instanceof Error ? uploadErr.message : 'unknown'}`);
+      }
+
+      // ── V3 Passo 3: Buscar dia pós-FIV ──
+      let diasPosFiv: number | null = null;
+      try {
+        const { data: loteData } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select('lote_fiv_id, lotes_fiv(data_abertura)')
+          .eq('id', job.lote_fiv_acasalamento_id)
+          .single();
+
+        const dataAbertura = (loteData?.lotes_fiv as { data_abertura?: string } | null)?.data_abertura;
+        if (dataAbertura) {
+          diasPosFiv = Math.floor((Date.now() - new Date(dataAbertura).getTime()) / 86400000);
+        }
+      } catch {
+        console.warn('[V3] Não foi possível buscar dia pós-FIV');
+      }
+
+      const diasPosFivContext = diasPosFiv != null
+        ? `Dia pós-FIV: D${diasPosFiv}\nD7: Espera-se Blastocisto (Bl) a Blastocisto expandido (Bx). Bx é ideal.\nD8: Espera-se Bx a Blastocisto em eclosão (Bh). Mórula em D8 = atraso.`
+        : 'Dia pós-FIV: não disponível';
+
+      // Preencher placeholders de contexto na calibração
+      calibrationWithWeights = calibrationWithWeights
+        .replace('{dias_pos_fiv_context}', diasPosFivContext)
+        .replace('{doadora_info}', '')
+        .replace('{touro_info}', '')
+        .replace('{receptora_info}', '')
+        .replace('{historico_info}', '');
+
+      // ── V3 Passo 4: N chamadas paralelas ao Gemini (10 frames LIMPOS + perfil cinético como TEXTO) ──
       interface ParallelResult {
         index: number;
         error: string | null;
-        result: GeminiEmbryoResult | null;
+        result: GeminiV3Result | null;
       }
 
-      const geminiPromises: Promise<ParallelResult>[] = detectedBboxes.map((_bbox: DetectedBbox, index: number) => {
-        const cropB64 = cropBase64List[index];
-
-        // Montar parts: crop PRIMEIRO (âncora visual), texto SEGUNDO, vídeo POR ÚLTIMO (suplementar)
-        const parts: Array<Record<string, unknown>> = [];
-
-        // 1. Crop como âncora visual (inline_data)
-        if (cropB64) {
-          parts.push({ inline_data: { mime_type: 'image/jpeg', data: cropB64 } });
+      const geminiPromises: Promise<ParallelResult>[] = detectedBboxes!.map((_bbox: DetectedBbox, index: number) => {
+        const embryoActivity = activityEmbryos[index];
+        if (!embryoActivity || !embryoActivity.clean_frames || embryoActivity.clean_frames.length === 0) {
+          return Promise.resolve({ index, error: 'Sem dados de atividade para este embrião', result: null });
         }
 
-        // 2. Texto de análise
-        parts.push({ text: ANALYSIS_PROMPT_SINGLE });
+        const parts: Array<Record<string, unknown>> = [];
 
-        // 3. Vídeo como material suplementar para cinética
-        parts.push({ file_data: { file_uri: fileUri, mime_type: mimeType } });
+        // 10 frames LIMPOS (sem overlay — Gemini avalia APENAS morfologia visual)
+        for (const frameB64 of embryoActivity.clean_frames) {
+          parts.push({ inline_data: { mime_type: 'image/jpeg', data: frameB64 } });
+        }
 
-        // AbortController para timeout individual
+        // NÃO envia heatmap ao Gemini — ele interpreta NÚMEROS, não imagens de atividade
+
+        // Construir texto do perfil cinético para o Gemini interpretar clinicamente
+        const kp = embryoActivity.kinetic_profile;
+        let kineticProfileText = `- Atividade geral: ${embryoActivity.activity_score}/100`;
+        if (kp) {
+          kineticProfileText = [
+            `- Atividade geral: ${embryoActivity.activity_score}/100 (compensada por ruído de câmera)`,
+            `- Zona central (MCI): ${kp.core_activity ?? 0}/100`,
+            `- Zona periférica (TE/ZP): ${kp.periphery_activity ?? 0}/100`,
+            `- Zona de pico: ${kp.peak_zone === 'core' ? 'centro (MCI)' : kp.peak_zone === 'periphery' ? 'periferia (TE/ZP)' : 'uniforme'}`,
+            `- Padrão temporal: ${kp.temporal_pattern ?? 'stable'}`,
+            `- Simetria de atividade: ${kp.activity_symmetry ?? 1} (0=assimétrica, 1=simétrica)`,
+            `- Atividade focal concentrada: ${kp.focal_activity_detected ? 'SIM (possível hatching)' : 'NÃO'}`,
+          ].join('\n');
+        } else {
+          console.warn(`[V3] Embrião ${index}: kinetic_profile ausente no Cloud Run response`);
+        }
+
+        // Prompt de análise v3 com valores substituídos
+        const analysisPrompt = ANALYSIS_PROMPT_V3
+          .replace('{activity_score}', String(embryoActivity.activity_score))
+          .replace('{kinetic_quality_score}', String(embryoActivity.kinetic_quality_score))
+          .replace('{kinetic_profile_text}', kineticProfileText)
+          .replace('{dias_pos_fiv}', diasPosFiv != null ? `D${diasPosFiv}` : 'não disponível')
+          .replace('{contexto_adicional}', '');
+
+        parts.push({ text: analysisPrompt });
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
@@ -1002,7 +1021,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           headers: { 'Content-Type': 'application/json' },
           signal: controller.signal,
           body: JSON.stringify({
-            system_instruction: { parts: [{ text: calibrationSingleWithWeights }] },
+            system_instruction: { parts: [{ text: calibrationWithWeights }] },
             contents: [{ parts }],
             generation_config: {
               temperature: 0,
@@ -1018,9 +1037,8 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
           if (!raw) return { index, error: 'Gemini não retornou texto', result: null };
           let json = raw.trim();
           if (json.startsWith('```')) json = json.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-          const parsed = JSON.parse(json) as GeminiEmbryoResult;
-          // Validar
-          const validationError = validateGeminiEmbryo(parsed);
+          const parsed = JSON.parse(json) as GeminiV3Result;
+          const validationError = validateGeminiV3(parsed);
           if (validationError) return { index, error: `Validação: ${validationError}`, result: null };
           return { index, error: null, result: parsed };
         }).catch((err: unknown) => {
@@ -1034,40 +1052,31 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
       const parallelResults = await Promise.all(geminiPromises);
 
-      // A6. Cleanup: deletar arquivo do Gemini
-      fetch(
-        `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${geminiApiKey}`,
-        { method: 'DELETE' }
-      ).catch(() => { /* fire-and-forget */ });
-
-      // A7. Processar resultados
+      // Processar resultados
       const failedResults = parallelResults.filter((r: ParallelResult) => !r.result);
 
       if (failedResults.length > 0) {
-        console.warn(`[MODO A] ${failedResults.length} chamadas falharam:`,
+        console.warn(`[V3] ${failedResults.length} chamadas falharam:`,
           failedResults.map((r: ParallelResult) => `#${r.index}: ${r.error?.substring(0, 100)}`));
       }
 
-      console.log(`[MODO A] ${parallelResults.length - failedResults.length}/${parallelResults.length} análises bem-sucedidas`);
+      console.log(`[V3] ${parallelResults.length - failedResults.length}/${parallelResults.length} análises bem-sucedidas`);
 
-      // Preservar índice original para matching correto com embriões e bboxes
       const successfulResults = parallelResults
         .sort((a: ParallelResult, b: ParallelResult) => a.index - b.index)
         .filter((r: ParallelResult) => r.result);
 
       filteredEmbryos = successfulResults.map((r: ParallelResult) => r.result!);
-      // Índices originais (pré-filtro) — usados para alinhar com embrioes[] e detectedBboxes[]
       originalIndexes = successfulResults.map((r: ParallelResult) => r.index);
-
       rawAiCount = filteredEmbryos.length;
 
-      // Se TODAS as chamadas Gemini falharam, marcar como 'failed' e abortar
+      // Se TODAS as chamadas Gemini falharam
       if (filteredEmbryos.length === 0) {
         const errorDetails = failedResults
           .map((r: ParallelResult) => `#${r.index}: ${r.error?.substring(0, 80)}`)
           .join('; ');
         const errorMsg = `Todas as ${parallelResults.length} chamadas Gemini falharam: ${errorDetails}`.substring(0, 500);
-        console.error(`[MODO A] ${errorMsg}`);
+        console.error(`[V3] ${errorMsg}`);
 
         await supabase
           .from('embryo_analysis_queue')
@@ -1120,7 +1129,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
     const embryoCount = embryoCountInDb;
     const aiCount = filteredEmbryos.length;
     const countMismatch = embryoCount !== rawAiCount;
-    const analysisMode = 'crop+video';
+    const analysisMode = 'v3-multiframe-activity';
 
     // Buscar analysis_version máxima atual para incrementar
     let nextVersion = 1;
@@ -1137,18 +1146,21 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       }
     }
 
-    const scoresToInsert = filteredEmbryos.map((aiEmbryo: GeminiEmbryoResult, i: number) => {
-      // Usar índice original (pré-filtro de falhas) para alinhar com embrioes[] e bboxes[]
+    const scoresToInsert = filteredEmbryos.map((aiEmbryo: GeminiV3Result, i: number) => {
       const origIdx = originalIndexes[i];
       const embriao = embrioes?.[origIdx];
       const morph = aiEmbryo.morphology;
-      const kin = aiEmbryo.kinetics;
+      const viability = aiEmbryo.viability_prediction;
+      const checklist = aiEmbryo.quality_checklist;
       const confidence = aiEmbryo.confidence || 'medium';
 
-      // SERVER-SIDE score calculation — não confia no Gemini
+      // Scores independentes — morfologia e cinética avaliadas separadamente
       const morphScore = clamp(morph?.score ?? 0, 0, 100);
-      const kinScore = clamp(kin?.score ?? 0, 0, 100);
-      const calculatedScore = Math.round(morphScore * morphWeight + kinScore * kineticWeight);
+      const rawActivityScore = clamp(activityScores[origIdx] ?? 0, 0, 100);
+      const embryoActivity = activityEmbryos[origIdx];
+      const kineticQuality = clamp(embryoActivity?.kinetic_quality_score ?? 0, 0, 100);
+      const kineticProfile = embryoActivity?.kinetic_profile;
+      const calculatedScore = morphScore; // Score principal = morfologia
       const geminiOriginalScore = aiEmbryo.embryo_score;
 
       // Classificação DETERMINÍSTICA baseada no score calculado
@@ -1160,13 +1172,14 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         is_current: true,
         analysis_version: nextVersion,
 
-        // Score CALCULADO no servidor
+        // Score principal = morfologia (cinética salva independente em kinetic_score)
         embryo_score: calculatedScore,
         classification,
         transfer_recommendation: recommendation,
         confidence,
         reasoning: aiEmbryo.reasoning,
 
+        // Morfologia (do Gemini multi-frame)
         morph_score: morphScore,
         stage: morph?.stage,
         icm_grade: morph?.icm_grade,
@@ -1177,40 +1190,50 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         fragmentation: morph?.fragmentation,
         morph_notes: morph?.notes,
 
-        kinetic_score: kinScore,
-        global_motion: kin?.global_motion,
-        icm_activity: kin?.icm_activity,
-        te_activity: kin?.te_activity,
-        blastocele_pulsation: kin?.blastocele_pulsation,
-        blastocele_pattern: kin?.blastocele_pattern,
-        expansion_observed: kin?.expansion_observed ?? false,
-        stability: kin?.stability,
-        motion_asymmetry: kin?.motion_asymmetry,
-        most_active_region: kin?.most_active_region,
-        kinetic_notes: kin?.notes,
+        // Cinética v3 — dados do Cloud Run kinetic_profile + interpretação do Gemini
+        kinetic_score: kineticQuality,
+        global_motion: kineticProfile?.temporal_pattern || null,
+        blastocele_pulsation: null,
+        expansion_observed: null,
+        stability: kineticProfile?.activity_symmetry != null
+          ? (kineticProfile.activity_symmetry >= 0.7 ? 'Simétrica' : kineticProfile.activity_symmetry >= 0.4 ? 'Moderada' : 'Assimétrica')
+          : null,
+        icm_activity: kineticProfile?.core_activity != null ? `${kineticProfile.core_activity}/100` : null,
+        te_activity: kineticProfile?.periphery_activity != null ? `${kineticProfile.periphery_activity}/100` : null,
+        most_active_region: kineticProfile?.peak_zone === 'core' ? 'Centro (MCI)'
+          : kineticProfile?.peak_zone === 'periphery' ? 'Periferia (TE/ZP)'
+          : kineticProfile?.peak_zone === 'uniform' ? 'Uniforme' : null,
+        motion_asymmetry: kineticProfile?.activity_symmetry != null ? String(kineticProfile.activity_symmetry) : null,
+        kinetic_notes: aiEmbryo.kinetic_interpretation || null,
         viability_indicators: aiEmbryo.viability_indicators || [],
 
-        // Posição: usar índice original para alinhar com detectedBboxes[]
-        position_description: aiEmbryo.position_description,
+        // Novos campos v3
+        activity_score: rawActivityScore,
+        temporal_analysis: kineticProfile || null,
+        viability_prediction: viability || null,
+        quality_checklist: checklist || null,
+
+        // Posição
+        position_description: null,
         bbox_x_percent: hasOpenCVBboxes
-          ? (detectedBboxes[origIdx]?.x_percent ?? null)
-          : clampBbox(aiEmbryo.bbox_x_percent),
+          ? (detectedBboxes![origIdx]?.x_percent ?? null)
+          : null,
         bbox_y_percent: hasOpenCVBboxes
-          ? (detectedBboxes[origIdx]?.y_percent ?? null)
-          : clampBbox(aiEmbryo.bbox_y_percent),
+          ? (detectedBboxes![origIdx]?.y_percent ?? null)
+          : null,
         bbox_width_percent: hasOpenCVBboxes
-          ? (detectedBboxes[origIdx]?.width_percent ?? null)
-          : clampBbox(aiEmbryo.bbox_width_percent, 1),
+          ? (detectedBboxes![origIdx]?.width_percent ?? null)
+          : null,
         bbox_height_percent: hasOpenCVBboxes
-          ? (detectedBboxes[origIdx]?.height_percent ?? null)
-          : clampBbox(aiEmbryo.bbox_height_percent, 1),
+          ? (detectedBboxes![origIdx]?.height_percent ?? null)
+          : null,
 
         crop_image_path: cropPaths?.[origIdx] ?? null,
 
         model_used: modelName,
-        morph_weight: morphWeight,
-        kinetic_weight: kineticWeight,
-        prompt_version: promptVersion,
+        morph_weight: 1.0,
+        kinetic_weight: 0,
+        prompt_version: 'v3.1',
         processing_time_ms: processingTime,
         raw_response: {
           _meta: {
@@ -1224,6 +1247,13 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             server_calculated: true,
             gemini_original_score: geminiOriginalScore,
             gemini_original_classification: aiEmbryo.classification,
+            activity_score_raw: rawActivityScore,
+            kinetic_quality_score: kineticQuality,
+            morph_score_gemini: morphScore,
+            kinetic_profile: kineticProfile || null,
+            best_frame: morph?.best_frame,
+            composite_paths: compositePathsMap[origIdx]?.frames || [],
+            heatmap_path: compositePathsMap[origIdx]?.heatmap || null,
           },
         },
       };
@@ -1231,7 +1261,6 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
     const validScores = scoresToInsert.filter((s: { embriao_id: string | null }) => s.embriao_id);
 
-    // Se Gemini retornou resultados mas nenhum embrião foi vinculado, é falha de matching
     if (validScores.length === 0 && scoresToInsert.length > 0) {
       const errorMsg = `Matching falhou: ${scoresToInsert.length} resultado(s) da IA mas nenhum vinculado a embriões do banco. ` +
         `embrioes encontrados: ${embryoCountInDb}, indices usados: [${originalIndexes.join(',')}]`;
@@ -1271,7 +1300,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       }
     }
 
-    // ── 10. Atualizar job → completed ──
+    // ── Atualizar job → completed ──
     await supabase
       .from('embryo_analysis_queue')
       .update({
@@ -1280,7 +1309,6 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       })
       .eq('id', queue_id);
 
-    // Resposta de sucesso
     return new Response(
       JSON.stringify({
         success: true,
@@ -1293,6 +1321,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
         processing_time_ms: processingTime,
         model: modelName,
         server_calculated: true,
+        activity_scores: activityScores,
       }),
       {
         status: 200,
@@ -1301,9 +1330,9 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    console.error('embryo-analyze error:', errorMessage);
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('embryo-analyze error:', errorMessage, errorStack);
 
-    // Tentar atualizar job para 'failed'
     if (queue_id) {
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';

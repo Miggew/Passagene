@@ -515,6 +515,41 @@ export interface EmbryoScore {
   biologo_concorda?: boolean | null;
   biologo_nota?: string | null;
 
+  // v3: Activity Score (Cloud Run pixel subtraction)
+  activity_score?: number;
+
+  // v3: Perfil cinético (dados do Cloud Run — análise computacional de pixels, compensado por câmera)
+  temporal_analysis?: {
+    core_activity?: number;
+    periphery_activity?: number;
+    peak_zone?: string;
+    temporal_pattern?: string;
+    activity_timeline?: number[];
+    temporal_variability?: number;
+    activity_symmetry?: number;
+    focal_activity_detected?: boolean;
+  };
+
+  // v3: Predição de viabilidade (preparado para contexto futuro)
+  viability_prediction?: {
+    morph_based?: string;
+    activity_based?: string;
+    context_adjusted?: string | null;
+    risk_factors?: string[];
+    positive_factors?: string[];
+    notes?: string;
+  };
+
+  // v3: Checklist binária de qualidade (5 critérios)
+  quality_checklist?: {
+    mci_distinct?: boolean;
+    te_continuous?: boolean;
+    spherical_shape?: boolean;
+    no_fragmentation?: boolean;
+    zp_uniform?: boolean;
+    checklist_score?: string;
+  };
+
   // Resposta bruta da IA (inclui _meta com info de divergência)
   raw_response?: {
     total_embryos_detected?: number;
