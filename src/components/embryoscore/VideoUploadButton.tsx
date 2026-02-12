@@ -8,6 +8,7 @@
 import { useRef } from 'react';
 import { useEmbryoVideoUpload } from '@/hooks/useEmbryoVideoUpload';
 import { Video, Plus, Check, Loader2, AlertCircle } from 'lucide-react';
+import { CameraRecorder } from '@/components/camera';
 
 interface VideoUploadButtonProps {
   acasalamentoId: string;
@@ -100,10 +101,16 @@ export function VideoUploadButton({
             onClick={handleClick}
             disabled={disabled}
             className="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Adicionar outro video"
+            title="Adicionar arquivo de video"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
+          <CameraRecorder
+            acasalamentoId={acasalamentoId}
+            loteFivId={loteFivId}
+            disabled={disabled}
+            onRecordingComplete={onUploadComplete}
+          />
         </div>
         <input
           ref={inputRef}
@@ -119,14 +126,22 @@ export function VideoUploadButton({
   // Estado: pronto para upload (nenhum video ainda)
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <button
-        onClick={handleClick}
-        disabled={disabled}
-        className="w-8 h-8 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        title="Enviar video do microscopio"
-      >
-        <Video className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={handleClick}
+          disabled={disabled}
+          className="w-8 h-8 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Enviar arquivo de video"
+        >
+          <Video className="w-4 h-4" />
+        </button>
+        <CameraRecorder
+          acasalamentoId={acasalamentoId}
+          loteFivId={loteFivId}
+          disabled={disabled}
+          onRecordingComplete={onUploadComplete}
+        />
+      </div>
       <span className="text-[9px] text-muted-foreground">Filmar</span>
       <input
         ref={inputRef}
