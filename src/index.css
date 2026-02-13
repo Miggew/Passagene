@@ -2,137 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fonte grande para uso no campo */
-html.font-grande {
-  font-size: 18px;
-}
-
 @layer base {
   :root {
-    /* Design Tokens PassaGene - Light Mode */
-    /* Cores baseadas na logo real: #09C972 (vibrante), #049357 (escuro), #666666 (texto) */
-
-    /* Background & Foreground */
+    /* DS v4 Light (Para compatibilidade, mas o foco é dark) */
     --background: 0 0% 100%;
-    --foreground: 0 0% 40%; /* #666666 da logo */
-
-    /* Cards */
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 40%;
-
-    /* Popovers */
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 40%;
-
-    /* Primary - Verde vibrante da logo (#09C972) → hsl(153, 93%, 41%) */
-    --primary: 153 93% 41%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Primary Dark - Verde escuro da logo (#049357) → hsl(156, 94%, 30%) */
-    --primary-dark: 156 94% 30%;
-    --primary-dark-foreground: 0 0% 100%;
-
-    /* Primary Light - Derivado mais claro (#5EDFA3) */
-    --primary-light: 153 65% 62%;
-    --primary-light-foreground: 156 94% 20%;
-
-    /* Primary Subtle - Fundo sutil (#D0F5E3) */
-    --primary-subtle: 153 65% 89%;
-    --primary-subtle-foreground: 156 94% 25%;
-
-    /* Secondary - Neutro claro */
-    --secondary: 150 20% 97%;
-    --secondary-foreground: 0 0% 40%;
-
-    /* Muted */
-    --muted: 150 15% 96%;
-    --muted-foreground: 0 0% 50%;
-
-    /* Accent - Entre primary e dark (#07B566) */
-    --accent: 154 94% 36%;
-    --accent-foreground: 0 0% 100%;
-
-    /* Destructive */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Borders & Inputs */
-    --border: 150 15% 88%;
-    --input: 150 15% 88%;
-    --ring: 153 93% 41%;
-
-    /* Radius base */
+    --foreground: 156 20% 5%;
+    --card: 0 0% 98%;
+    --card-foreground: 156 20% 5%;
+    --primary: 158 64% 52%; /* #34d399 */
+    --primary-foreground: 156 20% 5%;
+    --border: 156 20% 90%;
     --radius: 0.5rem;
-
-    /* Sidebar - Tema claro */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 40%;
-    --sidebar-primary: 153 93% 41%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 153 65% 92%;
-    --sidebar-accent-foreground: 156 94% 30%;
-    --sidebar-border: 150 15% 90%;
-    --sidebar-ring: 153 93% 41%;
   }
 
   .dark {
-    /* Design Tokens PassaGene - Dark Mode */
+    /* DS v4 Real Dark Aesthetic (Stripe/Linear) */
+    --background: 156 20% 5%; /* #0a0f0d */
+    --foreground: 150 18% 92%; /* #e6eeea */
+    
+    --card: 156 19% 9%; /* #131c18 */
+    --card-foreground: 150 18% 92%;
+    
+    --popover: 156 19% 9%;
+    --popover-foreground: 150 18% 92%;
 
-    /* Background & Foreground */
-    --background: 160 15% 8%;
-    --foreground: 150 15% 95%;
+    --primary: 158 64% 52%; /* Emerald-400 (#34d399) */
+    --primary-foreground: 156 40% 2%; /* Deep dark text on emerald */
 
-    /* Cards */
-    --card: 160 15% 11%;
-    --card-foreground: 150 15% 95%;
+    --secondary: 156 19% 12%; /* #1a2722 */
+    --secondary-foreground: 158 64% 52%;
 
-    /* Popovers */
-    --popover: 160 15% 11%;
-    --popover-foreground: 150 15% 95%;
+    --muted: 156 19% 12%;
+    --muted-foreground: 153 10% 60%; /* #8a9e94 */
 
-    /* Primary - Verde vibrante (mais saturado no dark) */
-    --primary: 153 93% 45%;
-    --primary-foreground: 160 15% 8%;
+    --accent: 156 19% 12%;
+    --accent-foreground: 158 64% 52%;
 
-    --primary-dark: 156 94% 30%;
-    --primary-dark-foreground: 0 0% 100%;
-
-    --primary-light: 153 65% 62%;
-    --primary-light-foreground: 160 15% 8%;
-
-    --primary-subtle: 153 40% 18%;
-    --primary-subtle-foreground: 153 65% 75%;
-
-    /* Secondary */
-    --secondary: 160 15% 16%;
-    --secondary-foreground: 150 15% 95%;
-
-    /* Muted */
-    --muted: 160 15% 16%;
-    --muted-foreground: 150 15% 65%;
-
-    /* Accent */
-    --accent: 154 94% 40%;
-    --accent-foreground: 0 0% 100%;
-
-    /* Destructive */
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Borders & Inputs */
-    --border: 160 15% 18%;
-    --input: 160 15% 18%;
-    --ring: 153 93% 45%;
-
-    /* Sidebar - Dark */
-    --sidebar-background: 160 15% 6%;
-    --sidebar-foreground: 150 15% 95%;
-    --sidebar-primary: 153 93% 45%;
-    --sidebar-primary-foreground: 160 15% 8%;
-    --sidebar-accent: 160 15% 14%;
-    --sidebar-accent-foreground: 150 15% 95%;
-    --sidebar-border: 160 15% 14%;
-    --sidebar-ring: 153 93% 45%;
+    --border: 156 21% 15%; /* #1e2e28 */
+    --input: 156 21% 15%;
+    --ring: 158 64% 52%;
   }
 }
 
@@ -141,71 +49,61 @@ html.font-grande {
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
-  /* Esconder spinners de inputs numéricos */
-  input[type="number"]::-webkit-outer-spin-button,
-  input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type="number"] {
-    -moz-appearance: textfield;
-    appearance: textfield;
-  }
-
-  /* Ícones de inputs de tempo e data no dark mode */
-  .dark input[type="time"]::-webkit-calendar-picker-indicator,
-  .dark input[type="date"]::-webkit-calendar-picker-indicator,
-  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(0.8);
-  }
-
-  /* PWA / Mobile Styles */
   html {
-    /* Prevenir zoom em inputs no iOS */
-    touch-action: manipulation;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 15px; /* DS v4 base size */
   }
 
-  /* Safe area para iOS (notch, home indicator) */
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  body {
+    @apply bg-background text-foreground font-sans;
+    line-height: 1.65;
   }
 
-  .safe-area-top {
-    padding-top: env(safe-area-inset-top, 0px);
+  /* Títulos Premium em Outfit - Aplicar em tags e classes comuns */
+  h1, h2, h3, h4, h5, h6, 
+  .text-lg, .text-xl, .text-2xl, .text-3xl, 
+  .font-bold, .font-semibold, .font-extrabold {
+    @apply font-display tracking-tightest;
   }
 
-  /* Prevenir seleção acidental de texto em elementos interativos */
-  button, a, [role="button"] {
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
+  /* Labels e Metadados em JetBrains Mono */
+  label, .text-xs, .section-label {
+    @apply font-mono font-semibold uppercase;
+    letter-spacing: 0.12em !important;
   }
 
-  /* Melhor scrolling no iOS */
-  .overflow-auto, .overflow-y-auto, .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
+  /* Corpo do texto em Source Sans 3 */
+  body, p, span, div, input, textarea, select {
+    @apply font-sans;
   }
 
-  /* Touch targets mínimos (44px recomendado por Apple) */
-  @media (max-width: 768px) {
-    button, a, [role="button"], input, select, textarea {
-      min-height: 44px;
-    }
+  /* Exceções explícitas */
+  .font-display { font-family: 'Outfit', sans-serif !important; }
+  .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+  .font-sans { font-family: 'Source Sans 3', sans-serif !important; }
 
-    /* Ajuste de fontes para legibilidade */
-    html {
-      font-size: 16px;
-    }
+  code {
+    @apply font-mono bg-muted px-1.5 py-0.5 rounded text-[12px];
   }
 }
 
-/* EmbryoAnalysisBar shimmer animation */
-@keyframes embryo-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
+/* Custom Utilities for DS v4 Aesthetic */
+@layer utilities {
+  .text-display {
+    font-family: 'Outfit', sans-serif;
+  }
+  
+  .text-body {
+    font-family: 'Source Sans 3', sans-serif;
+  }
+
+  .tracking-tightest {
+    letter-spacing: -0.045em;
+  }
+  
+  .shadow-glow {
+    box-shadow: 0 0 40px rgba(52, 211, 153, 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
 }

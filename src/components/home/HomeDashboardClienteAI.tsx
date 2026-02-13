@@ -46,10 +46,10 @@ export default function HomeDashboardClienteAI({ clienteId, clienteNome }: Props
           <Sparkles className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1">
-          <p className="text-base font-bold text-foreground">Gene</p>
-          <p className="text-xs text-muted-foreground">Seu resumo de hoje</p>
+          <p className="text-base font-display font-bold tracking-tight text-foreground">Gene</p>
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Seu resumo de hoje</p>
         </div>
-        <p className="text-sm text-muted-foreground mr-1">{formatDateBR(hoje)}</p>
+        <p className="text-[11px] font-mono text-muted-foreground mr-1 opacity-70">{formatDateBR(hoje)}</p>
         <button
           onClick={regenerate}
           disabled={isFetching}

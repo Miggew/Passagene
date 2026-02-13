@@ -68,48 +68,48 @@ export function PlatePanorama({
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Solid circle
+        // solid circle
         ctx.beginPath();
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = '#2ECC71';
+        ctx.fillStyle = '#34d399'; // DS v4 emerald
         ctx.fill();
-        ctx.strokeStyle = '#1E8449';
+        ctx.strokeStyle = '#022c22'; // DS v4 deep dark
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
         // Number (white, bold)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 13px Manrope, sans-serif';
+        ctx.fillStyle = '#022c22';
+        ctx.font = 'bold 13px Outfit, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${i + 1}`, cx, cy);
       } else if (status === 'classified') {
         // Filled with subtle primary
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(46, 204, 113, 0.25)';
+        ctx.fillStyle = 'rgba(52, 211, 153, 0.25)';
         ctx.fill();
-        ctx.strokeStyle = '#2ECC71';
+        ctx.strokeStyle = '#34d399';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Checkmark
-        ctx.fillStyle = '#2ECC71';
-        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = '#34d399';
+        ctx.font = 'bold 14px Source Sans 3, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('✓', cx, cy);
       } else {
         // Pending — outlined
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Number (dim)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '12px Manrope, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '12px JetBrains Mono, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${i + 1}`, cx, cy);
@@ -132,9 +132,9 @@ export function PlatePanorama({
       imageRef.current = img;
       const canvas = canvasRef.current;
       if (canvas) {
-        // Set canvas size proportional to image (max 600px wide)
+        // Set canvas size proportional to image (max 800px wide for desktop)
         const aspect = img.height / img.width;
-        const w = Math.min(600, img.width);
+        const w = Math.min(800, img.width);
         canvas.width = w;
         canvas.height = w * aspect;
       }
@@ -177,7 +177,7 @@ export function PlatePanorama({
       const cx = (bbox.x_percent / 100) * canvas.width;
       const cy = (bbox.y_percent / 100) * canvas.height;
       const dist = Math.sqrt((clickX - cx) ** 2 + (clickY - cy) ** 2);
-      if (dist < MARKER_RADIUS * 1.5 && dist < closestDist) {
+      if (dist < MARKER_RADIUS * 2 && dist < closestDist) {
         closestDist = dist;
         closestIdx = i;
       }
@@ -190,28 +190,29 @@ export function PlatePanorama({
 
   if (!plateFrameUrl) {
     return (
-      <div className="rounded-xl border border-border bg-muted/30 flex items-center justify-center h-32 text-sm text-muted-foreground">
-        Sem frame da placa
+      <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm flex flex-col items-center justify-center h-48 text-xs font-mono uppercase tracking-widest text-muted-foreground gap-2">
+        <Map className="w-6 h-6 opacity-20" />
+        Frame da placa não disponível
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden bg-black/5">
+    <div className="rounded-xl border border-border/50 overflow-hidden bg-black/40 shadow-glow">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        className="w-full cursor-pointer"
+        className="w-full cursor-pointer touch-manipulation"
         style={{ display: 'block' }}
       />
-      <div className="flex items-center gap-4 px-3 py-1.5 bg-muted/50 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-full border border-white/50" /> Pendente
+      <div className="flex items-center gap-6 px-4 py-2 bg-card/80 backdrop-blur-sm border-t border-border/30">
+        <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
+          <span className="inline-block w-2.5 h-2.5 rounded-full border border-white/20" /> Pendente
         </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary/25 border border-primary" /> Classificado
+        <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-primary/80">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary/20 border border-primary/40" /> Classificado
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-primary">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary border-2 border-primary-dark" /> Ativo
         </span>
       </div>

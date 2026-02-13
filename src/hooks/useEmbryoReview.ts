@@ -256,3 +256,66 @@ export function useAtlasStats() {
     staleTime: 60_000,
   });
 }
+
+// ─── useDispatchLote ───
+
+export function useDispatchLote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (queueId: string) => {
+      // 1. Get embryos and their classifications from scores
+      const { data: embrioes } = await supabase
+        .from('embrioes')
+        .select('id, identificacao, embryo_scores(biologist_classification)')
+        .eq('queue_id', queueId)
+        .eq('embryo_scores.is_current', true);
+
+      if (!embrioes?.length) throw new Error('Nenhum embrião encontrado para despachar.');
+
+      // 2. Update each embryo with its official classification
+      const updates = embrioes.map(e => {
+        const score = (e.embryo_scores as any)?.[0];
+        return supabase
+          .from('embrioes')
+          .update({
+            classificacao: score?.biologist_classification || 'Dg',
+            data_classificacao: new Date().toISOString(),
+            status_atual: 'FRESCO',
+          })
+          .eq('id', e.id);
+      });
+
+      await Promise.all(updates);
+
+      // 3. Find and close the Lote FIV
+      const { data: queue } = await supabase
+        .from('embryo_analysis_queue')
+        .select('lote_fiv_acasalamento_id')
+        .eq('id', queueId)
+        .single();
+
+      if (queue?.lote_fiv_acasalamento_id) {
+        const { data: acas } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select('lote_fiv_id')
+          .eq('id', queue.lote_fiv_acasalamento_id)
+          .single();
+
+        if (acas?.lote_fiv_id) {
+          await supabase
+            .from('lotes_fiv')
+            .update({
+              status: 'FECHADO',
+              disponivel_para_transferencia: true,
+            })
+            .eq('id', acas.lote_fiv_id);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lotes-fiv'] });
+      queryClient.invalidateQueries({ queryKey: ['embryo-review'] });
+    },
+  });
+}

@@ -136,8 +136,8 @@ export function HomeDashboardAdmin() {
                   <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground truncate">{kpi.label}</p>
-                  <p className="text-xl font-bold truncate">{kpi.value}</p>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground truncate">{kpi.label}</p>
+                  <p className="text-xl font-display font-black tracking-tightest truncate">{kpi.value}</p>
                 </div>
               </div>
             </div>
@@ -151,14 +151,14 @@ export function HomeDashboardAdmin() {
           <button
             key={item.label}
             onClick={() => navigate(item.href)}
-            className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all group text-left"
+            className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/5 hover:to-transparent transition-all group text-left shadow-sm"
           >
             <div className={`w-10 h-10 rounded-lg ${item.bg} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
               <item.icon className={`w-5 h-5 ${item.color}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{item.label}</p>
-              <p className="text-xs text-muted-foreground truncate">{item.sublabel}</p>
+              <p className="text-sm font-display font-bold tracking-tight truncate group-hover:text-primary transition-colors">{item.label}</p>
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground truncate opacity-70">{item.sublabel}</p>
             </div>
             <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
           </button>

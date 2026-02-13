@@ -35,13 +35,13 @@ export function EmbryoMinimap({ plateFrameUrl, bboxes, currentIndex }: EmbryoMin
 
         if (i === currentIndex) {
           ctx.arc(x, y, 7, 0, Math.PI * 2);
-          ctx.fillStyle = '#2ECC71';
+          ctx.fillStyle = '#34d399'; // DS v4 emerald
           ctx.fill();
-          ctx.strokeStyle = '#1E8449';
+          ctx.strokeStyle = '#022c22';
           ctx.lineWidth = 2;
         } else {
           ctx.arc(x, y, 4, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
           ctx.lineWidth = 1;
         }
         ctx.stroke();
@@ -55,7 +55,7 @@ export function EmbryoMinimap({ plateFrameUrl, bboxes, currentIndex }: EmbryoMin
   return (
     <canvas
       ref={canvasRef}
-      className="rounded-lg border border-border"
+      className="rounded-xl border border-border/50 shadow-sm"
       style={{ width: 120, height: 90 }}
     />
   );

@@ -84,13 +84,14 @@ export function useAcasalamentoScores(acasalamentoId: string | undefined) {
 export function useEmbryoScoresBatch(embriaoIds: string[]) {
   const queryClient = useQueryClient();
   const realtimeConnected = useRef(false);
+  const idsKey = embriaoIds.sort().join(',');
 
   // Realtime subscription para novos scores
   useEffect(() => {
     if (embriaoIds.length === 0) return;
 
     const channel = supabase
-      .channel(`embryo-scores-batch-${embriaoIds.slice(0, 3).join('-')}`)
+      .channel(`embryo-scores-batch-${idsKey.substring(0, 20)}`)
       .on(
         'postgres_changes',
         {
@@ -101,8 +102,9 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
         (payload) => {
           const newScore = payload.new as { embriao_id?: string };
           if (newScore.embriao_id && embriaoIds.includes(newScore.embriao_id)) {
+            // Invalidação otimista: apenas se o dado realmente mudou
             queryClient.invalidateQueries({
-              queryKey: ['embryo-scores-batch', embriaoIds.sort().join(',')],
+              queryKey: ['embryo-scores-batch', idsKey],
             });
           }
         }
@@ -115,10 +117,10 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
       supabase.removeChannel(channel);
       realtimeConnected.current = false;
     };
-  }, [embriaoIds.sort().join(','), queryClient]);
+  }, [idsKey, queryClient]);
 
   return useQuery<Record<string, EmbryoScore>>({
-    queryKey: ['embryo-scores-batch', embriaoIds.sort().join(',')],
+    queryKey: ['embryo-scores-batch', idsKey],
     queryFn: async () => {
       if (!embriaoIds.length) return {};
 
@@ -131,7 +133,6 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
 
       if (error) throw error;
 
-      // Agrupar por embriao_id (pegar só o mais recente de cada)
       const map: Record<string, EmbryoScore> = {};
       for (const score of (data || [])) {
         if (!map[score.embriao_id]) {
@@ -142,13 +143,16 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
     },
     enabled: embriaoIds.length > 0,
     refetchInterval: (query) => {
-      // Polling enquanto nem todos os embriões têm score
       const scoresMap = query.state.data;
-      if (!scoresMap) return 5000;
+      if (!scoresMap) return 3000; // Poll faster if empty
+      
       const allHaveScores = embriaoIds.every(id => scoresMap[id]);
-      return allHaveScores ? false : 5000;
+      if (allHaveScores) return false;
+
+      // Se ainda faltam scores, mantém o polling a cada 5s
+      return 5000;
     },
-    staleTime: 5_000,
+    staleTime: 2000, // Menor stale time para reagir rápido a mudanças
   });
 }
 

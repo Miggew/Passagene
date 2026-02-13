@@ -93,9 +93,11 @@ export default function Sidebar() {
     <aside className="hidden md:flex w-64 bg-card border-r border-border min-h-full flex-col">
       {/* Header do hub atual */}
       <div className="p-4 border-b border-border">
-        <h2 className="font-heading text-lg font-semibold text-foreground">{currentHub.name}</h2>
+        <h2 className="font-display text-lg font-bold text-foreground tracking-tight">{currentHub.name}</h2>
         {currentHub.description && (
-          <p className="text-xs text-muted-foreground mt-1">{currentHub.description}</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mt-1.5 opacity-70">
+            {currentHub.description}
+          </p>
         )}
       </div>
 
@@ -111,14 +113,17 @@ export default function Sidebar() {
               key={route}
               to={route}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
                 isActive
-                  ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary -ml-px pl-[11px]'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary/10 text-primary font-bold border-l-2 border-primary -ml-px pl-[11px]'
+                  : 'text-muted-foreground/80 hover:bg-muted hover:text-foreground font-medium'
               )}
             >
-              <Icon className={cn('w-5 h-5', isActive ? 'text-primary' : '')} />
-              <span className="text-sm">{label}</span>
+              <Icon className={cn('w-5 h-5 transition-transform duration-200 group-hover:scale-110', isActive ? 'text-primary' : 'text-muted-foreground/50 group-hover:text-primary/70')} />
+              <span className={cn(
+                "text-sm font-sans tracking-tight transition-colors",
+                isActive ? "text-primary" : "group-hover:text-foreground"
+              )}>{label}</span>
             </Link>
           );
         })}
