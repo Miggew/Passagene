@@ -11,3 +11,10 @@ export { LoteScoreDashboard } from './LoteScoreDashboard';
 export { TransferRankingCard } from './TransferRankingCard';
 export { DoadoraScoreTrend } from './DoadoraScoreTrend';
 export { ConcordanceReport } from './ConcordanceReport';
+
+// v2 components
+export { PlatePanorama } from './PlatePanorama';
+export { EmbryoMinimap } from './EmbryoMinimap';
+export { BiologistClassButtons } from './BiologistClassButtons';
+export { EmbryoReviewPanel } from './EmbryoReviewPanel';
+export { DispatchSummary } from './DispatchSummary';

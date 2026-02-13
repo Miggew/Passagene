@@ -1,16 +1,14 @@
 /**
  * Imagem do crop do embrião direto do Storage.
  *
+ * v2: Suporta bucket `embryoscore` (novo) e `embryo-videos` (legacy).
  * Se `score.crop_image_path` existe → signed URL → <img>
  * Fallback: placeholder ImageOff para scores antigos sem crop.
- *
- * Sem <video>, sem <canvas>, sem seek, sem race conditions.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { EmbryoScore } from '@/lib/types';
-import { getScoreColor } from './EmbryoScoreBadge';
 import { Loader2, ImageOff } from 'lucide-react';
 
 interface EmbryoHighlightFrameProps {
@@ -20,15 +18,28 @@ interface EmbryoHighlightFrameProps {
   className?: string;
 }
 
+/**
+ * Determine which bucket the crop is stored in.
+ * v2 scores (with knn_classification) use 'embryoscore' bucket.
+ * v1 scores use 'embryo-videos' bucket.
+ */
+function getBucket(score: EmbryoScore): string {
+  if (score.knn_classification != null || score.combined_source != null) {
+    return 'embryoscore';
+  }
+  return 'embryo-videos';
+}
+
 export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightFrameProps) {
   const hasCrop = !!score.crop_image_path;
+  const bucket = getBucket(score);
 
   const { data: signedUrl, isLoading } = useQuery({
-    queryKey: ['embryo-crop-url', score.crop_image_path],
+    queryKey: ['embryo-crop-url', bucket, score.crop_image_path],
     queryFn: async () => {
       if (!score.crop_image_path) return null;
       const { data, error } = await supabase.storage
-        .from('embryo-videos')
+        .from(bucket)
         .createSignedUrl(score.crop_image_path, 60 * 60); // 1h
       if (error || !data?.signedUrl) return null;
       return data.signedUrl;
@@ -49,7 +60,11 @@ export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightF
     );
   }
 
-  const colors = getScoreColor(score.embryo_score);
+  // v2: Show class badge instead of numeric score
+  const isV2 = score.combined_classification != null;
+  const badgeLabel = isV2
+    ? score.combined_classification
+    : String(Math.round(score.embryo_score));
 
   return (
     <div
@@ -65,16 +80,16 @@ export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightF
       {signedUrl && (
         <img
           src={signedUrl}
-          alt={`Embrião — ${score.classification} (Score ${Math.round(score.embryo_score)})`}
+          alt={isV2 ? `Embrião — ${score.combined_classification}` : `Embrião — ${score.classification} (Score ${Math.round(score.embryo_score)})`}
           className="w-full h-full object-cover"
         />
       )}
 
-      {/* Badge de score como overlay CSS */}
+      {/* Badge overlay */}
       {signedUrl && (
-        <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded ${colors.bg}`}>
-          <span className={`text-xs font-bold ${colors.text}`}>
-            {Math.round(score.embryo_score)}
+        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm">
+          <span className="text-xs font-bold text-white font-mono">
+            {badgeLabel}
           </span>
         </div>
       )}

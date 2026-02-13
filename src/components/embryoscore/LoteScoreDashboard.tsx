@@ -1,19 +1,34 @@
 /**
- * Dashboard de scores por lote FIV.
- * Mobile-first: cards compactos empilhados.
+ * Dashboard de scores por lote FIV — v2 + backward compatible v1.
+ *
+ * v2: Distribuição por classe (BE/BN/BX/BL/BI/Mo/Dg), concordância biólogo × IA,
+ *     maturidade do atlas.
+ * v1: Score médio + distribuição por faixa (legacy).
  */
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { EmbryoScore } from '@/lib/types';
-import { getScoreColor } from './EmbryoScoreBadge';
-import { Brain, TrendingUp, Activity } from 'lucide-react';
+import { useAtlasStats } from '@/hooks/useEmbryoReview';
+import { Brain, BarChart3, Users, Activity } from 'lucide-react';
 
 interface LoteScoreDashboardProps {
   loteFivId: string;
   totalEmbrioes?: number;
 }
+
+const CLASS_COLORS: Record<string, string> = {
+  BE: 'bg-emerald-500',
+  BN: 'bg-green-500',
+  BX: 'bg-amber-500',
+  BL: 'bg-blue-500',
+  BI: 'bg-sky-400',
+  Mo: 'bg-purple-500',
+  Dg: 'bg-red-500',
+};
+
+const CLASS_ORDER = ['BE', 'BN', 'BX', 'BL', 'BI', 'Mo', 'Dg'];
 
 export function LoteScoreDashboard({ loteFivId, totalEmbrioes }: LoteScoreDashboardProps) {
   const { data: scores = [] } = useQuery<EmbryoScore[]>({
@@ -30,8 +45,7 @@ export function LoteScoreDashboard({ loteFivId, totalEmbrioes }: LoteScoreDashbo
         .from('embryo_scores')
         .select('*')
         .in('embriao_id', embrioes.map(e => e.id))
-        .eq('is_current', true)
-        .order('embryo_score', { ascending: false });
+        .eq('is_current', true);
 
       if (error) throw error;
       return (data || []) as EmbryoScore[];
@@ -40,6 +54,126 @@ export function LoteScoreDashboard({ loteFivId, totalEmbrioes }: LoteScoreDashbo
     staleTime: 30_000,
   });
 
+  // Detect if any score is v2
+  const hasV2 = scores.some(s => s.combined_classification != null);
+
+  if (hasV2) {
+    return <V2Dashboard scores={scores} totalEmbrioes={totalEmbrioes} />;
+  }
+
+  return <V1Dashboard scores={scores} totalEmbrioes={totalEmbrioes} />;
+}
+
+// ─── v2 Dashboard ───
+
+function V2Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEmbrioes?: number }) {
+  const { data: atlasStats } = useAtlasStats();
+
+  const stats = useMemo(() => {
+    // Count by combined class (biologist overrides AI)
+    const classCounts: Record<string, number> = {};
+    let classified = 0;
+    let biologistClassified = 0;
+    let agreed = 0;
+
+    for (const s of scores) {
+      const cls = s.biologist_classification || s.combined_classification;
+      if (!cls) continue;
+      classCounts[cls] = (classCounts[cls] || 0) + 1;
+      classified++;
+
+      if (s.biologist_classification) {
+        biologistClassified++;
+        if (s.combined_classification && s.biologist_classification === s.combined_classification) {
+          agreed++;
+        }
+      }
+    }
+
+    // Sort by class order
+    const distribution = CLASS_ORDER
+      .filter(cls => classCounts[cls])
+      .map(cls => ({ cls, count: classCounts[cls] }));
+
+    // Add any classes not in CLASS_ORDER
+    for (const [cls, count] of Object.entries(classCounts)) {
+      if (!CLASS_ORDER.includes(cls)) {
+        distribution.push({ cls, count });
+      }
+    }
+
+    const concordance = biologistClassified > 0
+      ? Math.round((agreed / biologistClassified) * 100)
+      : null;
+
+    return { distribution, classified, biologistClassified, agreed, concordance };
+  }, [scores]);
+
+  if (!stats.classified) return null;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+          <BarChart3 className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold">EmbryoScore do Lote</h3>
+          <p className="text-xs text-muted-foreground">
+            {stats.classified}{totalEmbrioes ? `/${totalEmbrioes}` : ''} analisados
+          </p>
+        </div>
+      </div>
+
+      {/* Class distribution bars */}
+      <div className="space-y-1.5">
+        {stats.distribution.map(({ cls, count }) => {
+          const pct = stats.classified > 0 ? Math.round((count / stats.classified) * 100) : 0;
+          return (
+            <div key={cls} className="flex items-center gap-2">
+              <span className="font-mono text-xs font-semibold w-6 text-foreground">{cls}</span>
+              <div className="flex-1 h-5 bg-muted rounded-sm overflow-hidden">
+                <div
+                  className={`h-full rounded-sm ${CLASS_COLORS[cls] || 'bg-primary'}`}
+                  style={{ width: `${Math.max(pct, 3)}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-muted-foreground w-14 text-right">{count} ({pct}%)</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Concordance biologist × AI */}
+      {stats.concordance != null && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
+          <Users className="w-4 h-4 text-primary/60" />
+          <div className="flex-1">
+            <span className="text-xs text-muted-foreground">Concordância biólogo × IA</span>
+            <span className="ml-2 text-sm font-semibold text-foreground">
+              {stats.concordance}% ({stats.agreed}/{stats.biologistClassified})
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Atlas maturity */}
+      {atlasStats && (
+        <div className="px-3 py-2 rounded-lg bg-muted/30 text-xs text-muted-foreground flex items-center gap-2">
+          <Brain className="w-3.5 h-3.5" />
+          <span>
+            Atlas: {atlasStats.total.toLocaleString()} cross-species + {atlasStats.bovine_real.toLocaleString()} reais
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── v1 Dashboard (legacy) ───
+
+function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEmbrioes?: number }) {
   const stats = useMemo(() => {
     if (!scores.length) return null;
 
@@ -70,7 +204,6 @@ export function LoteScoreDashboard({ loteFivId, totalEmbrioes }: LoteScoreDashbo
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
           <Brain className="w-4 h-4 text-primary" />
@@ -83,35 +216,26 @@ export function LoteScoreDashboard({ loteFivId, totalEmbrioes }: LoteScoreDashbo
         </div>
       </div>
 
-      {/* Score médio em destaque */}
       <div className="flex items-center justify-between">
         <div className="text-center">
-          <div className={`text-3xl font-bold ${getScoreColor(stats.avgScore)}`}>
-            {stats.avgScore}
-          </div>
+          <div className="text-3xl font-bold text-primary">{stats.avgScore}</div>
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Média</span>
         </div>
-
-        {/* Morph vs Kinetic */}
         <div className="flex gap-4">
           <div className="text-center">
-            <div className="flex items-center gap-1 mb-1">
-              <TrendingUp className="w-3 h-3 text-muted-foreground" />
-              <span className="text-lg font-semibold">{stats.avgMorph}</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground">Morfologia</span>
+            <span className="text-lg font-semibold">{stats.avgMorph}</span>
+            <div className="text-[10px] text-muted-foreground">Morfologia</div>
           </div>
           <div className="text-center">
-            <div className="flex items-center gap-1 mb-1">
+            <div className="flex items-center gap-1 justify-center">
               <Activity className="w-3 h-3 text-muted-foreground" />
               <span className="text-lg font-semibold">{stats.avgKinetic}</span>
             </div>
-            <span className="text-[10px] text-muted-foreground">Cinética</span>
+            <div className="text-[10px] text-muted-foreground">Cinética</div>
           </div>
         </div>
       </div>
 
-      {/* Distribution bars */}
       <div className="space-y-1.5">
         {distBars.map(bar => {
           const pct = stats.total > 0 ? (bar.count / stats.total) * 100 : 0;

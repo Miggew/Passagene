@@ -408,7 +408,7 @@ export interface LoteFIVAcasalamento {
   updated_at?: string;
 }
 
-export type ClassificacaoEmbriao = 'BE' | 'BN' | 'BX' | 'BL' | 'BI';
+export type ClassificacaoEmbriao = 'BE' | 'BN' | 'BX' | 'BL' | 'BI' | 'Mo' | 'Dg';
 
 export interface Embriao {
   id: string;
@@ -564,6 +564,29 @@ export interface EmbryoScore {
     [key: string]: unknown;
   };
 
+  // ── v2: KNN + DINOv2 + MLP ──
+  knn_classification?: string | null;
+  knn_confidence?: number | null;
+  knn_votes?: Record<string, number> | null;
+  knn_neighbor_ids?: string[] | null;
+  knn_real_bovine_count?: number | null;
+  embedding?: number[] | null;
+  kinetic_intensity?: number | null;
+  kinetic_harmony?: number | null;
+  kinetic_symmetry?: number | null;
+  kinetic_stability?: number | null;
+  kinetic_bg_noise?: number | null;
+  motion_map_path?: string | null;
+  composite_path?: string | null;
+  biologist_classification?: string | null;
+  biologist_agreed?: boolean | null;
+  mlp_classification?: string | null;
+  mlp_confidence?: number | null;
+  mlp_probabilities?: Record<string, number> | null;
+  combined_source?: 'knn' | 'knn_mlp_agree' | 'knn_mlp_disagree' | 'mlp_only' | 'insufficient' | null;
+  combined_classification?: string | null;
+  combined_confidence?: number | null;
+
   created_at?: string;
 }
 
@@ -593,6 +616,8 @@ export interface EmbryoAnalysisQueue {
   expected_count?: number | null;
   // Crop JPEG paths no Storage (bússola visual para Gemini)
   crop_paths?: string[] | null;
+  // v2: frame completo da placa no Storage (bucket: embryoscore)
+  plate_frame_path?: string | null;
 }
 
 export interface EmbryoScoreConfig {
@@ -614,6 +639,49 @@ export interface EmbryoScoreSecret {
   key_value: string;
   updated_at?: string;
   updated_by?: string;
+}
+
+// EmbryoScore v2 — Referência do atlas (DINOv2 + classificação do biólogo)
+export interface EmbryoReference {
+  id: string;
+  created_at?: string;
+  lab_id: string;
+  lote_fiv_id?: string | null;
+  acasalamento_id?: string | null;
+  embriao_id?: string | null;
+  classification: ClassificacaoEmbriao;
+  stage_iets?: number | null;
+  embedding?: number[];
+  kinetic_intensity?: number | null;
+  kinetic_harmony?: number | null;
+  kinetic_symmetry?: number | null;
+  kinetic_stability?: number | null;
+  kinetic_bg_noise?: number | null;
+  best_frame_path?: string | null;
+  motion_map_path?: string | null;
+  composite_path?: string | null;
+  crop_image_path?: string | null;
+  pregnancy_result?: boolean | null;
+  pregnancy_checked_at?: string | null;
+  ai_suggested_class?: string | null;
+  ai_confidence?: number | null;
+  biologist_agreed?: boolean | null;
+  review_mode?: 'standard' | 'quick' | 'expert';
+  species: 'bovine_real' | 'bovine_rocha' | 'human';
+  source: 'lab' | 'dataset_rocha' | 'dataset_kromp' | 'dataset_kaggle';
+}
+
+// KNN neighbor returned from match_embryos RPC
+export interface KNNNeighbor {
+  id: string;
+  classification: string;
+  similarity: number;
+  species: string;
+  kinetic_intensity?: number | null;
+  kinetic_harmony?: number | null;
+  pregnancy_result?: boolean | null;
+  best_frame_path?: string | null;
+  motion_map_path?: string | null;
 }
 
 // Embrião com score (para listagens)

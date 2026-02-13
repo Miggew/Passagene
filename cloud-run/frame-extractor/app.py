@@ -148,6 +148,130 @@ def crop_frame():
     return jsonify({"crops": crops})
 
 
+@app.route("/extract-and-crop", methods=["POST"])
+def extract_and_crop():
+    """
+    EmbryoScore v2 — Extract multiple frames from video and crop per embryo.
+
+    Input:  { video_url: str, bboxes: [...], frame_count: int (default 40) }
+    Output: {
+      embryos: { "0": [crop_b64, ...], "1": [...], ... },
+      plate_frame_b64: str,
+      frames_extracted: int
+    }
+
+    The full frames are extracted and cropped here — they NEVER leave this service.
+    Only small crops (~30KB each) are returned.
+    """
+    import traceback as _tb
+
+    data = request.get_json(force=True)
+    video_url = data.get("video_url")
+    bboxes = data.get("bboxes", [])
+    frame_count = data.get("frame_count", 40)
+
+    if not video_url:
+        return jsonify({"error": "video_url é obrigatório"}), 400
+    if not bboxes:
+        return jsonify({"error": "bboxes é obrigatório"}), 400
+
+    # Download video
+    try:
+        resp = http_requests.get(video_url, timeout=120, stream=True)
+        resp.raise_for_status()
+    except Exception as e:
+        return jsonify({"error": f"Falha ao baixar vídeo: {str(e)[:200]}"}), 400
+
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        tmp_path = tmp.name
+        for chunk in resp.iter_content(chunk_size=8192):
+            tmp.write(chunk)
+
+    try:
+        cap = cv2.VideoCapture(tmp_path)
+        if not cap.isOpened():
+            return jsonify({"error": "Não foi possível abrir o vídeo"}), 422
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total_frames <= 0:
+            cap.release()
+            return jsonify({"error": "Vídeo sem frames"}), 422
+
+        step = max(1, total_frames // frame_count)
+
+        embryo_crops = {str(i): [] for i in range(len(bboxes))}
+        plate_frame_b64 = None
+        frame_idx = 0
+        extracted = 0
+
+        while cap.isOpened() and extracted < frame_count:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if frame_idx % step == 0:
+                h, w = frame.shape[:2]
+
+                # Save first frame as plate_frame
+                if plate_frame_b64 is None:
+                    _, plate_jpg = cv2.imencode(
+                        ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85]
+                    )
+                    plate_frame_b64 = base64.b64encode(
+                        plate_jpg.tobytes()
+                    ).decode("ascii")
+
+                # Crop each embryo from this frame
+                for emb_idx, bbox in enumerate(bboxes):
+                    x_pct = bbox.get("x_percent", 50)
+                    y_pct = bbox.get("y_percent", 50)
+                    w_pct = bbox.get("width_percent", 10)
+                    h_pct = bbox.get("height_percent", 10)
+
+                    # Convert center-based % to pixel coords with 20% padding
+                    size = max(w_pct, h_pct) / 100
+                    padded = size * 1.4  # 20% padding each side
+                    half = padded / 2
+
+                    cx = x_pct / 100
+                    cy = y_pct / 100
+
+                    x1 = int(max(0, (cx - half)) * w)
+                    y1 = int(max(0, (cy - half)) * h)
+                    x2 = int(min(1, (cx + half)) * w)
+                    y2 = int(min(1, (cy + half)) * h)
+
+                    crop = frame[y1:y2, x1:x2]
+                    if crop.size > 0:
+                        # Resize to 400x400 for consistency
+                        crop_resized = cv2.resize(
+                            crop, (400, 400), interpolation=cv2.INTER_LANCZOS4
+                        )
+                        _, crop_jpg = cv2.imencode(
+                            ".jpg", crop_resized, [cv2.IMWRITE_JPEG_QUALITY, 80]
+                        )
+                        embryo_crops[str(emb_idx)].append(
+                            base64.b64encode(crop_jpg.tobytes()).decode("ascii")
+                        )
+
+                extracted += 1
+            frame_idx += 1
+
+        cap.release()
+
+        return jsonify({
+            "embryos": embryo_crops,
+            "plate_frame_b64": plate_frame_b64,
+            "frames_extracted": extracted,
+        })
+
+    except Exception as e:
+        app.logger.error(f"extract-and-crop error: {_tb.format_exc()}")
+        return jsonify({"error": f"{type(e).__name__}: {str(e)[:500]}"}), 500
+
+    finally:
+        os.unlink(tmp_path)
+
+
 @app.route("/analyze-activity", methods=["POST"])
 def analyze_activity():
     """

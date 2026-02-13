@@ -62,7 +62,52 @@ function getConfidenceLabel(confidence: string) {
   }
 }
 
+// Colors by classification for v2 badges
+const CLASS_BADGE_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
+  BE: { bg: 'bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-400', ring: 'ring-emerald-500/30' },
+  BN: { bg: 'bg-green-500/15', text: 'text-green-700 dark:text-green-400', ring: 'ring-green-500/30' },
+  BX: { bg: 'bg-amber-500/15', text: 'text-amber-700 dark:text-amber-400', ring: 'ring-amber-500/30' },
+  BL: { bg: 'bg-blue-500/15', text: 'text-blue-700 dark:text-blue-400', ring: 'ring-blue-500/30' },
+  BI: { bg: 'bg-sky-500/15', text: 'text-sky-700 dark:text-sky-400', ring: 'ring-sky-500/30' },
+  Mo: { bg: 'bg-purple-500/15', text: 'text-purple-700 dark:text-purple-400', ring: 'ring-purple-500/30' },
+  Dg: { bg: 'bg-red-500/15', text: 'text-red-700 dark:text-red-400', ring: 'ring-red-500/30' },
+};
+
 export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgeProps) {
+  // v2: Show class badge if combined_classification exists
+  const isV2 = score.combined_classification != null;
+
+  if (isV2) {
+    const cls = score.biologist_classification || score.combined_classification || '?';
+    const clsColors = CLASS_BADGE_COLORS[cls] || { bg: 'bg-muted', text: 'text-muted-foreground', ring: 'ring-border' };
+    const confidence = score.combined_confidence != null ? `${score.combined_confidence}%` : '';
+
+    if (compact) {
+      return (
+        <div
+          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md ${clsColors.bg} ring-1 ${clsColors.ring}`}
+          title={`Classe: ${cls}${confidence ? ` (${confidence})` : ''}`}
+        >
+          <span className={`text-[10px] font-bold font-mono ${clsColors.text}`}>{cls}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ${clsColors.bg} ring-1 ${clsColors.ring}`}
+        title={`Classe: ${cls}${confidence ? ` — Confiança: ${confidence}` : ''}\nFonte: ${score.combined_source || 'N/A'}`}
+      >
+        <Brain className={`w-3 h-3 ${clsColors.text}`} />
+        <span className={`text-xs font-bold font-mono ${clsColors.text}`}>{cls}</span>
+        {confidence && (
+          <span className={`text-[10px] ${clsColors.text} opacity-70`}>{confidence}</span>
+        )}
+      </div>
+    );
+  }
+
+  // v1: Numeric score badge (backward compatible)
   const colors = getScoreColor(score.embryo_score);
 
   if (compact) {
