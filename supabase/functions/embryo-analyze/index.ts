@@ -114,9 +114,24 @@ morph_score = (MCI × 0.35) + (TE × 0.35) + (ZP_Forma × 0.20) + (Frag × 0.10)
 Arredonde para inteiro.
 
 ═══════════════════════════════════════════════
-CHECKLIST DE QUALIDADE (OBRIGATÓRIO)
+TRIAGEM — ANTES DE TUDO (OBRIGATÓRIO)
 ═══════════════════════════════════════════════
-Antes do sub-scoring, responda SIM/NÃO:
+PRIMEIRO, classifique o embrião em UMA das categorias:
+
+A) INVIÁVEL (morph_score = 0): O embrião é degenerado, majoritariamente debris/fragmentos,
+   sem estruturas celulares organizadas reconhecíveis, ou impossível distinguir MCI/TE.
+   → NÃO faça sub-scoring. Defina morph_score = 0, classification = "Inviavel",
+     todos sub-scores = 0, e descreva o que vê (debris, degeneração, etc).
+
+B) ESTRUTURADO: Há pelo menos ALGUMA organização celular reconhecível (mesmo que pobre).
+   → Prossiga para a checklist e sub-scoring abaixo.
+
+Em caso de DÚVIDA entre A e B, escolha A.
+
+═══════════════════════════════════════════════
+CHECKLIST DE QUALIDADE (só se categoria B)
+═══════════════════════════════════════════════
+Responda SIM/NÃO:
 □ MCI visível como ponto/região densa distinta?
 □ TE forma anel contínuo sem interrupções?
 □ Forma geral esférica/oval sem reentrâncias?
@@ -125,16 +140,6 @@ Antes do sub-scoring, responda SIM/NÃO:
 
 5/5 → score ≥82  |  3-4/5 → score 65-81  |  1-2/5 → score 48-64  |  0/5 → score <48
 
-═══════════════════════════════════════════════
-CALIBRAÇÃO ANTI-INFLAÇÃO
-═══════════════════════════════════════════════
-Em um lote D7 típico de 8-12 embriões:
-- 1-2 serão excelentes (≥82)
-- 3-4 serão bons (65-81)
-- 2-3 serão regulares (48-64)
-- 1-2 serão borderline/inviáveis (<48)
-Score médio esperado de um lote: 62-68. Se seu score médio > 75, reduza.
-DIFERENCIAÇÃO: Dois embriões "bons" NÃO devem ter o mesmo score. Use a escala completa dentro de cada faixa.
 
 ═══════════════════════════════════════════════
 INTERPRETAÇÃO DO PERFIL CINÉTICO
@@ -283,6 +288,29 @@ JSON puro (sem markdown):
 // Funções auxiliares
 // ============================================================
 
+/** Fetch com retry e backoff para Cloud Run (cold start = 503) */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  backoffMs = [2000, 5000, 10000],
+): Promise<Response> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.ok || resp.status < 500) return resp; // Sucesso ou erro do cliente (4xx)
+    // Erro do servidor (5xx) — retry com backoff
+    const waitMs = backoffMs[attempt] ?? backoffMs[backoffMs.length - 1];
+    console.warn(`[CloudRun] Tentativa ${attempt + 1}/${retries} falhou (${resp.status}). Aguardando ${waitMs}ms...`);
+    if (attempt < retries - 1) {
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    } else {
+      return resp; // Última tentativa falhou — retorna resposta para tratamento de erro
+    }
+  }
+  // Unreachable, mas TypeScript precisa
+  throw new Error('fetchWithRetry: unreachable');
+}
+
 /** Clampa valor entre min e max */
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -295,6 +323,14 @@ function clampBbox(value: number | undefined | null, min = 0): number | null {
 }
 
 /** Classificação determinística baseada no score — v4 thresholds */
+/** Aplica curva de deflação calibrada pelo feedback do biólogo */
+function applyCalibrationCurve(geminiScore: number): number {
+  // Curva power-law: deflaciona scores altos, mantém 0 e 100 fixos
+  // Calibrado pelo lote FAZ-0302: média Gemini ~70 → média real ~28.5
+  const EXPONENT = 2.0;
+  return Math.round(100 * Math.pow(geminiScore / 100, EXPONENT));
+}
+
 function classifyScore(score: number): { classification: string; recommendation: string } {
   if (score >= 82) return { classification: 'Excelente', recommendation: 'priority' };
   if (score >= 65) return { classification: 'Bom', recommendation: 'recommended' };
@@ -479,6 +515,100 @@ Deno.serve(async (req: Request) => {
 
     // Few-shot examples do banco
     const fewShotExamples = (config as Record<string, unknown>)?.few_shot_examples as string | null;
+
+    // ── 4b. Feedback acumulado do biólogo → calibração dinâmica (prompt + correção numérica) ──
+    let biologistCalibrationBlock = '';
+    // Coeficientes de regressão linear: scoreFinal = slope * geminiScore + intercept
+    // Null = sem correção (dados insuficientes)
+    let regressionSlope: number | null = null;
+    let regressionIntercept: number | null = null;
+
+    try {
+      const { data: feedbackRows } = await supabase
+        .from('embryo_scores')
+        .select('morph_score, biologo_score, biologo_descricao_erros')
+        .eq('is_current', true)
+        .not('biologo_score', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (feedbackRows && feedbackRows.length >= 5) {
+        const pairs = feedbackRows.map((r: { morph_score: number; biologo_score: number }) => ({
+          ai: r.morph_score ?? 0,
+          bio: r.biologo_score,
+        }));
+
+        // Regressão linear: bio = slope * ai + intercept
+        const n = pairs.length;
+        const sumAi = pairs.reduce((s: number, p: { ai: number }) => s + p.ai, 0);
+        const sumBio = pairs.reduce((s: number, p: { bio: number }) => s + p.bio, 0);
+        const sumAiBio = pairs.reduce((s: number, p: { ai: number; bio: number }) => s + p.ai * p.bio, 0);
+        const sumAi2 = pairs.reduce((s: number, p: { ai: number }) => s + p.ai * p.ai, 0);
+        const denominator = n * sumAi2 - sumAi * sumAi;
+
+        if (denominator !== 0) {
+          regressionSlope = (n * sumAiBio - sumAi * sumBio) / denominator;
+          regressionIntercept = (sumBio - regressionSlope * sumAi) / n;
+          console.log(`[CALIBRATION] Regressão: score = ${regressionSlope.toFixed(3)} × gemini + ${regressionIntercept.toFixed(1)} (n=${n})`);
+        }
+
+        // Estatísticas para o prompt
+        const aiScores = pairs.map((p: { ai: number }) => p.ai);
+        const bioScores = pairs.map((p: { bio: number }) => p.bio);
+        const aiAvg = sumAi / n;
+        const bioAvg = sumBio / n;
+        const avgDiff = aiAvg - bioAvg;
+        const absDiffs = pairs.map((p: { ai: number; bio: number }) => Math.abs(p.ai - p.bio));
+        const avgAbsDiff = absDiffs.reduce((a: number, b: number) => a + b, 0) / n;
+        const concordaCount = absDiffs.filter((d: number) => d <= 10).length;
+        const concordaPct = Math.round((concordaCount / n) * 100);
+        const zeroCount = bioScores.filter((s: number) => s === 0).length;
+        const zeroPct = Math.round((zeroCount / n) * 100);
+        const excellentCount = bioScores.filter((s: number) => s >= 82).length;
+        const excellentPct = Math.round((excellentCount / n) * 100);
+
+        // Erros mais frequentes
+        const errorCounts: Record<string, number> = {};
+        for (const row of feedbackRows) {
+          const erros = row.biologo_descricao_erros as string[] | null;
+          if (erros) {
+            for (const err of erros) {
+              errorCounts[err] = (errorCounts[err] || 0) + 1;
+            }
+          }
+        }
+        const topErrors = Object.entries(errorCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([err, count]) => `${err} (${Math.round((count / n) * 100)}%)`)
+          .join(', ');
+
+        biologistCalibrationBlock = `\n
+═══════════════════════════════════════════════
+FEEDBACK REAL DO BIÓLOGO (${n} embriões avaliados)
+═══════════════════════════════════════════════
+Estatísticas da discrepância IA vs Biólogo:
+- Viés médio da IA: ${avgDiff > 0 ? '+' : ''}${avgDiff.toFixed(1)} pontos (${avgDiff > 0 ? 'IA INFLACIONA' : 'IA subestima'})
+- Erro absoluto médio: ${avgAbsDiff.toFixed(1)} pontos
+- Concordância (diferença ≤10): ${concordaPct}%
+
+Distribuição real de scores (biólogo):
+- Média: ${bioAvg.toFixed(1)} | Min: ${Math.min(...bioScores)} | Max: ${Math.max(...bioScores)}
+- Score 0 (inviáveis): ${zeroPct}% dos embriões
+- Score ≥82 (excelentes): ${excellentPct}% dos embriões
+
+${topErrors ? `Erros mais comuns nas descrições da IA: ${topErrors}` : ''}
+
+USE ESTES DADOS para calibrar seus scores. Sua média deve ficar próxima de ${bioAvg.toFixed(0)}, não acima.
+NOTA: Seus scores serão corrigidos matematicamente pelo servidor. Foque na DESCRIÇÃO PRECISA.`;
+
+        console.log(`[CALIBRATION] Feedback: ${n} registros, viés IA=${avgDiff.toFixed(1)}, concordância=${concordaPct}%`);
+      } else {
+        console.log(`[CALIBRATION] Feedback insuficiente (${feedbackRows?.length ?? 0} registros, mínimo 5)`);
+      }
+    } catch (fbErr) {
+      console.warn('[CALIBRATION] Erro ao buscar feedback:', fbErr);
+    }
 
     // ── 5. Buscar embriões do banco ──
     let embrioes: { id: string; identificacao: string }[] | null = null;
@@ -882,6 +1012,11 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       // Calibração v4
       let calibrationWithWeights = calibrationText;
 
+      // Injetar feedback dinâmico do biólogo (se houver ≥5 avaliações)
+      if (biologistCalibrationBlock) {
+        calibrationWithWeights += biologistCalibrationBlock;
+      }
+
       if (fewShotExamples) {
         calibrationWithWeights += `\n\n═══════════════════════════════════════════════\nEXEMPLOS DE REFERÊNCIA (FEW-SHOT)\n═══════════════════════════════════════════════\n${fewShotExamples}`;
       }
@@ -897,7 +1032,7 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
       // ── V4 Passo 2: Cloud Run /analyze-activity ──
       console.log(`[V4] Chamando /analyze-activity com ${detectedBboxes!.length} bboxes`);
-      const activityResp = await fetch(`${FRAME_EXTRACTOR_URL}/analyze-activity`, {
+      const activityResp = await fetchWithRetry(`${FRAME_EXTRACTOR_URL}/analyze-activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1223,7 +1358,10 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
 
     const scoresToInsert = filteredEmbryos.map((aiEmbryo: GeminiV4Result, i: number) => {
       const origIdx = originalIndexes[i];
-      const embriao = embrioes?.[origIdx];
+      // Matching resiliente: se DB tem menos embriões que bboxes detectados,
+      // clampar index para evitar out-of-bounds (ex: 1 embrião + bbox index 1 → usar index 0)
+      const embriaoIdx = embryoCountInDb === 1 ? 0 : Math.min(origIdx, embryoCountInDb - 1);
+      const embriao = embrioes?.[embriaoIdx];
       const morph = aiEmbryo.morphology;
       const viability = aiEmbryo.viability_prediction;
       const checklist = aiEmbryo.quality_checklist;
@@ -1240,7 +1378,11 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
       const geminiKineticScore = kineticAssessment?.score != null
         ? clamp(kineticAssessment.score, 0, 100)
         : cloudRunKineticScore;
-      const calculatedScore = morphScore; // Score principal = morfologia
+      // Score = morph do Gemini, corrigido pela regressão do biólogo se disponível
+      let calculatedScore = morphScore;
+      if (regressionSlope != null && regressionIntercept != null) {
+        calculatedScore = clamp(Math.round(regressionSlope * morphScore + regressionIntercept), 0, 100);
+      }
       const geminiOriginalScore = aiEmbryo.embryo_score;
 
       // Classificação DETERMINÍSTICA baseada no score calculado (v4 thresholds)
@@ -1327,6 +1469,10 @@ If you see fewer than ${expectedCount} clear embryos, return only the ones you a
             server_calculated: true,
             gemini_original_score: geminiOriginalScore,
             gemini_original_classification: aiEmbryo.classification,
+            morph_score_raw: morphScore,
+            regression_applied: regressionSlope != null,
+            regression_slope: regressionSlope,
+            regression_intercept: regressionIntercept,
             activity_score_raw: rawActivityScore,
             cloud_run_kinetic_score: cloudRunKineticScore,
             gemini_kinetic_score: geminiKineticScore,

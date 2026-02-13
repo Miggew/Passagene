@@ -107,7 +107,25 @@
       "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" status -u)",
       "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" diff --stat)",
       "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" log --oneline -5)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" push)",
+      "WebFetch(domain:pubmed.ncbi.nlm.nih.gov)",
+      "Bash(gcloud.cmd run deploy:*)",
+      "Bash(gcloud.cmd run revisions list:*)",
+      "Bash(gcloud.cmd run services describe:*)",
+      "Bash(gcloud.cmd run services logs read:*)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" add cloud-run/frame-extractor/app.py supabase/functions/embryo-analyze/index.ts src/hooks/useEmbryoScores.ts src/hooks/useEmbryoVideoUpload.ts src/components/layout/MainLayout.tsx src/components/embrioes/PacoteEmbrioesTable.tsx src/lib/embryoscore/prompts.ts src/components/admin/AdminEmbryoScoreTab.tsx src/components/layout/Sidebar.tsx src/contexts/AuthContext.tsx src/App.tsx src/pages/Administrativo.tsx src/pages/EmbryoScore.tsx dist/index.html dist/sw.js)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" add cloud-run/frame-extractor/app.py supabase/functions/embryo-analyze/index.ts src/hooks/useEmbryoScores.ts src/hooks/useEmbryoVideoUpload.ts src/components/layout/MainLayout.tsx src/components/embrioes/PacoteEmbrioesTable.tsx src/lib/embryoscore/prompts.ts src/components/admin/AdminEmbryoScoreTab.tsx src/components/layout/Sidebar.tsx src/contexts/AuthContext.tsx src/App.tsx src/pages/Administrativo.tsx src/pages/EmbryoScore.tsx)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" commit -m \"$\\(cat <<''EOF''\nfeat\\(embryoscore\\): v4 otimizado — 1 frame, skip composites, batch Gemini, barra de status\n\n- Cloud Run: parâmetro skip_composites pula composite_frames e heatmap \\(~60% menos payload\\)\n- Cloud Run: fix divisão por zero com num_key_frames=1, memória 4Gi\n- Edge Function: 1 frame central \\(não 3\\), skip_composites: true, Gemini em lotes de 8\n- Hook useGlobalAnalysisQueue retorna dados estruturados \\(pending, processing, timer\\)\n- MainLayout: badge flutuante → barra integrada com progresso, timer 1s, ícone spin\n- Redetect: vincula todos os irmãos ao queue_id \\(fix detecção duplicada\\)\n- Redetect: reutiliza job ativo existente \\(evita jobs duplicados\\)\n- Upload: log detalhado para erros de Storage\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" pull --rebase)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" stash)",
+      "Bash(git -C \"C:\\\\Users\\\\Miguel\\\\Desktop\\\\PassaGene\\\\Passagene\" stash pop)",
+      "WebFetch(domain:api.iconify.design)",
+      "Bash(netstat:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(git status:*)"
     ]
   }
 }

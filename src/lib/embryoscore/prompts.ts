@@ -94,9 +94,24 @@ morph_score = (MCI × 0.35) + (TE × 0.35) + (ZP_Forma × 0.20) + (Frag × 0.10)
 Arredonde para inteiro.
 
 ═══════════════════════════════════════════════
-CHECKLIST DE QUALIDADE (OBRIGATÓRIO)
+TRIAGEM — ANTES DE TUDO (OBRIGATÓRIO)
 ═══════════════════════════════════════════════
-Antes do sub-scoring, responda SIM/NÃO:
+PRIMEIRO, classifique o embrião em UMA das categorias:
+
+A) INVIÁVEL (morph_score = 0): O embrião é degenerado, majoritariamente debris/fragmentos,
+   sem estruturas celulares organizadas reconhecíveis, ou impossível distinguir MCI/TE.
+   → NÃO faça sub-scoring. Defina morph_score = 0, classification = "Inviavel",
+     todos sub-scores = 0, e descreva o que vê (debris, degeneração, etc).
+
+B) ESTRUTURADO: Há pelo menos ALGUMA organização celular reconhecível (mesmo que pobre).
+   → Prossiga para a checklist e sub-scoring abaixo.
+
+Em caso de DÚVIDA entre A e B, escolha A.
+
+═══════════════════════════════════════════════
+CHECKLIST DE QUALIDADE (só se categoria B)
+═══════════════════════════════════════════════
+Responda SIM/NÃO:
 □ MCI visível como ponto/região densa distinta?
 □ TE forma anel contínuo sem interrupções?
 □ Forma geral esférica/oval sem reentrâncias?
@@ -105,16 +120,6 @@ Antes do sub-scoring, responda SIM/NÃO:
 
 5/5 → score ≥82  |  3-4/5 → score 65-81  |  1-2/5 → score 48-64  |  0/5 → score <48
 
-═══════════════════════════════════════════════
-CALIBRAÇÃO ANTI-INFLAÇÃO
-═══════════════════════════════════════════════
-Em um lote D7 típico de 8-12 embriões:
-- 1-2 serão excelentes (≥82)
-- 3-4 serão bons (65-81)
-- 2-3 serão regulares (48-64)
-- 1-2 serão borderline/inviáveis (<48)
-Score médio esperado de um lote: 62-68. Se seu score médio > 75, reduza.
-DIFERENCIAÇÃO: Dois embriões "bons" NÃO devem ter o mesmo score. Use a escala completa dentro de cada faixa.
 
 ═══════════════════════════════════════════════
 INTERPRETAÇÃO DO PERFIL CINÉTICO

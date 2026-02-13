@@ -157,6 +157,11 @@ export function PacoteEmbrioesTable({
 
       if (existingJob) {
         queueId = existingJob.id;
+        // Resetar job existente para pending (pode estar travado)
+        await supabase
+          .from('embryo_analysis_queue')
+          .update({ status: 'pending', error_message: null, started_at: null, retry_count: 0 })
+          .eq('id', existingJob.id);
       } else {
         const { data: queueData, error: queueError } = await supabase
           .from('embryo_analysis_queue')
@@ -194,14 +199,24 @@ export function PacoteEmbrioesTable({
           .eq('id', embriao.id);
       }
 
-      // 3. Invocar Edge Function (fire-and-forget — skip se job já está ativo)
+      // 3. Invocar Edge Function com retry
       progress(3, 'Iniciando análise IA...');
-      if (!existingJob) {
-        supabase.functions.invoke('embryo-analyze', {
-          body: { queue_id: queueId },
-        }).catch((err: unknown) => {
-          console.warn('EmbryoScore: falha ao invocar analise:', err);
-        });
+      let invokeOk = false;
+      for (let attempt = 0; attempt < 3 && !invokeOk; attempt++) {
+        try {
+          const { error: fnError } = await supabase.functions.invoke('embryo-analyze', {
+            body: { queue_id: queueId },
+          });
+          if (fnError) throw fnError;
+          invokeOk = true;
+        } catch (invokeErr) {
+          console.warn(`[Redetect] invoke tentativa ${attempt + 1}/3 falhou:`, invokeErr);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+      if (!invokeOk) {
+        toast({ title: 'Erro', description: 'Falha ao invocar análise IA após 3 tentativas. Tente novamente.', variant: 'destructive' });
+        return;
       }
 
       // Registrar como redetectado → suprime score antigo na UI + inicia polling forçado

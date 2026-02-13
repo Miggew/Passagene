@@ -514,6 +514,9 @@ export interface EmbryoScore {
   // Feedback do biólogo (Sprint 5)
   biologo_concorda?: boolean | null;
   biologo_nota?: string | null;
+  biologo_score?: number | null;
+  biologo_estagio?: string | null;
+  biologo_descricao_erros?: string[] | null;
 
   // v3: Activity Score (Cloud Run pixel subtraction)
   activity_score?: number;
