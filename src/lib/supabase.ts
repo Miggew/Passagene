@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Pega as chaves do arquivo .env (seguro!)
+// Chaves de ambiente (.env local / Vercel env vars)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
