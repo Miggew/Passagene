@@ -1,8 +1,13 @@
 /**
- * Edge Function: embryo-analyze (v2.2)
- * 
+ * Edge Function: embryo-analyze (v2.3)
+ *
  * Pipeline DINOv2 + KNN + MLP com Pareamento Geográfico (X,Y)
- * Correção: Extrai frame antes da detecção para evitar crops vazios.
+ *
+ * v2.3 Changelog:
+ *  - Client Supabase no escopo superior (fix ReferenceError no catch)
+ *  - INSERT em embryo_scores agora grava TODOS os campos V2
+ *    (embedding, kinetics, MLP, motion_map_path, composite_path)
+ *  - Upload de plate_frame ao Storage e plate_frame_path na queue
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -61,6 +66,14 @@ function mapToLegacyRecommendation(confidence: number): string {
   return 'second_opinion';
 }
 
+// ── FIX #1: Client Supabase no escopo superior ──
+// Antes estava dentro do try (linha ~75), causando ReferenceError no catch
+// quando req.json() falhava. Agora é acessível em qualquer ponto do handler.
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!!
+);
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -72,7 +85,6 @@ Deno.serve(async (req: Request) => {
     queue_id = body.queue_id;
     if (!queue_id) throw new Error('queue_id missing');
 
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!!);
     const FRAME_EXTRACTOR_URL = Deno.env.get('FRAME_EXTRACTOR_URL') ?? '';
     const DINOV2_URL = Deno.env.get('DINOV2_CLOUD_RUN_URL') ?? '';
 
@@ -85,7 +97,7 @@ Deno.serve(async (req: Request) => {
     // 2. Buscar Mídia e Embriões do Banco
     const { data: media } = await supabase.from('acasalamento_embrioes_media').select('*').eq('id', job.media_id).single();
     const { data: dbEmbrioes } = await supabase.from('embrioes').select('*').eq('lote_fiv_acasalamento_id', job.lote_fiv_acasalamento_id).order('identificacao', { ascending: true });
-    
+
     const embrioesNoBanco = dbEmbrioes || [];
 
     // 3. Obter URL do vídeo
@@ -96,7 +108,7 @@ Deno.serve(async (req: Request) => {
     let detectedBboxes = (job.detected_bboxes as DetectedBbox[]) || [];
     if (detectedBboxes.length === 0) {
         console.log(`[Analyze] Iniciando nova detecção para ${embrioesNoBanco.length} embriões`);
-        
+
         // 4a. Extrair Frame do Vídeo
         const frameResp = await fetch(`${FRAME_EXTRACTOR_URL}/extract-frame`, {
             method: 'POST',
@@ -109,8 +121,8 @@ Deno.serve(async (req: Request) => {
         const detResp = await fetch(Deno.env.get('SUPABASE_FUNCTIONS_URL') + '/embryo-detect', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                frame_base64, 
+            body: JSON.stringify({
+                frame_base64,
                 expected_count: embrioesNoBanco.length,
                 frame_width: frameData.width,
                 frame_height: frameData.height
@@ -133,15 +145,29 @@ Deno.serve(async (req: Request) => {
     const cropData = await cropResp.json();
     const embryoCrops: Record<string, string[]> = cropData.embryos || {};
 
-    // 6. DINOv2 + KNN (Paralelo)
-    const successfulAnalyses = [];
+    // ── FIX #3: Upload do Plate Frame e salvamento do path na fila ──
+    if (cropData.plate_frame_b64) {
+      const plateFramePath = `${job.lote_fiv_acasalamento_id}/${queue_id}/plate_frame.jpg`;
+      await supabase.storage.from('embryoscore').upload(
+        plateFramePath,
+        base64ToBuffer(cropData.plate_frame_b64),
+        { contentType: 'image/jpeg', upsert: true }
+      );
+      await supabase.from('embryo_analysis_queue').update({
+        plate_frame_path: plateFramePath,
+      }).eq('id', queue_id);
+      console.log(`[Analyze] Plate frame salvo: ${plateFramePath}`);
+    }
+
+    // 6. DINOv2 + MLP (Sequencial por embrião)
+    const successfulAnalyses: { embIdx: number; result: DINOv2Result }[] = [];
     for (const [idx, crops] of Object.entries(embryoCrops)) {
         if (!crops || crops.length < 5) continue;
         const formData = new FormData();
         formData.append('frames_json', JSON.stringify(crops));
         const resp = await fetch(`${DINOV2_URL}/analyze-embryo`, { method: 'POST', body: formData });
         if (resp.ok) {
-            const res = await resp.json();
+            const res = (await resp.json()) as DINOv2Result;
             successfulAnalyses.push({ embIdx: parseInt(idx), result: res });
         }
     }
@@ -159,7 +185,7 @@ Deno.serve(async (req: Request) => {
             console.log(`[Gatekeeper] Rejeitado #${embIdx} (Texture: ${tScore.toFixed(1)})`);
             continue;
         }
-        
+
         // Pareamento Geográfico (Proximidade)
         let closestEmb = null;
         let minDist = Infinity;
@@ -173,10 +199,34 @@ Deno.serve(async (req: Request) => {
 
         const confidence = result.mlp_classification?.confidence || 50;
 
-        // Upload Imagem Principal
+        // Upload Imagem Principal (best frame)
         await supabase.storage.from('embryoscore').upload(`${basePath}/emb_${embIdx}.jpg`, base64ToBuffer(result.best_frame_b64), { contentType: 'image/jpeg', upsert: true });
 
+        // ── FIX #2a: Upload Motion Map ao Storage ──
+        let motionMapPath: string | null = null;
+        if (result.motion_map_b64) {
+            motionMapPath = `${basePath}/motion_${embIdx}.jpg`;
+            await supabase.storage.from('embryoscore').upload(
+                motionMapPath,
+                base64ToBuffer(result.motion_map_b64),
+                { contentType: 'image/jpeg', upsert: true }
+            );
+        }
+
+        // ── FIX #2b: Upload Composite (morfologia + cinética lado a lado) ao Storage ──
+        let compositePath: string | null = null;
+        if (result.composite_b64) {
+            compositePath = `${basePath}/composite_${embIdx}.jpg`;
+            await supabase.storage.from('embryoscore').upload(
+                compositePath,
+                base64ToBuffer(result.composite_b64),
+                { contentType: 'image/jpeg', upsert: true }
+            );
+        }
+
+        // ── FIX #2c: Payload completo — V1 (legado mantido) + V2 (todos os campos DINOv2) ──
         scoresToInsert.push({
+            // ── Campos V1 (legado, mantidos para compatibilidade) ──
             embriao_id: embriao.id,
             media_id: job.media_id,
             queue_id: queue_id,
@@ -190,12 +240,31 @@ Deno.serve(async (req: Request) => {
             bbox_y_percent: bbox.y_percent,
             texture_score: tScore,
             reasoning: `DINOv2+Híbrido (Dist: ${minDist.toFixed(1)}%)`,
-            model_used: 'dinov2_vitb14'
+            model_used: 'dinov2_vitb14',
+
+            // ── V2: Embedding (vector 768d para pgvector) ──
+            embedding: result.embedding,
+
+            // ── V2: Métricas Cinéticas (REAL) ──
+            kinetic_intensity: result.kinetics.intensity,
+            kinetic_harmony: result.kinetics.harmony,
+            kinetic_symmetry: result.kinetics.symmetry,
+            kinetic_stability: result.kinetics.stability,
+            kinetic_bg_noise: result.kinetics.background_noise,
+
+            // ── V2: Imagens (paths no bucket embryoscore) ──
+            motion_map_path: motionMapPath,
+            composite_path: compositePath,
+
+            // ── V2: MLP Classification ──
+            mlp_classification: result.mlp_classification?.classification ?? null,
+            mlp_confidence: result.mlp_classification?.confidence ?? null,
+            mlp_probabilities: result.mlp_classification?.probabilities ?? null,
         });
 
         // Atualizar coordenadas para o próximo match ser perfeito
-        await supabase.from('embrioes').update({ 
-            last_x_percent: bbox.x_percent, 
+        await supabase.from('embrioes').update({
+            last_x_percent: bbox.x_percent,
             last_y_percent: bbox.y_percent,
             queue_id: queue_id
         }).eq('id', embriao.id);
@@ -207,13 +276,25 @@ Deno.serve(async (req: Request) => {
         await supabase.from('embryo_scores').insert(scoresToInsert);
     }
 
+    const elapsed = Date.now() - startTime;
     await supabase.from('embryo_analysis_queue').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', queue_id);
+    console.log(`[Analyze] Concluído: ${scoresToInsert.length} scores salvos em ${elapsed}ms`);
 
-    return new Response(JSON.stringify({ success: true, saved: scoresToInsert.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, saved: scoresToInsert.length, elapsed_ms: elapsed }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error(error);
-    if (queue_id) await supabase.from('embryo_analysis_queue').update({ status: 'failed', error_message: error.message }).eq('id', queue_id);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    console.error('[Analyze] ERRO:', error);
+    // ── FIX #1 (cont.): supabase agora é sempre acessível aqui ──
+    if (queue_id) {
+      try {
+        await supabase.from('embryo_analysis_queue').update({
+          status: 'failed',
+          error_message: String(error?.message || error).slice(0, 500),
+        }).eq('id', queue_id);
+      } catch (updateErr) {
+        console.error('[Analyze] Falha ao marcar job como failed:', updateErr);
+      }
+    }
+    return new Response(JSON.stringify({ error: String(error?.message || error) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

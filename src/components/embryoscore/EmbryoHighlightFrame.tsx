@@ -27,6 +27,10 @@ function getBucket(score: EmbryoScore): string {
   if (score.knn_classification != null || score.combined_source != null) {
     return 'embryoscore';
   }
+  // v2.3: crop_image_path com "/" indica formato novo (acasalamento_id/queue_id/emb_N.jpg)
+  if (score.crop_image_path && score.crop_image_path.includes('/')) {
+    return 'embryoscore';
+  }
   return 'embryo-videos';
 }
 

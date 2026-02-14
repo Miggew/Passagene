@@ -131,7 +131,7 @@ export function VideoUploadButton({
           onClick={handleClick}
           disabled={disabled}
           className="w-8 h-8 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Enviar arquivo de video"
+          title={disabled ? "Informe a quantidade de embrioes primeiro" : "Enviar arquivo de video"}
         >
           <Video className="w-4 h-4" />
         </button>

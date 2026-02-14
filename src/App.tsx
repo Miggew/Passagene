@@ -113,6 +113,8 @@ const AppRoutes = () => {
             <Route path="/transferencia" element={<Navigate to="/campo/transferencia" replace />} />
             <Route path="/transferencia/sessao" element={<Navigate to="/campo/transferencia/sessao" replace />} />
             <Route path="/dg" element={<Navigate to="/campo/dg" replace />} />
+            <Route path="/dg/:id" element={<Navigate to="/campo/dg/:id" replace />} />
+            <Route path="/lotes-fiv/:id" element={<Navigate to="/lab/lotes-fiv/:id" replace />} />
             
             <Route path="/clientes" element={<Navigate to="/administrativo?tab=clientes" replace />} />
             <Route path="/fazendas" element={<Navigate to="/administrativo?tab=fazendas" replace />} />

@@ -51,7 +51,7 @@ export function ConcordanceReport() {
 
     const byRange = ranges.map(({ min, max, label }) => {
       const rangeScores = scores.filter(
-        (s) => s.score >= min && s.score < max
+        (s) => s.embryo_score >= min && s.embryo_score < max
       );
       const concordant = rangeScores.filter((s) => s.biologo_concorda === true).length;
 

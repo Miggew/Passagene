@@ -10,6 +10,7 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react';
+import { Map } from 'lucide-react';
 import type { DetectedBbox } from '@/lib/types';
 
 type EmbryoStatus = 'pending' | 'classified' | 'active';
