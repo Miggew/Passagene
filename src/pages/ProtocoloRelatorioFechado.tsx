@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
-import { formatDate } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
@@ -101,23 +101,23 @@ export default function ProtocoloRelatorioFechado() {
       const dataProtocoloStr = protocolo.data_inicio.split('T')[0]; // YYYY-MM-DD
       const [anoProtocolo, mesProtocolo, diaProtocolo] = dataProtocoloStr.split('-').map(Number);
       const dataProtocolo = new Date(anoProtocolo, mesProtocolo - 1, diaProtocolo);
-      
+
       // Procurar mudança que ocorreu na data do protocolo ou próximo
       let mudancaEncontrada = null;
       let menorDiffDias = Infinity;
-      
+
       for (let i = 1; i < historicoFazendas.length; i++) {
         const historicoAtual = historicoFazendas[i];
         const historicoAnterior = historicoFazendas[i - 1];
-        
+
         // Normalizar data da mudança para comparar apenas o dia (sem horas)
         const dataMudancaStr = historicoAtual.data_inicio.split('T')[0]; // YYYY-MM-DD
         const [anoMudanca, mesMudanca, diaMudanca] = dataMudancaStr.split('-').map(Number);
         const dataMudanca = new Date(anoMudanca, mesMudanca - 1, diaMudanca);
-        
+
         // Calcular diferença em dias (valor absoluto)
         const diffDias = Math.abs((dataMudanca.getTime() - dataProtocolo.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         // Aceitar mudanças que ocorreram na mesma data ou até 1 dia antes/depois
         // Mas preferir a mudança mais próxima da data do protocolo
         if (diffDias <= 1 && diffDias < menorDiffDias) {
@@ -129,7 +129,7 @@ export default function ProtocoloRelatorioFechado() {
           };
         }
       }
-      
+
       // Se não encontrou mudança próxima, usar a mudança mais recente antes da data do protocolo
       // (pode ser que o protocolo foi criado no dia seguinte à mudança)
       if (!mudancaEncontrada && historicoFazendas.length > 1) {
@@ -137,11 +137,11 @@ export default function ProtocoloRelatorioFechado() {
         for (let i = historicoFazendas.length - 1; i >= 1; i--) {
           const historicoAtual = historicoFazendas[i];
           const historicoAnterior = historicoFazendas[i - 1];
-          
+
           const dataMudancaStr = historicoAtual.data_inicio.split('T')[0];
           const [anoMudanca, mesMudanca, diaMudanca] = dataMudancaStr.split('-').map(Number);
           const dataMudanca = new Date(anoMudanca, mesMudanca - 1, diaMudanca);
-          
+
           // Se a mudança foi antes ou na data do protocolo (até 2 dias antes)
           if (dataMudanca <= dataProtocolo && (dataProtocolo.getTime() - dataMudanca.getTime()) / (1000 * 60 * 60 * 24) <= 2) {
             mudancaEncontrada = {
@@ -335,10 +335,10 @@ export default function ProtocoloRelatorioFechado() {
   // Extrair veterinário e técnico do responsavel_inicio
   const parseResponsavelInicio = (responsavelInicio: string | undefined) => {
     if (!responsavelInicio) return { veterinario: null, tecnico: null };
-    
+
     const vetMatch = responsavelInicio.match(/VET:\s*(.+?)(?:\s*\||$)/i);
     const tecMatch = responsavelInicio.match(/TEC:\s*(.+?)(?:\s*\||$)/i);
-    
+
     return {
       veterinario: vetMatch ? vetMatch[1].trim() : null,
       tecnico: tecMatch ? tecMatch[1].trim() : null,

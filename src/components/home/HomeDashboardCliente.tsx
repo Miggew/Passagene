@@ -146,11 +146,11 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
       if (fazendaIds.length === 0) { setLoading(false); return; }
 
       const { data: receptorasView } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual')
-        .in('fazenda_id_atual', fazendaIds);
+        .from('receptoras')
+        .select('id, fazenda_atual_id')
+        .in('fazenda_atual_id', fazendaIds);
 
-      const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+      const receptoraIds = receptorasView?.map(r => r.id) || [];
       if (receptoraIds.length === 0) { setLoading(false); return; }
 
       const { data: receptorasData } = await supabase
@@ -170,7 +170,9 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
       setReceptoras(totais);
 
       const receptoraFazendaMap = new Map<string, string>();
-      receptorasView?.forEach(r => receptoraFazendaMap.set(r.receptora_id, r.fazenda_id_atual));
+      receptorasView?.forEach(r => {
+        if (r.fazenda_atual_id) receptoraFazendaMap.set(r.id, r.fazenda_atual_id);
+      });
 
       await Promise.all([
         loadUltimaTE(receptoraFazendaMap, fazendaNomeMap),

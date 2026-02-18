@@ -42,6 +42,7 @@ const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Administrativo = lazy(() => import('./pages/Administrativo'));
 const EmbryoScore = lazy(() => import('./pages/EmbryoScore'));
+const EmbryoScoreReview = lazy(() => import('./pages/EmbryoScoreReview'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
 
@@ -61,9 +62,14 @@ const GeneticaTouroDetail = lazy(() => import('./pages/genetica/GeneticaTouroDet
 
 // Páginas do Hub Cliente
 const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
+
 const ClienteRelatorios = lazy(() => import('./pages/cliente/ClienteRelatorios'));
 const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
 const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfiguracoes'));
+
+const EmbryoWorkbench = lazy(() => import('./pages/biologist/EmbryoWorkbench'));
+const Bancada = lazy(() => import('./pages/Bancada'));
+const QuickClassifyPage = lazy(() => import('./pages/QuickClassifyPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +115,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const LaboratorioHome = lazy(() => import('@/pages/laboratorio/LaboratorioHome'));
+
 const AppRoutes = () => {
   const location = useLocation();
   return (
@@ -135,6 +143,7 @@ const AppRoutes = () => {
             {/* Painel Administrativo Unificado */}
             <Route path="/administrativo" element={<Administrativo />} />
             <Route path="/embryoscore" element={<EmbryoScore />} />
+            <Route path="/embryoscore/review/:queueId" element={<EmbryoScoreReview />} />
 
             {/* Redirecionamentos das rotas antigas */}
             <Route path="/clientes" element={<Navigate to="/administrativo?tab=clientes" replace />} />
@@ -190,6 +199,7 @@ const AppRoutes = () => {
             <Route path="/sexagem/sessao" element={<SexagemSessaoDetail />} />
 
             {/* Hub Relatórios */}
+            <Route path="/laboratorio" element={<LaboratorioHome />} />
             <Route path="/relatorios" element={<RelatoriosHome />} />
             <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
             <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />
@@ -203,8 +213,14 @@ const AppRoutes = () => {
             <Route path="/genetica/touros" element={<GeneticaTouros />} />
             <Route path="/genetica/touros/:id" element={<GeneticaTouroDetail />} />
 
+            {/* Bancada do Biólogo */}
+            <Route path="/bancada" element={<Bancada />} />
+            <Route path="/bancada/rapida/:queueId" element={<QuickClassifyPage />} />
+            <Route path="/biologist" element={<Navigate to="/bancada" replace />} />
+
             {/* Hub Cliente */}
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
+
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />

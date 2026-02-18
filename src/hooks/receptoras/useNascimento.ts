@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Fazenda, ReceptoraComStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 export interface NascimentoEmbriaoInfo {
   embriao_id: string;
@@ -52,7 +53,7 @@ export function useNascimento({
   onSuccess,
 }: UseNascimentoProps): UseNascimentoReturn {
   const { toast } = useToast();
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = getTodayDateString();
 
   // Dialog state
   const [showNascimentoDialog, setShowNascimentoDialog] = useState(false);
@@ -153,7 +154,12 @@ export function useNascimento({
           .from('doses_semen')
           .select('id, touro:touros(id, nome, registro, raca)')
           .in('id', doseIds);
-        dosesData = dosesResult || [];
+
+        // Transform array touro to single object if needed, or handle array from supabase
+        dosesData = (dosesResult || []).map(d => ({
+          ...d,
+          touro: Array.isArray(d.touro) ? d.touro[0] : d.touro
+        }));
       }
     }
 

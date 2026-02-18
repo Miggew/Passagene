@@ -13,8 +13,6 @@ interface TrendDataPoint {
   date: string;
   displayDate: string;
   score: number;
-  morph: number;
-  kinetic: number;
   loteId: string;
   count: number;
 }
@@ -80,7 +78,7 @@ export function DoadoraScoreTrend({ doadoraId }: DoadoraScoreTrendProps) {
       // Step 4: Get current embryo_scores for those embrioes
       const { data: scores, error: scoreError } = await supabase
         .from('embryo_scores')
-        .select('embriao_id, embryo_score, morph_score, kinetic_score')
+        .select('embriao_id, embryo_score')
         .in('embriao_id', embIds)
         .eq('is_current', true);
 
@@ -90,8 +88,6 @@ export function DoadoraScoreTrend({ doadoraId }: DoadoraScoreTrendProps) {
       // Group by lote and calculate averages
       const loteGroups = new Map<string, {
         scores: number[];
-        morphs: number[];
-        kinetics: number[];
       }>();
 
       scores.forEach(s => {
@@ -99,13 +95,11 @@ export function DoadoraScoreTrend({ doadoraId }: DoadoraScoreTrendProps) {
         if (!loteId) return;
 
         if (!loteGroups.has(loteId)) {
-          loteGroups.set(loteId, { scores: [], morphs: [], kinetics: [] });
+          loteGroups.set(loteId, { scores: [] });
         }
 
         const group = loteGroups.get(loteId)!;
         if (s.embryo_score !== null) group.scores.push(s.embryo_score);
-        if (s.morph_score !== null) group.morphs.push(s.morph_score);
-        if (s.kinetic_score !== null) group.kinetics.push(s.kinetic_score);
       });
 
       // Calculate averages per lote
@@ -115,19 +109,11 @@ export function DoadoraScoreTrend({ doadoraId }: DoadoraScoreTrendProps) {
         if (!date || group.scores.length === 0) return;
 
         const avgScore = group.scores.reduce((a, b) => a + b, 0) / group.scores.length;
-        const avgMorph = group.morphs.length > 0
-          ? group.morphs.reduce((a, b) => a + b, 0) / group.morphs.length
-          : 0;
-        const avgKinetic = group.kinetics.length > 0
-          ? group.kinetics.reduce((a, b) => a + b, 0) / group.kinetics.length
-          : 0;
 
         result.push({
           date,
           displayDate: format(new Date(date), 'dd/MMM', { locale: ptBR }),
           score: Math.round(avgScore * 10) / 10,
-          morph: Math.round(avgMorph * 10) / 10,
-          kinetic: Math.round(avgKinetic * 10) / 10,
           loteId,
           count: group.scores.length
         });
@@ -201,24 +187,6 @@ export function DoadoraScoreTrend({ doadoraId }: DoadoraScoreTrendProps) {
             activeDot={{ r: 6 }}
             name="Score Geral"
           />
-          <Line
-            type="monotone"
-            dataKey="morph"
-            stroke="#3b82f6"
-            strokeWidth={1.5}
-            dot={{ fill: '#3b82f6', r: 3 }}
-            strokeOpacity={0.6}
-            name="Morfologia"
-          />
-          <Line
-            type="monotone"
-            dataKey="kinetic"
-            stroke="#8b5cf6"
-            strokeWidth={1.5}
-            dot={{ fill: '#8b5cf6', r: 3 }}
-            strokeOpacity={0.6}
-            name="Cinética"
-          />
         </LineChart>
       </ResponsiveContainer>
 
@@ -226,14 +194,6 @@ export function DoadoraScoreTrend({ doadoraId }: DoadoraScoreTrendProps) {
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-primary" />
           <span className="text-xs text-muted-foreground">Score Geral</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span className="text-xs text-muted-foreground">Morfologia</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-violet-500" />
-          <span className="text-xs text-muted-foreground">Cinética</span>
         </div>
       </div>
     </div>

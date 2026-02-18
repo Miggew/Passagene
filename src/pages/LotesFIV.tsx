@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLotesFiltros } from '@/hooks/useLotesFiltros';
 import { useLotesFIVData } from '@/hooks/useLotesFIVData';
 import { Eye, X, Filter, Calendar, ChevronRight } from 'lucide-react';
-import { formatDate, extractDateOnly, diffDays, getTodayDateString } from '@/lib/utils';
+import { formatDateBR as formatDate, extractDateOnly, diffDays, todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 import { getNomeDia, getCorDia } from '@/lib/lotesFivUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -282,7 +282,7 @@ export default function LotesFIV() {
       }
 
       const nomePacote = `${fazendaOrigemNome} - ${fazendasDestinoNomes.join(', ')}`;
-      const dataDespacho = new Date().toISOString().split('T')[0];
+      const dataDespacho = getTodayDateString();
 
       if (!fazendasDestinoIds.length) {
         toast({
@@ -393,6 +393,7 @@ export default function LotesFIV() {
 
       // EmbryoScore: vincular vídeos aos embriões e criar jobs de análise (server-side detection)
       // Falhas aqui NÃO bloqueiam o despacho
+      const queueIds: string[] = [];
       for (const ac of acasalamentosDespachados) {
         const mediaIds = videoMediaIds[ac.acasalamento_id];
         if (!mediaIds?.length) continue;
@@ -440,24 +441,20 @@ export default function LotesFIV() {
             console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
           }
 
-          // 4. Vincular queue_id aos embriões
-          if (queueData?.id && novosEmbrioesIds.length > 0) {
+          // 4. Vincular queue_id a TODOS os embriões do acasalamento
+          if (queueData?.id) {
             const { error: queueLinkError } = await supabase
               .from('embrioes')
               .update({ queue_id: queueData.id })
-              .in('id', novosEmbrioesIds);
+              .eq('lote_fiv_acasalamento_id', ac.acasalamento_id);
             if (queueLinkError) {
               console.warn('EmbryoScore: falha ao vincular queue_id:', queueLinkError.message);
             }
           }
 
-          // 5. Invocar Edge Function fire-and-forget
+          // 5. Guardar queue ID para toast de classificação rápida
           if (queueData?.id) {
-            supabase.functions.invoke('embryo-analyze', {
-              body: { queue_id: queueData.id },
-            }).catch((err: unknown) => {
-              console.warn('EmbryoScore: falha ao invocar análise (será reprocessado):', err);
-            });
+            queueIds.push(queueData.id);
           }
         } catch (embryoScoreErr) {
           console.warn('EmbryoScore: erro não-bloqueante no processamento de vídeo:', embryoScoreErr);
@@ -487,9 +484,16 @@ export default function LotesFIV() {
       setEditQuantidadeEmbrioes({});
 
       toast({
-        title: 'Embriões despachados',
-        description: `${embrioesParaCriar.length} embrião(ões) foram despachados para ${nomePacote}.`,
+        title: `${embrioesParaCriar.length} embriões despachados`,
+        description: nomePacote,
       });
+
+      // Navegar direto para classificação rápida se há vídeo com queue
+      if (queueIds.length > 0) {
+        const lastQueueId = queueIds[queueIds.length - 1];
+        navigate(`/bancada/rapida/${lastQueueId}`);
+        return; // skip loadLoteDetail — estamos saindo da página
+      }
 
       loadLoteDetail(selectedLote.id);
     } catch (error) {
@@ -606,98 +610,98 @@ export default function LotesFIV() {
   if (selectedLote && showLoteDetail) {
     return (
       <>
-      <LoteDetailView
-        lote={selectedLote}
-        acasalamentos={acasalamentos}
-        aspiracoesDisponiveis={aspiracoesDisponiveis}
-        dosesDisponiveis={dosesDisponiveis}
-        dosesDisponiveisNoLote={dosesDisponiveisNoLote}
-        doadoras={doadoras}
-        clientes={clientes}
-        historicoDespachos={historicoDespachos}
-        dataAspiracao={dataAspiracao}
-        fazendaOrigemNome={fazendaOrigemNome}
-        fazendasDestinoNomes={fazendasDestinoNomes}
-        submitting={submitting}
-        onBack={() => {
-          setShowLoteDetail(false);
-          setSelectedLote(null);
-        }}
-        onAddAcasalamento={handleAddAcasalamento}
-        onDespacharEmbrioes={despacharEmbrioes}
-        onUpdateQuantidadeEmbrioes={(acasalamentoId, quantidade) => {
-          setEditQuantidadeEmbrioes({
-            ...editQuantidadeEmbrioes,
-            [acasalamentoId]: quantidade,
-          });
-        }}
-        editQuantidadeEmbrioes={editQuantidadeEmbrioes}
-        editOocitos={editOocitos}
-        onUpdateOocitos={async (acasalamentoId, quantidade) => {
-          setEditOocitos(prev => ({ ...prev, [acasalamentoId]: quantidade }));
-          const valorNumerico = parseInt(quantidade) || null;
-          await supabase
-            .from('lote_fiv_acasalamentos')
-            .update({ quantidade_oocitos: valorNumerico })
-            .eq('id', acasalamentoId);
-        }}
-        onBlurOocitos={async () => {
-          if (selectedLote) await loadLoteDetail(selectedLote.id);
-        }}
-        onUpdateClivados={async (acasalamentoId, quantidade) => {
-          setEditClivados({
-            ...editClivados,
-            [acasalamentoId]: quantidade,
-          });
-          // Salvar no banco em background
-          const valorNumerico = parseInt(quantidade) || null;
-          await supabase
-            .from('lote_fiv_acasalamentos')
-            .update({ embrioes_clivados_d3: valorNumerico })
-            .eq('id', acasalamentoId);
-        }}
-        editClivados={editClivados}
-        videoMediaIds={videoMediaIds}
-        onVideoUploadComplete={(acasalamentoId, mediaId) => {
-          setVideoMediaIds(prev => ({
-            ...prev,
-            [acasalamentoId]: [...(prev[acasalamentoId] || []), mediaId],
-          }));
-        }}
-      />
+        <LoteDetailView
+          lote={selectedLote}
+          acasalamentos={acasalamentos}
+          aspiracoesDisponiveis={aspiracoesDisponiveis}
+          dosesDisponiveis={dosesDisponiveis}
+          dosesDisponiveisNoLote={dosesDisponiveisNoLote}
+          doadoras={doadoras}
+          clientes={clientes}
+          historicoDespachos={historicoDespachos}
+          dataAspiracao={dataAspiracao}
+          fazendaOrigemNome={fazendaOrigemNome}
+          fazendasDestinoNomes={fazendasDestinoNomes}
+          submitting={submitting}
+          onBack={() => {
+            setShowLoteDetail(false);
+            setSelectedLote(null);
+          }}
+          onAddAcasalamento={handleAddAcasalamento}
+          onDespacharEmbrioes={despacharEmbrioes}
+          onUpdateQuantidadeEmbrioes={(acasalamentoId, quantidade) => {
+            setEditQuantidadeEmbrioes({
+              ...editQuantidadeEmbrioes,
+              [acasalamentoId]: quantidade,
+            });
+          }}
+          editQuantidadeEmbrioes={editQuantidadeEmbrioes}
+          editOocitos={editOocitos}
+          onUpdateOocitos={async (acasalamentoId, quantidade) => {
+            setEditOocitos(prev => ({ ...prev, [acasalamentoId]: quantidade }));
+            const valorNumerico = parseInt(quantidade) || null;
+            await supabase
+              .from('lote_fiv_acasalamentos')
+              .update({ quantidade_oocitos: valorNumerico })
+              .eq('id', acasalamentoId);
+          }}
+          onBlurOocitos={async () => {
+            if (selectedLote) await loadLoteDetail(selectedLote.id);
+          }}
+          onUpdateClivados={async (acasalamentoId, quantidade) => {
+            setEditClivados({
+              ...editClivados,
+              [acasalamentoId]: quantidade,
+            });
+            // Salvar no banco em background
+            const valorNumerico = parseInt(quantidade) || null;
+            await supabase
+              .from('lote_fiv_acasalamentos')
+              .update({ embrioes_clivados_d3: valorNumerico })
+              .eq('id', acasalamentoId);
+          }}
+          editClivados={editClivados}
+          videoMediaIds={videoMediaIds}
+          onVideoUploadComplete={(acasalamentoId, mediaId) => {
+            setVideoMediaIds(prev => ({
+              ...prev,
+              [acasalamentoId]: [...(prev[acasalamentoId] || []), mediaId],
+            }));
+          }}
+        />
 
-      {/* Dialog: Warning despacho sem vídeo */}
-      <Dialog open={showDespachoSemVideoWarning} onOpenChange={setShowDespachoSemVideoWarning}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Despachar sem análise de IA?</DialogTitle>
-            <DialogDescription>
-              {acsSemVideoNomes.length} acasalamento(s) não têm vídeo: {acsSemVideoNomes.join(', ')}.
-              Sem vídeo, a análise EmbryoScore não será realizada para esses embriões.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDespachoSemVideoWarning(false);
-                setSubmitting(false);
-              }}
-            >
-              Voltar e filmar
-            </Button>
-            <Button
-              onClick={() => {
-                // Continua o despacho — a flag showDespachoSemVideoWarning está true,
-                // o despacharEmbrioes vai pular o warning check
-                despacharEmbrioes();
-              }}
-            >
-              Continuar sem análise
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Dialog: Warning despacho sem vídeo */}
+        <Dialog open={showDespachoSemVideoWarning} onOpenChange={setShowDespachoSemVideoWarning}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Despachar sem análise de IA?</DialogTitle>
+              <DialogDescription>
+                {acsSemVideoNomes.length} acasalamento(s) não têm vídeo: {acsSemVideoNomes.join(', ')}.
+                Sem vídeo, a análise EmbryoScore não será realizada para esses embriões.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDespachoSemVideoWarning(false);
+                  setSubmitting(false);
+                }}
+              >
+                Voltar e filmar
+              </Button>
+              <Button
+                onClick={() => {
+                  // Continua o despacho — a flag showDespachoSemVideoWarning está true,
+                  // o despacharEmbrioes vai pular o warning check
+                  despacharEmbrioes();
+                }}
+              >
+                Continuar sem análise
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
       </>
     );
@@ -844,141 +848,141 @@ export default function LotesFIV() {
         </CardHeader>
         <CardContent>
 
-              {lotesFiltrados.length === 0 ? (
-                <EmptyState
-                  title={lotes.length === 0 ? 'Nenhum lote cadastrado' : 'Nenhum lote encontrado'}
-                  description={
-                    lotes.length === 0
-                      ? 'Crie um novo lote para começar.'
-                      : 'Ajuste os filtros para encontrar outros lotes.'
-                  }
-                />
-              ) : (
-                <>
-                  {/* Mobile Card Layout */}
-                  <div className="md:hidden space-y-2">
-                    {lotesFiltrados.map((lote) => {
-                      const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual && lote.dia_atual > 9 ? 8 : (lote.dia_atual ?? 0) - 1);
-                      return (
-                        <div
-                          key={lote.id}
-                          onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
-                          className="rounded-lg border border-border bg-card p-3 cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              {/* Fazenda nome */}
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium text-foreground truncate">
-                                  {lote.pacote_nome}
-                                </span>
-                              </div>
+          {lotesFiltrados.length === 0 ? (
+            <EmptyState
+              title={lotes.length === 0 ? 'Nenhum lote cadastrado' : 'Nenhum lote encontrado'}
+              description={
+                lotes.length === 0
+                  ? 'Crie um novo lote para começar.'
+                  : 'Ajuste os filtros para encontrar outros lotes.'
+              }
+            />
+          ) : (
+            <>
+              {/* Mobile Card Layout */}
+              <div className="md:hidden space-y-2">
+                {lotesFiltrados.map((lote) => {
+                  const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual && lote.dia_atual > 9 ? 8 : (lote.dia_atual ?? 0) - 1);
+                  return (
+                    <div
+                      key={lote.id}
+                      onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
+                      className="rounded-lg border border-border bg-card p-3 cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          {/* Fazenda nome */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {lote.pacote_nome}
+                            </span>
+                          </div>
 
-                              {/* Dia cultivo e acasalamentos */}
-                              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                                {lote.dia_atual !== undefined ? (
-                                  <Badge
-                                    variant="outline"
-                                    className={`font-semibold text-[10px] ${getCorDia(diaCultivo)}`}
-                                  >
-                                    {diaCultivo === -1
-                                      ? `D-1 - ${getNomeDia(diaCultivo)}`
-                                      : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`}
-                                  </Badge>
-                                ) : null}
-                                <span>·</span>
-                                <span>{lote.quantidade_acasalamentos ?? 0} acasalamentos</span>
-                              </div>
+                          {/* Dia cultivo e acasalamentos */}
+                          <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                            {lote.dia_atual !== undefined ? (
+                              <Badge
+                                variant="outline"
+                                className={`font-semibold text-[10px] ${getCorDia(diaCultivo)}`}
+                              >
+                                {diaCultivo === -1
+                                  ? `D-1 - ${getNomeDia(diaCultivo)}`
+                                  : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`}
+                              </Badge>
+                            ) : null}
+                            <span>·</span>
+                            <span>{lote.quantidade_acasalamentos ?? 0} acasalamentos</span>
+                          </div>
 
-                              {/* Destino */}
-                              <div className="text-xs text-muted-foreground truncate">
-                                <span className="font-medium">Destino: </span>
-                                {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0
-                                  ? lote.fazendas_destino_nomes.join(', ')
-                                  : '-'}
-                              </div>
+                          {/* Destino */}
+                          <div className="text-xs text-muted-foreground truncate">
+                            <span className="font-medium">Destino: </span>
+                            {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0
+                              ? lote.fazendas_destino_nomes.join(', ')
+                              : '-'}
+                          </div>
 
-                              {/* Status badge */}
-                              <div className="mt-2">
-                                <Badge variant="outline" className="text-[10px]">
-                                  ABERTO
-                                </Badge>
-                              </div>
-                            </div>
-
-                            {/* Chevron */}
-                            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-1" />
+                          {/* Status badge */}
+                          <div className="mt-2">
+                            <Badge variant="outline" className="text-[10px]">
+                              ABERTO
+                            </Badge>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* Desktop Table Layout */}
-                  <div className="hidden md:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Aspiração</TableHead>
-                          <TableHead>Fazendas Destino</TableHead>
-                          <TableHead>Dia do Cultivo</TableHead>
-                          <TableHead>Acasalamentos</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lotesFiltrados.map((lote) => (
-                          <TableRow key={lote.id}>
-                            <TableCell>
-                              {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0 ? (
-                                  lote.fazendas_destino_nomes.map((nome, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      {nome}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {lote.dia_atual !== undefined ? (
-                                <Badge
-                                  variant="outline"
-                                  className={`font-semibold ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
-                                >
-                                  {(() => {
-                                    const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1);
-                                    return diaCultivo === -1
-                                      ? `D-1 - ${getNomeDia(diaCultivo)}`
-                                      : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`;
-                                  })()}
+                        {/* Chevron */}
+                        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-1" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Aspiração</TableHead>
+                      <TableHead>Fazendas Destino</TableHead>
+                      <TableHead>Dia do Cultivo</TableHead>
+                      <TableHead>Acasalamentos</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lotesFiltrados.map((lote) => (
+                      <TableRow key={lote.id}>
+                        <TableCell>
+                          {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0 ? (
+                              lote.fazendas_destino_nomes.map((nome, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {nome}
                                 </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{lote.quantidade_acasalamentos ?? 0}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
-              )}
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {lote.dia_atual !== undefined ? (
+                            <Badge
+                              variant="outline"
+                              className={`font-semibold ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
+                            >
+                              {(() => {
+                                const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1);
+                                return diaCultivo === -1
+                                  ? `D-1 - ${getNomeDia(diaCultivo)}`
+                                  : `D${diaCultivo} - ${getNomeDia(diaCultivo)}`;
+                              })()}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{lote.quantidade_acasalamentos ?? 0}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

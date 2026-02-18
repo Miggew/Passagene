@@ -70,7 +70,7 @@ function useEmbryoScoreConfigs() {
   });
 }
 
-function useEmbryoScoreStats() {
+export function useEmbryoScoreStats() {
   return useQuery({
     queryKey: ['embryo-score-stats'],
     queryFn: async () => {
@@ -395,9 +395,9 @@ export default function AdminEmbryoScoreTab() {
 
   const hasChanges = activeConfig
     ? modelName !== activeConfig.model_name ||
-      promptVersion !== activeConfig.prompt_version ||
-      calibrationPrompt !== (activeConfig.calibration_prompt || '') ||
-      fewShotExamples !== ((activeConfig as unknown as Record<string, unknown>).few_shot_examples as string || '')
+    promptVersion !== activeConfig.prompt_version ||
+    calibrationPrompt !== (activeConfig.calibration_prompt || '') ||
+    fewShotExamples !== ((activeConfig as unknown as Record<string, unknown>).few_shot_examples as string || '')
     : true;
 
   if (loadingConfigs) {
@@ -600,21 +600,19 @@ export default function AdminEmbryoScoreTab() {
           <div className="flex gap-1 rounded-lg border border-border/60 bg-muted/30 p-1">
             <button
               onClick={() => setActivePromptTab('calibration')}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${
-                activePromptTab === 'calibration'
-                  ? 'bg-card shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${activePromptTab === 'calibration'
+                ? 'bg-card shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               Calibração (System)
             </button>
             <button
               onClick={() => setActivePromptTab('fewshot')}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${
-                activePromptTab === 'fewshot'
-                  ? 'bg-card shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${activePromptTab === 'fewshot'
+                ? 'bg-card shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               Few-Shot
             </button>
@@ -722,7 +720,7 @@ export default function AdminEmbryoScoreTab() {
                 <Input
                   value={promptVersion}
                   onChange={(e) => setPromptVersion(e.target.value)}
-                  placeholder="v1"
+                  placeholder="v4"
                   className="h-9 text-xs"
                 />
               </div>
@@ -780,7 +778,7 @@ export default function AdminEmbryoScoreTab() {
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${config.active ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
                   <span className="text-xs font-medium text-foreground">
-                    M: {(config.morph_weight * 100).toFixed(0)}% / C: {(config.kinetic_weight * 100).toFixed(0)}%
+                    {config.model_name} · {config.prompt_version}
                   </span>
                   {config.active && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">
@@ -792,9 +790,14 @@ export default function AdminEmbryoScoreTab() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 ml-4">
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-xs font-medium text-foreground">
                     {config.model_name} · {config.prompt_version}
                   </span>
+                  {config.active && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">
+                      Ativa
+                    </span>
+                  )}
                 </div>
                 {config.notes && (
                   <p className="text-[10px] text-muted-foreground/70 italic mt-0.5 ml-4 truncate" title={config.notes}>

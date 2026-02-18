@@ -10,6 +10,7 @@ import {
   Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 
 interface DataPoint {
   mes: string;
@@ -74,7 +75,7 @@ export function TrendLineChart({
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center">
-            <div className="text-muted-foreground">Carregando...</div>
+            <LoadingSpinner />
           </div>
         </CardContent>
       </Card>

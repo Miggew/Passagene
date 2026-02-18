@@ -103,7 +103,31 @@
       "Bash(\"C:\\\\Users\\\\Miguel\\\\AppData\\\\Local\\\\Google\\\\Cloud SDK\\\\google-cloud-sdk\\\\bin\\\\gcloud.cmd\" builds submit --tag gcr.io/apppassatempo/embryoscore-dinov2 \"C:\\\\Projetos\\\\Passagene\\\\embryoscore-dinov2\" --project apppassatempo --timeout=1200)",
       "Bash(python scripts/bootstrap_atlas.py:*)",
       "Bash(DINOV2_CLOUD_RUN_URL=https://embryoscore-dinov2-63493118456.us-central1.run.app SUPABASE_URL=https://twsnzfzjtjdamwwembzp.supabase.co SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3c256ZnpqdGpkYW13d2VtYnpwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzMwNzM4MSwiZXhwIjoyMDgyODgzMzgxfQ.VbEiYwxjxNn08Pr25zfC9d0sM44wXTfTEliLfEyX0R4 python:*)",
-      "Bash(PYTHONUNBUFFERED=1 SUPABASE_URL=https://twsnzfzjtjdamwwembzp.supabase.co SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3c256ZnpqdGpkYW13d2VtYnpwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzMwNzM4MSwiZXhwIjoyMDgyODgzMzgxfQ.VbEiYwxjxNn08Pr25zfC9d0sM44wXTfTEliLfEyX0R4 python:*)"
+      "Bash(PYTHONUNBUFFERED=1 SUPABASE_URL=https://twsnzfzjtjdamwwembzp.supabase.co SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3c256ZnpqdGpkYW13d2VtYnpwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzMwNzM4MSwiZXhwIjoyMDgyODgzMzgxfQ.VbEiYwxjxNn08Pr25zfC9d0sM44wXTfTEliLfEyX0R4 python:*)",
+      "Bash(git commit:*)",
+      "Bash(SERVICE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3c256ZnpqdGpkYW13d2VtYnpwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzMwNzM4MSwiZXhwIjoyMDgyODgzMzgxfQ.VbEiYwxjxNn08Pr25zfC9d0sM44wXTfTEliLfEyX0R4\")",
+      "Bash(PUBLISH_KEY=\"sb_publishable_7JvdCYkOTDjvyGFcjyqT3w_bc92izWO\")",
+      "Bash(gcloud run services list:*)",
+      "Bash(gcloud run services describe:*)",
+      "Bash(gcloud run services add-iam-policy-binding:*)",
+      "Bash(gcloud run deploy:*)",
+      "Bash(gcloud auth list:*)",
+      "Bash(gcloud config:*)",
+      "Bash(python convert_dino_to_onnx.py:*)",
+      "Bash(pip install:*)",
+      "Bash(gcloud run services logs read:*)",
+      "Bash(gcloud logging read:*)",
+      "Bash(pgrep:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(cat:*)",
+      "Bash(node -e \"const {execSync} = require\\(''child_process''\\); try { const out = execSync\\(''npx tsc --noEmit'', {encoding:''utf8'', timeout:120000, maxBuffer:10*1024*1024}\\); console.log\\(out || ''NO OUTPUT''\\); } catch\\(e\\) { console.log\\(''STDERR:'', e.stderr\\); console.log\\(''STDOUT:'', e.stdout\\); console.log\\(''EXIT:'', e.status\\); }\")",
+      "Bash(node -e \"const {execSync} = require\\(''child_process''\\); try { const out = execSync\\(''npx vite build'', {encoding:''utf8'', timeout:300000, maxBuffer:10*1024*1024}\\); console.log\\(out\\); } catch\\(e\\) { console.log\\(''STDERR:'', e.stderr\\); console.log\\(''---STDOUT---''\\); console.log\\(e.stdout\\); console.log\\(''EXIT:'', e.status\\); }\")",
+      "Bash(git -C \"C:/Projetos/Passagene\" show \"c431a52:embryoscore-integration-plan.md\")",
+      "Bash(git -C \"C:\\\\Projetos\\\\Passagene\" diff HEAD -- src/components/embryoscore/EmbryoReviewPanel.tsx)",
+      "Bash(git status:*)",
+      "Bash(git -C /c/Projetos/Passagene status)",
+      "Bash(git reset:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }

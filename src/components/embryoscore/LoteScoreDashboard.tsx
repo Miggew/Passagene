@@ -178,8 +178,6 @@ function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
     if (!scores.length) return null;
 
     const avgScore = Math.round(scores.reduce((s, sc) => s + sc.embryo_score, 0) / scores.length);
-    const avgMorph = Math.round(scores.reduce((s, sc) => s + (sc.morph_score || 0), 0) / scores.length);
-    const avgKinetic = Math.round(scores.reduce((s, sc) => s + (sc.kinetic_score || 0), 0) / scores.length);
 
     const distribution = {
       excelente: scores.filter(s => s.embryo_score >= 80).length,
@@ -189,7 +187,7 @@ function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
       inviavel: scores.filter(s => s.embryo_score < 20).length,
     };
 
-    return { avgScore, avgMorph, avgKinetic, distribution, total: scores.length };
+    return { avgScore, distribution, total: scores.length };
   }, [scores]);
 
   if (!stats) return null;
@@ -216,23 +214,10 @@ function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center p-2">
         <div className="text-center">
           <div className="text-3xl font-bold text-primary">{stats.avgScore}</div>
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Média</span>
-        </div>
-        <div className="flex gap-4">
-          <div className="text-center">
-            <span className="text-lg font-semibold">{stats.avgMorph}</span>
-            <div className="text-[10px] text-muted-foreground">Morfologia</div>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center gap-1 justify-center">
-              <Activity className="w-3 h-3 text-muted-foreground" />
-              <span className="text-lg font-semibold">{stats.avgKinetic}</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground">Cinética</div>
-          </div>
         </div>
       </div>
 

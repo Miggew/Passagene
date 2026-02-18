@@ -17,6 +17,7 @@ import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { supabase } from '@/lib/supabase';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -527,7 +528,7 @@ export default function RelatoriosMaterial() {
             </CardHeader>
             <CardContent className="pt-0">
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+                <LoadingSpinner />
               ) : dadosFiltrados.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Nenhum registro encontrado
@@ -587,11 +588,10 @@ export default function RelatoriosMaterial() {
                       {dadosPaginados.map((row: EmbriaoRow) => (
                         <div
                           key={row.id}
-                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${
-                            clienteIdFilter
-                              ? 'grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
-                              : 'grid-cols-[1.5fr_1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
-                          }`}
+                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${clienteIdFilter
+                            ? 'grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
+                            : 'grid-cols-[1.5fr_1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
+                            }`}
                         >
                           {!clienteIdFilter && (
                             <div className="px-4 py-3 text-sm truncate">{row.cliente_nome}</div>
@@ -654,11 +654,10 @@ export default function RelatoriosMaterial() {
                   {/* Desktop Table - Doses de Sêmen */}
                   {tipoMaterial === 'semen' && (
                     <div className="hidden md:block rounded-lg border border-border overflow-hidden">
-                      <div className={`grid gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide ${
-                        clienteIdFilter
-                          ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
-                          : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
-                      }`}>
+                      <div className={`grid gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide ${clienteIdFilter
+                        ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
+                        : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
+                        }`}>
                         {!clienteIdFilter && <div className="px-4 py-3">Cliente</div>}
                         <div className={`px-3 py-3 ${clienteIdFilter ? 'px-4' : ''}`}>Touro</div>
                         <div className="px-3 py-3 text-center">Tipo</div>
@@ -669,11 +668,10 @@ export default function RelatoriosMaterial() {
                       {dadosPaginados.map((row: DoseSemenRow) => (
                         <div
                           key={row.id}
-                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${
-                            clienteIdFilter
-                              ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
-                              : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
-                          }`}
+                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${clienteIdFilter
+                            ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
+                            : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
+                            }`}
                         >
                           {!clienteIdFilter && (
                             <div className="px-4 py-3 text-sm truncate">{row.cliente_nome}</div>

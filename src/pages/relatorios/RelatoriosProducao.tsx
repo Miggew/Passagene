@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Search, X, Eye, Calendar, TrendingUp, Activity, Percent, FileText, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
 import PageHeader from '@/components/shared/PageHeader';
 import DatePickerBR from '@/components/shared/DatePickerBR';
@@ -239,26 +240,26 @@ export default function RelatoriosProducao() {
       // Total de aspirações
       clienteIdFilter && fazendaIds.length > 0
         ? supabase
-            .from('pacotes_aspiracao')
-            .select('id', { count: 'exact' })
-            .in('fazenda_id', fazendaIds)
-            .gte('data_aspiracao', dataLimiteStr)
+          .from('pacotes_aspiracao')
+          .select('id', { count: 'exact' })
+          .in('fazenda_id', fazendaIds)
+          .gte('data_aspiracao', dataLimiteStr)
         : supabase
-            .from('pacotes_aspiracao')
-            .select('id', { count: 'exact' })
-            .gte('data_aspiracao', dataLimiteStr),
+          .from('pacotes_aspiracao')
+          .select('id', { count: 'exact' })
+          .gte('data_aspiracao', dataLimiteStr),
 
       // Total de protocolos
       clienteIdFilter && fazendaIds.length > 0
         ? supabase
-            .from('protocolos_sincronizacao')
-            .select('id', { count: 'exact' })
-            .in('fazenda_id', fazendaIds)
-            .gte('data_inicio', dataLimiteStr)
+          .from('protocolos_sincronizacao')
+          .select('id', { count: 'exact' })
+          .in('fazenda_id', fazendaIds)
+          .gte('data_inicio', dataLimiteStr)
         : supabase
-            .from('protocolos_sincronizacao')
-            .select('id', { count: 'exact' })
-            .gte('data_inicio', dataLimiteStr),
+          .from('protocolos_sincronizacao')
+          .select('id', { count: 'exact' })
+          .gte('data_inicio', dataLimiteStr),
     ]);
 
     // Calcular totais de oócitos e embriões
@@ -576,7 +577,7 @@ export default function RelatoriosProducao() {
         </CardHeader>
         <CardContent className="pt-0">
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+            <LoadingSpinner />
           ) : dadosFiltrados.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Nenhum lote encontrado

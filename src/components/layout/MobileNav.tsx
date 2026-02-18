@@ -55,6 +55,7 @@ const routeIcons: Record<string, React.ElementType> = {
   '/genetica': Dna,
   // Rotas do cliente
   '/cliente/rebanho': Beef,
+
   '/cliente/relatorios': FileBarChart,
   '/cliente/botijao': Container,
 };
@@ -82,6 +83,7 @@ const routeLabels: Record<string, string> = {
   '/genetica': 'Genética',
   // Rotas do cliente
   '/cliente/rebanho': 'Rebanho',
+
   '/cliente/relatorios': 'Relatórios',
   '/cliente/botijao': 'Botijão',
 };
@@ -110,10 +112,10 @@ export default function MobileNav() {
   const quickRoutes = isCliente
     ? CLIENTE_NAV_ROUTES
     : QUICK_NAV_ROUTES.filter(route => {
-        // Verifica se o usuário tem acesso
-        const hub = getHubForRoute(route);
-        return hub !== null;
-      });
+      // Verifica se o usuário tem acesso
+      const hub = getHubForRoute(route);
+      return hub !== null;
+    });
 
   return (
     <>

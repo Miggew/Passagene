@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { ProtocoloSincronizacao } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { isReceptoraDisponivel, getReceptoraIndisponivelMotivo } from '@/lib/receptoraStatus';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 interface UseCreateReceptoraProtocoloProps {
   protocoloId: string | undefined;
@@ -204,7 +205,7 @@ export function useCreateReceptoraProtocolo({
           .insert([{
             receptora_id: novaReceptora.id,
             fazenda_id: protocolo.fazenda_id,
-            data_inicio: new Date().toISOString().split('T')[0],
+            data_inicio: getTodayDateString(),
             data_fim: null,
           }]);
 

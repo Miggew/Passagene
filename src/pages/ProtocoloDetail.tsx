@@ -53,7 +53,8 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { formatStatusLabel } from '@/lib/statusLabels';
 import { ArrowLeft, Plus, UserPlus, CheckCircle, Lock, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 
@@ -285,13 +286,13 @@ export default function ProtocoloDetail() {
                               >
                                 {addReceptoraHook.formData.receptora_id
                                   ? (() => {
-                                      const selected = receptorasDisponiveis.find(
-                                        (r) => r.id === addReceptoraHook.formData.receptora_id
-                                      );
-                                      return selected
-                                        ? `${selected.identificacao}${selected.nome ? ` - ${selected.nome}` : ''}`
-                                        : 'Selecione uma receptora...';
-                                    })()
+                                    const selected = receptorasDisponiveis.find(
+                                      (r) => r.id === addReceptoraHook.formData.receptora_id
+                                    );
+                                    return selected
+                                      ? `${selected.identificacao}${selected.nome ? ` - ${selected.nome}` : ''}`
+                                      : 'Selecione uma receptora...';
+                                  })()
                                   : 'Selecione uma receptora...'}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                               </Button>

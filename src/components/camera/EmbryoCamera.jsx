@@ -99,16 +99,16 @@ function loadSettings() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      return { ...DEFAULT_SETTINGS, ...saved };
+      return { ...MICROSCOPE_PRESET, ...saved };
     }
-  } catch (e) {}
-  return { ...DEFAULT_SETTINGS };
+  } catch (e) { }
+  return { ...MICROSCOPE_PRESET };
 }
 
 function saveSettings(settings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // ─── MIME TYPE DETECTION ───
@@ -170,7 +170,7 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
   };
 
   const resetDefaults = () => {
-    setSettings({ ...DEFAULT_SETTINGS });
+    setSettings({ ...MICROSCOPE_PRESET });
   };
 
   // ─── Camera detection ───
@@ -193,7 +193,7 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
               capabilities = track.getCapabilities?.() || {};
               facing = st.facingMode || "unknown";
               track.stop();
-            } catch (e) {}
+            } catch (e) { }
 
             const rawLabel = cam.label || "";
             let friendlyLabel = rawLabel;
@@ -477,12 +477,12 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
   const applyZoom = async (val) => {
     setZoom(val);
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch (e) {}
+    if (track) try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch (e) { }
   };
 
   const toggleTorch = async () => {
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) try { await track.applyConstraints({ advanced: [{ torch: !torch }] }); setTorch(!torch); } catch (e) {}
+    if (track) try { await track.applyConstraints({ advanced: [{ torch: !torch }] }); setTorch(!torch); } catch (e) { }
   };
 
   // ─── Recording ───
@@ -653,7 +653,7 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: P.warn, marginBottom: 3 }}>Ajustar no microscópio</div>
               <div style={{ fontSize: 10, color: P.textDim, lineHeight: 1.5 }}>
-                <strong style={{ color: P.text }}>White Balance</strong> — ajustar diretamente na iluminação do microscópio (referência: 4000K)<br/>
+                <strong style={{ color: P.text }}>White Balance</strong> — ajustar diretamente na iluminação do microscópio (referência: 4000K)<br />
                 <strong style={{ color: P.text }}>Foco</strong> — ajustar pelo micrométrico do microscópio, não pelo celular
               </div>
             </div>

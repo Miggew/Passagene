@@ -1,0 +1,4 @@
+best.pt
+*.pyc
+__pycache__
+convert_dino_to_onnx.py

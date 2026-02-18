@@ -28,6 +28,7 @@ export interface UploadResult {
 
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
 const MAX_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
+const MIN_DURATION_SECONDS = 5; // Minimum 5s for reliable kinetic analysis
 
 export function useEmbryoVideoUpload() {
   const [state, setState] = useState<UploadState>({
@@ -80,6 +81,14 @@ export function useEmbryoVideoUpload() {
     try {
       // Obter duração do vídeo
       const duracao = await getVideoDuration(file);
+      if (duracao > 0 && duracao < MIN_DURATION_SECONDS) {
+        setState(prev => ({
+          ...prev,
+          uploading: false, progress: 0,
+          error: `Vídeo muito curto (${duracao}s). Mínimo: ${MIN_DURATION_SECONDS}s para análise cinética confiável.`,
+        }));
+        return null;
+      }
       setState(prev => ({ ...prev, progress: 20 }));
 
       // Upload para Storage

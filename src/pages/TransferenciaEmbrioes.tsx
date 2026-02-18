@@ -2,42 +2,19 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import { useTransferenciaEmbrioesData } from '@/hooks/useTransferenciaEmbrioesData';
 import { useTransferenciaEmbrioesFilters } from '@/hooks/useTransferenciaEmbrioesFilters';
 import { useTransferenciaHandlers } from '@/hooks/useTransferenciaHandlers';
 import RelatorioTransferenciaDialog from '@/components/transferencia/RelatorioTransferenciaDialog';
-import ReceptorasSelection from '@/components/transferencia/ReceptorasSelection';
-import EmbrioesTablePacote from '@/components/transferencia/EmbrioesTablePacote';
-import EmbrioesTableCongelados from '@/components/transferencia/EmbrioesTableCongelados';
+import { TransferenciaEmbrioesFilters } from '@/components/transferencia/TransferenciaEmbrioesFilters';
+import { TransferenciaSessao } from '@/components/transferencia/TransferenciaSessao';
 import {
-  ArrowRightLeft,
-  Clock,
-  Search,
   CalendarDays,
   CheckCircle,
   TrendingUp,
   Eye,
-  X,
-  Snowflake,
-  Package,
-  User,
-  MapPin,
-  Save,
   AlertTriangle,
 } from 'lucide-react';
 import {
@@ -50,11 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { formatDate } from '@/lib/utils';
 import { DataTable } from '@/components/shared/DataTable';
-import { Switch } from '@/components/ui/switch';
-import DatePickerBR from '@/components/shared/DatePickerBR';
 import { useToast } from '@/hooks/use-toast';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 import {
   TransferenciaFormData,
   CamposPacote,
@@ -78,6 +53,13 @@ interface HistoricoTE {
   veterinario_responsavel?: string;
   tecnico_responsavel?: string;
   observacoes?: string;
+}
+
+interface FazendaComCliente {
+  id: string;
+  nome: string;
+  cliente: { nome: string };
+  cliente_id?: string;
 }
 
 // Interface para sessão de TE agrupada
@@ -107,7 +89,7 @@ export default function TransferenciaEmbrioes() {
     receptora_id: '',
     protocolo_receptora_id: '',
     embriao_id: '',
-    data_te: new Date().toISOString().split('T')[0],
+    data_te: getTodayDateString(),
     veterinario_responsavel: '',
     tecnico_responsavel: '',
     observacoes: '',
@@ -125,25 +107,14 @@ export default function TransferenciaEmbrioes() {
   // Estado para permitir 2º embrião (caso raro ~3%)
   const [permitirSegundoEmbriao, setPermitirSegundoEmbriao] = useState(false);
 
-  // Estados para Histórico
-  const [historico, setHistorico] = useState<HistoricoTE[]>([]);
-  const [sessoes, setSessoes] = useState<SessaoTE[]>([]);
-  const [loadingHistorico, setLoadingHistorico] = useState(false);
-  const [filtroFazendaHist, setFiltroFazendaHist] = useState<string>('todos');
-  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
-  const [filtroBusca, setFiltroBusca] = useState('');
-  const [filtroDataInicio, setFiltroDataInicio] = useState('');
-  const [filtroDataFim, setFiltroDataFim] = useState('');
-  const [todasFazendas, setTodasFazendas] = useState<{id: string; nome: string}[]>([]);
-  const [paginaHistorico, setPaginaHistorico] = useState(1);
-  const ITENS_POR_PAGINA_HISTORICO = 15;
 
   // Estados para dialog de sessão em andamento
   const [showRestaurarDialog, setShowRestaurarDialog] = useState(false);
   const [sessaoPendente, setSessaoPendente] = useState<{
-    filtros: { fazenda_id?: string; origemEmbriao?: string; filtroClienteId?: string; filtroRaca?: string };
+    filtros: { fazenda_id?: string; origemEmbriao?: string; filtroClienteId?: string; filtroRaca?: string; data_passo2?: string; embrioes_page?: number };
     camposPacote: CamposPacote;
     formData: Partial<TransferenciaFormData>;
+    transferenciasIds?: string[];
   } | null>(null);
 
   // Hook de filtros e UI
@@ -207,16 +178,16 @@ export default function TransferenciaEmbrioes() {
   // Computed values (needed for handlers hook)
   const pacoteSelecionado = pacotes.find(p => p.id === formData.pacote_id);
   const embrioesDisponiveis = useMemo(() => {
-    return pacoteSelecionado?.embrioes.filter(e => e.status_atual === 'FRESCO') || [];
+    return pacoteSelecionado?.embrioes.filter((e: any) => e.status_atual === 'FRESCO') || [];
   }, [pacoteSelecionado]);
-  const hasD8Limite = embrioesDisponiveis.some(e => e.d8_limite);
+  const hasD8Limite = embrioesDisponiveis.some((e: any) => e.d8_limite);
 
   const numerosFixosEffectRuns = useRef(0);
   const numerosFixosMap = useMemo(() => {
     if (!formData.pacote_id || !pacoteSelecionado) {
       return new Map<string, number>();
     }
-    const ordenados = [...embrioesDisponiveis].sort((a, b) => {
+    const ordenados = [...embrioesDisponiveis].sort((a: any, b: any) => {
       const doadoraA = a.doadora_registro || '';
       const doadoraB = b.doadora_registro || '';
       if (doadoraA !== doadoraB) return doadoraA.localeCompare(doadoraB);
@@ -226,7 +197,7 @@ export default function TransferenciaEmbrioes() {
       return (a.id || '').localeCompare(b.id || '');
     });
     const numerosMap = new Map<string, number>();
-    ordenados.forEach((embriao, index) => {
+    ordenados.forEach((embriao: any, index: number) => {
       numerosMap.set(embriao.id, index + 1);
     });
     return numerosMap;
@@ -282,208 +253,7 @@ export default function TransferenciaEmbrioes() {
     void salvarSessaoNoBanco(estadoSessao);
   };
 
-  // Carregar todas as fazendas para o filtro do histórico
-  const loadTodasFazendas = async () => {
-    const { data } = await supabase
-      .from('fazendas')
-      .select('id, nome')
-      .order('nome');
-    setTodasFazendas(data || []);
-  };
 
-  // Carregar histórico de TEs
-  const loadHistorico = useCallback(async () => {
-    try {
-      setLoadingHistorico(true);
-
-      // 1. Buscar transferências de embriões
-      let query = supabase
-        .from('transferencias_embrioes')
-        .select(`
-          id,
-          receptora_id,
-          embriao_id,
-          data_te,
-          tipo_te,
-          veterinario_responsavel,
-          tecnico_responsavel,
-          observacoes,
-          status_te,
-          embrioes (id, identificacao, classificacao),
-          receptoras (id, identificacao, nome)
-        `)
-        .eq('status_te', 'REALIZADA')
-        .order('data_te', { ascending: false })
-        .limit(500);
-
-      // Aplicar filtros de data
-      if (filtroDataInicio) {
-        query = query.gte('data_te', filtroDataInicio);
-      }
-      if (filtroDataFim) {
-        query = query.lte('data_te', filtroDataFim);
-      }
-      if (filtroTipo && filtroTipo !== 'todos') {
-        query = query.eq('tipo_te', filtroTipo);
-      }
-
-      const { data: transferenciasData, error: transferenciasError } = await query;
-
-      if (transferenciasError) {
-        console.error('Erro ao buscar transferências:', transferenciasError);
-        throw new Error(transferenciasError.message || 'Erro ao buscar transferências');
-      }
-
-      if (!transferenciasData || transferenciasData.length === 0) {
-        setHistorico([]);
-        setSessoes([]);
-        return;
-      }
-
-      // 2. Buscar fazenda atual das receptoras via view
-      const receptoraIds = [...new Set(transferenciasData.map(t => t.receptora_id).filter(Boolean))];
-
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-        .in('receptora_id', receptoraIds);
-
-      if (viewError) {
-        console.error('Erro ao buscar view receptoras:', viewError);
-      }
-
-      const fazendaMap = new Map(
-        (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
-      );
-
-      // 3. Buscar dados de genealogia dos embriões
-      const embriaoIds = transferenciasData.map(t => t.embriao_id).filter(Boolean);
-
-      const { data: embrioesData } = await supabase
-        .from('embrioes')
-        .select('id, lote_fiv_acasalamento_id')
-        .in('id', embriaoIds);
-
-      const acasalamentoIds = (embrioesData || [])
-        .map(e => e.lote_fiv_acasalamento_id)
-        .filter((id): id is string => !!id);
-
-      // Buscar dados de doadoras e touros
-      let doadorasMap = new Map<string, string>();
-      let tourosMap = new Map<string, string>();
-
-      if (acasalamentoIds.length > 0) {
-        const { data: acasalamentosData } = await supabase
-          .from('lote_fiv_acasalamentos')
-          .select(`
-            id,
-            doadoras (registro),
-            touros (nome)
-          `)
-          .in('id', acasalamentoIds);
-
-        (acasalamentosData || []).forEach(a => {
-          if (a.doadoras?.registro) {
-            doadorasMap.set(a.id, a.doadoras.registro);
-          }
-          if (a.touros?.nome) {
-            tourosMap.set(a.id, a.touros.nome);
-          }
-        });
-      }
-
-      // Criar mapa de embriao_id para acasalamento_id
-      const embriaoAcasalamentoMap = new Map(
-        (embrioesData || []).map(e => [e.id, e.lote_fiv_acasalamento_id])
-      );
-
-      // 4. Montar histórico formatado
-      const historicoFormatado: HistoricoTE[] = transferenciasData.map(te => {
-        const fazendaInfo = fazendaMap.get(te.receptora_id);
-        const acasalamentoId = embriaoAcasalamentoMap.get(te.embriao_id);
-
-        return {
-          id: te.id,
-          receptora_id: te.receptora_id,
-          receptora_brinco: te.receptoras?.identificacao || '-',
-          receptora_nome: te.receptoras?.nome,
-          fazenda_nome: fazendaInfo?.nome || '-',
-          fazenda_id: fazendaInfo?.id,
-          data_te: te.data_te,
-          embriao_identificacao: te.embrioes?.identificacao,
-          doadora_registro: acasalamentoId ? doadorasMap.get(acasalamentoId) : undefined,
-          touro_nome: acasalamentoId ? tourosMap.get(acasalamentoId) : undefined,
-          tipo_te: te.tipo_te,
-          veterinario_responsavel: te.veterinario_responsavel,
-          tecnico_responsavel: te.tecnico_responsavel,
-          observacoes: te.observacoes,
-        };
-      });
-
-      setHistorico(historicoFormatado);
-
-      // 5. Agrupar por sessão (fazenda + data_te + veterinário)
-      const sessoesMap = new Map<string, SessaoTE>();
-
-      historicoFormatado.forEach(te => {
-        const chave = `${te.fazenda_nome}|${te.data_te}|${te.veterinario_responsavel || ''}`;
-
-        if (!sessoesMap.has(chave)) {
-          sessoesMap.set(chave, {
-            id: chave,
-            fazenda_nome: te.fazenda_nome,
-            fazenda_id: te.fazenda_id || '',
-            data_te: te.data_te,
-            veterinario_responsavel: te.veterinario_responsavel,
-            tecnico_responsavel: te.tecnico_responsavel,
-            total_receptoras: 0,
-            total_embrioes: 0,
-            frescos: 0,
-            congelados: 0,
-            transferencias: [],
-          });
-        }
-
-        const sessao = sessoesMap.get(chave)!;
-        sessao.total_embrioes++;
-        sessao.transferencias.push(te);
-
-        if (te.tipo_te === 'FRESCO') sessao.frescos++;
-        else if (te.tipo_te === 'CONGELADO') sessao.congelados++;
-
-        // Atualizar técnico se não tiver
-        if (!sessao.tecnico_responsavel && te.tecnico_responsavel) {
-          sessao.tecnico_responsavel = te.tecnico_responsavel;
-        }
-      });
-
-      // Calcular total de receptoras únicas por sessão
-      sessoesMap.forEach(sessao => {
-        const receptorasUnicas = new Set(sessao.transferencias.map(t => t.receptora_id));
-        sessao.total_receptoras = receptorasUnicas.size;
-      });
-
-      // Ordenar sessões por data de TE (mais recente primeiro)
-      const sessoesArray = Array.from(sessoesMap.values()).sort((a, b) => {
-        return (b.data_te || '').localeCompare(a.data_te || '');
-      });
-
-      setSessoes(sessoesArray);
-      setPaginaHistorico(1);
-    } catch (error) {
-      console.error('Erro no loadHistorico:', error);
-      const errorMessage = error instanceof Error
-        ? error.message
-        : 'Erro desconhecido';
-      toast({
-        title: 'Erro ao carregar histórico',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingHistorico(false);
-    }
-  }, [filtroDataInicio, filtroDataFim, filtroTipo, toast]);
 
   // Local handlers
   const handleFazendaChange = async (fazendaId: string) => {
@@ -538,21 +308,6 @@ export default function TransferenciaEmbrioes() {
     }
   };
 
-  const handleLimparFiltrosHistorico = () => {
-    setFiltroBusca('');
-    setFiltroFazendaHist('todos');
-    setFiltroTipo('todos');
-    setFiltroDataInicio('');
-    setFiltroDataFim('');
-    setPaginaHistorico(1);
-  };
-
-  const formatarData = (data: string) => {
-    if (!data) return '-';
-    const [ano, mes, dia] = data.split('-');
-    return `${dia}/${mes}/${ano}`;
-  };
-
   // Funções para o dialog de sessão em andamento
   const handleRestaurarSessao = async () => {
     if (sessaoPendente) {
@@ -561,21 +316,16 @@ export default function TransferenciaEmbrioes() {
       const pacoteIdSalvo = sessaoPendente.formData.pacote_id || '';
       const transferenciasIds = sessaoPendente.transferenciasIds || [];
 
-      // 1. Aplicar filtros primeiro
       aplicarFiltrosSessao(sessaoPendente.filtros);
       setCamposPacote(sessaoPendente.camposPacote);
 
-      // 2. Recarregar fazendas e pacotes, capturando os resultados diretamente
       const [, pacotesCarregados] = await Promise.all([
         loadFazendas(dataPasso2Sessao),
         loadPacotes()
       ]);
 
-      // 3. Inferir o pacote correto a partir dos embriões transferidos na sessão
-      // O pacote_id salvo é só o lote_fiv_id (UUID), precisamos da data_despacho também
       let pacoteIdReconstruido = '';
       if (pacoteIdSalvo && pacotesCarregados && pacotesCarregados.length > 0) {
-        // Tentar inferir a data_despacho dos embriões das transferências
         if (transferenciasIds.length > 0) {
           try {
             const { data: transferenciasComEmbriao } = await supabase
@@ -587,7 +337,7 @@ export default function TransferenciaEmbrioes() {
             if (transferenciasComEmbriao && transferenciasComEmbriao.length > 0) {
               const embriao = Array.isArray(transferenciasComEmbriao[0].embrioes)
                 ? transferenciasComEmbriao[0].embrioes[0]
-                : transferenciasComEmbriao[0].embrioes;
+                : (transferenciasComEmbriao[0].embrioes as any);
 
               if (embriao?.lote_fiv_id && embriao?.created_at) {
                 const dataDespacho = embriao.created_at.split('T')[0];
@@ -603,7 +353,6 @@ export default function TransferenciaEmbrioes() {
           }
         }
 
-        // Fallback: buscar por lote_fiv_id se não conseguiu inferir
         if (!pacoteIdReconstruido) {
           const pacotesDaFazenda = fazendaIdSessao
             ? pacotesCarregados.filter(p => p.fazendas_destino_ids.includes(fazendaIdSessao))
@@ -617,7 +366,6 @@ export default function TransferenciaEmbrioes() {
         }
       }
 
-      // 4. Agora aplicar o formData (fazenda_id, pacote_id reconstruído, etc.)
       setFormData(prev => ({
         ...prev,
         ...sessaoPendente.formData,
@@ -628,8 +376,6 @@ export default function TransferenciaEmbrioes() {
         observacoes: '',
       }));
 
-      // 5. Se há fazenda_id, carregar as receptoras
-      // Passa o estado da sessão para preservar receptoras que já receberam embriões
       if (fazendaIdSessao) {
         await carregarReceptorasDaFazenda(fazendaIdSessao, {
           contagem: contagemSessaoPorReceptora,
@@ -647,7 +393,6 @@ export default function TransferenciaEmbrioes() {
   };
 
   const handleDescartarSessao = async () => {
-    // Encerrar sessão no banco
     if (sessaoPendente?.filtros?.fazenda_id) {
       await encerrarSessaoNoBanco(sessaoPendente.filtros.fazenda_id);
     }
@@ -662,11 +407,18 @@ export default function TransferenciaEmbrioes() {
   // Effects
   useEffect(() => {
     const carregarDados = async () => {
-      await Promise.all([loadFazendas(), loadPacotes(), loadClientes(), loadTodasFazendas()]);
+      await Promise.all([loadFazendas(), loadPacotes(), loadClientes()]);
       const sessaoRestaurada = await restaurarSessaoEmAndamento();
+      // Ajuste de tipagem para sessaoRestaurada se necessario
       if (sessaoRestaurada) {
-        // Mostrar dialog perguntando se quer restaurar
-        setSessaoPendente(sessaoRestaurada);
+        // Garantir compatibilidade de tipos
+        const sessaoCompativel = {
+          filtros: sessaoRestaurada.filtros,
+          camposPacote: sessaoRestaurada.camposPacote,
+          formData: sessaoRestaurada.formData,
+          transferenciasIds: (sessaoRestaurada as any).transferenciasIds || []
+        };
+        setSessaoPendente(sessaoCompativel);
         setShowRestaurarDialog(true);
       }
     };
@@ -683,8 +435,6 @@ export default function TransferenciaEmbrioes() {
     void loadFazendas();
   }, [dataPasso2]);
 
-  // Efeito para recarregar receptoras quando filtros mudam
-  // Preserva receptoras da sessão atual se há transferências em andamento
   useEffect(() => {
     if (formData.fazenda_id) {
       const temSessaoAtiva = transferenciasIdsSessao.length > 0;
@@ -730,38 +480,6 @@ export default function TransferenciaEmbrioes() {
     }
   }, [embrioesDisponiveis.length, embrioesPage]);
 
-  // Filtrar sessões do histórico
-  const sessoesFiltradas = sessoes.filter(s => {
-    const matchesBusca = !filtroBusca ||
-      s.fazenda_nome.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-      s.veterinario_responsavel?.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-      s.transferencias.some(t =>
-        t.receptora_brinco.toLowerCase().includes(filtroBusca.toLowerCase()) ||
-        t.receptora_nome?.toLowerCase().includes(filtroBusca.toLowerCase())
-      );
-    const matchesFazenda = filtroFazendaHist === 'todos' || s.fazenda_nome === filtroFazendaHist;
-
-    return matchesBusca && matchesFazenda;
-  });
-
-  // Paginação do histórico
-  const totalPaginasHistorico = Math.ceil(sessoesFiltradas.length / ITENS_POR_PAGINA_HISTORICO);
-  const sessoesPaginadas = sessoesFiltradas.slice(
-    (paginaHistorico - 1) * ITENS_POR_PAGINA_HISTORICO,
-    paginaHistorico * ITENS_POR_PAGINA_HISTORICO
-  );
-
-  // Estatísticas baseadas nas sessões filtradas
-  const estatisticasHistorico = sessoesFiltradas.reduce(
-    (acc, s) => ({
-      sessoes: acc.sessoes + 1,
-      receptoras: acc.receptoras + s.total_receptoras,
-      embrioes: acc.embrioes + s.total_embrioes,
-      frescos: acc.frescos + s.frescos,
-      congelados: acc.congelados + s.congelados,
-    }),
-    { sessoes: 0, receptoras: 0, embrioes: 0, frescos: 0, congelados: 0 }
-  );
 
   if (loading) {
     return <LoadingSpinner />;
@@ -774,391 +492,90 @@ export default function TransferenciaEmbrioes() {
         description="Destinar embriões para receptoras sincronizadas"
       />
 
-      {/* ==================== SESSÃO DE TE ==================== */}
-      <div className="mt-4">
-          {/* Barra de controles premium */}
-          <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
-            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
-              {/* Grupo: Responsáveis */}
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="w-1 h-6 rounded-full bg-primary/40 self-center hidden md:block" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
-                  <User className="w-3.5 h-3.5" />
-                  <span>Responsáveis</span>
-                </div>
-                <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px]">
-                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                    Veterinário *
-                  </label>
-                  <Input
-                    placeholder="Nome do veterinário"
-                    value={formData.veterinario_responsavel}
-                    onChange={(e) => setFormData({ ...formData, veterinario_responsavel: e.target.value })}
-                    className="h-11 md:h-9"
-                  />
-                </div>
-                <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px]">
-                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                    Técnico
-                  </label>
-                  <Input
-                    placeholder="Nome do técnico"
-                    value={formData.tecnico_responsavel}
-                    onChange={(e) => setFormData({ ...formData, tecnico_responsavel: e.target.value })}
-                    className="h-11 md:h-9"
-                  />
-                </div>
-              </div>
+      <TransferenciaEmbrioesFilters
+        formData={formData}
+        setFormData={setFormData}
+        camposPacote={camposPacote}
+        setCamposPacote={setCamposPacote}
+        origemEmbriao={origemEmbriao}
+        setOrigemEmbriao={setOrigemEmbriao}
+        filtroClienteId={filtroClienteId}
+        setFiltroClienteId={setFiltroClienteId}
+        filtroRaca={filtroRaca}
+        setFiltroRaca={setFiltroRaca}
+        dataPasso2={dataPasso2}
+        setDataPasso2={setDataPasso2}
+        clientes={clientes}
+        resetFiltros={resetFiltros}
+      />
 
-              {/* Separador */}
-              <div className="h-10 w-px bg-border hidden md:block" />
+      <TransferenciaSessao
+        formData={formData}
+        setFormData={setFormData}
+        camposPacote={camposPacote}
+        setCamposPacote={setCamposPacote}
+        fazendas={fazendas as unknown as FazendaComCliente[]}
+        pacotesFiltrados={pacotesFiltrados}
+        embrioesCongelados={embrioesCongelados}
+        origemEmbriao={origemEmbriao}
+        loadingCongelados={loadingCongelados}
+        pacoteSelecionado={pacoteSelecionado}
+        hasD8Limite={hasD8Limite}
+        embrioesDisponiveis={embrioesDisponiveis}
+        permitirSegundoEmbriao={permitirSegundoEmbriao}
+        setPermitirSegundoEmbriao={setPermitirSegundoEmbriao}
+        handleFazendaChange={handleFazendaChange}
+        handlePacoteChange={handlePacoteChange}
+        onSelectReceptora={(id, protocoloId) => setFormData(prev => ({ ...prev, receptora_id: id, protocolo_receptora_id: protocoloId }))}
+        filtroClienteId={filtroClienteId}
+        filtroRaca={filtroRaca}
+        receptoras={receptoras} // TODO: Filtrar por pesquisa se necessario
+        contagemSessaoPorReceptora={contagemSessaoPorReceptora}
+        receptorasSessaoInfo={receptorasSessaoInfo}
+        transferenciasIdsSessao={transferenciasIdsSessao}
+        handleDescartarReceptora={handleDescartarReceptora}
+        numerosFixosMap={numerosFixosMap}
+        embrioesPage={embrioesPage}
+        setEmbrioesPage={setEmbrioesPage}
+        EMBRIOES_PAGE_SIZE={EMBRIOES_PAGE_SIZE}
+        handleSubmit={handleSubmit}
+        submitting={submitting}
+        clienteIds={[]} // Passar se necessario para filtros extras
+        receptora_id={formData.receptora_id}
+        onSelectEmbriao={(id) => setFormData(prev => ({ ...prev, embriao_id: id }))}
+      />
 
-              {/* Grupo: Local */}
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center hidden md:block" />
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>Local</span>
-                </div>
-                <div className="w-full md:w-auto md:flex-1 md:min-w-[160px]">
-                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                    Fazenda {transferenciasIdsSessao.length > 0 ? '(sessão ativa)' : '*'}
-                  </label>
-                  <Select
-                    value={formData.fazenda_id}
-                    onValueChange={handleFazendaChange}
-                    disabled={!formData.veterinario_responsavel || transferenciasIdsSessao.length > 0}
-                  >
-                    <SelectTrigger className="h-11 md:h-9">
-                      <SelectValue placeholder="Selecione a fazenda" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fazendas.map((fazenda) => (
-                        <SelectItem key={fazenda.id} value={fazenda.id}>
-                          {fazenda.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-[calc(50%-0.375rem)] md:w-[140px] flex-shrink-0">
-                  <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                    Data TE *
-                  </label>
-                  <DatePickerBR
-                    value={formData.data_te}
-                    onChange={(value) => setFormData({ ...formData, data_te: value || '' })}
-                    className="h-11 md:h-9"
-                  />
-                </div>
-              </div>
-
-              {/* Separador */}
-              <div className="h-10 w-px bg-border hidden md:block" />
-
-              {/* Grupo: Ações da Sessão */}
-              {formData.fazenda_id && transferenciasIdsSessao.length > 0 && (
-                <div className="flex items-end gap-2 w-full md:w-auto md:ml-auto">
-                  <Button
-                    type="button"
-                    onClick={visualizarRelatorioSessao}
-                    variant="outline"
-                    disabled={submitting}
-                    className="h-11 md:h-9 flex-1 md:flex-initial"
-                    title="Visualizar relatório da sessão atual"
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    Ver ({transferenciasIdsSessao.length})
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleEncerrarSessao}
-                    disabled={submitting}
-                    className="h-11 md:h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm flex-1 md:flex-initial"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {submitting ? 'Encerrando...' : `Encerrar (${transferenciasIdsSessao.length})`}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Segunda linha de controles */}
-            {formData.fazenda_id && (
-              <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end mt-4 pt-4 border-t border-border/50">
-                {/* Grupo: Filtros de Receptoras */}
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-1 h-6 rounded-full bg-blue-500/40 self-center hidden md:block" />
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
-                    <CalendarDays className="w-3.5 h-3.5" />
-                    <span>Receptoras</span>
-                  </div>
-                  <div className="w-[calc(50%-0.375rem)] md:w-[130px]">
-                    <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                      Data 2º Passo
-                    </label>
-                    <DatePickerBR
-                      value={dataPasso2}
-                      onChange={(value) => setDataPasso2(value || '')}
-                      className="h-11 md:h-9"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 h-11 md:h-9 self-end">
-                    <Switch
-                      id="permitir-segundo-embriao"
-                      checked={permitirSegundoEmbriao}
-                      onCheckedChange={setPermitirSegundoEmbriao}
-                    />
-                    <Label htmlFor="permitir-segundo-embriao" className="cursor-pointer text-xs">
-                      2º embrião
-                    </Label>
-                  </div>
-                </div>
-
-                {/* Separador */}
-                <div className="h-10 w-px bg-border hidden md:block" />
-
-                {/* Grupo: Origem do Embrião */}
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-1 h-6 rounded-full bg-amber-500/40 self-center hidden md:block" />
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center w-full md:w-auto">
-                    <Package className="w-3.5 h-3.5" />
-                    <span>Origem</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      variant={origemEmbriao === 'PACOTE' ? 'default' : 'outline'}
-                      onClick={() => setOrigemEmbriao('PACOTE')}
-                      size="sm"
-                      className="h-11 md:h-8"
-                    >
-                      <Package className="w-3.5 h-3.5 mr-1.5" />
-                      Pacote
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={origemEmbriao === 'CONGELADO' ? 'default' : 'outline'}
-                      onClick={() => setOrigemEmbriao('CONGELADO')}
-                      size="sm"
-                      className="h-11 md:h-8"
-                    >
-                      <Snowflake className="w-3.5 h-3.5 mr-1.5" />
-                      Congelado
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Seleção de Pacote */}
-                {origemEmbriao === 'PACOTE' && (
-                  <div className="w-full md:w-auto md:flex-1 md:min-w-[220px] md:max-w-[300px]">
-                    <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                      Pacote de Embriões *
-                    </label>
-                    <Select value={formData.pacote_id} onValueChange={handlePacoteChange}>
-                      <SelectTrigger className="h-11 md:h-9">
-                        <SelectValue placeholder="Selecione o pacote" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pacotesFiltrados.map((pacote) => (
-                          <SelectItem key={pacote.id} value={pacote.id}>
-                            {pacote.pacote_info?.fazenda_nome || 'N/A'} - {formatDate(pacote.data_despacho)} ({pacote.frescos} frescos)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Filtros para Congelados */}
-                {origemEmbriao === 'CONGELADO' && (
-                  <>
-                    <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[160px] md:max-w-[200px]">
-                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                        Cliente
-                      </label>
-                      <Select value={filtroClienteId} onValueChange={setFiltroClienteId}>
-                        <SelectTrigger className="h-11 md:h-9">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clientes.map((cliente) => (
-                            <SelectItem key={cliente.id} value={cliente.id}>
-                              {cliente.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-[calc(50%-0.375rem)] md:w-auto md:flex-1 md:min-w-[140px] md:max-w-[160px]">
-                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                        Raça
-                      </label>
-                      <Input
-                        value={filtroRaca}
-                        onChange={(e) => setFiltroRaca(e.target.value)}
-                        placeholder="Digite a raça"
-                        className="h-11 md:h-9"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Mensagem de ajuda */}
-            {!formData.veterinario_responsavel ? (
-              <p className="text-xs text-muted-foreground mt-3">
-                Preencha o veterinário para selecionar a fazenda
-              </p>
-            ) : !formData.fazenda_id ? (
-              <p className="text-xs text-muted-foreground mt-3">
-                Selecione uma fazenda para ver as receptoras disponíveis
-              </p>
-            ) : null}
-          </div>
-
-          {/* Conteúdo principal do formulário */}
-          {formData.fazenda_id && (
-            <form onSubmit={handleSubmit}>
-              {/* Grid com Receptoras à esquerda e Embriões à direita */}
-              {(formData.pacote_id || (origemEmbriao === 'CONGELADO' && (filtroClienteId || filtroRaca.trim()))) && (
-                <Card className="mb-4">
-                  <CardContent className="pt-4">
-                    {/* Header com título e botão de transferir */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-1 h-6 rounded-full bg-primary/40" />
-                        <span className="text-sm font-semibold text-foreground">Selecione Receptora e Embrião</span>
-                      </div>
-                      {formData.embriao_id && formData.receptora_id && (
-                        <Button
-                          type="submit"
-                          disabled={submitting}
-                          className="h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm shadow-primary/25"
-                        >
-                          <ArrowRightLeft className="w-4 h-4 mr-2" />
-                          {submitting ? 'Registrando...' : 'Transferir Embrião'}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {/* Coluna Esquerda - Receptoras */}
-                      <div className="flex flex-col">
-                        <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Receptoras</h3>
-                        <div className="flex-1 min-h-[300px] max-h-[400px]">
-                          <ReceptorasSelection
-                            receptoras={receptoras}
-                            selectedReceptoraId={formData.receptora_id}
-                            contagemSessaoPorReceptora={contagemSessaoPorReceptora}
-                            submitting={submitting}
-                            permitirSegundoEmbriao={permitirSegundoEmbriao}
-                            onSelectReceptora={(receptoraId, protocoloReceptoraId) => {
-                              setFormData({
-                                ...formData,
-                                receptora_id: receptoraId,
-                                protocolo_receptora_id: protocoloReceptoraId,
-                              });
-                            }}
-                            onDescartarReceptora={handleDescartarReceptora}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Coluna Direita - Embriões */}
-                      <div className="flex flex-col">
-                        <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                          Embriões {origemEmbriao === 'PACOTE' ? '(Pacote)' : '(Congelados)'}
-                        </h3>
-                        <div className="flex-1 min-h-[300px] max-h-[400px]">
-                          {/* Embriões do Pacote */}
-                          {origemEmbriao === 'PACOTE' && formData.pacote_id && pacoteSelecionado && (
-                            <EmbrioesTablePacote
-                              pacote={pacoteSelecionado}
-                              embrioes={embrioesDisponiveis}
-                              numerosFixosMap={numerosFixosMap}
-                              selectedEmbriaoId={formData.embriao_id}
-                              embrioesPage={embrioesPage}
-                              hasD8Limite={hasD8Limite}
-                              onSelectEmbriao={(embriaoId) => setFormData({ ...formData, embriao_id: embriaoId })}
-                              onPageChange={setEmbrioesPage}
-                            />
-                          )}
-
-                          {/* Embriões Congelados */}
-                          {origemEmbriao === 'CONGELADO' && (
-                            <EmbrioesTableCongelados
-                              embrioes={embrioesCongelados}
-                              selectedEmbriaoId={formData.embriao_id}
-                              embrioesPage={embrioesPage}
-                              loadingCongelados={loadingCongelados}
-                              filtroClienteId={filtroClienteId}
-                              filtroRaca={filtroRaca}
-                              onSelectEmbriao={(embriaoId) => setFormData({ ...formData, embriao_id: embriaoId })}
-                              onPageChange={setEmbrioesPage}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Campo de Observações inline */}
-                    {formData.embriao_id && formData.receptora_id && (
-                      <div className="mt-4 pt-4 border-t border-border/50">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1 max-w-md">
-                            <Label htmlFor="observacoes" className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                              Observações (opcional)
-                            </Label>
-                            <Input
-                              id="observacoes"
-                              value={formData.observacoes}
-                              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                              placeholder="Observações sobre a transferência"
-                              className="h-9"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </form>
-          )}
-        </div>
-
-      {/* Dialog do Relatório */}
+      {/* Dialog de Confirmação de Relatório (Sessão Atual) */}
       <RelatorioTransferenciaDialog
         open={showRelatorioDialog}
         onOpenChange={setShowRelatorioDialog}
         relatorioData={relatorioData}
-        fazendaNome={fazendas.find(f => f.id === formData.fazenda_id)?.nome || 'N/A'}
+        fazendaNome={fazendas.find(f => f.id === formData.fazenda_id)?.nome || ''}
         dataTe={formData.data_te}
         veterinarioResponsavel={formData.veterinario_responsavel}
         tecnicoResponsavel={formData.tecnico_responsavel}
         isVisualizacaoApenas={isVisualizacaoApenas}
         submitting={submitting}
-        onFechar={fecharRelatorio}
+        onFechar={() => setShowRelatorioDialog(false)}
         onConfirmarEncerrar={handleEncerrarSessao}
       />
 
-      {/* Dialog Restaurar Sessão em Andamento */}
+      {/* Dialog para Restaurar Sessão */}
       <AlertDialog open={showRestaurarDialog} onOpenChange={setShowRestaurarDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-primary" />
-              Sessão de TE não finalizada
-            </AlertDialogTitle>
+            <AlertDialogTitle>Sessão em Andamento Encontrada</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem uma sessão de transferência de embriões em andamento que não foi finalizada. Deseja continuar de onde parou?
+              Você tem uma sessão de transferência não finalizada para a fazenda{' '}
+              <span className="font-semibold text-foreground">
+                {fazendas.find(f => f.id === sessaoPendente?.formData?.fazenda_id)?.nome || 'Desconhecida'}
+              </span>
+              . Deseja continuar de onde parou?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDescartarSessao}>Descartar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRestaurarSessao}>Restaurar</AlertDialogAction>
+            <AlertDialogCancel onClick={handleDescartarSessao}>Descartar e Iniciar Nova</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestaurarSessao}>Continuar Sessão</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

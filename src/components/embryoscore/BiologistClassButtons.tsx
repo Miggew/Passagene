@@ -4,13 +4,13 @@
  * A sugestão da IA é destacada com ring-primary/20.
  * Ao confirmar, chama onClassify(classification).
  * Botão "Desfazer" disponível se a classificação foi feita nos últimos 5 minutos.
+ * Hotkeys: 1-7 para selecionar, Enter para confirmar, Delete/Backspace para Dg.
  */
 
-import { useState } from 'react';
 import type { ClassificacaoEmbriao } from '@/lib/types';
 import { Check, Undo2 } from 'lucide-react';
 
-const CLASSES: { value: ClassificacaoEmbriao; label: string; description: string }[] = [
+export const CLASSES: { value: ClassificacaoEmbriao; label: string; description: string }[] = [
   { value: 'BE', label: 'BE', description: 'Excelente' },
   { value: 'BN', label: 'BN', description: 'Bom' },
   { value: 'BX', label: 'BX', description: 'Regular' },
@@ -33,6 +33,10 @@ interface BiologistClassButtonsProps {
   canUndo?: boolean;
   /** Se mutation está em progresso */
   isLoading?: boolean;
+  /** Selected class (controlled from parent for hotkey support) */
+  selected: ClassificacaoEmbriao | null;
+  /** Selection change callback */
+  onSelect: (cls: ClassificacaoEmbriao | null) => void;
 }
 
 export function BiologistClassButtons({
@@ -42,19 +46,20 @@ export function BiologistClassButtons({
   onUndo,
   canUndo,
   isLoading,
+  selected,
+  onSelect,
 }: BiologistClassButtonsProps) {
-  const [selected, setSelected] = useState<ClassificacaoEmbriao | null>(null);
   const isConfirmed = !!currentClassification;
 
   const handleSelect = (cls: ClassificacaoEmbriao) => {
     if (isConfirmed || isLoading) return;
-    setSelected(cls);
+    onSelect(cls);
   };
 
   const handleConfirm = () => {
     if (!selected || isLoading) return;
     onClassify(selected);
-    setSelected(null);
+    onSelect(null);
   };
 
   // Already classified — show result + undo
@@ -83,9 +88,10 @@ export function BiologistClassButtons({
     <div className="space-y-3">
       {/* Classification buttons */}
       <div className="flex flex-wrap gap-2">
-        {CLASSES.map((cls) => {
+        {CLASSES.map((cls, idx) => {
           const isAiSuggestion = aiSuggestion === cls.value;
           const isSelected = selected === cls.value;
+          const hotkeyLabel = cls.value === 'Dg' ? 'Del' : String(idx + 1);
 
           return (
             <button
@@ -107,6 +113,9 @@ export function BiologistClassButtons({
                 {cls.label}
               </span>
               <span className="text-[10px] text-muted-foreground mt-0.5">{cls.description}</span>
+              <kbd className="mt-1 text-[9px] font-mono text-muted-foreground/60 bg-muted/60 px-1 rounded">
+                {hotkeyLabel}
+              </kbd>
               {isAiSuggestion && (
                 <span className="absolute -top-1.5 -right-1.5 text-[9px] bg-primary/15 text-primary px-1 rounded-full">
                   IA
@@ -126,6 +135,7 @@ export function BiologistClassButtons({
         >
           <Check className="w-4 h-4" />
           Confirmar {selected} → próximo
+          <kbd className="ml-1 text-[10px] font-mono text-white/60 bg-white/10 px-1 rounded">Enter</kbd>
         </button>
       )}
     </div>

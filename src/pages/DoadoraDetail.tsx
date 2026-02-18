@@ -31,7 +31,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import CountBadge from '@/components/shared/CountBadge';
 import { DataTable } from '@/components/shared/DataTable';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { ArrowLeft, Save, Star, Gem, History, Edit, ChevronDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import GenealogiaTree, { type GenealogiaData } from '@/components/shared/GenealogiaTree';

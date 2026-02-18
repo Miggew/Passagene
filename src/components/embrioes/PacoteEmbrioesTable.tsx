@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ import {
   AlertTriangle,
   RefreshCw,
   ScanSearch,
+  Eye,
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
 
@@ -71,6 +73,7 @@ export function PacoteEmbrioesTable({
   const [redetectProgress, setRedetectProgress] = useState<{ id: string; step: number; label: string } | null>(null);
   const [redetectedMap, setRedetectedMap] = useState<Map<string, number>>(new Map());
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const retryAnalysis = useRetryAnalysis();
   const cancelAnalysis = useCancelAnalysis();
   const { toast } = useToast();
@@ -160,7 +163,13 @@ export function PacoteEmbrioesTable({
         // Resetar job existente para pending (pode estar travado)
         await supabase
           .from('embryo_analysis_queue')
-          .update({ status: 'pending', error_message: null, started_at: null, retry_count: 0 })
+          .update({
+            status: 'pending',
+            error_message: null,
+            started_at: null,
+            retry_count: 0,
+            detected_bboxes: [] // Force re-detection logic in Edge Function
+          })
           .eq('id', existingJob.id);
       } else {
         const { data: queueData, error: queueError } = await supabase
@@ -170,6 +179,7 @@ export function PacoteEmbrioesTable({
             lote_fiv_acasalamento_id: embriao.lote_fiv_acasalamento_id,
             status: 'pending',
             expected_count: expectedCount,
+            detected_bboxes: [],
           })
           .select('id')
           .single();
@@ -204,15 +214,36 @@ export function PacoteEmbrioesTable({
       let invokeOk = false;
       for (let attempt = 0; attempt < 3 && !invokeOk; attempt++) {
         try {
-          const { error: fnError } = await supabase.functions.invoke('embryo-analyze', {
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('embryo-analyze', {
             body: { queue_id: queueId },
           });
-          if (fnError) throw fnError;
+          if (fnError) {
+            // Capturar body real do erro da Edge Function
+            let errorBody = '';
+            try {
+              if (fnError && typeof fnError === 'object' && 'context' in fnError) {
+                const ctx = (fnError as { context: Response }).context;
+                errorBody = await ctx.text();
+              }
+            } catch { /* ignore */ }
+            console.error(`[Redetect] Edge Function error body:`, errorBody || fnData);
+            throw fnError;
+          }
           invokeOk = true;
         } catch (invokeErr) {
           console.warn(`[Redetect] invoke tentativa ${attempt + 1}/3 falhou:`, invokeErr);
           if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
         }
+      }
+
+      // Se falhou, buscar error_message da fila para diagnóstico
+      if (!invokeOk) {
+        const { data: failedJob } = await supabase
+          .from('embryo_analysis_queue')
+          .select('status, error_message, retry_count')
+          .eq('id', queueId)
+          .maybeSingle();
+        console.error('[Redetect] Estado da fila após falha:', failedJob);
       }
       if (!invokeOk) {
         toast({ title: 'Erro', description: 'Falha ao invocar análise IA após 3 tentativas. Tente novamente.', variant: 'destructive' });
@@ -228,9 +259,14 @@ export function PacoteEmbrioesTable({
       progress(TOTAL_STEPS, 'Análise IA em andamento');
       setTimeout(() => setRedetectProgress(prev => prev?.id === embriao.id ? null : prev), 1500);
       return;
-    } catch (err) {
-      console.error('[Redetect]', err);
-      toast({ title: 'Erro na redetecção', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('[Redetect] Fatal Error:', err);
+      toast({
+        title: 'Erro na redetecção',
+        description: err.message || 'Erro desconhecido ao invocar análise.',
+        variant: 'destructive',
+        duration: 5000
+      });
     } finally {
       setRedetectProgress(prev => {
         if (!prev || prev.id !== embriao.id) return prev;
@@ -453,7 +489,9 @@ export function PacoteEmbrioesTable({
               {/* Badges e Status */}
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 {embriao.estrela && (
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" title="Embrião Top" />
+                  <div title="Embrião Top">
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  </div>
                 )}
                 {classificacao ? (
                   <Badge
@@ -475,7 +513,7 @@ export function PacoteEmbrioesTable({
                   >
                     <EmbryoScoreBadge score={score} compact />
                     {classificacao && getDiscrepancy(classificacao, score.embryo_score) && (
-                      <AlertTriangle className="w-3 h-3 text-amber-500" title="Divergência IA vs Biólogo" />
+                      <AlertTriangle className="w-3 h-3 text-amber-500" />
                     )}
                   </button>
                 ) : null}
@@ -487,135 +525,19 @@ export function PacoteEmbrioesTable({
                 )}
               </div>
 
-              {/* Menu de ações */}
+              {/* Actions (View Only) */}
               <div className="flex items-center gap-1 sm:ml-2">
-                {/* Botão expandir score (se tiver) */}
                 {score && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}
                     className={`h-8 w-8 p-0 ${expandedScoreId === embriao.id ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/5'}`}
-                    title="Ver análise IA"
+                    title="Ver análise detalhada"
                   >
-                    <Brain className="w-4 h-4" />
+                    <Eye className="w-4 h-4" />
                   </Button>
                 )}
-
-                {/* Ações rápidas visíveis - desabilitadas após despacho */}
-                {!jaFoiDespachado && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onClassificar(embriao)}
-                      className="h-8 w-8 p-0 text-primary hover:text-primary-dark hover:bg-primary-subtle"
-                      title="Classificar"
-                    >
-                      <Tag className="w-4 h-4" />
-                    </Button>
-
-                    {isFresco && classificacao && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onCongelar(embriao)}
-                        className="h-8 w-8 p-0 text-blue-500 hover:text-blue-600 hover:bg-secondary"
-                        title="Congelar"
-                      >
-                        <Snowflake className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {/* Menu dropdown para mais ações */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {score && (
-                      <>
-                        <DropdownMenuItem onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}>
-                          <Brain className="w-4 h-4 mr-2 text-primary" />
-                          {expandedScoreId === embriao.id ? 'Fechar análise IA' : 'Ver análise IA'}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-
-                    {/* Redetectar IA: disponível quando embrião tem vídeo vinculado */}
-                    {embriao.acasalamento_media_id && (
-                      <DropdownMenuItem
-                        onClick={() => handleRedetect(embriao)}
-                        disabled={redetectProgress?.id === embriao.id}
-                      >
-                        <ScanSearch className={`w-4 h-4 mr-2 text-violet-500 ${redetectProgress?.id === embriao.id ? 'animate-pulse' : ''}`} />
-                        {redetectProgress?.id === embriao.id ? 'Redetectando...' : 'Redetectar IA'}
-                      </DropdownMenuItem>
-                    )}
-
-                    {/* Reanalisar IA: disponível quando análise falhou */}
-                    {embriao.queue_id && analysisStatus?.status === 'failed' && (
-                      <DropdownMenuItem
-                        onClick={() => retryAnalysis.mutate(embriao.queue_id!)}
-                        disabled={retryAnalysis.isPending}
-                      >
-                        <RefreshCw className={`w-4 h-4 mr-2 text-amber-500 ${retryAnalysis.isPending ? 'animate-spin' : ''}`} />
-                        Reanalisar IA
-                      </DropdownMenuItem>
-                    )}
-
-                    {(embriao.acasalamento_media_id || (embriao.queue_id && analysisStatus?.status === 'failed')) && (
-                      <DropdownMenuSeparator />
-                    )}
-
-                    {!jaFoiDespachado && (
-                      <>
-                        <DropdownMenuItem onClick={() => onClassificar(embriao)}>
-                          <Tag className="w-4 h-4 mr-2 text-primary" />
-                          Classificar
-                        </DropdownMenuItem>
-
-                        {isFresco && (
-                          <DropdownMenuItem
-                            onClick={() => onCongelar(embriao)}
-                            disabled={!classificacao}
-                            className={!classificacao ? 'opacity-50' : ''}
-                          >
-                            <Snowflake className="w-4 h-4 mr-2 text-blue-500" />
-                            Congelar
-                            {!classificacao && <span className="ml-auto text-xs text-muted-foreground">Classificar primeiro</span>}
-                          </DropdownMenuItem>
-                        )}
-
-                        {onToggleEstrela && (
-                          <DropdownMenuItem onClick={() => onToggleEstrela(embriao)}>
-                            <Star className={`w-4 h-4 mr-2 ${embriao.estrela ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'}`} />
-                            {embriao.estrela ? 'Remover estrela' : 'Marcar como Top'}
-                          </DropdownMenuItem>
-                        )}
-
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-
-                    <DropdownMenuItem
-                      onClick={() => onDescartar(embriao)}
-                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Descartar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
 
               {/* EmbryoScore expandido */}
@@ -763,6 +685,14 @@ export function PacoteEmbrioesTable({
                       </>
                     )}
 
+                    {/* Revisar embriões */}
+                    {embriao.queue_id && score && (
+                      <DropdownMenuItem onClick={() => navigate(`/embryoscore/review/${embriao.queue_id}`)}>
+                        <Eye className="w-4 h-4 mr-2 text-green-500" />
+                        Revisar embriões
+                      </DropdownMenuItem>
+                    )}
+
                     {/* Redetectar IA */}
                     {embriao.acasalamento_media_id && (
                       <DropdownMenuItem
@@ -833,7 +763,7 @@ export function PacoteEmbrioesTable({
               {/* Linha 2: Info + Status */}
               <div className="mt-2 flex items-center justify-between gap-2 text-xs">
                 <div className="text-muted-foreground truncate">
-                  {score?.stage || 'Estágio desconhecido'} | {score?.recommendation || 'Sem recomendação'}
+                  {score?.stage_code || 'Estágio desconhecido'} | {score?.transfer_recommendation || 'Sem recomendação'}
                 </div>
                 <StatusBadge status={embriao.status_atual} />
               </div>

@@ -7,30 +7,28 @@ export function useReceptorasFazenda(fazendaId: string | null) {
     queryKey: ['receptoras-fazenda', fazendaId],
     queryFn: async () => {
       if (!fazendaId) return [];
-      
-      const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_nome_atual')
-        .eq('fazenda_id_atual', fazendaId);
 
-      if (viewError) throw viewError;
-      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
+      const { data: receptoraIdsData, error: receptoraIdsError } = await supabase
+        .from('receptoras')
+        .select('id')
+        .eq('fazenda_atual_id', fazendaId);
+
+      if (receptoraIdsError) throw receptoraIdsError;
+      const receptoraIds = receptoraIdsData?.map(r => r.id) || [];
 
       if (receptoraIds.length === 0) return [];
 
       const { data, error } = await supabase
         .from('receptoras')
-        .select('*')
+        .select('*, fazendas!fazenda_atual_id(nome)')
         .in('id', receptoraIds)
         .order('identificacao', { ascending: true });
 
       if (error) throw error;
 
-      const fazendaMap = new Map(viewData?.map(v => [v.receptora_id, v.fazenda_nome_atual]) || []);
-
       return (data || []).map(r => ({
         ...r,
-        fazenda_nome_atual: fazendaMap.get(r.id),
+        fazenda_nome_atual: (r.fazendas as any)?.nome,
       })) as (Receptora & { fazenda_nome_atual?: string })[];
     },
     enabled: !!fazendaId,

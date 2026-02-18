@@ -62,18 +62,10 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
 
       <div className="p-4 space-y-4">
         {/* Médias */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div className="text-center p-2 rounded-lg bg-muted/30">
             <div className="text-lg font-bold text-foreground">{Math.round(avgScore)}</div>
             <div className="text-[10px] text-muted-foreground">Score Médio</div>
-          </div>
-          <div className="text-center p-2 rounded-lg bg-muted/30">
-            <div className="text-lg font-bold text-foreground">{Math.round(avgMorph)}</div>
-            <div className="text-[10px] text-muted-foreground">Morfo Médio</div>
-          </div>
-          <div className="text-center p-2 rounded-lg bg-muted/30">
-            <div className="text-lg font-bold text-foreground">{Math.round(avgKinetic)}</div>
-            <div className="text-[10px] text-muted-foreground">Cinét Médio</div>
           </div>
         </div>
 
@@ -92,18 +84,16 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
               return (
                 <div
                   key={score.id}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                    isFirst
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isFirst
                       ? `${colors.bg} ring-1 ${colors.ring}`
                       : 'bg-muted/20 hover:bg-muted/40'
-                  }`}
+                    }`}
                 >
                   {/* Posição */}
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                    isFirst
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isFirst
                       ? 'bg-primary/20 text-primary'
                       : 'bg-muted text-muted-foreground'
-                  }`}>
+                    }`}>
                     {index + 1}
                   </div>
 
@@ -121,9 +111,6 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
                   <div className={`text-right shrink-0`}>
                     <div className={`text-sm font-bold ${colors.text}`}>
                       {Math.round(score.embryo_score)}
-                    </div>
-                    <div className="text-[9px] text-muted-foreground">
-                      M:{Math.round(score.morph_score || 0)} C:{Math.round(score.kinetic_score || 0)}
                     </div>
                   </div>
 

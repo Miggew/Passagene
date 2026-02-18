@@ -16,6 +16,7 @@ import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { CowIcon } from '@/components/icons/CowIcon';
 import { supabase } from '@/lib/supabase';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import type { Fazenda } from '@/lib/types';
 import { exportRelatorio } from '@/lib/exportPdf';
@@ -144,7 +145,7 @@ export default function RelatoriosAnimais() {
     // Buscar receptoras com informações básicas
     let query = supabase
       .from('receptoras')
-      .select('id, identificacao, nome, status_reprodutivo, is_cio_livre, data_provavel_parto')
+      .select('id, identificacao, nome, status_reprodutivo, is_cio_livre, data_provavel_parto, fazendas!fazenda_atual_id(id, nome)')
       .order('identificacao');
 
     // Filtro de status
@@ -158,20 +159,9 @@ export default function RelatoriosAnimais() {
       return;
     }
 
-    // Buscar fazenda atual de cada receptora via view
-    const receptoraIds = receptorasData.map(r => r.id);
-    const { data: viewData } = await supabase
-      .from('vw_receptoras_fazenda_atual')
-      .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-      .in('receptora_id', receptoraIds);
-
-    const fazendaMap = new Map(
-      (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
-    );
-
     // Filtrar por fazenda se necessário
     let result = receptorasData.map(r => {
-      const fazendaInfo = fazendaMap.get(r.id);
+      const fazendaInfo = r.fazendas as any;
       return {
         id: r.id,
         identificacao: r.identificacao,
@@ -183,6 +173,8 @@ export default function RelatoriosAnimais() {
         data_provavel_parto: r.data_provavel_parto,
       };
     });
+
+
 
     // Aplicar filtros de fazenda no resultado
     if (clienteIdFilter && fazendaIds.length > 0) {
@@ -595,7 +587,7 @@ export default function RelatoriosAnimais() {
         <TabsContent value={tipoAnimal} className="mt-4">
           {loading ? (
             <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              Carregando...
+              <LoadingSpinner />
             </div>
           ) : dadosFiltrados.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
@@ -603,278 +595,277 @@ export default function RelatoriosAnimais() {
             </div>
           ) : (
             <>
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-2">
-              {dadosPaginados.map((row: ReceptoraRow | DoadoraRow) => (
-                <div
-                  key={row.id}
-                  onClick={() => tipoAnimal === 'receptoras'
-                    ? navigate(`/receptoras/${row.id}/historico`)
-                    : navigate(`/doadoras/${row.id}`)
-                  }
-                  className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-medium text-foreground truncate">
-                        {tipoAnimal === 'receptoras' ? (row as ReceptoraRow).identificacao : (row as DoadoraRow).registro}
-                      </p>
-                      {row.nome && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{row.nome}</p>
-                      )}
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <MapPin className="w-3 h-3 text-muted-foreground/60" />
-                        <span className="text-xs text-muted-foreground truncate">{row.fazenda_nome}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      {tipoAnimal === 'receptoras' ? (
-                        <>
-                          <StatusBadge status={(row as ReceptoraRow).status_reprodutivo || ''} />
-                          {(row as ReceptoraRow).is_cio_livre && (
-                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
-                              CL
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {(row as DoadoraRow).raca && (
-                            <span className="text-xs text-muted-foreground">{(row as DoadoraRow).raca}</span>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-muted text-foreground rounded-md">
-                              {(row as DoadoraRow).total_aspiracoes} asp.
-                            </span>
-                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
-                              {(row as DoadoraRow).media_oocitos} med.
-                            </span>
-                          </div>
-                        </>
-                      )}
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-                    </div>
-                  </div>
-                  {tipoAnimal === 'doadoras' && (row as DoadoraRow).ultima_aspiracao_data && (
-                    <div className="mt-2 pt-2 border-t border-border/40">
-                      <span className="text-xs text-muted-foreground">
-                        Ult. asp.: {formatDateBR((row as DoadoraRow).ultima_aspiracao_data!)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Mobile Pagination */}
-              {totalPaginas > 1 && (
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
-                    {' '}de{' '}
-                    <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                      disabled={paginaAtual === 1}
-                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                      disabled={paginaAtual === totalPaginas}
-                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Próximo
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
-              {/* Header da tabela com gradiente */}
-              <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
-                <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${
-                  tipoAnimal === 'receptoras'
-                    ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
-                    : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'
-                }`}>
-                  <div className="px-4 py-3 flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full bg-primary/40" />
-                    {tipoAnimal === 'receptoras' ? 'Identificação' : 'Registro'}
-                  </div>
-                  <div className="px-3 py-3">Nome</div>
-                  <div className="px-3 py-3">Fazenda</div>
-                  {tipoAnimal === 'receptoras' ? (
-                    <>
-                      <div className="px-3 py-3 text-center">Status</div>
-                      <div className="px-3 py-3 text-center">Ciclando</div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="px-3 py-3">Raça</div>
-                      <div className="px-3 py-3 text-center">Última Asp.</div>
-                      <div className="px-3 py-3 text-center">Aspirações</div>
-                      <div className="px-3 py-3 text-center">Média</div>
-                    </>
-                  )}
-                  <div className="px-2 py-3"></div>
-                </div>
-              </div>
-
-              {/* Linhas da tabela */}
-              <div className="divide-y divide-border/50">
-                {dadosPaginados.map((row: ReceptoraRow | DoadoraRow, index: number) => (
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {dadosPaginados.map((row: ReceptoraRow | DoadoraRow) => (
                   <div
                     key={row.id}
                     onClick={() => tipoAnimal === 'receptoras'
                       ? navigate(`/receptoras/${row.id}/historico`)
                       : navigate(`/doadoras/${row.id}`)
                     }
-                    className={`
+                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-medium text-foreground truncate">
+                          {tipoAnimal === 'receptoras' ? (row as ReceptoraRow).identificacao : (row as DoadoraRow).registro}
+                        </p>
+                        {row.nome && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{row.nome}</p>
+                        )}
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <MapPin className="w-3 h-3 text-muted-foreground/60" />
+                          <span className="text-xs text-muted-foreground truncate">{row.fazenda_nome}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {tipoAnimal === 'receptoras' ? (
+                          <>
+                            <StatusBadge status={(row as ReceptoraRow).status_reprodutivo || ''} />
+                            {(row as ReceptoraRow).is_cio_livre && (
+                              <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
+                                CL
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {(row as DoadoraRow).raca && (
+                              <span className="text-xs text-muted-foreground">{(row as DoadoraRow).raca}</span>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-muted text-foreground rounded-md">
+                                {(row as DoadoraRow).total_aspiracoes} asp.
+                              </span>
+                              <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
+                                {(row as DoadoraRow).media_oocitos} med.
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+                      </div>
+                    </div>
+                    {tipoAnimal === 'doadoras' && (row as DoadoraRow).ultima_aspiracao_data && (
+                      <div className="mt-2 pt-2 border-t border-border/40">
+                        <span className="text-xs text-muted-foreground">
+                          Ult. asp.: {formatDateBR((row as DoadoraRow).ultima_aspiracao_data!)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Mobile Pagination */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                      {' '}de{' '}
+                      <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaAtual === 1}
+                        className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Anterior
+                      </button>
+                      <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                        className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Próximo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
+                {/* Header da tabela com gradiente */}
+                <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
+                  <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${tipoAnimal === 'receptoras'
+                    ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
+                    : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'
+                    }`}>
+                    <div className="px-4 py-3 flex items-center gap-2">
+                      <div className="w-1 h-4 rounded-full bg-primary/40" />
+                      {tipoAnimal === 'receptoras' ? 'Identificação' : 'Registro'}
+                    </div>
+                    <div className="px-3 py-3">Nome</div>
+                    <div className="px-3 py-3">Fazenda</div>
+                    {tipoAnimal === 'receptoras' ? (
+                      <>
+                        <div className="px-3 py-3 text-center">Status</div>
+                        <div className="px-3 py-3 text-center">Ciclando</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="px-3 py-3">Raça</div>
+                        <div className="px-3 py-3 text-center">Última Asp.</div>
+                        <div className="px-3 py-3 text-center">Aspirações</div>
+                        <div className="px-3 py-3 text-center">Média</div>
+                      </>
+                    )}
+                    <div className="px-2 py-3"></div>
+                  </div>
+                </div>
+
+                {/* Linhas da tabela */}
+                <div className="divide-y divide-border/50">
+                  {dadosPaginados.map((row: ReceptoraRow | DoadoraRow, index: number) => (
+                    <div
+                      key={row.id}
+                      onClick={() => tipoAnimal === 'receptoras'
+                        ? navigate(`/receptoras/${row.id}/historico`)
+                        : navigate(`/doadoras/${row.id}`)
+                      }
+                      className={`
                       group grid gap-0 items-center cursor-pointer transition-all duration-150
                       hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
                       ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
                       ${tipoAnimal === 'receptoras'
-                        ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
-                        : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'
-                      }
+                          ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
+                          : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'
+                        }
                     `}
-                  >
-                    {/* Coluna principal com indicador */}
-                    <div className="px-4 py-3.5 flex items-center gap-3">
-                      <div className="w-0.5 h-8 rounded-full bg-transparent group-hover:bg-primary transition-colors" />
-                      <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                        {tipoAnimal === 'receptoras' ? (row as ReceptoraRow).identificacao : (row as DoadoraRow).registro}
-                      </span>
-                    </div>
+                    >
+                      {/* Coluna principal com indicador */}
+                      <div className="px-4 py-3.5 flex items-center gap-3">
+                        <div className="w-0.5 h-8 rounded-full bg-transparent group-hover:bg-primary transition-colors" />
+                        <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                          {tipoAnimal === 'receptoras' ? (row as ReceptoraRow).identificacao : (row as DoadoraRow).registro}
+                        </span>
+                      </div>
 
-                    {/* Coluna Nome */}
-                    <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
-                      {row.nome || '-'}
-                    </div>
+                      {/* Coluna Nome */}
+                      <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
+                        {row.nome || '-'}
+                      </div>
 
-                    {/* Coluna Fazenda */}
-                    <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
-                      {row.fazenda_nome}
-                    </div>
+                      {/* Coluna Fazenda */}
+                      <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
+                        {row.fazenda_nome}
+                      </div>
 
-                    {tipoAnimal === 'receptoras' ? (
-                      <>
-                        {/* Status */}
-                        <div className="px-3 py-3.5 flex justify-center">
-                          <StatusBadge status={(row as ReceptoraRow).status_reprodutivo || ''} />
-                        </div>
-                        {/* Ciclando */}
-                        <div className="px-3 py-3.5 flex justify-center">
-                          {(row as ReceptoraRow).is_cio_livre ? (
+                      {tipoAnimal === 'receptoras' ? (
+                        <>
+                          {/* Status */}
+                          <div className="px-3 py-3.5 flex justify-center">
+                            <StatusBadge status={(row as ReceptoraRow).status_reprodutivo || ''} />
+                          </div>
+                          {/* Ciclando */}
+                          <div className="px-3 py-3.5 flex justify-center">
+                            {(row as ReceptoraRow).is_cio_livre ? (
+                              <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-primary/10 text-primary rounded-md group-hover:bg-primary/20 transition-colors">
+                                CL
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-medium bg-muted text-muted-foreground rounded-md">
+                                N
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Raça */}
+                          <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
+                            {(row as DoadoraRow).raca || '-'}
+                          </div>
+                          {/* Última Aspiração */}
+                          <div className="px-3 py-3.5 text-sm text-center text-muted-foreground">
+                            {(row as DoadoraRow).ultima_aspiracao_data
+                              ? formatDateBR((row as DoadoraRow).ultima_aspiracao_data!)
+                              : '-'}
+                          </div>
+                          {/* Aspirações */}
+                          <div className="px-3 py-3.5 flex justify-center">
+                            <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-muted text-foreground rounded-md">
+                              {(row as DoadoraRow).total_aspiracoes}
+                            </span>
+                          </div>
+                          {/* Média */}
+                          <div className="px-3 py-3.5 flex justify-center">
                             <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-primary/10 text-primary rounded-md group-hover:bg-primary/20 transition-colors">
-                              CL
+                              {(row as DoadoraRow).media_oocitos}
                             </span>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Coluna Ação */}
+                      <div className="px-2 py-3.5 flex justify-center">
+                        <div className="w-8 h-8 rounded-md flex items-center justify-center bg-transparent group-hover:bg-primary/10 transition-colors">
+                          {tipoAnimal === 'receptoras' ? (
+                            <History className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                           ) : (
-                            <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-medium bg-muted text-muted-foreground rounded-md">
-                              N
-                            </span>
+                            <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                           )}
                         </div>
-                      </>
-                    ) : (
-                      <>
-                        {/* Raça */}
-                        <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
-                          {(row as DoadoraRow).raca || '-'}
-                        </div>
-                        {/* Última Aspiração */}
-                        <div className="px-3 py-3.5 text-sm text-center text-muted-foreground">
-                          {(row as DoadoraRow).ultima_aspiracao_data
-                            ? formatDateBR((row as DoadoraRow).ultima_aspiracao_data!)
-                            : '-'}
-                        </div>
-                        {/* Aspirações */}
-                        <div className="px-3 py-3.5 flex justify-center">
-                          <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-muted text-foreground rounded-md">
-                            {(row as DoadoraRow).total_aspiracoes}
-                          </span>
-                        </div>
-                        {/* Média */}
-                        <div className="px-3 py-3.5 flex justify-center">
-                          <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-primary/10 text-primary rounded-md group-hover:bg-primary/20 transition-colors">
-                            {(row as DoadoraRow).media_oocitos}
-                          </span>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Coluna Ação */}
-                    <div className="px-2 py-3.5 flex justify-center">
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center bg-transparent group-hover:bg-primary/10 transition-colors">
-                        {tipoAnimal === 'receptoras' ? (
-                          <History className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                        ) : (
-                          <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              {/* Paginação Premium */}
-              {totalPaginas > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-muted/30 via-transparent to-muted/30 border-t border-border">
-                  <span className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
-                    {' '}de{' '}
-                    <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                      disabled={paginaAtual === 1}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Anterior
-                    </button>
-                    <div className="flex items-center gap-0.5 mx-2">
-                      {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                        let pageNum;
-                        if (totalPaginas <= 5) pageNum = i + 1;
-                        else if (paginaAtual <= 3) pageNum = i + 1;
-                        else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
-                        else pageNum = paginaAtual - 2 + i;
+                {/* Paginação Premium */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-muted/30 via-transparent to-muted/30 border-t border-border">
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                      {' '}de{' '}
+                      <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaAtual === 1}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Anterior
+                      </button>
+                      <div className="flex items-center gap-0.5 mx-2">
+                        {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                          let pageNum;
+                          if (totalPaginas <= 5) pageNum = i + 1;
+                          else if (paginaAtual <= 3) pageNum = i + 1;
+                          else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                          else pageNum = paginaAtual - 2 + i;
 
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setPaginaAtual(pageNum)}
-                            className={`
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setPaginaAtual(pageNum)}
+                              className={`
                               w-8 h-8 text-xs font-medium rounded-md transition-all
                               ${paginaAtual === pageNum
-                                ? 'bg-primary/15 text-primary shadow-sm'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                              }
+                                  ? 'bg-primary/15 text-primary shadow-sm'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }
                             `}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Próximo
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                      disabled={paginaAtual === totalPaginas}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Próximo
-                    </button>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             </>
           )}
         </TabsContent>

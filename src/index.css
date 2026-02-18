@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,14 +11,15 @@ html.font-grande {
 
 @layer base {
   :root {
-    /* Design Tokens PassaGene - Light Mode */
-    /* Cores baseadas na logo real: #09C972 (vibrante), #049357 (escuro), #666666 (texto) */
+    /* Design Tokens PassaGene - Light Mode (Authentic Design) */
+    
+    /* Background: #F2FBF7 (Off-white com tint verde) */
+    --background: 153 60% 97%;
+    
+    /* Foreground: #666666 (Cinza da logo) -> 0 0% 40% */
+    --foreground: 0 0% 40%;
 
-    /* Background & Foreground */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 40%; /* #666666 da logo */
-
-    /* Cards */
+    /* Cards: White for contrast against tinted background */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 40%;
 
@@ -24,23 +27,23 @@ html.font-grande {
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 40%;
 
-    /* Primary - Verde vibrante da logo (#09C972) → hsl(153, 93%, 41%) */
-    --primary: 153 93% 41%;
+    /* Primary: #09C972 (Verde PassaGene) -> 153 91% 41% */
+    --primary: 153 91% 41%;
     --primary-foreground: 0 0% 100%;
 
-    /* Primary Dark - Verde escuro da logo (#049357) → hsl(156, 94%, 30%) */
-    --primary-dark: 156 94% 30%;
+    /* Primary Dark: #049357 (Verde Floresta) -> 155 94% 30% */
+    --primary-dark: 155 94% 30%;
     --primary-dark-foreground: 0 0% 100%;
 
-    /* Primary Light - Derivado mais claro (#5EDFA3) */
+    /* Primary Light */
     --primary-light: 153 65% 62%;
     --primary-light-foreground: 156 94% 20%;
 
-    /* Primary Subtle - Fundo sutil (#D0F5E3) */
+    /* Primary Subtle: #D0F5E3 */
     --primary-subtle: 153 65% 89%;
     --primary-subtle-foreground: 156 94% 25%;
 
-    /* Secondary - Neutro claro */
+    /* Secondary */
     --secondary: 150 20% 97%;
     --secondary-foreground: 0 0% 40%;
 
@@ -48,7 +51,7 @@ html.font-grande {
     --muted: 150 15% 96%;
     --muted-foreground: 0 0% 50%;
 
-    /* Accent - Entre primary e dark (#07B566) */
+    /* Accent */
     --accent: 154 94% 36%;
     --accent-foreground: 0 0% 100%;
 
@@ -59,42 +62,42 @@ html.font-grande {
     /* Borders & Inputs */
     --border: 150 15% 88%;
     --input: 150 15% 88%;
-    --ring: 153 93% 41%;
+    --ring: 153 91% 41%;
 
-    /* Radius base */
-    --radius: 0.5rem;
+    /* Radius base (12px = 0.75rem per Authentic Design rules) */
+    --radius: 0.75rem;
 
-    /* Sidebar - Tema claro */
-    --sidebar-background: 0 0% 100%;
+    /* Sidebar */
+    --sidebar-background: 153 60% 97%;
     --sidebar-foreground: 0 0% 40%;
-    --sidebar-primary: 153 93% 41%;
+    --sidebar-primary: 153 91% 41%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 153 65% 92%;
     --sidebar-accent-foreground: 156 94% 30%;
     --sidebar-border: 150 15% 90%;
-    --sidebar-ring: 153 93% 41%;
+    --sidebar-ring: 153 91% 41%;
   }
 
   .dark {
-    /* Design Tokens PassaGene - Dark Mode */
+    /* Design Tokens PassaGene - Dark Mode (Authentic Design) */
 
-    /* Background & Foreground */
-    --background: 160 15% 8%;
+    /* Background: #051F15 (Deep Green Black) -> 162 72% 7% */
+    --background: 162 72% 7%;
     --foreground: 150 15% 95%;
 
-    /* Cards */
-    --card: 160 15% 11%;
+    /* Cards: Slightly lighter deep green */
+    --card: 160 20% 10%;
     --card-foreground: 150 15% 95%;
 
     /* Popovers */
-    --popover: 160 15% 11%;
+    --popover: 160 20% 10%;
     --popover-foreground: 150 15% 95%;
 
-    /* Primary - Verde vibrante (mais saturado no dark) */
-    --primary: 153 93% 45%;
-    --primary-foreground: 160 15% 8%;
+    /* Primary: #09C972 */
+    --primary: 153 91% 41%;
+    --primary-foreground: 0 0% 100%;
 
-    --primary-dark: 156 94% 30%;
+    --primary-dark: 155 94% 30%;
     --primary-dark-foreground: 0 0% 100%;
 
     --primary-light: 153 65% 62%;
@@ -122,17 +125,17 @@ html.font-grande {
     /* Borders & Inputs */
     --border: 160 15% 18%;
     --input: 160 15% 18%;
-    --ring: 153 93% 45%;
+    --ring: 153 91% 41%;
 
     /* Sidebar - Dark */
-    --sidebar-background: 160 15% 6%;
+    --sidebar-background: 162 72% 6%;
     --sidebar-foreground: 150 15% 95%;
-    --sidebar-primary: 153 93% 45%;
-    --sidebar-primary-foreground: 160 15% 8%;
+    --sidebar-primary: 153 91% 41%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 160 15% 14%;
     --sidebar-accent-foreground: 150 15% 95%;
     --sidebar-border: 160 15% 14%;
-    --sidebar-ring: 153 93% 45%;
+    --sidebar-ring: 153 91% 41%;
   }
 }
 

@@ -124,13 +124,13 @@ export default function DiagnosticoSessaoDetail() {
       );
 
       // 3. Buscar fazendas das receptoras
-      const { data: viewData } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_nome_atual')
-        .in('receptora_id', receptoraIds);
+      const { data: receptorasFazendaData } = await supabase
+        .from('receptoras')
+        .select('id, fazendas!fazenda_atual_id(nome)')
+        .in('id', receptoraIds);
 
       const fazendaMap = new Map(
-        (viewData || []).map(v => [v.receptora_id, v.fazenda_nome_atual])
+        (receptorasFazendaData || []).map(v => [v.id, (v.fazendas as any)?.nome])
       );
 
       // 4. Filtrar por fazenda e montar lista

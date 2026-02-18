@@ -6,17 +6,21 @@
  *   2. Card do embrião ativo (3 imagens + votação KNN + botões classificação)
  *   3. Progresso "12/15 classificados"
  *   4. DispatchSummary quando todos classificados
+ *
+ * Fase 3: Blind Review + Hotkeys
+ *   - AI scores ficam blur até o biólogo classificar (previne viés de confirmação)
+ *   - Hotkeys: ←/→ nav, 1-7 classes, Del=Dg, Enter=confirmar
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { ClassificacaoEmbriao, EmbryoScore, DetectedBbox } from '@/lib/types';
 import { useReviewData, useSubmitClassification, useUndoClassification, useAtlasStats } from '@/hooks/useEmbryoReview';
 import { useEmbryoscoreUrl } from '@/hooks/useStorageUrl';
 import { PlatePanorama } from './PlatePanorama';
 import { EmbryoMinimap } from './EmbryoMinimap';
-import { BiologistClassButtons } from './BiologistClassButtons';
+import { BiologistClassButtons, CLASSES } from './BiologistClassButtons';
 import { DispatchSummary } from './DispatchSummary';
-import { Eye, Activity, Map, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Activity, Map, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SOURCE_LABELS: Record<string, { icon: string; text: string; color: string }> = {
   knn: { icon: '🤖', text: 'KNN', color: 'text-primary' },
@@ -38,11 +42,22 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
 
   const [activeIdx, setActiveIdx] = useState(0);
 
-  // Plate frame signed URL
-  const { data: plateFrameUrl } = useEmbryoscoreUrl(reviewData?.plateFramePath);
-
   const embrioes = reviewData?.embrioes || [];
   const bboxes = (reviewData?.queue?.detected_bboxes || []) as DetectedBbox[];
+
+  // Blind Review + hotkey states
+  const [selectedClass, setSelectedClass] = useState<ClassificacaoEmbriao | null>(null);
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  // Reset on embryo change
+  useEffect(() => {
+    setSelectedClass(null);
+    const currentEmbryo = embrioes[activeIdx];
+    setIsRevealed(!!currentEmbryo?.score?.biologist_classification);
+  }, [activeIdx, embrioes]);
+
+  // Plate frame signed URL
+  const { data: plateFrameUrl } = useEmbryoscoreUrl(reviewData?.plateFramePath);
 
   // Compute statuses for PlatePanorama
   const statuses = useMemo(() =>
@@ -69,7 +84,6 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
     if (nextIdx >= 0) {
       setActiveIdx(nextIdx);
     } else {
-      // Wrap around
       const wrapIdx = embrioes.findIndex((e) => !e.score?.biologist_classification);
       if (wrapIdx >= 0) setActiveIdx(wrapIdx);
     }
@@ -78,6 +92,7 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
   // Handlers
   const handleClassify = useCallback((classification: ClassificacaoEmbriao) => {
     if (!current || !score) return;
+    setIsRevealed(true);
     submitMutation.mutate({
       scoreId: score.id,
       embriaoId: current.id,
@@ -100,8 +115,49 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
   // Check if undo is allowed (within 5 min)
   const canUndo = useMemo(() => {
     if (!score?.biologist_classification || !score?.created_at) return false;
-    return true; // The hook checks the 5-min window server-side
+    return true;
   }, [score]);
+
+  // Keyboard hotkeys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      const isConfirmed = !!score?.biologist_classification;
+
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          setActiveIdx(prev => Math.min(embrioes.length - 1, prev + 1));
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          setActiveIdx(prev => Math.max(0, prev - 1));
+          break;
+        case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+          if (isConfirmed) break;
+          e.preventDefault();
+          setSelectedClass(CLASSES[parseInt(e.key) - 1].value);
+          break;
+        case 'Delete':
+        case 'Backspace':
+          if (isConfirmed) break;
+          e.preventDefault();
+          setSelectedClass('Dg');
+          break;
+        case 'Enter':
+          if (!selectedClass || isConfirmed) break;
+          e.preventDefault();
+          handleClassify(selectedClass);
+          setSelectedClass(null);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [embrioes.length, score?.biologist_classification, selectedClass, handleClassify]);
 
   if (isLoading) {
     return (
@@ -165,6 +221,10 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
           onNext={() => setActiveIdx(Math.min(embrioes.length - 1, activeIdx + 1))}
           hasPrev={activeIdx > 0}
           hasNext={activeIdx < embrioes.length - 1}
+          isRevealed={isRevealed}
+          onReveal={() => setIsRevealed(true)}
+          selectedClass={selectedClass}
+          onSelectClass={setSelectedClass}
         />
       )}
 
@@ -197,6 +257,10 @@ interface EmbryoDetailCardProps {
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  isRevealed: boolean;
+  onReveal: () => void;
+  selectedClass: ClassificacaoEmbriao | null;
+  onSelectClass: (cls: ClassificacaoEmbriao | null) => void;
 }
 
 function EmbryoDetailCard({
@@ -213,6 +277,10 @@ function EmbryoDetailCard({
   onNext,
   hasPrev,
   hasNext,
+  isRevealed,
+  onReveal,
+  selectedClass,
+  onSelectClass,
 }: EmbryoDetailCardProps) {
   // Signed URLs for images
   const { data: cropUrl } = useEmbryoscoreUrl(score.crop_image_path);
@@ -233,8 +301,9 @@ function EmbryoDetailCard({
         <button
           onClick={onPrev}
           disabled={!hasPrev}
-          className="p-1 rounded-md hover:bg-muted disabled:opacity-30 transition-colors"
+          className="flex items-center gap-1 p-1 rounded-md hover:bg-muted disabled:opacity-30 transition-colors"
         >
+          <kbd className="text-[9px] font-mono text-muted-foreground/50">←</kbd>
           <ChevronLeft className="w-4 h-4" />
         </button>
         <span className="text-sm font-semibold text-foreground">
@@ -243,9 +312,10 @@ function EmbryoDetailCard({
         <button
           onClick={onNext}
           disabled={!hasNext}
-          className="p-1 rounded-md hover:bg-muted disabled:opacity-30 transition-colors"
+          className="flex items-center gap-1 p-1 rounded-md hover:bg-muted disabled:opacity-30 transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
+          <kbd className="text-[9px] font-mono text-muted-foreground/50">→</kbd>
         </button>
       </div>
 
@@ -266,73 +336,7 @@ function EmbryoDetailCard({
           </div>
         </div>
 
-        {/* Source indicator */}
-        <div className={`flex items-center gap-2 text-sm ${sourceInfo.color}`}>
-          <span>{sourceInfo.icon}</span>
-          {score.combined_classification && (
-            <span className="font-mono text-2xl font-bold text-primary">
-              {score.combined_classification}
-            </span>
-          )}
-          {score.combined_confidence != null && (
-            <span className="text-xs text-muted-foreground">
-              ({score.combined_confidence}%)
-            </span>
-          )}
-          <span className="text-xs">{sourceInfo.text}</span>
-          {source === 'knn_mlp_agree' && (
-            <span className="text-xs text-primary">✓</span>
-          )}
-        </div>
-
-        {/* MLP disagree indicator */}
-        {source === 'knn_mlp_disagree' && score.mlp_classification && (
-          <div className="flex items-center gap-2 text-sm text-amber-500">
-            <span>💡</span>
-            <span className="font-mono font-bold">{score.mlp_classification}</span>
-            {score.mlp_confidence != null && (
-              <span className="text-xs text-muted-foreground">({score.mlp_confidence}%)</span>
-            )}
-          </div>
-        )}
-
-        {/* KNN vote bars */}
-        {sortedVotes.length > 0 && (
-          <div className="space-y-1.5">
-            {sortedVotes.map(([cls, count]) => {
-              const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-              return (
-                <div key={cls} className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-semibold w-6 text-foreground">{cls}</span>
-                  <div className="flex-1 h-5 bg-muted rounded-sm overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-sm transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground w-10 text-right">{pct}%</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Insufficient data note */}
-        {source === 'insufficient' && (
-          <div className="text-xs text-muted-foreground italic px-2">
-            Atlas em construção ({score.knn_real_bovine_count || 0} referências reais).
-            Classifique manualmente para treinar o sistema.
-          </div>
-        )}
-
-        {/* MLP-only note */}
-        {source === 'mlp_only' && (
-          <div className="text-xs text-muted-foreground italic px-2">
-            {score.knn_real_bovine_count || 0} referências reais no atlas — classifique manualmente para melhorar.
-          </div>
-        )}
-
-        {/* Kinetic metrics */}
+        {/* Kinetic metrics — always visible (not AI opinion) */}
         {score.kinetic_intensity != null && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 px-2 text-[11px] text-muted-foreground">
             <span>Intensidade: <b className="text-foreground">{(score.kinetic_intensity * 100).toFixed(0)}%</b></span>
@@ -348,6 +352,84 @@ function EmbryoDetailCard({
           </div>
         )}
 
+        {/* AI Score area — Blind Review (KNN + Gemini hidden until classified) */}
+        <div className="relative">
+          <div className={`space-y-3 ${isRevealed ? '' : 'blur-md opacity-40 select-none pointer-events-none'} transition-all duration-300`}>
+            {/* KNN section */}
+            {sortedVotes.length > 0 && (
+              <div className="space-y-1.5">
+                <div className={`flex items-center gap-2 text-sm ${sourceInfo.color}`}>
+                  <span>{sourceInfo.icon}</span>
+                  {score.combined_classification && (
+                    <span className="font-mono text-2xl font-bold text-primary">
+                      {score.combined_classification}
+                    </span>
+                  )}
+                  {score.combined_confidence != null && (
+                    <span className="text-xs text-muted-foreground">
+                      ({score.combined_confidence}%)
+                    </span>
+                  )}
+                  <span className="text-xs">{sourceInfo.text}</span>
+                </div>
+                {sortedVotes.map(([cls, count]) => {
+                  const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                  return (
+                    <div key={cls} className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-semibold w-6 text-foreground">{cls}</span>
+                      <div className="flex-1 h-5 bg-muted rounded-sm overflow-hidden">
+                        <div className="h-full bg-primary rounded-sm transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground w-10 text-right">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Gemini section — separate from KNN */}
+            {score.gemini_classification && (
+              <div className="pt-2 border-t border-border/30 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Gemini IA</span>
+                  <span className="font-mono text-lg font-bold text-foreground">
+                    {score.gemini_classification}
+                  </span>
+                  {score.stage_code != null && (
+                    <span className="text-[10px] text-muted-foreground">
+                      IETS {score.stage_code}/{score.quality_grade || '?'}
+                    </span>
+                  )}
+                </div>
+                {score.gemini_reasoning && (
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {score.gemini_reasoning}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Insufficient data note */}
+            {source === 'insufficient' && !score.gemini_classification && (
+              <div className="text-xs text-muted-foreground italic px-2">
+                Atlas em construção ({score.knn_real_bovine_count || 0} referências reais).
+                Classifique manualmente para treinar o sistema.
+              </div>
+            )}
+          </div>
+
+          {/* Blind Review overlay */}
+          {!isRevealed && (
+            <button
+              onClick={onReveal}
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <EyeOff className="w-5 h-5" />
+              <span className="text-xs font-medium">Classifique primeiro</span>
+            </button>
+          )}
+        </div>
+
         {/* Classification buttons */}
         <BiologistClassButtons
           aiSuggestion={score.combined_classification}
@@ -356,6 +438,8 @@ function EmbryoDetailCard({
           onUndo={onUndo}
           canUndo={canUndo}
           isLoading={isMutating}
+          selected={selectedClass}
+          onSelect={onSelectClass}
         />
       </div>
     </div>

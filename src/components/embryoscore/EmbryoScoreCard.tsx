@@ -199,9 +199,70 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
         </div>
       )}
 
+      {/* Gemini IA section — separate from biologist */}
+      {score.gemini_classification && (
+        <div className="pt-2 border-t border-border/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Eye className="w-3.5 h-3.5 text-primary/60" />
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Gemini IA</span>
+            {score.ai_confidence != null && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                Confiança: {Math.round(score.ai_confidence * 100)}%
+              </span>
+            )}
+          </div>
+
+          <div className="pl-5 space-y-2">
+            <div className="flex items-center gap-3">
+              <span className={`font-mono text-lg font-bold ${CLASS_COLORS[score.gemini_classification] || 'text-foreground'}`}>
+                {score.gemini_classification}
+              </span>
+              {score.stage_code != null && (
+                <div className="flex gap-2">
+                  <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">
+                    {STAGE_LABELS[score.stage_code] || `Estágio ${score.stage_code}`}
+                  </span>
+                  {score.quality_grade != null && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      score.quality_grade === 1 ? 'bg-green-500/10 text-green-600' :
+                      score.quality_grade === 2 ? 'bg-emerald-500/10 text-emerald-600' :
+                      score.quality_grade === 3 ? 'bg-amber-500/10 text-amber-600' :
+                      'bg-red-500/10 text-red-600'
+                    }`}>
+                      {QUALITY_LABELS[score.quality_grade] || `Grau ${score.quality_grade}`}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {score.gemini_reasoning && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {score.gemini_reasoning}
+              </p>
+            )}
+
+            {score.visual_features && (
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase">Características Visuais:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {score.visual_features.extruded_cells && <FeatureBadge label="Células Extrusas" color="amber" />}
+                  {score.visual_features.dark_cytoplasm && <FeatureBadge label="Citoplasma Escuro" color="red" />}
+                  {score.visual_features.zona_pellucida_intact === false && <FeatureBadge label="ZP Danificada" color="red" />}
+                  {score.visual_features.debris_in_zona && <FeatureBadge label="Debris na ZP" color="orange" />}
+                  {score.visual_features.shape && score.visual_features.shape !== 'spherical' && (
+                    <FeatureBadge label={`Formato: ${score.visual_features.shape}`} color="blue" />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Kinetic metrics */}
       {score.kinetic_intensity != null && (
-        <div>
+        <div className="pt-2 border-t border-border/30">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="w-3.5 h-3.5 text-primary/60" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Cinética</span>
@@ -233,6 +294,38 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
   );
 }
 
+const STAGE_LABELS: Record<number, string> = {
+  3: 'Mórula Inicial',
+  4: 'Mórula',
+  5: 'Blasto Inicial',
+  6: 'Blastocisto',
+  7: 'Blasto Expandido',
+  8: 'Blasto Eclodido',
+  9: 'Blasto Eclodido Exp.'
+};
+
+const QUALITY_LABELS: Record<number, string> = {
+  1: 'Grau 1 (Excelente)',
+  2: 'Grau 2 (Bom)',
+  3: 'Grau 3 (Regular)',
+  4: 'Grau 4 (Ruim/Morto)'
+};
+
+function FeatureBadge({ label, color }: { label: string; color: 'amber' | 'red' | 'blue' | 'orange' }) {
+  const colors = {
+    amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+    red: 'bg-red-500/10 text-red-600 border-red-500/20',
+    blue: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+    orange: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  };
+
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${colors[color]}`}>
+      {label}
+    </span>
+  );
+}
+
 function KineticMetric({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
   return (
@@ -245,43 +338,30 @@ function KineticMetric({ label, value }: { label: string; value: number }) {
 
 // ─── v1 Header (legacy Gemini) ───
 
+// ─── v1 Header (legacy Gemini) ───
+
 function V1Header({ score }: { score: EmbryoScore }) {
-  const morphColors = getScoreColor(score.morph_score ?? score.embryo_score);
-  const kineticColors = score.kinetic_score != null ? getScoreColor(score.kinetic_score) : null;
+  const scoreColors = getScoreColor(score.embryo_score);
 
   return (
     <>
       <div className="flex items-center gap-1.5 shrink-0">
-        <div className={`w-10 h-10 rounded-lg ${morphColors.bg} flex flex-col items-center justify-center`}>
-          <span className={`text-sm font-bold leading-none ${morphColors.text}`}>
-            {Math.round(score.morph_score ?? score.embryo_score)}
+        <div className={`w-10 h-10 rounded-lg ${scoreColors.bg} flex flex-col items-center justify-center`}>
+          <span className={`text-sm font-bold leading-none ${scoreColors.text}`}>
+            {Math.round(score.embryo_score)}
           </span>
-          <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Morfo</span>
+          <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Score</span>
         </div>
-        {kineticColors && score.kinetic_score != null && (
-          <div className={`w-10 h-10 rounded-lg ${kineticColors.bg} flex flex-col items-center justify-center`}>
-            <span className={`text-sm font-bold leading-none ${kineticColors.text}`}>
-              {Math.round(score.kinetic_score)}
-            </span>
-            <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Cinét</span>
-          </div>
-        )}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-semibold ${morphColors.text}`}>{score.classification}</span>
-          {score.stage && (
-            <>
-              <span className="text-muted-foreground/40">·</span>
-              <span className="text-xs text-muted-foreground truncate">{score.stage}</span>
-            </>
-          )}
+          <span className={`text-sm font-semibold ${scoreColors.text}`}>{score.classification}</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           {score.transfer_recommendation && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-              {score.transfer_recommendation}
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
+              {score.transfer_recommendation.replace('_', ' ')}
             </span>
           )}
           <span className="text-[10px] text-muted-foreground">
@@ -296,7 +376,7 @@ function V1Header({ score }: { score: EmbryoScore }) {
 
 // ─── v1 Details (legacy Gemini) ───
 
-function V1Details({ score, allScores, classificacaoManual }: { score: EmbryoScore; allScores?: EmbryoScore[]; classificacaoManual?: string }) {
+function V1Details({ score, allScores }: { score: EmbryoScore; allScores?: EmbryoScore[]; classificacaoManual?: string }) {
   return (
     <>
       {score.reasoning ? (
@@ -311,44 +391,8 @@ function V1Details({ score, allScores, classificacaoManual }: { score: EmbryoSco
         <EmbryoHighlightFrame score={score} allScores={allScores} />
       )}
 
-      {/* Morfologia */}
-      {(score.icm_grade || score.te_grade || score.zp_status) && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Eye className="w-3.5 h-3.5 text-primary/60" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Morfologia</span>
-            {score.morph_score != null && (
-              <span className="text-xs font-bold text-primary ml-auto">{Math.round(score.morph_score)}/100</span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
-            {score.stage && <DetailRow label="Estágio" value={score.stage} />}
-            {score.icm_grade && <DetailRow label="ICM" value={`${score.icm_grade}${score.icm_description ? ` — ${score.icm_description}` : ''}`} />}
-            {score.te_grade && <DetailRow label="TE" value={`${score.te_grade}${score.te_description ? ` — ${score.te_description}` : ''}`} />}
-            {score.zp_status && <DetailRow label="ZP" value={score.zp_status} />}
-            {score.fragmentation && <DetailRow label="Fragmentação" value={score.fragmentation} />}
-          </div>
-        </div>
-      )}
-
-      {/* Cinética */}
-      {(score.kinetic_score != null || score.global_motion) && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-3.5 h-3.5 text-primary/60" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Cinética</span>
-            {score.kinetic_score != null && (
-              <span className="text-xs font-bold text-primary ml-auto">{Math.round(score.kinetic_score)}/100</span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
-            {score.global_motion && <DetailRow label="Padrão" value={score.global_motion} />}
-            {score.icm_activity && <DetailRow label="MCI" value={score.icm_activity} />}
-            {score.te_activity && <DetailRow label="TE" value={score.te_activity} />}
-            {score.stability && <DetailRow label="Estabilidade" value={score.stability} />}
-          </div>
-        </div>
-      )}
+      {/* Legacy Morfologia/Cinética removed as columns were dropped from DB. 
+          Use V2/V3 for detailed analysis. */}
 
       {/* Meta */}
       {score.model_used && (

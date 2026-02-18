@@ -36,7 +36,7 @@ export interface UseTransferenciaHandlersProps {
   setShowRelatorioDialog: React.Dispatch<React.SetStateAction<boolean>>;
   setIsVisualizacaoApenas: React.Dispatch<React.SetStateAction<boolean>>;
   resetFiltros: () => void;
-  loadPacotes: () => Promise<void>;
+  loadPacotes: () => Promise<any>;
   loadEmbrioesCongelados: () => Promise<void>;
   recarregarReceptoras: (fazendaId: string, sessaoOverride?: { contagem: Record<string, number>; info: Record<string, ReceptoraSincronizada> }) => Promise<void>;
   encerrarSessaoNoBanco: (fazendaId?: string) => Promise<void>;
@@ -207,7 +207,7 @@ export function useTransferenciaHandlers({
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const requerPacote = origemEmbriao === 'PACOTE';
+    const requerPacote = origemEmbriao === 'FRESCO';
 
     if (!formData.embriao_id) {
       toast({

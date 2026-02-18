@@ -339,23 +339,23 @@ export interface Touro {
   nome: string;
   raca?: string;
   data_nascimento?: string;
-  
+
   // Proprietário e fazenda
   proprietario?: string;
   fazenda_nome?: string;
-  
+
   // Pedigree
   pai_registro?: string;
   pai_nome?: string;
   mae_registro?: string;
   mae_nome?: string;
   genealogia_texto?: string;
-  
+
   // Links e mídia
   link_catalogo?: string;
   foto_url?: string;
   link_video?: string;
-  
+
   // Campos dinâmicos (JSONB)
   dados_geneticos?: DadosGeneticosHolandesa | DadosGeneticosNelore | DadosGeneticosGirolando | Record<string, unknown>;
   dados_producao?: DadosProducaoHolandesa | DadosProducaoGirolando | Record<string, unknown>;
@@ -364,7 +364,7 @@ export interface Touro {
   dados_saude_reproducao?: DadosSaudeReproducaoHolandesa | Record<string, unknown>;
   caseinas?: Caseinas;
   outros_dados?: OutrosDados;
-  
+
   // Outros
   observacoes?: string;
   disponivel?: boolean;
@@ -433,6 +433,9 @@ export interface Embriao {
   estrela?: boolean; // Embrião top/excelente (marcado com estrela pela bióloga)
   created_at?: string;
   updated_at?: string;
+  embryo_analysis_queue?: {
+    plate_frame_path?: string | null;
+  } | null;
 }
 
 export interface AcasalamentoEmbrioesMedia {
@@ -466,20 +469,17 @@ export interface EmbryoScore {
   transfer_recommendation: 'priority' | 'recommended' | 'conditional' | 'second_opinion' | 'discard';
   confidence: 'high' | 'medium' | 'low';
   reasoning?: string;
+  gemini_classification?: string | null;
+  gemini_reasoning?: string | null;
+  kinetic_assessment?: string | null;
 
-  // Morfologia
-  morph_score?: number;
-  stage?: string;
-  icm_grade?: 'A' | 'B' | 'C';
+  // Morfologia (Legacy fields removed)
   icm_description?: string;
-  te_grade?: 'A' | 'B' | 'C';
   te_description?: string;
   zp_status?: string;
   fragmentation?: string;
-  morph_notes?: string;
 
-  // Cinética
-  kinetic_score?: number;
+  // Cinética (Legacy fields removed)
   global_motion?: string;
   icm_activity?: string;
   te_activity?: string;
@@ -489,7 +489,6 @@ export interface EmbryoScore {
   stability?: string;
   motion_asymmetry?: string;
   most_active_region?: string;
-  kinetic_notes?: string;
   viability_indicators?: string[];
 
   // Posição no vídeo
@@ -586,6 +585,19 @@ export interface EmbryoScore {
   combined_source?: 'knn' | 'knn_mlp_agree' | 'knn_mlp_disagree' | 'mlp_only' | 'insufficient' | null;
   combined_classification?: string | null;
   combined_confidence?: number | null;
+
+  // v2.1: IETS Grading (Gemini VLM)
+  stage_code?: number | null;
+  quality_grade?: number | null;
+  visual_features?: {
+    extruded_cells?: boolean;
+    dark_cytoplasm?: boolean;
+    zona_pellucida_intact?: boolean;
+    debris_in_zona?: boolean;
+    shape?: 'spherical' | 'oval' | 'irregular';
+    [key: string]: any;
+  } | null;
+  ai_confidence?: number | null;
 
   created_at?: string;
 }

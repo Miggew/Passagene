@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { FileText } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { RelatorioTransferenciaItem } from '@/lib/types/transferenciaEmbrioes';
 
 interface RelatorioTransferenciaDialogProps {

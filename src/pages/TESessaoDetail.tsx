@@ -127,12 +127,12 @@ export default function TESessaoDetail() {
       const receptoraIds = [...new Set(transferenciasData.map(t => t.receptora_id).filter(Boolean))];
 
       const { data: viewData } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_nome_atual')
-        .in('receptora_id', receptoraIds);
+        .from('receptoras')
+        .select('id, fazendas!fazenda_atual_id(nome)')
+        .in('id', receptoraIds);
 
       const fazendaMap = new Map(
-        (viewData || []).map(v => [v.receptora_id, v.fazenda_nome_atual])
+        (viewData || []).map(v => [v.id, (v.fazendas as any)?.nome])
       );
 
       // 3. Buscar dados de protocolo_receptoras para ciclando e qualidade
@@ -183,17 +183,20 @@ export default function TESessaoDetail() {
         })
         .map(te => {
           const acasalamentoId = embriaoAcasalamentoMap.get(te.embriao_id);
+          const receptora = Array.isArray(te.receptoras) ? te.receptoras[0] : te.receptoras;
+          const embriao = Array.isArray(te.embrioes) ? te.embrioes[0] : te.embrioes;
+
           return {
             id: te.id,
             receptora_id: te.receptora_id,
-            receptora_brinco: te.receptoras?.identificacao || '-',
-            receptora_nome: te.receptoras?.nome,
+            receptora_brinco: receptora?.identificacao || '-',
+            receptora_nome: receptora?.nome,
             ciclando_classificacao: ciclandoMap.get(te.receptora_id) || null,
             qualidade_semaforo: qualidadeMap.get(te.receptora_id) || null,
-            embriao_identificacao: te.embrioes?.identificacao,
+            embriao_identificacao: embriao?.identificacao,
             doadora_registro: acasalamentoId ? doadorasMap.get(acasalamentoId) : undefined,
             touro_nome: acasalamentoId ? tourosMap.get(acasalamentoId) : undefined,
-            classificacao: te.embrioes?.classificacao,
+            classificacao: embriao?.classificacao,
             tipo_te: te.tipo_te,
             observacoes: te.observacoes,
           };

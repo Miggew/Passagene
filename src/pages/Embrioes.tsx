@@ -13,6 +13,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 // Hooks
 import {
@@ -252,7 +253,7 @@ export default function Embrioes() {
     }
 
     try {
-      const dataClassificacao = new Date().toISOString().split('T')[0];
+      const dataClassificacao = getTodayDateString();
       const embrioesPendentes = pacote.embrioes.filter((embriao) => {
         const classificacaoAtual = getClassificacaoAtual(embriao);
         return classificacaoAtual && classificacaoAtual !== (embriao.classificacao || '').trim();
@@ -390,7 +391,7 @@ export default function Embrioes() {
                 }
                 setEmbrioesSelecionados(new Set([embriao.id]));
                 setCongelarData({
-                  data_congelamento: new Date().toISOString().split('T')[0],
+                  data_congelamento: getTodayDateString(),
                   localizacao_atual: '',
                   cliente_id: '',
                 });
@@ -399,7 +400,7 @@ export default function Embrioes() {
               onDescartar={(embriao) => {
                 setEmbrioesSelecionados(new Set([embriao.id]));
                 setDescartarData({
-                  data_descarte: new Date().toISOString().split('T')[0],
+                  data_descarte: getTodayDateString(),
                   observacoes: '',
                 });
                 setShowDescartarDialog(true);
@@ -466,7 +467,7 @@ export default function Embrioes() {
             }
 
             setCongelarData({
-              data_congelamento: new Date().toISOString().split('T')[0],
+              data_congelamento: getTodayDateString(),
               localizacao_atual: '',
               cliente_id: '',
             });
@@ -474,7 +475,7 @@ export default function Embrioes() {
           }}
           onDescartar={() => {
             setDescartarData({
-              data_descarte: new Date().toISOString().split('T')[0],
+              data_descarte: getTodayDateString(),
               observacoes: '',
             });
             setShowDescartarDialog(true);

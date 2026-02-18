@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users,
-  Home,
+  Home as HomeIcon,
   Baby,
   Activity,
   UserCheck,
@@ -26,7 +26,7 @@ interface KPIData {
   lotesAbertos: number;
 }
 
-export function HomeDashboardAdmin() {
+export default function HomeDashboardAdmin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KPIData>({
@@ -107,7 +107,7 @@ export function HomeDashboardAdmin() {
 
   const kpiCards = [
     { label: 'Clientes', value: kpis.totalClientes, icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { label: 'Fazendas', value: kpis.totalFazendas, icon: Home, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { label: 'Fazendas', value: kpis.totalFazendas, icon: HomeIcon, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     { label: 'Usuários', value: `${kpis.usuariosAtivos}/${kpis.totalUsuarios}`, icon: UserCheck, color: 'text-violet-500', bg: 'bg-violet-500/10' },
     { label: 'Receptoras', value: kpis.totalReceptoras, icon: Activity, color: 'text-pink-500', bg: 'bg-pink-500/10' },
     { label: 'Doadoras', value: kpis.totalDoadoras, icon: Activity, color: 'text-amber-500', bg: 'bg-amber-500/10' },

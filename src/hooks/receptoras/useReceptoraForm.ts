@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Receptora } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 export interface ReceptoraFormData {
   identificacao: string;
@@ -110,13 +111,13 @@ export function useReceptoraForm({ selectedFazendaId, onSuccess }: UseReceptoraF
 
       // Check for duplicates
       const { data: receptorasView, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', selectedFazendaId);
+        .from('receptoras')
+        .select('id')
+        .eq('fazenda_atual_id', selectedFazendaId);
 
       if (viewError) throw viewError;
 
-      const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+      const receptoraIds = receptorasView?.map(r => r.id) || [];
 
       if (receptoraIds.length > 0) {
         const { data: receptorasComBrinco, error: brincoError } = await supabase
@@ -175,7 +176,7 @@ export function useReceptoraForm({ selectedFazendaId, onSuccess }: UseReceptoraF
         .insert([{
           receptora_id: novaReceptora.id,
           fazenda_id: selectedFazendaId,
-          data_inicio: new Date().toISOString().split('T')[0],
+          data_inicio: getTodayDateString(),
           data_fim: null,
         }]);
 

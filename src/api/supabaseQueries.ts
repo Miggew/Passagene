@@ -104,8 +104,8 @@ export async function fetchDoadorasByFazendaId(fazendaId: string): Promise<Doado
     const aspiracoes = doadora.aspiracoes_doadoras || [];
     const ultimaAspiracao = aspiracoes.length > 0
       ? aspiracoes.sort((a: any, b: any) =>
-          new Date(b.data_aspiracao).getTime() - new Date(a.data_aspiracao).getTime()
-        )[0]
+        new Date(b.data_aspiracao).getTime() - new Date(a.data_aspiracao).getTime()
+      )[0]
       : null;
 
     const { aspiracoes_doadoras, ...doadoraSemAspiracoes } = doadora;
@@ -134,8 +134,8 @@ export async function fetchDoadoraById(id: string): Promise<Doadora | null> {
 // ============================================
 
 export interface ReceptoraView {
-  receptora_id: string;
-  fazenda_id_atual: string;
+  id: string; // Changed from receptora_id
+  fazenda_atual_id: string; // Changed from fazenda_id_atual
   fazenda_nome_atual?: string;
   cliente_id?: string;
 }
@@ -154,12 +154,20 @@ export interface ReceptoraComStatus {
 
 export async function fetchReceptorasViewByFazenda(fazendaId: string): Promise<ReceptoraView[]> {
   const { data, error } = await supabase
-    .from('vw_receptoras_fazenda_atual')
-    .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-    .eq('fazenda_id_atual', fazendaId);
+    .from('receptoras')
+    .select('id, fazendas!fazenda_atual_id(id, nome)')
+    .eq('fazenda_atual_id', fazendaId);
 
   if (error) throw error;
-  return data || [];
+
+  return (data || []).map(r => {
+    const fazenda = Array.isArray(r.fazendas) ? r.fazendas[0] : r.fazendas;
+    return {
+      id: r.id,
+      fazenda_atual_id: fazenda?.id,
+      fazenda_nome_atual: fazenda?.nome
+    };
+  }) as any;
 }
 
 export async function fetchReceptorasByIds(ids: string[]) {
@@ -181,15 +189,15 @@ export async function fetchReceptorasByIds(ids: string[]) {
  * - Busca dados completos + diagnósticos em uma query
  */
 export async function fetchReceptorasComStatusByFazenda(fazendaId: string): Promise<ReceptoraComStatus[]> {
-  // 1. Busca IDs da view
+  // 1. Busca IDs e nomes
   const { data: viewData, error: viewError } = await supabase
-    .from('vw_receptoras_fazenda_atual')
-    .select('receptora_id, fazenda_nome_atual')
-    .eq('fazenda_id_atual', fazendaId);
+    .from('receptoras')
+    .select('id, fazendas!fazenda_atual_id(nome)')
+    .eq('fazenda_atual_id', fazendaId);
 
   if (viewError) throw viewError;
 
-  const receptoraIds = viewData?.map(v => v.receptora_id) || [];
+  const receptoraIds = viewData?.map(v => v.id) || [];
   if (receptoraIds.length === 0) return [];
 
   // 2. Busca dados completos das receptoras
@@ -202,7 +210,10 @@ export async function fetchReceptorasComStatusByFazenda(fazendaId: string): Prom
   if (receptorasError) throw receptorasError;
 
   // Map fazenda_nome_atual
-  const fazendaMap = new Map(viewData?.map(v => [v.receptora_id, v.fazenda_nome_atual]) || []);
+  const fazendaMap = new Map(viewData?.map(v => {
+    const fazenda = Array.isArray(v.fazendas) ? v.fazendas[0] : v.fazendas;
+    return [v.id, fazenda?.nome];
+  }) || []);
 
   // Create receptoras with status
   const receptorasComStatus: ReceptoraComStatus[] = (receptorasData || []).map(r => ({

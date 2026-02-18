@@ -8,7 +8,7 @@ import { Fazenda, Doadora, Cliente } from '@/lib/types';
 import { LoteFIVComNomes, PacoteComNomes } from '@/lib/types/lotesFiv';
 import { handleError } from '@/lib/error-handler';
 import { useToast } from '@/hooks/use-toast';
-import { extractDateOnly, diffDays, getTodayDateString } from '@/lib/utils';
+import { extractDateOnly, diffDays, todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 export interface UseLotesFIVListDataReturn {
   lotes: LoteFIVComNomes[];

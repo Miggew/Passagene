@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Check, ChevronsUpDown, X } from 'lucide-react';
 import { formatDate, cn } from '@/lib/utils';
+import { addDays } from '@/lib/dateUtils';
 
 interface NovoLoteDialogProps {
   pacotes: PacoteComNomes[];
@@ -159,9 +160,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
       }
 
       // Calcular data_abertura = data do pacote + 1 dia
-      const dataPacote = new Date(selectedPacote.data_aspiracao);
-      dataPacote.setDate(dataPacote.getDate() + 1);
-      const dataAbertura = dataPacote.toISOString().split('T')[0];
+      const dataAbertura = addDays(selectedPacote.data_aspiracao, 1);
 
       // Preparar dados do lote
       const loteDataToInsert: {
@@ -342,9 +341,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                 <p>
                   <strong>Data de Fecundação do Lote:</strong>{' '}
                   {(() => {
-                    const dataPacote = new Date(selectedPacote.data_aspiracao);
-                    dataPacote.setDate(dataPacote.getDate() + 1);
-                    return formatDate(dataPacote.toISOString().split('T')[0]);
+                    return formatDate(addDays(selectedPacote.data_aspiracao, 1));
                   })()}
                 </p>
                 <p>

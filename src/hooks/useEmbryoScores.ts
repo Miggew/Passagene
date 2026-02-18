@@ -291,11 +291,16 @@ export function useRetryAnalysis() {
       if (updateError) throw updateError;
 
       // Invocar a Edge Function para processar
-      const { error: fnError } = await supabase.functions.invoke('embryo-analyze', {
+      const { data, error: fnError } = await supabase.functions.invoke('embryo-analyze', {
         body: { queue_id: queueId },
       });
 
-      if (fnError) throw fnError;
+      if (fnError) {
+        console.error('EmbryoScore: Erro na função embryo-analyze (Retry):', fnError);
+        throw fnError;
+      }
+
+      console.log('EmbryoScore: Retry iniciado:', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embryo-analysis-status'] });

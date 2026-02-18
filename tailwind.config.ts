@@ -18,7 +18,7 @@ export default {
       // Tipografia dos design tokens
       fontFamily: {
         sans: ["Manrope", "system-ui", "sans-serif"],
-        heading: ["Outfit", "Plus Jakarta Sans", "sans-serif"],
+        heading: ["Outfit", "Plus Jakarta Sans", "sans-serif"], // Outfit adicionada como principal
         mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
@@ -85,15 +85,16 @@ export default {
           "neutral-100": "#F7FAF9",
         },
       },
-      // Border radius dos design tokens
+      // Border radius dos design tokens (Atualizado: Organic/Rounded)
       borderRadius: {
         none: "0",
-        sm: "4px",
-        DEFAULT: "8px",
-        md: "8px",
-        lg: "12px",
-        xl: "16px",
-        "2xl": "20px",
+        sm: "calc(var(--radius) - 4px)", // 8px
+        DEFAULT: "calc(var(--radius))",   // 12px
+        md: "calc(var(--radius))",        // 12px
+        lg: "calc(var(--radius) + 4px)",  // 16px
+        xl: "calc(var(--radius) + 8px)",  // 20px
+        "2xl": "calc(var(--radius) + 12px)", // 24px - Super arredondado para Cards
+        "3xl": "calc(var(--radius) + 20px)", // 32px
         full: "9999px",
       },
       // Sombras suaves com tom verde (cores reais da logo)

@@ -107,11 +107,11 @@ async function fetchClienteHubData(clienteId: string): Promise<ClienteHubData> {
     dosesResult,
     embrioesResult,
   ] = await Promise.all([
-    // Receptoras via view
+    // Receptoras ativas (filter by fazendaIds instead of cliente_id on view)
     supabase
-      .from('vw_receptoras_fazenda_atual')
-      .select('receptora_id, fazenda_id_atual')
-      .eq('cliente_id', clienteId),
+      .from('receptoras')
+      .select('id, fazenda_atual_id')
+      .in('fazenda_atual_id', fazendaIds),
     // Doadoras
     supabase
       .from('doadoras')
@@ -134,9 +134,9 @@ async function fetchClienteHubData(clienteId: string): Promise<ClienteHubData> {
 
   // Processar receptoras
   const receptorasView = receptorasViewResult.data || [];
-  const receptoraIds = receptorasView.map(r => r.receptora_id);
+  const receptoraIds = receptorasView.map(r => r.id);
   const receptoraFazendaMap = new Map(
-    receptorasView.map(r => [r.receptora_id, r.fazenda_id_atual])
+    receptorasView.map(r => [r.id, r.fazenda_atual_id]).filter((entry): entry is [string, string] => !!entry[1])
   );
 
   // Buscar detalhes das receptoras se houver

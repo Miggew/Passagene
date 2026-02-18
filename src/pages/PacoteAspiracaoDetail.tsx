@@ -38,7 +38,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import CountBadge from '@/components/shared/CountBadge';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { DataTable } from '@/components/shared/DataTable';
 import { ArrowLeft, Plus, Lock, Edit } from 'lucide-react';
 

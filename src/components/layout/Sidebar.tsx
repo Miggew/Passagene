@@ -14,6 +14,8 @@ import {
   ClipboardList,
   TrendingUp,
   Brain,
+  FlaskConical,
+  Microscope,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
@@ -41,12 +43,15 @@ const routeIcons: Record<string, React.ElementType> = {
   '/relatorios/animais': DonorCowIcon,
   '/relatorios/material': EmbryoIcon,
   '/relatorios/producao': TrendingUp,
+  '/laboratorio': FlaskConical,
+  '/bancada': Microscope,
 };
 
 // Labels das rotas
 const routeLabels: Record<string, string> = {
   '/administrativo': 'Painel Admin',
   '/embryoscore': 'EmbryoScore IA',
+  '/bancada': 'Bancada',
   '/doadoras': 'Doadoras',
   '/touros': 'Catálogo de Touros',
   '/lotes-fiv': 'Lotes FIV',
@@ -64,6 +69,7 @@ const routeLabels: Record<string, string> = {
   '/relatorios/animais': 'Animais',
   '/relatorios/material': 'Material Genético',
   '/relatorios/producao': 'Produção',
+  '/laboratorio': 'Visão Geral',
 };
 
 export default function Sidebar() {
@@ -101,27 +107,38 @@ export default function Sidebar() {
 
       {/* Menu de navegação do hub */}
       <nav className="flex-1 p-3 space-y-1">
-        {currentHub.routes.map((route) => {
-          const Icon = routeIcons[route] || Home;
-          const label = routeLabels[route] || route;
-          const isActive = isRouteActive(route);
+        {(() => {
+          const routes = [...currentHub.routes];
+          // HACK: Force add Bancada to Admin/Lab hubs if not present
+          if (
+            (currentHub.code === 'administrativo' || currentHub.code === 'laboratorio') &&
+            !routes.includes('/bancada')
+          ) {
+            routes.push('/bancada');
+          }
 
-          return (
-            <Link
-              key={route}
-              to={route}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
-                isActive
-                  ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary -ml-px pl-[11px]'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              <Icon className={cn('w-5 h-5', isActive ? 'text-primary' : '')} />
-              <span className="text-sm">{label}</span>
-            </Link>
-          );
-        })}
+          return routes.map((route) => {
+            const Icon = routeIcons[route] || Home;
+            const label = routeLabels[route] || route;
+            const isActive = isRouteActive(route);
+
+            return (
+              <Link
+                key={route}
+                to={route}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary -ml-px pl-[11px]'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className={cn('w-5 h-5', isActive ? 'text-primary' : '')} />
+                <span className="text-sm">{label}</span>
+              </Link>
+            );
+          })
+        })()}
       </nav>
     </aside>
   );

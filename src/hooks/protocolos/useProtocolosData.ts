@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { ProtocoloSincronizacao, Fazenda } from '@/lib/types';
 import { handleError } from '@/lib/error-handler';
+import { todayISO as getTodayDateString, addDays } from '@/lib/dateUtils';
 
 export interface ProtocoloWithFazenda extends ProtocoloSincronizacao {
   fazenda_nome: string;
@@ -29,7 +30,7 @@ export interface ProtocolosFiltros {
 const PROTOCOLOS_FILTROS_KEY = 'protocolos_filtros';
 const PROTOCOLOS_PAGE_SIZE = 50;
 
-interface ProtocolosFiltrosPersistidos extends ProtocolosFiltros {
+interface ProtocolosFiltrosPersistidos extends Partial<ProtocolosFiltros> {
   protocolosPage?: number;
 }
 
@@ -282,11 +283,9 @@ export function useProtocolosData(): UseProtocolosDataReturn {
 
   // Apply date shortcut
   const aplicarAtalhoData = useCallback((dias: number) => {
-    const hoje = new Date();
-    const dataPassada = new Date(hoje);
-    dataPassada.setDate(hoje.getDate() - dias);
-    setFiltroDataInicio(dataPassada.toISOString().split('T')[0]);
-    setFiltroDataFim(hoje.toISOString().split('T')[0]);
+    const hoje = getTodayDateString();
+    setFiltroDataFim(hoje);
+    setFiltroDataInicio(addDays(hoje, -dias));
   }, []);
 
   return {

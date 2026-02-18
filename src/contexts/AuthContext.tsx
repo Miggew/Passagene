@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Se não encontrou pelo ID, tenta buscar pelo email (perfil criado por admin)
       if (!profile && userEmail) {
-        console.log('[Auth] Buscando perfil pelo email:', userEmail.toLowerCase());
+
 
         const { data: profileByEmail } = await supabase
           .from('user_profiles')
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
 
         if (profileByEmail) {
-          console.log('[Auth] Perfil encontrado pelo email:', profileByEmail);
+
           // Usa o perfil encontrado pelo email (sem tentar atualizar o ID)
           profile = profileByEmail;
         }
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Se ainda não existe perfil, o usuário precisa ser cadastrado por um admin
       if (!profile) {
-        console.log('[Auth] Nenhum perfil encontrado para:', userEmail);
+
         // Não cria automaticamente - admin precisa criar o perfil primeiro
         return null;
       }

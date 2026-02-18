@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { format } from 'date-fns';
+import { todayISO as getTodayDateString, addDays } from '@/lib/dateUtils';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Users,
@@ -89,7 +90,7 @@ export default function RelatoriosHome() {
         fazendaIds = fazendas?.map(f => f.id) ?? [];
       }
 
-      const dataLimite = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const dataLimite = addDays(getTodayDateString(), -30);
 
       // Queries em paralelo
       const [
@@ -103,68 +104,68 @@ export default function RelatoriosHome() {
         // Protocolos dos últimos 30 dias
         clienteIdFilter && fazendaIds.length > 0
           ? supabase
-              .from('protocolos_sincronizacao')
-              .select('id', { count: 'exact', head: true })
-              .in('fazenda_id', fazendaIds)
-              .gte('data_inicio', dataLimite)
+            .from('protocolos_sincronizacao')
+            .select('id', { count: 'exact', head: true })
+            .in('fazenda_id', fazendaIds)
+            .gte('data_inicio', dataLimite)
           : supabase
-              .from('protocolos_sincronizacao')
-              .select('id', { count: 'exact', head: true })
-              .gte('data_inicio', dataLimite),
+            .from('protocolos_sincronizacao')
+            .select('id', { count: 'exact', head: true })
+            .gte('data_inicio', dataLimite),
 
         // Aspirações dos últimos 30 dias
         clienteIdFilter && fazendaIds.length > 0
           ? supabase
-              .from('pacotes_aspiracao')
-              .select('id', { count: 'exact', head: true })
-              .in('fazenda_id', fazendaIds)
-              .gte('data_aspiracao', dataLimite)
+            .from('pacotes_aspiracao')
+            .select('id', { count: 'exact', head: true })
+            .in('fazenda_id', fazendaIds)
+            .gte('data_aspiracao', dataLimite)
           : supabase
-              .from('pacotes_aspiracao')
-              .select('id', { count: 'exact', head: true })
-              .gte('data_aspiracao', dataLimite),
+            .from('pacotes_aspiracao')
+            .select('id', { count: 'exact', head: true })
+            .gte('data_aspiracao', dataLimite),
 
         // Total de receptoras
         clienteIdFilter && fazendaIds.length > 0
           ? supabase
-              .from('vw_receptoras_fazenda_atual')
-              .select('receptora_id', { count: 'exact', head: true })
-              .in('fazenda_id_atual', fazendaIds)
+            .from('receptoras')
+            .select('id', { count: 'exact', head: true })
+            .in('fazenda_atual_id', fazendaIds)
           : supabase
-              .from('receptoras')
-              .select('id', { count: 'exact', head: true }),
+            .from('receptoras')
+            .select('id', { count: 'exact', head: true }),
 
         // Total de doadoras
         clienteIdFilter && fazendaIds.length > 0
           ? supabase
-              .from('doadoras')
-              .select('id', { count: 'exact', head: true })
-              .in('fazenda_id', fazendaIds)
+            .from('doadoras')
+            .select('id', { count: 'exact', head: true })
+            .in('fazenda_id', fazendaIds)
           : supabase
-              .from('doadoras')
-              .select('id', { count: 'exact', head: true }),
+            .from('doadoras')
+            .select('id', { count: 'exact', head: true }),
 
         // Total de embriões congelados
         clienteIdFilter
           ? supabase
-              .from('embrioes')
-              .select('id', { count: 'exact', head: true })
-              .eq('status_atual', 'CONGELADO')
-              .eq('cliente_id', clienteIdFilter)
+            .from('embrioes')
+            .select('id', { count: 'exact', head: true })
+            .eq('status_atual', 'CONGELADO')
+            .eq('cliente_id', clienteIdFilter)
           : supabase
-              .from('embrioes')
-              .select('id', { count: 'exact', head: true })
-              .eq('status_atual', 'CONGELADO'),
+            .from('embrioes')
+            .select('id', { count: 'exact', head: true })
+            .eq('status_atual', 'CONGELADO'),
 
         // Total de doses de sêmen
         clienteIdFilter
           ? supabase
-              .from('doses_semen')
-              .select('id', { count: 'exact', head: true })
-              .eq('cliente_id', clienteIdFilter)
+            .from('doses_semen')
+            .select('id', { count: 'exact', head: true })
+            .eq('cliente_id', clienteIdFilter)
           : supabase
-              .from('doses_semen')
-              .select('id', { count: 'exact', head: true }),
+            .from('doses_semen')
+            .select('id', { count: 'exact', head: true }),
       ]);
 
       setStats({
