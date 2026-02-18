@@ -936,10 +936,12 @@ export type Database = {
           crop_paths: Json | null
           detected_bboxes: Json | null
           detection_confidence: string | null
+          error_log: string | null
           error_message: string | null
           expected_count: number | null
           id: string
           lote_fiv_acasalamento_id: string
+          manual_bboxes: Json | null
           media_id: string
           plate_frame_path: string | null
           retry_count: number | null
@@ -952,10 +954,12 @@ export type Database = {
           crop_paths?: Json | null
           detected_bboxes?: Json | null
           detection_confidence?: string | null
+          error_log?: string | null
           error_message?: string | null
           expected_count?: number | null
           id?: string
           lote_fiv_acasalamento_id: string
+          manual_bboxes?: Json | null
           media_id: string
           plate_frame_path?: string | null
           retry_count?: number | null
@@ -968,10 +972,12 @@ export type Database = {
           crop_paths?: Json | null
           detected_bboxes?: Json | null
           detection_confidence?: string | null
+          error_log?: string | null
           error_message?: string | null
           expected_count?: number | null
           id?: string
           lote_fiv_acasalamento_id?: string
+          manual_bboxes?: Json | null
           media_id?: string
           plate_frame_path?: string | null
           retry_count?: number | null
@@ -1093,14 +1099,14 @@ export type Database = {
           {
             foreignKeyName: "embryo_references_embriao_id_fkey"
             columns: ["embriao_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "embrioes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "embryo_references_embriao_id_fkey"
             columns: ["embriao_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_embrioes_disponiveis_te"
             referencedColumns: ["embriao_id"]
           },
@@ -1179,6 +1185,7 @@ export type Database = {
       embryo_scores: {
         Row: {
           activity_score: number | null
+          ai_confidence: number | null
           analysis_version: number | null
           bbox_height_percent: number | null
           bbox_width_percent: number | null
@@ -1201,34 +1208,38 @@ export type Database = {
           confidence: string
           created_at: string
           crop_image_path: string | null
+          detection_method: string | null
           embedding: string | null
           embriao_id: string
           embryo_score: number
           expansion_observed: boolean | null
           fragmentation: string | null
+          gemini_classification: string | null
+          gemini_reasoning: string | null
           global_motion: string | null
           icm_activity: string | null
           icm_description: string | null
-
           id: string
           is_current: boolean | null
+          is_ground_truth: boolean | null
           kinetic_bg_noise: number | null
           kinetic_harmony: number | null
           kinetic_intensity: number | null
-
           kinetic_stability: number | null
           kinetic_symmetry: number | null
-
+          kinetic_weight: number | null
           knn_classification: string | null
           knn_confidence: number | null
           knn_neighbor_ids: string[] | null
           knn_real_bovine_count: number | null
           knn_votes: Json | null
+          manual_grade_override: string | null
           media_id: string | null
           mlp_classification: string | null
           mlp_confidence: number | null
           mlp_probabilities: Json | null
           model_used: string | null
+          morph_weight: number | null
           most_active_region: string | null
           motion_asymmetry: string | null
           motion_map_path: string | null
@@ -1236,17 +1247,23 @@ export type Database = {
           processing_time_ms: number | null
           prompt_version: string | null
           quality_checklist: Json | null
+          quality_grade: number | null
           raw_response: Json | null
           reasoning: string | null
           stability: string | null
+          stage_code: number | null
+          te_activity: string | null
+          te_description: string | null
           temporal_analysis: Json | null
           transfer_recommendation: string
           viability_indicators: Json | null
           viability_prediction: Json | null
+          visual_features: Json | null
           zp_status: string | null
         }
         Insert: {
           activity_score?: number | null
+          ai_confidence?: number | null
           analysis_version?: number | null
           bbox_height_percent?: number | null
           bbox_width_percent?: number | null
@@ -1269,33 +1286,38 @@ export type Database = {
           confidence?: string
           created_at?: string
           crop_image_path?: string | null
+          detection_method?: string | null
           embedding?: string | null
           embriao_id: string
           embryo_score: number
           expansion_observed?: boolean | null
           fragmentation?: string | null
+          gemini_classification?: string | null
+          gemini_reasoning?: string | null
           global_motion?: string | null
           icm_activity?: string | null
-
+          icm_description?: string | null
           id?: string
           is_current?: boolean | null
+          is_ground_truth?: boolean | null
           kinetic_bg_noise?: number | null
           kinetic_harmony?: number | null
           kinetic_intensity?: number | null
           kinetic_stability?: number | null
           kinetic_symmetry?: number | null
-
+          kinetic_weight?: number | null
           knn_classification?: string | null
           knn_confidence?: number | null
           knn_neighbor_ids?: string[] | null
           knn_real_bovine_count?: number | null
           knn_votes?: Json | null
+          manual_grade_override?: string | null
           media_id?: string | null
           mlp_classification?: string | null
           mlp_confidence?: number | null
           mlp_probabilities?: Json | null
           model_used?: string | null
-
+          morph_weight?: number | null
           most_active_region?: string | null
           motion_asymmetry?: string | null
           motion_map_path?: string | null
@@ -1303,19 +1325,23 @@ export type Database = {
           processing_time_ms?: number | null
           prompt_version?: string | null
           quality_checklist?: Json | null
+          quality_grade?: number | null
           raw_response?: Json | null
           reasoning?: string | null
           stability?: string | null
-
+          stage_code?: number | null
+          te_activity?: string | null
           te_description?: string | null
           temporal_analysis?: Json | null
           transfer_recommendation: string
           viability_indicators?: Json | null
           viability_prediction?: Json | null
+          visual_features?: Json | null
           zp_status?: string | null
         }
         Update: {
           activity_score?: number | null
+          ai_confidence?: number | null
           analysis_version?: number | null
           bbox_height_percent?: number | null
           bbox_width_percent?: number | null
@@ -1338,33 +1364,38 @@ export type Database = {
           confidence?: string
           created_at?: string
           crop_image_path?: string | null
+          detection_method?: string | null
           embedding?: string | null
           embriao_id?: string
           embryo_score?: number
           expansion_observed?: boolean | null
           fragmentation?: string | null
+          gemini_classification?: string | null
+          gemini_reasoning?: string | null
           global_motion?: string | null
           icm_activity?: string | null
-
+          icm_description?: string | null
           id?: string
           is_current?: boolean | null
+          is_ground_truth?: boolean | null
           kinetic_bg_noise?: number | null
           kinetic_harmony?: number | null
           kinetic_intensity?: number | null
           kinetic_stability?: number | null
           kinetic_symmetry?: number | null
-
+          kinetic_weight?: number | null
           knn_classification?: string | null
           knn_confidence?: number | null
           knn_neighbor_ids?: string[] | null
           knn_real_bovine_count?: number | null
           knn_votes?: Json | null
+          manual_grade_override?: string | null
           media_id?: string | null
           mlp_classification?: string | null
           mlp_confidence?: number | null
           mlp_probabilities?: Json | null
           model_used?: string | null
-
+          morph_weight?: number | null
           most_active_region?: string | null
           motion_asymmetry?: string | null
           motion_map_path?: string | null
@@ -1372,15 +1403,18 @@ export type Database = {
           processing_time_ms?: number | null
           prompt_version?: string | null
           quality_checklist?: Json | null
+          quality_grade?: number | null
           raw_response?: Json | null
           reasoning?: string | null
           stability?: string | null
-
+          stage_code?: number | null
+          te_activity?: string | null
           te_description?: string | null
           temporal_analysis?: Json | null
           transfer_recommendation?: string
           viability_indicators?: Json | null
           viability_prediction?: Json | null
+          visual_features?: Json | null
           zp_status?: string | null
         }
         Relationships: [
@@ -1746,6 +1780,47 @@ export type Database = {
             columns: ["pacote_producao_id"]
             isOneToOne: false
             referencedRelation: "pacotes_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ocr_corrections: {
+        Row: {
+          corrected_value: string
+          created_at: string | null
+          fazenda_id: string | null
+          field_type: string
+          id: string
+          raw_value: string
+          report_type: string
+          veterinario: string | null
+        }
+        Insert: {
+          corrected_value: string
+          created_at?: string | null
+          fazenda_id?: string | null
+          field_type: string
+          id?: string
+          raw_value: string
+          report_type: string
+          veterinario?: string | null
+        }
+        Update: {
+          corrected_value?: string
+          created_at?: string | null
+          fazenda_id?: string | null
+          field_type?: string
+          id?: string
+          raw_value?: string
+          report_type?: string
+          veterinario?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocr_corrections_fazenda_id_fkey"
+            columns: ["fazenda_id"]
+            isOneToOne: false
+            referencedRelation: "fazendas"
             referencedColumns: ["id"]
           },
         ]
@@ -2136,6 +2211,7 @@ export type Database = {
         Row: {
           created_at: string
           data_provavel_parto: string | null
+          fazenda_atual_id: string | null
           id: string
           identificacao: string
           is_cio_livre: boolean
@@ -2146,6 +2222,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data_provavel_parto?: string | null
+          fazenda_atual_id?: string | null
           id?: string
           identificacao: string
           is_cio_livre?: boolean
@@ -2156,6 +2233,7 @@ export type Database = {
         Update: {
           created_at?: string
           data_provavel_parto?: string | null
+          fazenda_atual_id?: string | null
           id?: string
           identificacao?: string
           is_cio_livre?: boolean
@@ -2163,7 +2241,15 @@ export type Database = {
           status_cio_livre?: string | null
           status_reprodutivo?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "receptoras_fazenda_atual_id_fkey"
+            columns: ["fazenda_atual_id"]
+            isOneToOne: false
+            referencedRelation: "fazendas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       receptoras_cio_livre: {
         Row: {
@@ -2217,6 +2303,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_receptoras_protocolo_ativo"
             referencedColumns: ["receptora_id"]
+          },
+        ]
+      }
+      report_imports: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          extracted_data: Json | null
+          fazenda_id: string | null
+          final_data: Json
+          id: string
+          image_path: string | null
+          pacote_aspiracao_id: string | null
+          protocolo_id: string | null
+          report_type: string
+          reverted_at: string | null
+          status: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          extracted_data?: Json | null
+          fazenda_id?: string | null
+          final_data: Json
+          id?: string
+          image_path?: string | null
+          pacote_aspiracao_id?: string | null
+          protocolo_id?: string | null
+          report_type: string
+          reverted_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          extracted_data?: Json | null
+          fazenda_id?: string | null
+          final_data?: Json
+          id?: string
+          image_path?: string | null
+          pacote_aspiracao_id?: string | null
+          protocolo_id?: string | null
+          report_type?: string
+          reverted_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_imports_fazenda_id_fkey"
+            columns: ["fazenda_id"]
+            isOneToOne: false
+            referencedRelation: "fazendas"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3109,6 +3251,16 @@ export type Database = {
       }
     }
     Functions: {
+      confirmar_p2_batch: {
+        Args: {
+          p_data_confirmacao: string
+          p_perdas_ids: string[]
+          p_protocolo_id: string
+          p_tecnico: string
+          p_veterinario: string
+        }
+        Returns: Json
+      }
       criar_protocolo_passo1_atomico: {
         Args: {
           p_data_inclusao: string
@@ -3145,27 +3297,51 @@ export type Database = {
         Returns: string
       }
       get_descartes_te_cliente:
-      | {
-        Args: { p_cliente_id: string; p_dias_atras?: number }
-        Returns: {
-          identificacao: string
-          motivo_inapta: string
-          receptora_id: string
-          updated_at: string
-        }[]
-      }
-      | {
-        Args: { p_data_inicio?: string; p_fazenda_ids: string[] }
-        Returns: {
-          identificacao: string
-          motivo_inapta: string
-          receptora_id: string
-          updated_at: string
-        }[]
-      }
+        | {
+            Args: { p_cliente_id: string; p_dias_atras?: number }
+            Returns: {
+              identificacao: string
+              motivo_inapta: string
+              receptora_id: string
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: { p_data_inicio?: string; p_fazenda_ids: string[] }
+            Returns: {
+              identificacao: string
+              motivo_inapta: string
+              receptora_id: string
+              updated_at: string
+            }[]
+          }
       get_receptora_fazenda_atual: {
         Args: { p_receptora_id: string }
         Returns: string
+      }
+      get_receptoras_status: {
+        Args: { p_fazenda_id: string }
+        Returns: {
+          dias_gestacao: number
+          id: string
+          identificacao: string
+          nome: string
+          numero_gestacoes: number
+          raca: string
+          status_calculado: string
+          ultima_atualizacao: string
+        }[]
+      }
+      get_resumo_lotes_fiv: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          codigo: string
+          data_aspiracao: string
+          id: string
+          taxa_conversao: number
+          total_embrioes: number
+          total_oocitos: number
+        }[]
       }
       get_user_cliente_id: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
@@ -3190,6 +3366,34 @@ export type Database = {
           species: string
         }[]
       }
+      match_embryos_v2: {
+        Args: {
+          alpha?: number
+          beta?: number
+          filter_lab_id?: string
+          match_count?: number
+          min_similarity?: number
+          query_embedding: string
+          query_kinetic_harmony?: number
+          query_kinetic_intensity?: number
+          query_kinetic_stability?: number
+          visual_top_n?: number
+        }
+        Returns: {
+          best_frame_path: string
+          classification: string
+          composite_score: number
+          id: string
+          kinetic_harmony: number
+          kinetic_intensity: number
+          kinetic_similarity: number
+          kinetic_stability: number
+          motion_map_path: string
+          pregnancy_result: boolean
+          species: string
+          visual_similarity: number
+        }[]
+      }
       mover_receptora_fazenda: {
         Args: {
           p_data_mudanca?: string
@@ -3203,6 +3407,50 @@ export type Database = {
         Args: { p_receptora_id: string }
         Returns: boolean
       }
+      registrar_aspiracao_batch: {
+        Args: {
+          p_data_aspiracao: string
+          p_doadoras: Json
+          p_fazenda_destino_id: string
+          p_fazenda_id: string
+          p_horario_inicio: string
+          p_observacoes: string
+          p_tecnico: string
+          p_veterinario: string
+        }
+        Returns: Json
+      }
+      registrar_dg_batch: {
+        Args: {
+          p_data_diagnostico: string
+          p_fazenda_id: string
+          p_resultados: Json
+          p_tecnico: string
+          p_veterinario: string
+        }
+        Returns: Json
+      }
+      registrar_sexagem_batch: {
+        Args: {
+          p_data_sexagem: string
+          p_fazenda_id: string
+          p_resultados: Json
+          p_tecnico: string
+          p_veterinario: string
+        }
+        Returns: Json
+      }
+      registrar_te_batch: {
+        Args: {
+          p_data_te: string
+          p_fazenda_id: string
+          p_tecnico: string
+          p_transferencias: Json
+          p_veterinario: string
+        }
+        Returns: Json
+      }
+      reverter_import: { Args: { p_import_id: string }; Returns: Json }
       upsert_atributo_definicao: {
         Args: {
           p_codigo: string
@@ -3232,116 +3480,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {

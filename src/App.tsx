@@ -71,6 +71,16 @@ const EmbryoWorkbench = lazy(() => import('./pages/biologist/EmbryoWorkbench'));
 const Bancada = lazy(() => import('./pages/Bancada'));
 const QuickClassifyPage = lazy(() => import('./pages/QuickClassifyPage'));
 
+// Páginas do Hub Escritório
+const EscritorioHome = lazy(() => import('./pages/escritorio/EscritorioHome'));
+const EscritorioDG = lazy(() => import('./pages/escritorio/EscritorioDG'));
+const EscritorioSexagem = lazy(() => import('./pages/escritorio/EscritorioSexagem'));
+const EscritorioP1 = lazy(() => import('./pages/escritorio/EscritorioP1'));
+const EscritorioP2 = lazy(() => import('./pages/escritorio/EscritorioP2'));
+const EscritorioTE = lazy(() => import('./pages/escritorio/EscritorioTE'));
+const EscritorioAspiracao = lazy(() => import('./pages/escritorio/EscritorioAspiracao'));
+const EscritorioHistorico = lazy(() => import('./pages/escritorio/EscritorioHistorico'));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -224,6 +234,16 @@ const AppRoutes = () => {
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />
+
+            {/* Hub Escritório */}
+            <Route path="/escritorio" element={<EscritorioHome />} />
+            <Route path="/escritorio/dg" element={<EscritorioDG />} />
+            <Route path="/escritorio/sexagem" element={<EscritorioSexagem />} />
+            <Route path="/escritorio/protocolo-p1" element={<EscritorioP1 />} />
+            <Route path="/escritorio/protocolo-p2" element={<EscritorioP2 />} />
+            <Route path="/escritorio/te" element={<EscritorioTE />} />
+            <Route path="/escritorio/aspiracao" element={<EscritorioAspiracao />} />
+            <Route path="/escritorio/historico" element={<EscritorioHistorico />} />
           </Route>
 
           {/* Rota 404 */}

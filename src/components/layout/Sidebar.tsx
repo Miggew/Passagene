@@ -11,10 +11,12 @@ import {
   Shield,
   Snowflake,
   FileBarChart,
+  FileText,
   ClipboardList,
   TrendingUp,
   Brain,
   FlaskConical,
+  History,
   Microscope,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
@@ -45,6 +47,15 @@ const routeIcons: Record<string, React.ElementType> = {
   '/relatorios/producao': TrendingUp,
   '/laboratorio': FlaskConical,
   '/bancada': Microscope,
+  // Hub Escritório
+  '/escritorio': FileText,
+  '/escritorio/dg': ThumbsUp,
+  '/escritorio/sexagem': GenderIcon,
+  '/escritorio/protocolo-p1': Syringe,
+  '/escritorio/protocolo-p2': Syringe,
+  '/escritorio/te': ArrowRightLeft,
+  '/escritorio/aspiracao': TestTube,
+  '/escritorio/historico': History,
 };
 
 // Labels das rotas
@@ -70,6 +81,15 @@ const routeLabels: Record<string, string> = {
   '/relatorios/material': 'Material Genético',
   '/relatorios/producao': 'Produção',
   '/laboratorio': 'Visão Geral',
+  // Hub Escritório
+  '/escritorio': 'Visão Geral',
+  '/escritorio/dg': 'Diagnóstico (DG)',
+  '/escritorio/sexagem': 'Sexagem',
+  '/escritorio/protocolo-p1': 'Protocolo P1',
+  '/escritorio/protocolo-p2': 'Protocolo P2',
+  '/escritorio/te': 'Transferência (TE)',
+  '/escritorio/aspiracao': 'Aspiração',
+  '/escritorio/historico': 'Histórico',
 };
 
 export default function Sidebar() {

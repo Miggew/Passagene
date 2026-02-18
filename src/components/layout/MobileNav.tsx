@@ -19,9 +19,11 @@ import {
   Shield,
   Snowflake,
   FileBarChart,
+  FileText,
   ClipboardList,
   TrendingUp,
   Dna,
+  History,
   Beef,
   Container,
 } from 'lucide-react';
@@ -58,6 +60,15 @@ const routeIcons: Record<string, React.ElementType> = {
 
   '/cliente/relatorios': FileBarChart,
   '/cliente/botijao': Container,
+  // Hub Escritório
+  '/escritorio': FileText,
+  '/escritorio/dg': ThumbsUp,
+  '/escritorio/sexagem': GenderIcon,
+  '/escritorio/protocolo-p1': Syringe,
+  '/escritorio/protocolo-p2': Syringe,
+  '/escritorio/te': ArrowRightLeft,
+  '/escritorio/aspiracao': TestTube,
+  '/escritorio/historico': History,
 };
 
 // Labels das rotas
@@ -86,6 +97,15 @@ const routeLabels: Record<string, string> = {
 
   '/cliente/relatorios': 'Relatórios',
   '/cliente/botijao': 'Botijão',
+  // Hub Escritório
+  '/escritorio': 'Escritório',
+  '/escritorio/dg': 'DG',
+  '/escritorio/sexagem': 'Sexagem',
+  '/escritorio/protocolo-p1': 'Protocolo P1',
+  '/escritorio/protocolo-p2': 'Protocolo P2',
+  '/escritorio/te': 'TE',
+  '/escritorio/aspiracao': 'Aspiração',
+  '/escritorio/historico': 'Histórico',
 };
 
 // Rotas principais para barra inferior (máximo 5)

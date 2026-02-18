@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Dna, FlaskConical, LogOut } from 'lucide-react';
+import { Building2, Dna, FileText, FlaskConical, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import logoSimples from '@/assets/logosimples.svg';
@@ -13,6 +13,7 @@ const hubIcons: Record<string, React.ElementType> = {
   administrativo: Building2,
   genetica: Dna,
   laboratorio: FlaskConical,
+  escritorio: FileText,
   campo: CowIcon,
 };
 
