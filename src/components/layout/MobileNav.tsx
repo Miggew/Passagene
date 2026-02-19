@@ -1,9 +1,9 @@
 /**
- * Navegação mobile com barra inferior e menu lateral
+ * Navegação mobile com barra inferior hub-aware e menu lateral
  */
 
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,13 +26,19 @@ import {
   History,
   Beef,
   Container,
+  FlaskConical,
+  Microscope,
+  Brain,
+  Building2,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
+import { CowIcon } from '@/components/icons/CowIcon';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import ThemeToggle from '@/components/shared/ThemeToggle';
+import type { Hub } from '@/lib/types';
 
 // Mapeamento de ícones por rota
 const routeIcons: Record<string, React.ElementType> = {
@@ -55,11 +61,16 @@ const routeIcons: Record<string, React.ElementType> = {
   '/relatorios/material': EmbryoIcon,
   '/relatorios/producao': TrendingUp,
   '/genetica': Dna,
+  '/genetica/doadoras': DonorCowIcon,
+  '/genetica/touros': Sparkles,
   // Rotas do cliente
   '/cliente/rebanho': Beef,
-
   '/cliente/relatorios': FileBarChart,
   '/cliente/botijao': Container,
+  // Hub Laboratório
+  '/laboratorio': FlaskConical,
+  '/bancada': Microscope,
+  '/embryoscore': Brain,
   // Hub Escritório
   '/escritorio': FileText,
   '/escritorio/dg': ThumbsUp,
@@ -92,11 +103,16 @@ const routeLabels: Record<string, string> = {
   '/relatorios/material': 'Material',
   '/relatorios/producao': 'Produção',
   '/genetica': 'Genética',
+  '/genetica/doadoras': 'Doadoras',
+  '/genetica/touros': 'Touros',
   // Rotas do cliente
   '/cliente/rebanho': 'Rebanho',
-
   '/cliente/relatorios': 'Relatórios',
   '/cliente/botijao': 'Botijão',
+  // Hub Laboratório
+  '/laboratorio': 'Laboratório',
+  '/bancada': 'Bancada',
+  '/embryoscore': 'EmbryoScore',
   // Hub Escritório
   '/escritorio': 'Escritório',
   '/escritorio/dg': 'DG',
@@ -108,14 +124,47 @@ const routeLabels: Record<string, string> = {
   '/escritorio/historico': 'Histórico',
 };
 
-// Rotas principais para barra inferior (máximo 5)
-const QUICK_NAV_ROUTES = ['/', '/protocolos', '/transferencia', '/dg'];
+// Rotas rápidas por hub para a barra inferior
+const HUB_QUICK_ROUTES: Record<string, string[]> = {
+  administrativo: ['/protocolos', '/transferencia', '/dg'],
+  laboratorio:    ['/bancada', '/lotes-fiv', '/embryoscore'],
+  escritorio:     ['/escritorio/dg', '/escritorio/te', '/escritorio/aspiracao'],
+  relatorios:     ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
+  genetica:       ['/genetica/doadoras', '/genetica/touros'],
+};
+
+// Ícones dos hubs (mesmos do HubTabs)
+const hubIcons: Record<string, React.ElementType> = {
+  administrativo: Building2,
+  laboratorio: FlaskConical,
+  escritorio: FileText,
+  relatorios: FileBarChart,
+  genetica: Dna,
+};
 
 // Rotas específicas para clientes (4 itens, sem Menu)
 const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios', '/cliente/botijao'];
 
+/** Determina o hub do bottom bar por prefixo de URL */
+function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
+  if (pathname.startsWith('/escritorio')) return 'escritorio';
+  if (pathname.startsWith('/relatorios')) return 'relatorios';
+  if (pathname.startsWith('/genetica')) return 'genetica';
+  if (pathname.startsWith('/cliente')) return 'cliente';
+  // Rotas do Lab
+  if (pathname === '/bancada' || pathname.startsWith('/bancada/')) return 'laboratorio';
+  if (pathname === '/embryoscore' || pathname.startsWith('/embryoscore/')) return 'laboratorio';
+  if (pathname === '/laboratorio') return 'laboratorio';
+  if (pathname === '/lotes-fiv' || pathname.startsWith('/lotes-fiv/')) return 'laboratorio';
+  // Home → null (modo hubs)
+  if (pathname === '/') return null;
+  // Default: use hub do DB ou administrativo
+  return fallbackHub?.code ?? 'administrativo';
+}
+
 export default function MobileNav() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isCliente, getHubForRoute, getAccessibleHubs } = usePermissions();
   const { signOut } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -128,21 +177,48 @@ export default function MobileNav() {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
-  // Rotas rápidas na barra inferior - cliente usa rotas específicas
-  const quickRoutes = isCliente
-    ? CLIENTE_NAV_ROUTES
-    : QUICK_NAV_ROUTES.filter(route => {
-      // Verifica se o usuário tem acesso
-      const hub = getHubForRoute(route);
-      return hub !== null;
-    });
+  const bottomBarHubCode = getBottomBarHubCode(location.pathname, currentHub);
+
+  // Rotas rápidas na barra inferior
+  const quickRoutes = useMemo(() => {
+    if (isCliente) return CLIENTE_NAV_ROUTES;
+
+    if (bottomBarHubCode) {
+      const hubRoutes = HUB_QUICK_ROUTES[bottomBarHubCode];
+      if (hubRoutes) return ['/', ...hubRoutes];
+    }
+
+    // Na Home ou rota sem hub → null sinaliza modo hubs
+    return null;
+  }, [isCliente, bottomBarHubCode]);
+
+  // Hubs para mostrar na Home (modo hubs)
+  const hubSlots = useMemo(() => {
+    if (quickRoutes !== null) return [];
+    return accessibleHubs
+      .filter(h => !(h.routes.length === 1 && h.routes[0] === '/'))
+      .slice(0, 3);
+  }, [quickRoutes, accessibleHubs]);
+
+  // Hubs ordenados para o Menu Sheet (hub atual primeiro)
+  const sortedHubs = useMemo(() => {
+    const filtered = accessibleHubs.filter(h => !(h.routes.length === 1 && h.routes[0] === '/'));
+    if (!bottomBarHubCode) return filtered;
+    const currentIdx = filtered.findIndex(h => h.code === bottomBarHubCode);
+    if (currentIdx <= 0) return filtered;
+    const reordered = [...filtered];
+    const [current] = reordered.splice(currentIdx, 1);
+    reordered.unshift(current);
+    return reordered;
+  }, [accessibleHubs, bottomBarHubCode]);
 
   return (
     <>
       {/* Barra de navegação inferior - apenas mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
         <div className="flex items-center justify-around h-20 px-1">
-          {quickRoutes.map((route) => {
+          {/* Modo rotas (dentro de um hub) */}
+          {quickRoutes !== null && quickRoutes.map((route) => {
             const Icon = routeIcons[route] || Home;
             const label = routeLabels[route] || route;
             const isActive = isRouteActive(route);
@@ -166,6 +242,43 @@ export default function MobileNav() {
               </Link>
             );
           })}
+
+          {/* Modo hubs (na Home) */}
+          {quickRoutes === null && (
+            <>
+              {/* Home button */}
+              <Link
+                to="/"
+                className={cn(
+                  'flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors',
+                  location.pathname === '/'
+                    ? 'text-primary'
+                    : 'text-muted-foreground active:text-primary'
+                )}
+              >
+                <Home className={cn('w-7 h-7 mb-1', location.pathname === '/' && 'text-primary')} />
+                <span className="text-xs font-semibold">Início</span>
+                {location.pathname === '/' && (
+                  <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
+              </Link>
+
+              {/* Hub buttons */}
+              {hubSlots.map((hub) => {
+                const Icon = hubIcons[hub.code] || Building2;
+                return (
+                  <button
+                    key={hub.code}
+                    onClick={() => navigate(hub.routes[0])}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors text-muted-foreground active:text-primary"
+                  >
+                    <Icon className="w-7 h-7 mb-1" />
+                    <span className="text-xs font-semibold truncate max-w-full">{hub.name}</span>
+                  </button>
+                );
+              })}
+            </>
+          )}
 
           {/* Botão Menu - apenas para não-clientes */}
           {!isCliente && (
@@ -191,13 +304,19 @@ export default function MobileNav() {
                 </SheetHeader>
 
                 <div className="flex-1 overflow-auto">
-                  {/* Hubs e suas rotas */}
-                  {accessibleHubs
-                    .filter(hub => !(hub.routes.length === 1 && hub.routes[0] === '/'))
-                    .map((hub) => (
+                  {/* Hubs e suas rotas — hub atual primeiro */}
+                  {sortedHubs.map((hub) => {
+                    const isCurrentHub = hub.code === bottomBarHubCode;
+                    return (
                       <div key={hub.code} className="border-b border-border">
-                        <div className="px-5 py-3 bg-muted/50">
-                          <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                        <div className={cn(
+                          'px-5 py-3',
+                          isCurrentHub ? 'bg-primary/5' : 'bg-muted/50'
+                        )}>
+                          <span className={cn(
+                            'text-sm font-bold uppercase tracking-wider',
+                            isCurrentHub ? 'text-primary' : 'text-muted-foreground'
+                          )}>
                             {hub.name}
                           </span>
                         </div>
@@ -226,7 +345,8 @@ export default function MobileNav() {
                           })}
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
 
                   {/* Link Home */}
                   <div className="p-3">
