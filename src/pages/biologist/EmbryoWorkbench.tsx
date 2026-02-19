@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useEmbryoAnalysis, EnrichedEmbryoScore } from '@/hooks/useEmbryoAnalysis';
 import { useEmbryoscoreUrl } from '@/hooks/useStorageUrl';
+import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
 
 export default function EmbryoWorkbench() {
     const { data: pendingReviews, loading, refresh, updateLocalItem } = useEmbryoAnalysis();
@@ -268,27 +269,26 @@ export default function EmbryoWorkbench() {
                                         <span className="relative z-10 bg-white/80 px-2 py-1 rounded text-xs font-semibold">Contexto da Placa</span>
                                     </Card>
                                     <Card className="bg-white p-4 flex flex-col justify-center space-y-2">
-                                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Métricas Cinéticas</h3>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <div className="flex justify-between text-xs mb-1">
-                                                    <span>Intensidade (Movimento)</span>
-                                                    <span className="font-mono font-bold">{selectedEmbryo.kinetic_intensity?.toFixed(3)}</span>
+                                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Diagnóstico Cinético</h3>
+                                        {(() => {
+                                            const diag = getKineticDiagnosis(selectedEmbryo);
+                                            return (
+                                                <div className="space-y-2">
+                                                    {([
+                                                        { label: 'Atividade', d: diag.activity },
+                                                        { label: 'Distribuição', d: diag.distribution },
+                                                        { label: 'Estabilidade', d: diag.stability },
+                                                    ] as const).map(({ label, d }) => (
+                                                        <div key={label} className="flex items-center justify-between">
+                                                            <span className="text-xs text-slate-500">{label}</span>
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getLabelClasses(d.color)}`}>
+                                                                {d.label}
+                                                            </span>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (selectedEmbryo.kinetic_intensity || 0) * 10)}%` }} />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between text-xs mb-1">
-                                                    <span>Estabilidade</span>
-                                                    <span className="font-mono font-bold">{selectedEmbryo.kinetic_stability?.toFixed(2)}</span>
-                                                </div>
-                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-purple-500" style={{ width: `${((selectedEmbryo.kinetic_stability || 0) * 100)}%` }} />
-                                                </div>
-                                            </div>
-                                        </div>
+                                            );
+                                        })()}
                                     </Card>
                                 </div>
                             </div>

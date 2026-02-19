@@ -25,7 +25,7 @@ export function useEscritorioDG({ fazendaId, dataTE }: UseDGOptions) {
           id,
           receptora_id,
           status,
-          receptoras!inner(id, registro, nome, raca)
+          receptoras!inner(id, identificacao, nome, raca)
         `)
         .in('status', ['SERVIDA', 'UTILIZADA']);
 
@@ -51,7 +51,7 @@ export function useEscritorioDG({ fazendaId, dataTE }: UseDGOptions) {
       return (data || []).map((pr: any) => ({
         protocolo_receptora_id: pr.id,
         receptora_id: pr.receptora_id,
-        registro: pr.receptoras?.registro || '',
+        registro: pr.receptoras?.identificacao || '',
         nome: pr.receptoras?.nome,
         raca: pr.receptoras?.raca,
         resultado: '' as const,

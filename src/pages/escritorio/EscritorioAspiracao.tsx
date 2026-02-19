@@ -5,15 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TestTube, Save, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { TestTube, Save, CheckCircle2, Plus, Trash2, Loader2, Search } from 'lucide-react';
 import EntryModeSwitch from '@/components/escritorio/EntryModeSwitch';
 import ReportScanner from '@/components/escritorio/ReportScanner';
+import OcrReviewGridAspiracao from '@/components/escritorio/OcrReviewGridAspiracao';
 import AnimalAutocomplete from '@/components/escritorio/AnimalAutocomplete';
 import { useEscritorioAspiracao } from '@/hooks/escritorio/useEscritorioAspiracao';
-import { useReportOcr } from '@/hooks/escritorio/useReportOcr';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
 import { useOcrCorrections } from '@/hooks/escritorio/useOcrCorrections';
 import { useReportImports } from '@/hooks/escritorio/useReportImports';
-import type { EntryMode, AspiracaoEntryRow } from '@/lib/types/escritorio';
+import { uploadReportImageBackground } from '@/lib/cloudRunOcr';
+import type { EntryMode, AspiracaoEntryRow, OcrAspiracaoRow, OcrAspiracaoResult } from '@/lib/types/escritorio';
 
 const EMPTY_ROW: AspiracaoEntryRow = {
   registro: '', raca: '', horario_aspiracao: '', hora_final: '',
@@ -31,17 +33,73 @@ export default function EscritorioAspiracao() {
   const [observacoes, setObservacoes] = useState('');
   const [saved, setSaved] = useState(false);
   const [rows, setRows] = useState<AspiracaoEntryRow[]>([{ ...EMPTY_ROW }]);
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [ocrResult, setOcrResult] = useState<OcrAspiracaoResult | null>(null);
 
   const { doadoras, fazendas, save, isSaving } = useEscritorioAspiracao({ fazendaId: fazendaId || undefined });
   const { corrections } = useOcrCorrections(fazendaId || undefined, 'aspiracao');
   const { createImport, updateImport } = useReportImports(fazendaId || undefined);
 
-  const ocrHook = useReportOcr({
+  const ocrHook = useCloudRunOcr({
     reportType: 'aspiracao',
     fazendaId,
-    animals: doadoras,
-    corrections,
   });
+
+  const ocrFieldsReady = !!(capturedFile && fazendaId && dataAspiracao && veterinario && tecnico);
+
+  const handleFileSelected = (file: File) => {
+    setCapturedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setOcrResult(null);
+  };
+
+  const handleAnalyze = async () => {
+    if (!capturedFile || !ocrFieldsReady) return;
+    setIsAnalyzing(true);
+    try {
+      const result = await ocrHook.processFile(capturedFile) as OcrAspiracaoResult;
+      setOcrResult(result);
+
+      // Auto-fill header fields from OCR if better data
+      const h = result.header;
+      if (h?.veterinario?.value && !veterinario) setVeterinario(h.veterinario.value);
+      if (h?.tecnico?.value && !tecnico) setTecnico(h.tecnico.value);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro no OCR');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleOcrSave = (reviewedRows: OcrAspiracaoRow[]) => {
+    // Convert OCR rows to entry rows
+    const entryRows: AspiracaoEntryRow[] = reviewedRows.map(r => {
+      const matched = doadoras.find(
+        d => d.registro.toUpperCase() === (r.registro.matched_value || r.registro.value).toUpperCase()
+      );
+      return {
+        doadora_id: matched?.id,
+        registro: r.registro.matched_value || r.registro.value,
+        nome: matched?.nome,
+        raca: r.raca.value,
+        horario_aspiracao: '',
+        hora_final: '',
+        atresicos: r.atresicos.value || 0,
+        degenerados: r.degenerados.value || 0,
+        expandidos: r.expandidos.value || 0,
+        desnudos: r.desnudos.value || 0,
+        viaveis: r.viaveis.value || 0,
+        total: r.total.value || 0,
+      };
+    }).filter(r => r.registro);
+
+    setRows(entryRows);
+    setOcrResult(null);
+    setMode('manual');
+    toast.info(`${entryRows.length} linhas importadas do OCR. Revise e salve.`);
+  };
 
   const addRow = () => setRows(prev => [...prev, { ...EMPTY_ROW }]);
   const removeRow = (idx: number) => setRows(prev => prev.filter((_, i) => i !== idx));
@@ -50,7 +108,6 @@ export default function EscritorioAspiracao() {
     setRows(prev => prev.map((r, i) => {
       if (i !== idx) return r;
       const updated = { ...r, [field]: value };
-      // Recalcular total se for campo numérico
       if (['atresicos', 'degenerados', 'expandidos', 'desnudos', 'viaveis'].includes(field)) {
         updated.total = (Number(updated.atresicos) || 0) + (Number(updated.degenerados) || 0) +
           (Number(updated.expandidos) || 0) + (Number(updated.desnudos) || 0) + (Number(updated.viaveis) || 0);
@@ -102,6 +159,11 @@ export default function EscritorioAspiracao() {
         pacote_aspiracao_id: (result as any)?.pacote_id,
       });
 
+      // Background: upload image for audit trail
+      if (capturedFile) {
+        uploadReportImageBackground(capturedFile, fazendaId, importRecord.id);
+      }
+
       toast.success(`Aspiração registrada: ${filled.length} doadoras, ${filled.reduce((s, r) => s + r.total, 0)} oócitos`);
       setSaved(true);
     } catch (err) {
@@ -133,57 +195,122 @@ export default function EscritorioAspiracao() {
         actions={<EntryModeSwitch mode={mode} onChange={setMode} />}
       />
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Fazenda (origem)</Label>
-              <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Selecione...</option>
-                {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
-              <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Mesma</option>
-                {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Data</Label>
-              <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Horário Início</Label>
-              <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Veterinário</Label>
-              <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Técnico</Label>
-              <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {mode === 'ocr' && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Foto do Relatório</CardTitle></CardHeader>
-          <CardContent>
-            <ReportScanner
-              onResult={() => toast.info('OCR de aspiração processado — funcionalidade completa em breve')}
-              uploadAndProcess={ocrHook.processFile}
-              disabled={!fazendaId}
-            />
-          </CardContent>
-        </Card>
+        <>
+          {/* Card 1: Foto */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">1. Foto do Relatório</CardTitle></CardHeader>
+            <CardContent>
+              <ReportScanner onFileSelected={handleFileSelected} />
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Dados (after photo) */}
+          {capturedFile && !ocrResult && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">2. Dados da Aspiração</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Fazenda (origem) *</Label>
+                    <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">Selecione...</option>
+                      {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Data *</Label>
+                    <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Veterinário *</Label>
+                    <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Técnico *</Label>
+                    <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
+                    <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">Mesma</option>
+                      {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Horário Início</Label>
+                    <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button onClick={handleAnalyze} disabled={!ocrFieldsReady || isAnalyzing}>
+                    {isAnalyzing ? (
+                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Analisando...</>
+                    ) : (
+                      <><Search className="w-4 h-4 mr-1" /> Analisar Relatório</>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card 3: Revisão OCR */}
+          {ocrResult && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">3. Revisão dos Dados Extraídos</CardTitle></CardHeader>
+              <CardContent>
+                <OcrReviewGridAspiracao
+                  rows={ocrResult.rows}
+                  imageUrl={previewUrl || undefined}
+                  onSave={handleOcrSave}
+                  onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {mode === 'manual' && (
+        <>
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Fazenda (origem)</Label>
+                <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">Selecione...</option>
+                  {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
+                <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">Mesma</option>
+                  {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Data</Label>
+                <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Horário Início</Label>
+                <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Veterinário</Label>
+                <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Técnico</Label>
+                <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -238,6 +365,7 @@ export default function EscritorioAspiracao() {
             </div>
           </CardContent>
         </Card>
+        </>
       )}
     </div>
   );

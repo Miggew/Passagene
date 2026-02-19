@@ -5,16 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ThumbsUp, Save, CheckCircle2 } from 'lucide-react';
+import { ThumbsUp, Save, CheckCircle2, Loader2, Search } from 'lucide-react';
 import EntryModeSwitch from '@/components/escritorio/EntryModeSwitch';
-import ReportScanner from '@/components/escritorio/ReportScanner';
+import MultiPageScanner from '@/components/escritorio/MultiPageScanner';
 import OcrReviewGrid from '@/components/escritorio/OcrReviewGrid';
 import ManualEntryGrid from '@/components/escritorio/ManualEntryGrid';
 import type { ColumnDef } from '@/components/escritorio/ManualEntryGrid';
 import { useEscritorioDG } from '@/hooks/escritorio/useEscritorioDG';
-import { useReportOcr } from '@/hooks/escritorio/useReportOcr';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
 import { useOcrCorrections } from '@/hooks/escritorio/useOcrCorrections';
 import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import { uploadReportImageBackground } from '@/lib/cloudRunOcr';
 import { detectCorrections } from '@/utils/escritorio/postProcess';
 import type { EntryMode, DGEntryRow, OcrRow, OcrResult } from '@/lib/types/escritorio';
 import { supabase } from '@/lib/supabase';
@@ -29,8 +30,10 @@ export default function EscritorioDG() {
   const [tecnico, setTecnico] = useState('');
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [saved, setSaved] = useState(false);
+  const [capturedFiles, setCapturedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Fazendas para o select
   const { data: fazendas } = useQuery({
     queryKey: ['fazendas-select'],
     queryFn: async () => {
@@ -45,26 +48,49 @@ export default function EscritorioDG() {
 
   const [rows, setRows] = useState<DGEntryRow[]>([]);
 
-  // Sincronizar receptoras carregadas com o grid
   const loadReceptoras = useCallback(() => {
     setRows(receptoras.map(r => ({ ...r })));
   }, [receptoras]);
 
-  // Quando receptoras carregam, atualizar grid
   const handleLoadReceptoras = () => {
     if (!fazendaId) { toast.error('Selecione uma fazenda'); return; }
     loadReceptoras();
   };
 
-  // OCR hooks
-  const ocrHook = useReportOcr({
+  const ocrHook = useCloudRunOcr({
     reportType: 'dg',
     fazendaId,
-    animals: receptoras.map(r => ({ id: r.receptora_id, registro: r.registro, nome: r.nome })),
-    corrections,
   });
 
-  // Atalhos DG
+  const ocrFieldsReady = !!(capturedFiles.length > 0 && fazendaId && dataDG && veterinario);
+
+  const handleFilesChange = (files: File[]) => {
+    previewUrls.forEach(u => URL.revokeObjectURL(u));
+    setCapturedFiles(files);
+    setPreviewUrls(files.map(f => URL.createObjectURL(f)));
+    setOcrResult(null);
+  };
+
+  const handleAnalyze = async () => {
+    if (capturedFiles.length === 0 || !ocrFieldsReady) return;
+    setIsAnalyzing(true);
+    try {
+      const result = capturedFiles.length > 1
+        ? await ocrHook.processMultipleFiles(capturedFiles)
+        : await ocrHook.processFile(capturedFiles[0]) as OcrResult;
+      setOcrResult(result);
+
+      const h = result.header;
+      if (h?.veterinario?.value && !veterinario) setVeterinario(h.veterinario.value);
+      if (h?.tecnico?.value && !tecnico) setTecnico(h.tecnico.value);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro no OCR');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // DG shortcuts
   const dgColumns: ColumnDef<DGEntryRow>[] = [
     { key: 'registro', label: 'Registro', readOnly: true, width: '150px' },
     { key: 'nome', label: 'Nome', readOnly: true, width: '150px' },
@@ -83,12 +109,10 @@ export default function EscritorioDG() {
     setRows(prev => prev.map((r, i) => i === rowIdx ? { ...r, [field]: value } : r));
   };
 
-  // Marcar restantes como Prenhe
   const markRestAsPrenhe = () => {
     setRows(prev => prev.map(r => r.resultado === '' ? { ...r, resultado: 'PRENHE' } : r));
   };
 
-  // Salvar
   const handleSave = async () => {
     if (!dataDG) { toast.error('Preencha a data do DG'); return; }
     if (!veterinario) { toast.error('Preencha o veterinário'); return; }
@@ -97,24 +121,22 @@ export default function EscritorioDG() {
     if (filled.length === 0) { toast.error('Nenhum resultado preenchido'); return; }
 
     try {
-      // Criar registro de importação
       const importRecord = await createImport({
         report_type: 'dg',
         status: 'processing',
         fazenda_id: fazendaId,
-        final_data: {
-          data_diagnostico: dataDG,
-          veterinario,
-          tecnico,
-          resultados: filled,
-        },
+        final_data: { data_diagnostico: dataDG, veterinario, tecnico, resultados: filled },
       });
 
-      // Salvar via RPC
       await save({ dataDiagnostico: dataDG, veterinario, tecnico, resultados: filled });
-
-      // Marcar importação como completa
       await updateImport({ id: importRecord.id, status: 'completed', completed_at: new Date().toISOString() });
+
+      if (capturedFiles.length > 0) {
+        capturedFiles.forEach((file, i) => {
+          const suffix = capturedFiles.length > 1 ? `-p${i + 1}` : '';
+          uploadReportImageBackground(file, fazendaId, `${importRecord.id}${suffix}`);
+        });
+      }
 
       toast.success(`${filled.length} diagnósticos registrados com sucesso`);
       setSaved(true);
@@ -123,15 +145,7 @@ export default function EscritorioDG() {
     }
   };
 
-  // OCR: processar resultado
-  const handleOcrResult = (result: unknown) => {
-    const ocr = result as OcrResult;
-    setOcrResult(ocr);
-  };
-
-  // OCR: salvar após revisão
   const handleOcrSave = async (reviewedRows: OcrRow[]) => {
-    // Converter OCR rows para DG entry rows
     const dgRows: DGEntryRow[] = reviewedRows.map(r => {
       const matched = receptoras.find(
         rec => rec.registro.toUpperCase() === (r.registro.matched_value || r.registro.value).toUpperCase()
@@ -149,14 +163,13 @@ export default function EscritorioDG() {
 
     setRows(dgRows);
 
-    // Salvar correções OCR
     if (ocrResult) {
       const corrs = detectCorrections(ocrResult.rows, reviewedRows, 'dg', fazendaId, veterinario);
       if (corrs.length > 0) await saveCorrections(corrs);
     }
 
     setOcrResult(null);
-    setMode('manual'); // Voltar para manual com dados preenchidos
+    setMode('manual');
     toast.info(`${dgRows.length} linhas importadas do OCR. Revise e salve.`);
   };
 
@@ -168,9 +181,7 @@ export default function EscritorioDG() {
           <CardContent className="flex flex-col items-center gap-4 py-12">
             <CheckCircle2 className="w-12 h-12 text-green-500" />
             <p className="text-lg font-medium">Diagnósticos registrados com sucesso!</p>
-            <Button onClick={() => { setSaved(false); setRows([]); }}>
-              Registrar Novo DG
-            </Button>
+            <Button onClick={() => { setSaved(false); setRows([]); setCapturedFiles([]); setPreviewUrls([]); }}>Registrar Novo DG</Button>
           </CardContent>
         </Card>
       </div>
@@ -186,133 +197,162 @@ export default function EscritorioDG() {
         actions={<EntryModeSwitch mode={mode} onChange={setMode} />}
       />
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Fazenda</Label>
-              <select
-                value={fazendaId}
-                onChange={(e) => setFazendaId(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Selecione...</option>
-                {fazendas?.map(f => (
-                  <option key={f.id} value={f.id}>{f.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Data da TE</Label>
-              <Input type="date" value={dataTE} onChange={e => setDataTE(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Data do DG</Label>
-              <Input type="date" value={dataDG} onChange={e => setDataDG(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Veterinário</Label>
-              <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Técnico</Label>
-              <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-            </div>
-          </div>
-          {mode === 'manual' && (
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLoadReceptoras}
-                disabled={!fazendaId || isLoading}
-              >
-                {isLoading ? 'Carregando...' : 'Carregar Receptoras'}
-              </Button>
-            </div>
+      {/* OCR mode: photo first flow */}
+      {mode === 'ocr' && (
+        <>
+          {/* Card 1: Foto */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">1. Foto do Relatório</CardTitle></CardHeader>
+            <CardContent>
+              <MultiPageScanner files={capturedFiles} onFilesChange={handleFilesChange} />
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Dados do Serviço (after photo, before OCR) */}
+          {capturedFiles.length > 0 && !ocrResult && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">2. Dados do Serviço</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Fazenda *</Label>
+                    <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">Selecione...</option>
+                      {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Data da TE</Label>
+                    <Input type="date" value={dataTE} onChange={e => setDataTE(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Data do DG *</Label>
+                    <Input type="date" value={dataDG} onChange={e => setDataDG(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Veterinário *</Label>
+                    <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Técnico</Label>
+                    <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button onClick={handleAnalyze} disabled={!ocrFieldsReady || isAnalyzing}>
+                    {isAnalyzing ? (
+                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Analisando...</>
+                    ) : (
+                      <><Search className="w-4 h-4 mr-1" /> Analisar Relatório{capturedFiles.length > 1 ? ` (${capturedFiles.length} páginas)` : ''}</>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Modo OCR */}
-      {mode === 'ocr' && !ocrResult && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Foto do Relatório</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ReportScanner
-              onResult={handleOcrResult}
-              uploadAndProcess={ocrHook.processFile}
-              disabled={!fazendaId}
-            />
-          </CardContent>
-        </Card>
+          {/* Card 3: OCR Review */}
+          {ocrResult && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">3. Revisão dos Dados Extraídos</CardTitle></CardHeader>
+              <CardContent>
+                <OcrReviewGrid
+                  rows={ocrResult.rows}
+                  imageUrls={previewUrls}
+                  onSave={handleOcrSave}
+                  onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
+                  columns={['registro', 'raca', 'resultado', 'obs']}
+                  resultadoLabel="DG (P/V/R)"
+                />
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* OCR Review */}
-      {mode === 'ocr' && ocrResult && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Revisão dos Dados Extraídos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <OcrReviewGrid
-              rows={ocrResult.rows}
-              onSave={handleOcrSave}
-              onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
-              columns={['registro', 'raca', 'resultado', 'obs']}
-              resultadoLabel="DG (P/V/R)"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Modo Manual */}
-      {mode === 'manual' && rows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">
-                {rows.length} receptoras — {rows.filter(r => r.resultado !== '').length} preenchidas
-              </CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={markRestAsPrenhe}>
-                  Marcar restantes como Prenhe
+      {/* Manual mode */}
+      {mode === 'manual' && (
+        <>
+          {/* Filtros */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Fazenda</Label>
+                  <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Selecione...</option>
+                    {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Data da TE</Label>
+                  <Input type="date" value={dataTE} onChange={e => setDataTE(e.target.value)} className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Data do DG</Label>
+                  <Input type="date" value={dataDG} onChange={e => setDataDG(e.target.value)} className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Veterinário</Label>
+                  <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Técnico</Label>
+                  <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                </div>
+              </div>
+              <div className="mt-4">
+                <Button variant="outline" size="sm" onClick={handleLoadReceptoras} disabled={!fazendaId || isLoading}>
+                  {isLoading ? 'Carregando...' : 'Carregar Receptoras'}
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ManualEntryGrid
-              rows={rows}
-              columns={dgColumns}
-              onRowChange={handleRowChange}
-              getRowClassName={(row) =>
-                row.resultado === 'PRENHE' ? 'bg-green-500/5' :
-                row.resultado === 'VAZIA' ? 'bg-red-500/5' :
-                row.resultado === 'RETOQUE' ? 'bg-amber-500/5' : ''
-              }
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <Button onClick={handleSave} disabled={isSaving}>
-                <Save className="w-4 h-4 mr-1" />
-                {isSaving ? 'Salvando...' : 'Salvar Diagnósticos'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
 
-      {/* Dicas de atalho */}
-      {mode === 'manual' && rows.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center">
-          Atalhos: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">P</kbd> Prenhe{' '}
-          <kbd className="px-1 py-0.5 bg-muted rounded text-xs">V</kbd> Vazia{' '}
-          <kbd className="px-1 py-0.5 bg-muted rounded text-xs">R</kbd> Retoque{' '}
-          — Auto-avança para próxima linha
-        </p>
+          {rows.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">
+                    {rows.length} receptoras — {rows.filter(r => r.resultado !== '').length} preenchidas
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={markRestAsPrenhe}>
+                      Marcar restantes como Prenhe
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ManualEntryGrid
+                  rows={rows}
+                  columns={dgColumns}
+                  onRowChange={handleRowChange}
+                  getRowClassName={(row) =>
+                    row.resultado === 'PRENHE' ? 'bg-green-500/5' :
+                    row.resultado === 'VAZIA' ? 'bg-red-500/5' :
+                    row.resultado === 'RETOQUE' ? 'bg-amber-500/5' : ''
+                  }
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    <Save className="w-4 h-4 mr-1" />
+                    {isSaving ? 'Salvando...' : 'Salvar Diagnósticos'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {rows.length > 0 && (
+            <p className="text-xs text-muted-foreground text-center">
+              Atalhos: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">P</kbd> Prenhe{' '}
+              <kbd className="px-1 py-0.5 bg-muted rounded text-xs">V</kbd> Vazia{' '}
+              <kbd className="px-1 py-0.5 bg-muted rounded text-xs">R</kbd> Retoque{' '}
+              — Auto-avança para próxima linha
+            </p>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 """
-EmbryoScore Pipeline v6 — Unified Cloud Run Service
+EmbryoScore Pipeline v7 — Unified Cloud Run Service
 
 POST /analyze          — Full pipeline: detect + kinetics + DINOv2 + Gemini + Storage
+POST /ocr              — OCR de relatórios de campo via Gemini 2.0 Flash Vision
 POST /detect-and-crop  — Retrocompat: OpenCV detect + crop (from frame-extractor)
 POST /analyze-activity — Retrocompat: Advanced kinetics (from frame-extractor)
 GET  /health           — Health check
@@ -16,6 +17,7 @@ import io
 import json
 import logging
 import os
+import re
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait as futures_wait
@@ -26,6 +28,7 @@ import cv2
 import numpy as np
 import requests as http_requests
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from PIL import Image
 
@@ -37,7 +40,21 @@ supabase_client = None
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="embryoscore-pipeline-v6")
+app = FastAPI(title="embryoscore-pipeline-v7")
+
+# ─── CORS ────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://passagene.com.br",
+        "https://www.passagene.com.br",
+        "http://localhost:5173",
+        "http://localhost:4173",
+    ],
+    allow_credentials=True,
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # ─── Configuration ───────────────────────────────────────
 FRAME_COUNT = 40
@@ -87,7 +104,7 @@ class AnalyzeRequest(BaseModel):
     supabase_url: str
     supabase_key: str
     prompt: Optional[str] = None
-    model_name: str = "gemini-2.5-flash"
+    model_name: str = "gemini-3-flash-preview"
     # Fields for direct DB save (Cloud Run saves scores, Edge Function doesn't wait)
     lote_fiv_acasalamento_id: Optional[str] = None
     media_id: Optional[str] = None
@@ -257,7 +274,8 @@ async def analyze(req: AnalyzeRequest):
                         req.gemini_api_key, req.prompt, req.model_name,
                         valid_vision[i]["activity_score"],
                         valid_vision[i]["kinetic_profile"],
-                        valid_vision[i]["kinetic_quality_score"],
+                        valid_vision[i]["nsd"],
+                        valid_vision[i]["anr"],
                     ): i
                     for i in valid_vision
                 }
@@ -301,6 +319,529 @@ async def analyze(req: AnalyzeRequest):
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+# ═══════════════════════════════════════════════════════════
+# OCR — Report digitization via Gemini 2.0 Flash Vision
+# ═══════════════════════════════════════════════════════════
+
+class OcrRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    report_type: str  # dg, sexagem, p2, aspiracao, te, p1
+    fazenda_id: str
+
+
+# ─── OCR Prompt builder ──────────────────────────────────
+
+def _build_ocr_prompt(
+    report_type: str,
+    animals: list[dict],
+    corrections: list[dict],
+) -> str:
+    animal_list = ""
+    if animals:
+        lines = [f"- {a['registro']}" + (f" ({a['nome']})" if a.get("nome") else "")
+                 for a in animals[:500]]
+        animal_list = (
+            "\nANIMAIS CONHECIDOS desta fazenda (use para desambiguar registros escritos à mão):\n"
+            + "\n".join(lines) + "\n"
+        )
+
+    correction_list = ""
+    if corrections:
+        lines = [f'- "{c["raw_value"]}" na verdade era "{c["corrected_value"]}" (campo: {c["field_type"]})'
+                 for c in corrections[:20]]
+        correction_list = (
+            "\nCORREÇÕES ANTERIORES (a IA errou antes, aprenda com isso):\n"
+            + "\n".join(lines) + "\n"
+        )
+
+    result_instructions = {
+        "dg": 'Coluna RESULTADO: P = Prenhe, V = Vazia, R = Retoque. Retorne como "P", "V" ou "R".',
+        "sexagem": 'Coluna RESULTADO: F = Fêmea, M = Macho, S = Sem sexo, D = Dois sexos, V = Vazia. Retorne a letra.',
+        "p2": 'Coluna RESULTADO: ✓ ou check = Apta, X = Perda. Retorne "APTA" ou "PERDA".',
+        "te": 'Coluna RESULTADO: código do embrião transferido (texto livre, ex: "EMB-001").',
+        "aspiracao": (
+            "Este é um relatório de ASPIRAÇÃO FOLICULAR.\n"
+            "Cada LINHA do relatório representa UMA doadora e possui EXATAMENTE 6 campos numéricos nesta ordem:\n"
+            "  1) ATR (Atrésicos)  2) DEG (Degenerados)  3) EXP (Expandidos)\n"
+            "  4) DES (Desnudos)   5) VIA (Viáveis)      6) T (Total)\n"
+            "REGRAS CRÍTICAS:\n"
+            "- Leia cada linha de forma INDEPENDENTE. Nunca use dados de uma linha para preencher outra.\n"
+            "- Cada linha DEVE ter todos os 6 campos numéricos. Se não conseguir ler um número, retorne 0 com confidence 0.\n"
+            "- NUNCA pule um campo. Se uma célula parece vazia, retorne 0.\n"
+            "- O Total (T) DEVE ser igual à soma ATR+DEG+EXP+DES+VIA. Se o valor escrito não bater com a soma, "
+            "confie na soma dos campos individuais e ajuste o total.\n"
+            "- Não confunda a linha de TOTAIS GERAIS (última linha, soma de todas as doadoras) com uma doadora individual."
+        ),
+        "p1": 'Coluna RESULTADO: geralmente vazio no P1 (1º passo). Foque em extrair REGISTRO e RAÇA corretamente.',
+    }
+
+    return f"""Você é um sistema de OCR especializado em relatórios de campo de reprodução bovina (FIV).
+
+TAREFA: Extrair dados de uma foto de relatório preenchido à mão.
+
+TIPO DE RELATÓRIO: {report_type.upper()}
+{result_instructions.get(report_type, '')}
+{animal_list}{correction_list}
+INSTRUÇÕES DE OCR:
+- Escrita à mão pode ser difícil de ler. Faça seu melhor esforço.
+- Registros de animais são códigos como "REC-0235", "DOA-001", etc.
+- Se houver ambiguidade, use a lista de animais conhecidos para desambiguar.
+- Confidence: 0-100 (100 = certeza absoluta, 0 = chute).
+- Se não conseguir ler um campo, retorne string vazia com confidence 0.
+- Números de linha (coluna Nº) indicam a ordem.
+- Ignore linhas completamente vazias.
+
+RETORNE JSON no formato especificado no response_schema."""
+
+
+# ─── OCR Gemini response schemas ─────────────────────────
+
+def _get_ocr_response_schema(report_type: str) -> dict:
+    field_schema = lambda t="STRING": {
+        "type": "OBJECT",
+        "properties": {
+            "value": {"type": t},
+            "confidence": {"type": "INTEGER"},
+        },
+        "required": ["value", "confidence"],
+    }
+
+    header_schema = {
+        "type": "OBJECT",
+        "properties": {
+            "fazenda": field_schema(),
+            "data": field_schema(),
+            "veterinario": field_schema(),
+            "tecnico": field_schema(),
+        },
+        "required": ["fazenda", "data", "veterinario", "tecnico"],
+    }
+
+    if report_type == "aspiracao":
+        return {
+            "type": "OBJECT",
+            "properties": {
+                "header": header_schema,
+                "rows": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "numero": {"type": "INTEGER"},
+                            "registro": field_schema(),
+                            "raca": field_schema(),
+                            "atresicos": field_schema("INTEGER"),
+                            "degenerados": field_schema("INTEGER"),
+                            "expandidos": field_schema("INTEGER"),
+                            "desnudos": field_schema("INTEGER"),
+                            "viaveis": field_schema("INTEGER"),
+                            "total": field_schema("INTEGER"),
+                        },
+                        "required": ["numero", "registro", "raca", "atresicos",
+                                     "degenerados", "expandidos", "desnudos", "viaveis", "total"],
+                    },
+                },
+                "pagina": {"type": "STRING"},
+            },
+            "required": ["header", "rows"],
+        }
+
+    # Universal schema (DG, Sexagem, P1, P2, TE)
+    header_schema["properties"]["servico_detectado"] = {
+        "type": "STRING",
+        "description": "Tipo de serviço detectado pelo checkbox marcado: p1, p2, te, dg, sexagem",
+    }
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "header": header_schema,
+            "rows": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "numero": {"type": "INTEGER"},
+                        "registro": field_schema(),
+                        "raca": field_schema(),
+                        "resultado": field_schema(),
+                        "obs": field_schema(),
+                    },
+                    "required": ["numero", "registro", "raca", "resultado", "obs"],
+                },
+            },
+            "pagina": {"type": "STRING"},
+        },
+        "required": ["header", "rows"],
+    }
+
+
+# ─── Fuzzy match (ported from matchRegistro.ts) ──────────
+
+def _normalize_registro(value: str) -> str:
+    return re.sub(r'\s+', '', value.upper().strip())
+
+
+def _split_registro(reg: str) -> tuple[str, str, int]:
+    """Returns (prefix, number_str, numeric_value)."""
+    normalized = _normalize_registro(reg)
+    m = re.match(r'^([A-Z\-_]*?)(\d+)$', normalized)
+    if m:
+        return m.group(1), m.group(2), int(m.group(2))
+    return normalized, '', -1
+
+
+def _levenshtein(a: str, b: str) -> int:
+    m, n = len(a), len(b)
+    if m == 0:
+        return n
+    if n == 0:
+        return m
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            dp[i][j] = (dp[i - 1][j - 1] if a[i - 1] == b[j - 1]
+                        else 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]))
+    return dp[m][n]
+
+
+def _fuzzy_match_registro(ocr_value: str, animals: list[dict]) -> dict:
+    """Match one OCR registro against animal list. Returns match result."""
+    if not ocr_value or not animals:
+        return {"matched": False, "db_id": None, "db_registro": None, "confidence": 0}
+
+    normalized_ocr = _normalize_registro(ocr_value)
+    ocr_prefix, ocr_num_str, ocr_num = _split_registro(ocr_value)
+
+    best = {"matched": False, "db_id": None, "db_registro": None, "db_nome": None, "confidence": 0}
+
+    for animal in animals:
+        normalized_db = _normalize_registro(animal["registro"])
+        db_prefix, db_num_str, db_num = _split_registro(animal["registro"])
+
+        confidence = 0
+
+        # 1. Exact match
+        if normalized_ocr == normalized_db:
+            return {
+                "matched": True,
+                "db_id": animal["id"],
+                "db_registro": animal["registro"],
+                "db_nome": animal.get("nome"),
+                "confidence": 100,
+            }
+
+        # 2. Same prefix + close number
+        if (ocr_prefix and db_prefix and ocr_prefix == db_prefix
+                and ocr_num >= 0 and db_num >= 0):
+            num_diff = abs(ocr_num - db_num)
+            if num_diff == 0:
+                confidence = 98
+            elif num_diff <= 1:
+                confidence = 88
+            elif num_diff <= 5:
+                confidence = 75
+            elif num_diff <= 10:
+                confidence = 60
+
+        # 3. No prefix in OCR but number matches
+        if (confidence < 70 and ocr_num >= 0 and db_num >= 0
+                and not ocr_prefix and db_prefix):
+            num_diff = abs(ocr_num - db_num)
+            if num_diff == 0:
+                confidence = max(confidence, 70)
+            elif num_diff <= 2:
+                confidence = max(confidence, 55)
+
+        # 4. Levenshtein fallback
+        if confidence < 50:
+            lev = _levenshtein(normalized_ocr, normalized_db)
+            max_len = max(len(normalized_ocr), len(normalized_db))
+            if max_len > 0:
+                lev_conf = max(0, round((1 - lev / max_len) * 100))
+                if lev_conf > confidence and lev <= 2:
+                    confidence = min(lev_conf, 60)
+
+        if confidence > best["confidence"]:
+            best = {
+                "matched": confidence >= 60,
+                "db_id": animal["id"],
+                "db_registro": animal["registro"],
+                "db_nome": animal.get("nome"),
+                "confidence": confidence,
+            }
+
+    return best
+
+
+# ─── Normalize resultado (ported from postProcess.ts) ─────
+
+DG_RESULT_MAP = {
+    "P": "PRENHE", "PRENHE": "PRENHE", "PR": "PRENHE",
+    "V": "VAZIA", "VAZIA": "VAZIA", "VA": "VAZIA",
+    "R": "RETOQUE", "RETOQUE": "RETOQUE", "RET": "RETOQUE",
+}
+
+SEXAGEM_RESULT_MAP = {
+    "F": "PRENHE_FEMEA", "FEMEA": "PRENHE_FEMEA", "FÊMEA": "PRENHE_FEMEA",
+    "M": "PRENHE_MACHO", "MACHO": "PRENHE_MACHO",
+    "S": "PRENHE_SEM_SEXO", "SEM SEXO": "PRENHE_SEM_SEXO",
+    "D": "PRENHE_2_SEXOS", "DOIS SEXOS": "PRENHE_2_SEXOS", "2 SEXOS": "PRENHE_2_SEXOS",
+    "V": "VAZIA", "VAZIA": "VAZIA",
+}
+
+P2_RESULT_MAP = {
+    "✓": "APTA", "CHECK": "APTA", "OK": "APTA", "APTA": "APTA",
+    "X": "PERDA", "PERDA": "PERDA", "PERDEU": "PERDA",
+}
+
+
+def _normalize_resultado(value: str, report_type: str) -> tuple[str, bool]:
+    """Returns (normalized, is_valid)."""
+    upper = value.upper().strip()
+    maps = {"dg": DG_RESULT_MAP, "sexagem": SEXAGEM_RESULT_MAP, "p2": P2_RESULT_MAP}
+    m = maps.get(report_type)
+    if not m:
+        return upper, True
+    normalized = m.get(upper)
+    return (normalized, True) if normalized else (upper, False)
+
+
+# ─── Post-process OCR result (server-side) ────────────────
+
+def _post_process_ocr(raw_data: dict, animals: list[dict],
+                      corrections: list[dict], report_type: str) -> dict:
+    """Full server-side post-processing: corrections → fuzzy match → normalize → filter."""
+    rows = raw_data.get("rows", [])
+    is_aspiracao = report_type == "aspiracao"
+
+    # Build correction map
+    correction_map: dict[str, str] = {}
+    for c in corrections:
+        key = f"{c['field_type']}::{c['raw_value'].upper().strip()}"
+        correction_map[key] = c["corrected_value"]
+
+    processed_rows = []
+    for row in rows:
+        # ── Apply corrections ──
+        reg = row.get("registro", {})
+        reg_val = reg.get("value", "")
+        reg_conf = reg.get("confidence", 0)
+
+        reg_key = f"registro::{reg_val.upper().strip()}"
+        if reg_key in correction_map:
+            reg_val = correction_map[reg_key]
+            reg_conf = min(reg_conf + 15, 95)
+
+        raca = row.get("raca", {})
+        raca_val = raca.get("value", "")
+        raca_conf = raca.get("confidence", 0)
+
+        raca_key = f"raca::{raca_val.upper().strip()}"
+        if raca_key in correction_map:
+            raca_val = correction_map[raca_key]
+            raca_conf = min(raca_conf + 15, 95)
+
+        # ── Fuzzy match registro ──
+        match = _fuzzy_match_registro(reg_val, animals)
+        matched_db = match["matched"]
+        matched_value = match["db_registro"]
+        if matched_db:
+            reg_conf = max(reg_conf, match["confidence"])
+        else:
+            reg_conf = min(reg_conf, 40)
+
+        reg_out = {
+            "value": reg_val,
+            "confidence": reg_conf,
+            "matched_db": matched_db,
+            "matched_value": matched_value,
+        }
+
+        raca_out = {"value": raca_val, "confidence": raca_conf}
+
+        if is_aspiracao:
+            # Aspiração: numeric fields with total validation
+            proc_row = {
+                "numero": row.get("numero", 0),
+                "registro": reg_out,
+                "raca": raca_out,
+            }
+            sum_fields = ["atresicos", "degenerados", "expandidos", "desnudos", "viaveis"]
+            for field in sum_fields + ["total"]:
+                f = row.get(field, {})
+                proc_row[field] = {"value": f.get("value", 0), "confidence": f.get("confidence", 0)}
+
+            # Validate: total must equal sum of parts
+            computed_sum = sum(proc_row[f]["value"] for f in sum_fields)
+            reported_total = proc_row["total"]["value"]
+            if computed_sum > 0 and reported_total != computed_sum:
+                proc_row["total"] = {"value": computed_sum, "confidence": 70}
+
+            # Skip rows with empty registro and all zeros
+            if not reg_val and all(proc_row[f]["value"] == 0 for f in sum_fields):
+                continue
+            processed_rows.append(proc_row)
+        else:
+            # Universal: normalize resultado
+            res = row.get("resultado", {})
+            res_val = res.get("value", "")
+            res_conf = res.get("confidence", 0)
+
+            res_key = f"resultado::{res_val.upper().strip()}"
+            if res_key in correction_map:
+                original_res = res_val
+                res_val = correction_map[res_key]
+                res_conf = min(res_conf + 15, 95)
+
+            if res_val:
+                normalized, valid = _normalize_resultado(res_val, report_type)
+                res_val = normalized
+                res_conf = max(res_conf, 90) if valid else min(res_conf, 30)
+
+            obs = row.get("obs", {})
+            obs_val = obs.get("value", "")
+            obs_conf = obs.get("confidence", 0)
+
+            # Skip empty rows
+            if not reg_val and not res_val:
+                continue
+
+            processed_rows.append({
+                "numero": row.get("numero", 0),
+                "registro": reg_out,
+                "raca": raca_out,
+                "resultado": {"value": res_val, "confidence": res_conf},
+                "obs": {"value": obs_val, "confidence": obs_conf},
+            })
+
+    return {
+        "header": raw_data.get("header", {}),
+        "rows": processed_rows,
+        "metadata": {
+            "pagina": raw_data.get("pagina", ""),
+            "total_rows": len(processed_rows),
+        },
+    }
+
+
+# ─── OCR Endpoint ─────────────────────────────────────────
+
+@app.post("/ocr")
+async def ocr_endpoint(req: OcrRequest):
+    """OCR de relatórios de campo via Gemini 2.0 Flash Vision.
+    Receives compressed base64 image, returns processed JSON ready for review grid.
+    """
+    valid_types = ["p1", "p2", "te", "dg", "sexagem", "aspiracao"]
+    if req.report_type not in valid_types:
+        raise HTTPException(400, f"report_type inválido: {req.report_type}")
+
+    # Get env-based credentials (OCR uses dedicated key, separate from EmbryoScore)
+    gemini_api_key = os.environ.get("GEMINI_OCR_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not gemini_api_key:
+        raise HTTPException(500, "GEMINI_OCR_API_KEY / GEMINI_API_KEY not configured")
+    if not supabase_url or not supabase_key:
+        raise HTTPException(500, "SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured")
+
+    sb = _get_supabase(supabase_url, supabase_key)
+
+    # 1. Fetch animals for this fazenda
+    is_receptora = req.report_type in ("dg", "sexagem", "p1", "p2", "te")
+    if is_receptora:
+        resp = sb.table("receptoras").select("id, identificacao, nome") \
+            .eq("fazenda_atual_id", req.fazenda_id).limit(500).execute()
+        # Normalize key: identificacao -> registro for uniform downstream processing
+        animals = [
+            {"id": a["id"], "registro": a.get("identificacao") or "", "nome": a.get("nome")}
+            for a in (resp.data or [])
+        ]
+    else:
+        resp = sb.table("doadoras").select("id, registro, nome") \
+            .eq("fazenda_id", req.fazenda_id).limit(500).execute()
+        animals = resp.data or []
+    logger.info(f"[OCR] Loaded {len(animals)} animals for fazenda {req.fazenda_id}")
+
+    # 2. Fetch recent corrections
+    corrections = []
+    try:
+        resp = sb.table("ocr_corrections") \
+            .select("raw_value, corrected_value, field_type") \
+            .eq("fazenda_id", req.fazenda_id) \
+            .eq("report_type", req.report_type) \
+            .order("created_at", desc=True) \
+            .limit(20).execute()
+        corrections = resp.data or []
+    except Exception as e:
+        logger.warning(f"[OCR] ocr_corrections not accessible: {e}")
+
+    # 3. Build prompt
+    prompt = _build_ocr_prompt(req.report_type, animals, corrections)
+
+    # 4. Call Gemini 3 Flash Vision
+    model_name = "gemini-3-flash-preview"
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_api_key}"
+
+    gemini_payload = {
+        "system_instruction": {"parts": [{"text": prompt}]},
+        "contents": [{
+            "parts": [
+                {"inline_data": {"mime_type": req.mime_type, "data": req.image_base64}},
+                {"text": "Extraia todos os dados desta foto de relatório de campo. Retorne no formato JSON especificado."},
+            ],
+        }],
+        "generation_config": {
+            "temperature": 0.1,
+            "max_output_tokens": 8192,
+            "response_mime_type": "application/json",
+            "response_schema": _get_ocr_response_schema(req.report_type),
+        },
+    }
+
+    try:
+        gemini_resp = http_requests.post(gemini_url, json=gemini_payload, timeout=45)
+    except http_requests.exceptions.Timeout:
+        raise HTTPException(504, "Gemini timeout (45s)")
+
+    if not gemini_resp.ok:
+        raise HTTPException(502, f"Gemini API error ({gemini_resp.status_code}): {gemini_resp.text[:500]}")
+
+    gemini_data = gemini_resp.json()
+    candidate = (gemini_data.get("candidates") or [{}])[0]
+    raw_text = (candidate.get("content", {}).get("parts") or [{}])[0].get("text", "")
+    finish_reason = candidate.get("finishReason", "UNKNOWN")
+
+    logger.info(f"[OCR] finishReason={finish_reason}, rawLen={len(raw_text)}")
+
+    if not raw_text:
+        raise HTTPException(502, f"Gemini empty response (finishReason: {finish_reason})")
+
+    try:
+        raw_data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        raise HTTPException(502, f"Gemini JSON parse error: {raw_text[:200]}")
+
+    # 5. Post-process server-side (fuzzy match + normalize + filter)
+    processed = _post_process_ocr(raw_data, animals, corrections, req.report_type)
+
+    return {
+        "success": True,
+        "data": processed,
+        "metadata": {
+            "model": model_name,
+            "finish_reason": finish_reason,
+            "animals_loaded": len(animals),
+            "corrections_loaded": len(corrections),
+        },
+    }
 
 
 # ─── Retrocompat Endpoints ───────────────────────────────
@@ -804,27 +1345,10 @@ def _compute_kinetic_profile(
     }
 
 
-def _compute_kinetic_quality(activity_score: int, profile: dict) -> int:
-    """Map activity score to quality assessment (bell curve)."""
-    if activity_score <= 5:
-        base = 25
-    elif activity_score <= 15:
-        base = 65
-    elif activity_score <= 30:
-        base = 75
-    elif activity_score <= 50:
-        base = 65
-    elif activity_score <= 70:
-        base = 45
-    else:
-        base = 25
-
-    if profile.get("focal_activity_detected") and activity_score > 10:
-        base += 5
-    if profile.get("activity_symmetry", 1.0) < 0.4:
-        base -= 5
-
-    return max(0, min(100, base))
+def _compute_temporal_stability(profile: dict) -> float:
+    """Convert temporal_variability (unbounded) to stability (0-1). More stable = higher."""
+    var = profile.get("temporal_variability", 0.0)
+    return round(max(0.0, 1.0 - var / 5.0), 3)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -851,7 +1375,7 @@ def _process_embryo_vision(
     cv2.circle(mask, (cx, cy), radius, 255, -1)
     mask_indices = mask > 0
 
-    # Activity score (compensated)
+    # Activity score (compensated) + NSD/ANR biomarcadores
     pixel_values = [g[mask_indices].astype(np.float32) for g in gray_frames]
     if len(pixel_values) >= 2:
         pixel_stack = np.stack(pixel_values, axis=0)
@@ -859,14 +1383,20 @@ def _process_embryo_vision(
         mean_std = float(np.mean(pixel_std))
         compensated_std = max(0.0, mean_std - bg_std)
         activity_score = int(min(100, max(0, compensated_std * 100 / 15)))
+        # NSD (Normalized Standard Deviation) — validated biomarker (PMC5695959, PMC9089758)
+        mean_intensity = float(np.mean(pixel_stack))
+        nsd = round(compensated_std / max(mean_intensity, 1.0), 6)
+        # ANR (Activity-to-Noise Ratio) — embryo signal vs background noise
+        anr = round(compensated_std / max(bg_std, 0.5), 3)
     else:
         activity_score = 0
+        nsd = 0.0
+        anr = 0.0
 
     # Kinetic profile
     kinetic_profile = _compute_kinetic_profile(
         gray_frames, mask, mask_indices, cx, cy, radius, fps,
         wide_diffs, bg_std, bg_timeline)
-    kinetic_quality = _compute_kinetic_quality(activity_score, kinetic_profile)
 
     # Crop region with padding
     padding_ratio = 0.20
@@ -936,8 +1466,10 @@ def _process_embryo_vision(
         "motion_map_path": paths["motion_map_path"],
         "composite_path": paths["composite_path"],
         "activity_score": activity_score,
+        "nsd": nsd,
+        "anr": anr,
+        "bg_std": bg_std,
         "kinetic_profile": kinetic_profile,
-        "kinetic_quality_score": kinetic_quality,
         "embedding": embedding,
         # Temporary data for Gemini phase (popped before results are returned)
         "_crop_jpg": crop_jpg,
@@ -948,7 +1480,8 @@ def _process_embryo_vision(
 def _call_gemini_with_retry(
     crop_jpg: bytes, motion_jpg: bytes,
     api_key: str, prompt: str | None, model_name: str,
-    activity_score: int, kinetic_profile: dict, kinetic_quality: int,
+    activity_score: int, kinetic_profile: dict,
+    nsd: float, anr: float,
     max_retries: int = 3,
 ) -> dict:
     """Call Gemini with exponential backoff retry."""
@@ -956,7 +1489,7 @@ def _call_gemini_with_retry(
         try:
             return _analyze_with_gemini(
                 crop_jpg, motion_jpg, api_key, prompt, model_name,
-                activity_score, kinetic_profile, kinetic_quality,
+                activity_score, kinetic_profile, nsd, anr,
             )
         except Exception as e:
             logger.warning(f"Gemini attempt {attempt+1}/{max_retries}: {e}")
@@ -993,7 +1526,7 @@ def _process_single_embryo(
         crop_jpg, motion_jpg, req.gemini_api_key,
         req.prompt, req.model_name,
         result["activity_score"], result["kinetic_profile"],
-        result["kinetic_quality_score"],
+        result["nsd"], result["anr"],
     )
     return result
 
@@ -1031,10 +1564,7 @@ def _get_embedding(image: np.ndarray) -> list[float]:
     arr = (arr - np.array([0.485, 0.456, 0.406])) / np.array([0.229, 0.224, 0.225])
     arr = arr.transpose(2, 0, 1)[np.newaxis].astype(np.float32)  # (1, 3, 224, 224)
 
-    # DINOv2 ONNX model expects 'image' + 'masks' inputs
-    # 'masks' is a boolean scalar — pass False (no masking)
-    masks = np.array(False, dtype=np.bool_)
-    result = ort_session.run(None, {"image": arr, "masks": masks})
+    result = ort_session.run(None, {"image": arr})
     return result[0][0].tolist()
 
 
@@ -1049,7 +1579,8 @@ IMAGEM 2: Mapa de calor cinetico (vermelho = mais movimento ao longo do video)
 
 DADOS CINETICOS MEDIDOS (computacional, NAO visual):
 - Activity score: {activity_score}/100
-- Kinetic quality: {kinetic_quality}/100
+- NSD (desvio padrao normalizado): {nsd} (mais = mais ativo; embrioes mortos <5x menos)
+- ANR (razao atividade/ruido): {anr} (>2 = atividade real acima do ruido de camera)
 - Core activity: {core_activity}/100
 - Periphery activity: {periphery_activity}/100
 - Peak zone: {peak_zone}
@@ -1130,18 +1661,19 @@ def _analyze_with_gemini(
     crop_jpg: bytes, motion_jpg: bytes,
     api_key: str, custom_prompt: str | None,
     model_name: str,
-    activity_score: int, kinetic_profile: dict, kinetic_quality: int,
+    activity_score: int, kinetic_profile: dict,
+    nsd: float, anr: float,
 ) -> dict:
     """Call Gemini with best frame + heatmap + kinetic data."""
     try:
         _ensure_gemini(api_key)
 
         prompt_template = custom_prompt or DEFAULT_GEMINI_PROMPT
-        # Use str.replace() instead of str.format() to avoid conflict
-        # with JSON curly braces in the prompt template
         prompt = prompt_template
         prompt = prompt.replace("{activity_score}", str(activity_score))
-        prompt = prompt.replace("{kinetic_quality}", str(kinetic_quality))
+        prompt = prompt.replace("{nsd}", str(nsd))
+        prompt = prompt.replace("{anr}", str(anr))
+        prompt = prompt.replace("{kinetic_quality}", "N/A")  # Legacy fallback for custom prompts
         prompt = prompt.replace("{core_activity}", str(kinetic_profile.get("core_activity", 0)))
         prompt = prompt.replace("{periphery_activity}", str(kinetic_profile.get("periphery_activity", 0)))
         prompt = prompt.replace("{peak_zone}", str(kinetic_profile.get("peak_zone", "unknown")))
@@ -1207,6 +1739,74 @@ def _map_quality_grade_to_classification(quality_grade, iets_code: str) -> str:
         elif iets_code in ("BI", "Mo"):
             return "Borderline"
         return "Regular"
+
+
+def _do_knn_lookup(sb, embedding: list, kinetic_intensity: float,
+                   kinetic_harmony: float, kinetic_stability: float,
+                   min_refs: int = 5) -> dict:
+    """KNN lookup via match_embryos_v2 RPC. Returns classification + votes."""
+    if not embedding or all(v == 0 for v in embedding):
+        return {"combined_source": "insufficient", "combined_classification": None,
+                "knn_classification": None, "knn_confidence": None, "knn_votes": {}}
+
+    try:
+        ref_count = sb.table('embryo_references').select('id', count='exact', head=True).execute()
+        total_refs = ref_count.count or 0
+        if total_refs < min_refs:
+            return {"combined_source": "insufficient", "combined_classification": None,
+                    "knn_classification": None, "knn_confidence": None, "knn_votes": {},
+                    "knn_real_bovine_count": total_refs}
+
+        resp = sb.rpc('match_embryos_v2', {
+            "query_embedding": str(embedding),
+            "query_kinetic_intensity": kinetic_intensity,
+            "query_kinetic_harmony": kinetic_harmony,
+            "query_kinetic_stability": kinetic_stability,
+            "match_count": 10,
+            "visual_top_n": 30,
+            "alpha": 0.7,
+            "beta": 0.3,
+            "min_similarity": 0.50,
+        }).execute()
+
+        neighbors = resp.data or []
+        if not neighbors:
+            return {"combined_source": "insufficient", "combined_classification": None,
+                    "knn_classification": None, "knn_confidence": None, "knn_votes": {},
+                    "knn_real_bovine_count": total_refs}
+
+        # Weighted voting by composite_score
+        votes: dict[str, float] = {}
+        for n in neighbors:
+            cls = n.get("classification") or "Unknown"
+            weight = n.get("composite_score", 0.5)
+            votes[cls] = votes.get(cls, 0) + weight
+
+        sorted_votes = sorted(votes.items(), key=lambda x: -x[1])
+        top_cls = sorted_votes[0][0]
+        total_weight = sum(v for _, v in sorted_votes)
+        confidence = round((sorted_votes[0][1] / max(total_weight, 0.01)) * 100)
+
+        # Integer vote counts for display
+        int_votes = {}
+        for n in neighbors:
+            cls = n.get("classification") or "Unknown"
+            int_votes[cls] = int_votes.get(cls, 0) + 1
+
+        return {
+            "combined_source": "knn",
+            "combined_classification": top_cls,
+            "combined_confidence": confidence,
+            "knn_classification": top_cls,
+            "knn_confidence": confidence,
+            "knn_votes": int_votes,
+            "knn_real_bovine_count": total_refs,
+            "knn_neighbor_ids": [n["id"] for n in neighbors],
+        }
+    except Exception as e:
+        logger.warning(f"KNN lookup failed: {e}")
+        return {"combined_source": "insufficient", "combined_classification": None,
+                "knn_classification": None, "knn_confidence": None, "knn_votes": {}}
 
 
 def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str):
@@ -1288,10 +1888,11 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
             "crop_image_path": emb.get("crop_image_path"),
             "motion_map_path": emb.get("motion_map_path"),
             "composite_path": emb.get("composite_path"),
-            # Kinetics
-            "kinetic_intensity": (emb.get("activity_score") or 0) / 100,
-            "kinetic_harmony": (emb.get("kinetic_profile") or {}).get("activity_symmetry"),
-            "kinetic_stability": (emb.get("kinetic_quality_score") or 0) / 100,
+            # Kinetics — NSD-based (scientific: PMC5695959, PMC9089758)
+            "kinetic_intensity": emb.get("nsd", 0.0),
+            "kinetic_harmony": (emb.get("kinetic_profile") or {}).get("activity_symmetry", 0.0),
+            "kinetic_stability": _compute_temporal_stability(emb.get("kinetic_profile") or {}),
+            "kinetic_bg_noise": emb.get("bg_std"),
             # ── Fix #1: Save gemini_classification (IETS code) ──
             "gemini_classification": iets_code if iets_code not in ("Error", "Unknown") else None,
             "gemini_reasoning": gemini.get("reasoning"),
@@ -1313,15 +1914,32 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
         if embedding and any(v != 0 for v in embedding):
             if len(embedding) < 768:
                 embedding = embedding + [0.0] * (768 - len(embedding))
-            score_record["embedding"] = json.dumps(embedding)  # pgvector expects string format
+            score_record["embedding"] = json.dumps(embedding)
+
+            # KNN lookup with padded embedding
+            knn_result = _do_knn_lookup(
+                sb, embedding,
+                score_record.get("kinetic_intensity", 0.0),
+                score_record.get("kinetic_harmony", 0.0),
+                score_record.get("kinetic_stability", 0.0),
+            )
+            score_record.update({
+                "combined_source": knn_result.get("combined_source"),
+                "combined_classification": knn_result.get("combined_classification"),
+                "combined_confidence": knn_result.get("combined_confidence"),
+                "knn_classification": knn_result.get("knn_classification"),
+                "knn_confidence": knn_result.get("knn_confidence"),
+                "knn_votes": knn_result.get("knn_votes"),
+                "knn_real_bovine_count": knn_result.get("knn_real_bovine_count"),
+            })
 
         scores_to_insert.append(score_record)
 
     if scores_to_insert:
-        # Mark old scores as non-current
         emb_ids = [s["embriao_id"] for s in scores_to_insert]
-        sb.table('embryo_scores').update({"is_current": False}).in_("embriao_id", emb_ids).execute()
-        # Insert new scores — with retry if gemini_classification column doesn't exist yet
+        cutoff = datetime.utcnow().isoformat()
+
+        # 1. INSERT new scores (is_current=True) FIRST — safe if fails (old scores remain)
         try:
             sb.table('embryo_scores').insert(scores_to_insert).execute()
         except Exception as insert_err:
@@ -1333,6 +1951,35 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
                 sb.table('embryo_scores').insert(scores_to_insert).execute()
             else:
                 raise
+
+        # 2. THEN mark old scores as non-current (timestamp fence prevents marking the new ones)
+        sb.table('embryo_scores').update({"is_current": False}) \
+            .in_("embriao_id", emb_ids) \
+            .lt("created_at", cutoff) \
+            .execute()
+
+        # 3. Auto-populate embryo_references atlas (for scores with biologist classification + valid embedding)
+        for score_rec in scores_to_insert:
+            bio_class = score_rec.get("biologist_classification")
+            emb_embedding = score_rec.get("embedding")
+            if bio_class and emb_embedding:
+                try:
+                    sb.table('embryo_references').upsert({
+                        "embriao_id": score_rec["embriao_id"],
+                        "classification": bio_class,
+                        "embedding": emb_embedding,
+                        "kinetic_intensity": score_rec.get("kinetic_intensity"),
+                        "kinetic_harmony": score_rec.get("kinetic_harmony"),
+                        "kinetic_stability": score_rec.get("kinetic_stability"),
+                        "kinetic_bg_noise": score_rec.get("kinetic_bg_noise"),
+                        "best_frame_path": score_rec.get("crop_image_path"),
+                        "motion_map_path": score_rec.get("motion_map_path"),
+                        "species": "bovine_real",
+                        "source": "lab",
+                        "lab_id": "00000000-0000-0000-0000-000000000001",
+                    }, on_conflict="embriao_id").execute()
+                except Exception as ref_err:
+                    logger.warning(f"Atlas upsert failed for {score_rec['embriao_id']}: {ref_err}")
 
     # Mark job complete
     sb.table('embryo_analysis_queue').update({
@@ -1425,7 +2072,6 @@ def _compute_kinetics_for_bbox(
     kinetic_profile = _compute_kinetic_profile(
         gray_frames, mask, mask_indices, cx, cy, radius, fps,
         wide_diffs, bg_std, bg_timeline)
-    kinetic_quality = _compute_kinetic_quality(activity_score, kinetic_profile)
 
     # Key frames
     total_sampled = len(color_frames)
@@ -1512,7 +2158,6 @@ def _compute_kinetics_for_bbox(
         "index": bbox_idx,
         "activity_score": activity_score,
         "kinetic_profile": kinetic_profile,
-        "kinetic_quality_score": kinetic_quality,
         "clean_frames": clean_frames_b64,
         "composite_frames": composite_frames_b64,
         "cumulative_heatmap": heatmap_b64,

@@ -19,7 +19,8 @@ IMAGEM 2: Mapa de calor cinetico (vermelho = mais movimento ao longo do video)
 
 DADOS CINETICOS MEDIDOS (computacional, NAO visual):
 - Activity score: {activity_score}/100
-- Kinetic quality: {kinetic_quality}/100
+- NSD (desvio padrao normalizado): {nsd} (mais = mais ativo; embrioes mortos <5x menos)
+- ANR (razao atividade/ruido): {anr} (>2 = atividade real acima do ruido de camera)
 - Core activity: {core_activity}/100
 - Periphery activity: {periphery_activity}/100
 - Peak zone: {peak_zone}

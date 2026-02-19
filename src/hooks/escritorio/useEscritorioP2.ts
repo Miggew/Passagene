@@ -21,7 +21,7 @@ export function useEscritorioP2({ protocoloId }: UseP2Options) {
           id,
           receptora_id,
           status,
-          receptoras!inner(id, registro, nome, raca)
+          receptoras!inner(id, identificacao, nome, raca)
         `)
         .eq('protocolo_id', protocoloId)
         .not('status', 'eq', 'INAPTA')
@@ -32,7 +32,7 @@ export function useEscritorioP2({ protocoloId }: UseP2Options) {
       return (data || []).map((pr: any) => ({
         protocolo_receptora_id: pr.id,
         receptora_id: pr.receptora_id,
-        registro: pr.receptoras?.registro || '',
+        registro: pr.receptoras?.identificacao || '',
         nome: pr.receptoras?.nome,
         raca: pr.receptoras?.raca,
         is_perda: false,

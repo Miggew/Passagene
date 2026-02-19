@@ -24,7 +24,7 @@ export function useEscritorioTE({ protocoloId, fazendaId, loteFivId }: UseTEOpti
           id,
           receptora_id,
           status,
-          receptoras!inner(id, registro, nome, raca)
+          receptoras!inner(id, identificacao, nome, raca)
         `)
         .eq('protocolo_id', protocoloId)
         .eq('status', 'SINCRONIZADA')
@@ -35,7 +35,7 @@ export function useEscritorioTE({ protocoloId, fazendaId, loteFivId }: UseTEOpti
       return (data || []).map((pr: any) => ({
         protocolo_receptora_id: pr.id,
         receptora_id: pr.receptora_id,
-        registro: pr.receptoras?.registro || '',
+        registro: pr.receptoras?.identificacao || '',
         nome: pr.receptoras?.nome,
         raca: pr.receptoras?.raca,
         embriao_id: '',

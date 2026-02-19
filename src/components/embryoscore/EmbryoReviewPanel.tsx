@@ -21,6 +21,7 @@ import { EmbryoMinimap } from './EmbryoMinimap';
 import { BiologistClassButtons, CLASSES } from './BiologistClassButtons';
 import { DispatchSummary } from './DispatchSummary';
 import { Eye, EyeOff, Activity, Map, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
 
 const SOURCE_LABELS: Record<string, { icon: string; text: string; color: string }> = {
   knn: { icon: '🤖', text: 'KNN', color: 'text-primary' },
@@ -336,21 +337,25 @@ function EmbryoDetailCard({
           </div>
         </div>
 
-        {/* Kinetic metrics — always visible (not AI opinion) */}
-        {score.kinetic_intensity != null && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 px-2 text-[11px] text-muted-foreground">
-            <span>Intensidade: <b className="text-foreground">{(score.kinetic_intensity * 100).toFixed(0)}%</b></span>
-            {score.kinetic_harmony != null && (
-              <span>Harmonia: <b className="text-foreground">{(score.kinetic_harmony * 100).toFixed(0)}%</b></span>
-            )}
-            {score.kinetic_symmetry != null && (
-              <span>Simetria: <b className="text-foreground">{(score.kinetic_symmetry * 100).toFixed(0)}%</b></span>
-            )}
-            {score.kinetic_stability != null && (
-              <span>Estabilidade: <b className="text-foreground">{(score.kinetic_stability * 100).toFixed(0)}%</b></span>
-            )}
-          </div>
-        )}
+        {/* Kinetic diagnosis — always visible (not AI opinion) */}
+        {score.kinetic_intensity != null && (() => {
+          const diag = getKineticDiagnosis(score);
+          return (
+            <div className="flex flex-wrap gap-2 px-2">
+              {(['Atividade', 'Distribuição', 'Estabilidade'] as const).map((label, i) => {
+                const d = [diag.activity, diag.distribution, diag.stability][i];
+                return (
+                  <div key={label} className="flex items-center gap-1 text-[11px]">
+                    <span className="text-muted-foreground">{label}:</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getLabelClasses(d.color)}`}>
+                      {d.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* AI Score area — Blind Review (KNN + Gemini hidden until classified) */}
         <div className="relative">

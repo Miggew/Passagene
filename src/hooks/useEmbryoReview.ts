@@ -103,7 +103,7 @@ export function useSubmitClassification() {
       // 2. Fetch score data for atlas insertion
       const { data: score } = await supabase
         .from('embryo_scores')
-        .select('embedding, kinetic_intensity, kinetic_harmony, kinetic_symmetry, kinetic_stability, kinetic_bg_noise, crop_image_path, motion_map_path, composite_path, knn_classification, knn_confidence')
+        .select('embedding, kinetic_intensity, kinetic_harmony, kinetic_stability, kinetic_bg_noise, crop_image_path, motion_map_path, composite_path, knn_classification, knn_confidence')
         .eq('id', scoreId)
         .single();
 
@@ -131,10 +131,10 @@ export function useSubmitClassification() {
       // 4. Get lab_id (use a constant for now — single lab)
       const labId = '00000000-0000-0000-0000-000000000001';
 
-      // 5. Insert into embryo_references (atlas grows!)
+      // 5. Upsert into embryo_references (atlas grows!)
       const { error: refErr } = await supabase
         .from('embryo_references')
-        .insert({
+        .upsert({
           lab_id: labId,
           lote_fiv_id: loteFivId,
           acasalamento_id: acasalamentoId,
@@ -143,7 +143,6 @@ export function useSubmitClassification() {
           embedding: score.embedding,
           kinetic_intensity: score.kinetic_intensity,
           kinetic_harmony: score.kinetic_harmony,
-          kinetic_symmetry: score.kinetic_symmetry,
           kinetic_stability: score.kinetic_stability,
           kinetic_bg_noise: score.kinetic_bg_noise,
           best_frame_path: score.crop_image_path,
@@ -154,7 +153,7 @@ export function useSubmitClassification() {
           biologist_agreed: score.knn_classification === classification,
           species: 'bovine_real',
           source: 'lab',
-        });
+        }, { onConflict: 'embriao_id' });
 
       if (refErr) {
         console.error('Failed to insert atlas reference:', refErr);

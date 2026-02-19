@@ -22,6 +22,7 @@ import type { BancadaJob, BancadaPlateEmbryo } from '@/hooks/useBancadaJobs';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { ClassificacaoEmbriao } from '@/lib/types';
+import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
 
 // ─── Job List ────────────────────────────────────────────
 
@@ -299,17 +300,24 @@ function EmbryoExpandedRow({ emb, onReclassify }: {
         </div>
         {/* Kinetics + Reasoning */}
         <div className="flex-1 min-w-0 space-y-2">
-          {score?.kinetic_intensity != null && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span>Intensidade: <b className="text-foreground">{(score.kinetic_intensity * 100).toFixed(0)}%</b></span>
-              {score.kinetic_harmony != null && (
-                <span>Harmonia: <b className="text-foreground">{(score.kinetic_harmony * 100).toFixed(0)}%</b></span>
-              )}
-              {score.kinetic_stability != null && (
-                <span>Estabilidade: <b className="text-foreground">{(score.kinetic_stability * 100).toFixed(0)}%</b></span>
-              )}
-            </div>
-          )}
+          {score?.kinetic_intensity != null && (() => {
+            const diag = getKineticDiagnosis(score);
+            return (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {(['Atividade', 'Distribuição', 'Estabilidade'] as const).map((label, i) => {
+                  const d = [diag.activity, diag.distribution, diag.stability][i];
+                  return (
+                    <span key={label} className="flex items-center gap-1">
+                      <span className="text-muted-foreground">{label}:</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getLabelClasses(d.color)}`}>
+                        {d.label}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          })()}
           {score?.gemini_reasoning && (
             <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">
               {score.gemini_reasoning}

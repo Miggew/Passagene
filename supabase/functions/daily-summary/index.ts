@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
     const userPrompt = formatUserPrompt(body);
 
     // Chamar Gemini Flash
-    const modelName = 'gemini-2.0-flash';
+    const modelName = 'gemini-2.5-flash-lite';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
 
     const controller = new AbortController();

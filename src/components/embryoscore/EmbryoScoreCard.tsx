@@ -28,6 +28,7 @@ import {
   Shield,
   Check,
 } from 'lucide-react';
+import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
 
 interface EmbryoScoreCardProps {
   score: EmbryoScore;
@@ -260,22 +261,23 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
         </div>
       )}
 
-      {/* Kinetic metrics */}
-      {score.kinetic_intensity != null && (
-        <div className="pt-2 border-t border-border/30">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-3.5 h-3.5 text-primary/60" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Cinética</span>
+      {/* Kinetic diagnosis */}
+      {score.kinetic_intensity != null && (() => {
+        const diag = getKineticDiagnosis(score);
+        return (
+          <div className="pt-2 border-t border-border/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-3.5 h-3.5 text-primary/60" />
+              <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Cinética</span>
+            </div>
+            <div className="flex flex-wrap gap-2 pl-5">
+              <KineticLabel label="Atividade" diagnosis={diag.activity} />
+              <KineticLabel label="Distribuição" diagnosis={diag.distribution} />
+              <KineticLabel label="Estabilidade" diagnosis={diag.stability} />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-5">
-            <KineticMetric label="Intensidade" value={score.kinetic_intensity} />
-            {score.kinetic_harmony != null && <KineticMetric label="Harmonia" value={score.kinetic_harmony} />}
-            {score.kinetic_symmetry != null && <KineticMetric label="Simetria" value={score.kinetic_symmetry} />}
-            {score.kinetic_stability != null && <KineticMetric label="Estabilidade" value={score.kinetic_stability} />}
-            {score.kinetic_bg_noise != null && <KineticMetric label="Ruído fundo" value={score.kinetic_bg_noise} />}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Processing info */}
       {score.model_used && (
@@ -326,12 +328,13 @@ function FeatureBadge({ label, color }: { label: string; color: 'amber' | 'red' 
   );
 }
 
-function KineticMetric({ label, value }: { label: string; value: number }) {
-  const pct = Math.round(value * 100);
+function KineticLabel({ label, diagnosis }: { label: string; diagnosis: { label: string; color: 'green' | 'amber' | 'red' } }) {
   return (
-    <div className="min-w-0">
-      <span className="text-[10px] text-muted-foreground">{label}: </span>
-      <span className="text-[11px] font-semibold text-foreground">{pct}%</span>
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] text-muted-foreground">{label}:</span>
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${getLabelClasses(diagnosis.color)}`}>
+        {diagnosis.label}
+      </span>
     </div>
   );
 }

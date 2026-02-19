@@ -211,9 +211,14 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Falha ao baixar imagem: ${downloadError?.message || 'dados vazios'}`);
     }
 
-    // Converter para base64
+    // Converter para base64 (chunked para não estourar call stack em imagens grandes)
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 8192) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    }
+    const base64 = btoa(binary);
     const mimeType = body.image_path.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
     console.log(`[report-ocr] Image: ${(arrayBuffer.byteLength / 1024).toFixed(0)}KB, type: ${mimeType}`);

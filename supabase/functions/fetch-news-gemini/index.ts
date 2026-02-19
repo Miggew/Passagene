@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // 2. Chamar Gemini
-        const modelName = 'gemini-2.0-flash';
+        const modelName = 'gemini-2.5-flash-lite';
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
 
         const response = await fetch(geminiUrl, {

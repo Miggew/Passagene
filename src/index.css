@@ -212,3 +212,17 @@ html.font-grande {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(400%); }
 }
+
+/* DNA Wave Loading Animation */
+@keyframes dna-wave {
+  0%, 100% { opacity: 0.08; }
+  20%, 35% { opacity: 1; }
+  60% { opacity: 0.08; }
+}
+
+.dna-wave .dna-m1 { animation: dna-wave 2.4s ease-in-out infinite 0.12s; }
+.dna-wave .dna-m2 { animation: dna-wave 2.4s ease-in-out infinite 0.26s; }
+.dna-wave .dna-m3 { animation: dna-wave 2.4s ease-in-out infinite 0.40s; }
+.dna-wave .dna-m6 { animation: dna-wave 2.4s ease-in-out infinite 0.70s; }
+.dna-wave .dna-m5 { animation: dna-wave 2.4s ease-in-out infinite 0.85s; }
+.dna-wave .dna-m4 { animation: dna-wave 2.4s ease-in-out infinite 1.00s; }

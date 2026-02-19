@@ -21,7 +21,7 @@ export function useEscritorioSexagem({ fazendaId }: UseSexagemOptions) {
           id,
           receptora_id,
           status,
-          receptoras!inner(id, registro, nome, raca)
+          receptoras!inner(id, identificacao, nome, raca)
         `)
         .in('status', ['PRENHE', 'PRENHE_RETOQUE'])
         .limit(200);
@@ -31,7 +31,7 @@ export function useEscritorioSexagem({ fazendaId }: UseSexagemOptions) {
       return (data || []).map((pr: any) => ({
         protocolo_receptora_id: pr.id,
         receptora_id: pr.receptora_id,
-        registro: pr.receptoras?.registro || '',
+        registro: pr.receptoras?.identificacao || '',
         nome: pr.receptoras?.nome,
         raca: pr.receptoras?.raca,
         resultado: '' as const,

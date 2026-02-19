@@ -7,9 +7,11 @@ import { cn } from '@/lib/utils';
 type ScanStep = 'idle' | 'uploading' | 'processing' | 'done' | 'error';
 
 interface ReportScannerProps {
-  onResult: (result: unknown) => void;
+  onResult?: (result: unknown) => void;
   onImageUrl?: (url: string) => void;
-  uploadAndProcess: (file: File) => Promise<unknown>;
+  uploadAndProcess?: (file: File) => Promise<unknown>;
+  /** Preview-only mode: captures file locally without uploading */
+  onFileSelected?: (file: File) => void;
   disabled?: boolean;
 }
 
@@ -29,11 +31,13 @@ const stepProgress: Record<ScanStep, number> = {
   error: 0,
 };
 
-export default function ReportScanner({ onResult, onImageUrl, uploadAndProcess, disabled }: ReportScannerProps) {
+export default function ReportScanner({ onResult, onImageUrl, uploadAndProcess, onFileSelected, disabled }: ReportScannerProps) {
   const [step, setStep] = useState<ScanStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const previewOnly = !!onFileSelected;
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -44,9 +48,16 @@ export default function ReportScanner({ onResult, onImageUrl, uploadAndProcess, 
     setError(null);
     setPreview(URL.createObjectURL(file));
 
+    // Preview-only: just capture the file, don't upload
+    if (previewOnly) {
+      onFileSelected(file);
+      return;
+    }
+
+    if (!uploadAndProcess || !onResult) return;
+
     try {
       setStep('uploading');
-      // uploadAndProcess handles both upload and OCR invocation
       setStep('processing');
       const result = await uploadAndProcess(file);
       setStep('done');
@@ -67,6 +78,35 @@ export default function ReportScanner({ onResult, onImageUrl, uploadAndProcess, 
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
   };
+
+  // Preview-only mode: show captured image with option to change
+  if (previewOnly && preview) {
+    return (
+      <div className="space-y-3">
+        <div className="relative rounded-lg overflow-hidden border border-border max-h-48">
+          <img src={preview} alt="Preview do relatório" className="w-full h-full object-contain" />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setPreview(null);
+            inputRef.current?.click();
+          }}
+        >
+          <Camera className="w-4 h-4 mr-1" /> Trocar Foto
+        </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleInputChange}
+          className="hidden"
+        />
+      </div>
+    );
+  }
 
   if (step !== 'idle' && step !== 'error') {
     return (
