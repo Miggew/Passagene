@@ -124,6 +124,61 @@ def health():
     }
 
 
+# ─── Extract Frame (lightweight) ─────────────────────────
+
+class ExtractFrameRequest(BaseModel):
+    video_url: str
+    time_sec: float = 0.5
+
+
+@app.post("/extract-frame")
+async def extract_frame(req: ExtractFrameRequest):
+    """
+    Lightweight endpoint: download video, extract 1 frame via OpenCV, return JPEG base64.
+    Avoids the browser having to download the entire video just for a thumbnail.
+    """
+    tmp_path = _download_video(req.video_url)
+    try:
+        cap = cv2.VideoCapture(tmp_path)
+        if not cap.isOpened():
+            raise HTTPException(422, "Could not open video")
+
+        video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = total_frames / video_fps if video_fps > 0 else 0
+
+        # Seek to requested time (clamped to video duration)
+        target_time = min(req.time_sec, duration * 0.5) if duration > 0 else 0
+        target_frame = int(target_time * video_fps)
+        target_frame = max(0, min(target_frame, total_frames - 1))
+
+        cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+        ret, frame = cap.read()
+
+        if not ret:
+            # Fallback: read first frame
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+
+        cap.release()
+
+        if not ret or frame is None:
+            raise HTTPException(422, "Could not read any frame from video")
+
+        _, jpg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        frame_b64 = base64.b64encode(jpg.tobytes()).decode('ascii')
+
+        return {
+            "frame_base64": frame_b64,
+            "width": int(frame.shape[1]),
+            "height": int(frame.shape[0]),
+            "time_sec": round(target_time, 2),
+        }
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 # ─── Main Pipeline ───────────────────────────────────────
 
 @app.post("/analyze")
@@ -230,6 +285,11 @@ async def analyze(req: AnalyzeRequest):
             gray_frames, bboxes, vid_w, vid_h, KINETIC_FPS
         )
 
+        # Pre-compute cumulative heatmap (shared across all embryos)
+        cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
+        for wd in wide_diffs:
+            cumulative_heat += wd.astype(np.float64)
+
         # 4. Process each embryo (parallel: vision then Gemini)
         # Phase 1: Vision in parallel (crop + kinetics + embedding + upload)
         vision_results = {}
@@ -239,6 +299,7 @@ async def analyze(req: AnalyzeRequest):
                     _process_embryo_vision,
                     i, bbox, color_frames, gray_frames,
                     wide_diffs, bg_std, bg_timeline,
+                    cumulative_heat,
                     vid_w, vid_h, KINETIC_FPS, sb, job_dir,
                 ): i
                 for i, bbox in enumerate(bboxes)
@@ -255,7 +316,7 @@ async def analyze(req: AnalyzeRequest):
                     vision_results[idx] = None
 
         # Free heavy frame data — no longer needed after vision phase
-        del color_frames, gray_frames, wide_diffs
+        del color_frames, gray_frames, wide_diffs, cumulative_heat
         gc.collect()
         logger.info("Freed frame arrays before Gemini phase")
 
@@ -1235,9 +1296,26 @@ def _compute_background_noise(
     bg_timeline = [0.0] * len(wide_diffs)
 
     if int(np.sum(bg_indices)) > 100:
-        bg_pixels = [g[bg_indices].astype(np.float32) for g in gray_frames]
-        bg_stack = np.stack(bg_pixels, axis=0)
-        bg_std = float(np.mean(np.std(bg_stack, axis=0)))
+        # Welford's online variance — O(1) extra memory instead of O(N*pixels)
+        n = 0
+        mean_acc = None
+        m2_acc = None
+        for g in gray_frames:
+            pixels = g[bg_indices].astype(np.float32)
+            n += 1
+            if mean_acc is None:
+                mean_acc = pixels.copy()
+                m2_acc = np.zeros_like(pixels)
+            else:
+                delta = pixels - mean_acc
+                mean_acc += delta / n
+                delta2 = pixels - mean_acc
+                m2_acc += delta * delta2
+        if n > 1:
+            variance = m2_acc / (n - 1)
+            bg_std = float(np.mean(np.sqrt(variance)))
+        del mean_acc, m2_acc
+
         bg_timeline = [
             float(np.mean(wd[bg_indices].astype(np.float32)))
             for wd in wide_diffs
@@ -1250,6 +1328,7 @@ def _compute_kinetic_profile(
     gray_frames: list, full_mask: np.ndarray, mask_indices: np.ndarray,
     cx: int, cy: int, radius: int, fps: float,
     wide_diffs: list, bg_std: float, bg_timeline: list[float],
+    cumulative_heat: np.ndarray = None,
 ) -> dict:
     """Compute kinetic profile with camera noise compensation."""
     vid_h, vid_w = gray_frames[0].shape
@@ -1307,10 +1386,11 @@ def _compute_kinetic_profile(
         elif temporal_variability > 2.0:
             temporal_pattern = "irregular"
 
-    # Symmetry (quadrant analysis)
-    cumulative = np.zeros((vid_h, vid_w), dtype=np.float64)
-    for wd in wide_diffs:
-        cumulative += wd.astype(np.float64)
+    # Symmetry (quadrant analysis) — use pre-computed cumulative_heat
+    if cumulative_heat is None:
+        cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
+        for wd in wide_diffs:
+            cumulative_heat += wd.astype(np.float64)
 
     quads = []
     for y_sl, x_sl in [
@@ -1321,7 +1401,7 @@ def _compute_kinetic_profile(
     ]:
         q_mask = np.zeros((vid_h, vid_w), dtype=np.uint8)
         q_mask[y_sl, x_sl] = full_mask[y_sl, x_sl]
-        quads.append(float(np.sum(cumulative[q_mask > 0])))
+        quads.append(float(np.sum(cumulative_heat[q_mask > 0])))
 
     total_q = sum(quads)
     activity_symmetry = 1.0
@@ -1359,6 +1439,7 @@ def _process_embryo_vision(
     emb_idx: int, bbox: dict,
     color_frames: list, gray_frames: list,
     wide_diffs: list, bg_std: float, bg_timeline: list,
+    cumulative_heat: np.ndarray,
     vid_w: int, vid_h: int, fps: float,
     sb, job_dir: str,
 ) -> dict:
@@ -1396,7 +1477,7 @@ def _process_embryo_vision(
     # Kinetic profile
     kinetic_profile = _compute_kinetic_profile(
         gray_frames, mask, mask_indices, cx, cy, radius, fps,
-        wide_diffs, bg_std, bg_timeline)
+        wide_diffs, bg_std, bg_timeline, cumulative_heat)
 
     # Crop region with padding
     padding_ratio = 0.20
@@ -1423,11 +1504,7 @@ def _process_embryo_vision(
     best_idx = _select_best_frame(crops)
     best_frame = crops[best_idx]
 
-    # Cumulative heatmap (motion map)
-    cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
-    for wd in wide_diffs:
-        cumulative_heat += wd.astype(np.float64)
-
+    # Heatmap crop from pre-computed cumulative_heat
     heat_crop = cumulative_heat[crop_top:crop_bottom, crop_left:crop_right]
     if heat_crop.max() > 0:
         heat_norm = (heat_crop / heat_crop.max() * 255).astype(np.uint8)
@@ -1511,13 +1588,14 @@ def _process_single_embryo(
     emb_idx: int, bbox: dict,
     color_frames: list, gray_frames: list,
     wide_diffs: list, bg_std: float, bg_timeline: list,
+    cumulative_heat: np.ndarray,
     vid_w: int, vid_h: int, fps: float,
     sb, job_dir: str, req: AnalyzeRequest,
 ) -> dict:
     """Process one embryo: kinetics, best frame, DINOv2, Gemini, upload (sequential fallback)."""
     result = _process_embryo_vision(
         emb_idx, bbox, color_frames, gray_frames,
-        wide_diffs, bg_std, bg_timeline,
+        wide_diffs, bg_std, bg_timeline, cumulative_heat,
         vid_w, vid_h, fps, sb, job_dir,
     )
     crop_jpg = result.pop("_crop_jpg")

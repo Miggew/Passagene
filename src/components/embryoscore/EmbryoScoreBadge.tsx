@@ -74,19 +74,19 @@ const CLASS_BADGE_COLORS: Record<string, { bg: string; text: string; ring: strin
 };
 
 export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgeProps) {
-  // v2: Show class badge if combined_classification exists
-  const isV2 = score.combined_classification != null;
+  // v6: Show IETS class badge if gemini_classification exists
+  const hasGemini = score.gemini_classification != null;
 
-  if (isV2) {
-    const cls = score.biologist_classification || score.combined_classification || '?';
+  if (hasGemini) {
+    const cls = score.gemini_classification!;
     const clsColors = CLASS_BADGE_COLORS[cls] || { bg: 'bg-muted', text: 'text-muted-foreground', ring: 'ring-border' };
-    const confidence = score.combined_confidence != null ? `${score.combined_confidence}%` : '';
+    const confidence = score.ai_confidence != null ? `${Math.round(score.ai_confidence * 100)}%` : '';
 
     if (compact) {
       return (
         <div
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md ${clsColors.bg} ring-1 ${clsColors.ring}`}
-          title={`Classe: ${cls}${confidence ? ` (${confidence})` : ''}`}
+          title={`Gemini: ${cls}${confidence ? ` (${confidence})` : ''}`}
         >
           <span className={`text-[10px] font-bold font-mono ${clsColors.text}`}>{cls}</span>
         </div>
@@ -96,7 +96,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
     return (
       <div
         className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ${clsColors.bg} ring-1 ${clsColors.ring}`}
-        title={`Classe: ${cls}${confidence ? ` — Confiança: ${confidence}` : ''}\nFonte: ${score.combined_source || 'N/A'}`}
+        title={`Gemini: ${cls}${confidence ? ` — Confiança: ${confidence}` : ''}`}
       >
         <Brain className={`w-3 h-3 ${clsColors.text}`} />
         <span className={`text-xs font-bold font-mono ${clsColors.text}`}>{cls}</span>
@@ -107,7 +107,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
     );
   }
 
-  // v1: Numeric score badge (backward compatible)
+  // Fallback: Numeric score badge (legacy)
   const colors = getScoreColor(score.embryo_score);
 
   if (compact) {

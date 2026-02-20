@@ -55,7 +55,7 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b border-border">
         <div className="flex items-center gap-2">
@@ -75,10 +75,16 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
               key={index}
               onClick={() => toggleExpand(index)}
               className={cn(
-                'px-3 py-2.5 transition-all duration-200 cursor-pointer hover:bg-muted/30',
-                isExpanded && 'bg-muted/20'
+                'px-4 py-3 transition-all duration-300 cursor-pointer hover:bg-muted/30 hover:translate-x-1 relative group animate-in fade-in slide-in-from-left-4',
+                isExpanded && 'bg-primary/5 border-l-2 border-primary'
               )}
+              style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'both' }}
             >
+              {/* Conector de DNA dinâmico (visível no hover/ativo) */}
+              <div className={cn(
+                "absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary/40 to-transparent opacity-0 transition-opacity duration-300",
+                isExpanded ? "opacity-100" : "group-hover:opacity-50"
+              )} />
               {/* Linha principal - sempre visível */}
               <div className="flex items-center gap-3">
                 {/* Data */}

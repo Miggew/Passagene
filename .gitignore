@@ -9,3 +9,20 @@ npm-debug.log*
 .DS_Store
 .mcp.json
 nul
+
+# Large binary / ML files
+*.pt
+*.onnx
+*.pth
+datasets/
+datasets_v2/
+runs/
+
+# Files with secrets
+.claude/settings.local.json
+scripts/debug_media_tables.js
+scripts/debug_queue.js
+scripts/deploy_with_key.bat
+scripts/get_gemini_key.js
+scripts/test_cloud_run_direct.js
+scripts/verify_key.js

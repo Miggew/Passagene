@@ -45,6 +45,7 @@ const EmbryoScore = lazy(() => import('./pages/EmbryoScore'));
 const EmbryoScoreReview = lazy(() => import('./pages/EmbryoScoreReview'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
+const DisruptiveExamples = lazy(() => import('./components/DisruptiveExamples'));
 
 // Páginas do Hub Relatórios
 const RelatoriosHome = lazy(() => import('./pages/relatorios/RelatoriosHome'));
@@ -63,7 +64,9 @@ const GeneticaTouroDetail = lazy(() => import('./pages/genetica/GeneticaTouroDet
 // Páginas do Hub Cliente
 const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
 
+// Antigo Relatorios 
 const ClienteRelatorios = lazy(() => import('./pages/cliente/ClienteRelatorios'));
+const ClienteRelatoriosAI = lazy(() => import('./pages/cliente/ClienteRelatoriosAI'));
 const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
 const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfiguracoes'));
 
@@ -140,6 +143,7 @@ const AppRoutes = () => {
 
           {/* Style Guide (público para testes) */}
           <Route path="/style-guide" element={<StyleGuide />} />
+          <Route path="/disruptive" element={<DisruptiveExamples />} />
 
           {/* Página de sem acesso (protegida, mas sem layout) */}
           <Route path="/sem-acesso" element={<ProtectedRoute><SemAcesso /></ProtectedRoute>} />
@@ -232,6 +236,7 @@ const AppRoutes = () => {
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
 
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
+            <Route path="/cliente/ai-chat" element={<ClienteRelatoriosAI />} />
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />
 

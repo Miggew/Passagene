@@ -38,7 +38,9 @@ import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { CowIcon } from '@/components/icons/CowIcon';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import ThemeToggle from '@/components/shared/ThemeToggle';
+import { Plus, Activity, Droplet, X } from 'lucide-react';
 import type { Hub } from '@/lib/types';
+import LogoSimples from '@/assets/logosimples.svg';
 
 // Mapeamento de ícones por rota
 const routeIcons: Record<string, React.ElementType> = {
@@ -127,10 +129,10 @@ const routeLabels: Record<string, string> = {
 // Rotas rápidas por hub para a barra inferior
 const HUB_QUICK_ROUTES: Record<string, string[]> = {
   administrativo: ['/protocolos', '/transferencia', '/dg'],
-  laboratorio:    ['/bancada', '/lotes-fiv', '/embryoscore'],
-  escritorio:     ['/escritorio/dg', '/escritorio/te', '/escritorio/aspiracao'],
-  relatorios:     ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
-  genetica:       ['/genetica/doadoras', '/genetica/touros'],
+  laboratorio: ['/bancada', '/lotes-fiv', '/embryoscore'],
+  escritorio: ['/escritorio/dg', '/escritorio/te', '/escritorio/aspiracao'],
+  relatorios: ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
+  genetica: ['/genetica/doadoras', '/genetica/touros'],
 };
 
 // Ícones dos hubs (mesmos do HubTabs)
@@ -168,6 +170,7 @@ export default function MobileNav() {
   const { isCliente, getHubForRoute, getAccessibleHubs } = usePermissions();
   const { signOut } = useAuth();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [mitosisOpen, setMitosisOpen] = useState(false);
 
   const currentHub = getHubForRoute(location.pathname);
   const accessibleHubs = getAccessibleHubs();
@@ -214,172 +217,238 @@ export default function MobileNav() {
 
   return (
     <>
-      {/* Barra de navegação inferior - apenas mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-around h-20 px-1">
-          {/* Modo rotas (dentro de um hub) */}
-          {quickRoutes !== null && quickRoutes.map((route) => {
-            const Icon = routeIcons[route] || Home;
-            const label = routeLabels[route] || route;
-            const isActive = isRouteActive(route);
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none">
 
-            return (
-              <Link
-                key={route}
-                to={route}
-                className={cn(
-                  'flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors',
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground active:text-primary'
-                )}
-              >
-                <Icon className={cn('w-7 h-7 mb-1', isActive && 'text-primary')} />
-                <span className="text-xs font-semibold truncate max-w-full">{label}</span>
-                {isActive && (
-                  <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
-              </Link>
-            );
-          })}
+        {/* Curva Orgânica - SVG Background em toda a extensão */}
+        {/* Usamos filter drop-shadow no lugar do border-t rígido */}
+        <div className="absolute bottom-0 w-full h-[88px] pointer-events-auto">
+          <svg
+            className="absolute bottom-0 w-full h-full"
+            preserveAspectRatio="none"
+            viewBox="0 0 375 88"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M0 88V16H115.5C125 16 137.5 16 148 29.5C158.5 43 168.5 56 187.5 56C206.5 56 216.5 43 227 29.5C237.5 16 250 16 259.5 16H375V88H0Z"
+              className="fill-card"
+              style={{ filter: "drop-shadow(0px -4px 10px rgba(0,0,0,0.06))" }}
+            />
+          </svg>
+        </div>
 
-          {/* Modo hubs (na Home) */}
-          {quickRoutes === null && (
-            <>
-              {/* Home button */}
-              <Link
-                to="/"
-                className={cn(
-                  'flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors',
-                  location.pathname === '/'
-                    ? 'text-primary'
-                    : 'text-muted-foreground active:text-primary'
-                )}
-              >
-                <Home className={cn('w-7 h-7 mb-1', location.pathname === '/' && 'text-primary')} />
-                <span className="text-xs font-semibold">Início</span>
-                {location.pathname === '/' && (
-                  <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
-              </Link>
+        {/* FAB Nucleo Central: Botão do Geno (AI Chat) */}
+        <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-20">
+          <button
+            onClick={() => {
+              setMitosisOpen(false); // just in case
+              navigate('/cliente/ai-chat');
+            }}
+            className="group relative w-14 h-14 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_8px_20px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)]"
+          >
+            <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
+            </div>
+            <img src={LogoSimples} alt="Geno A.I." className="w-7 h-7 relative z-10 animate-pulse group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] brightness-0 invert" />
+          </button>
+        </div>
 
-              {/* Hub buttons */}
-              {hubSlots.map((hub) => {
-                const Icon = hubIcons[hub.code] || Building2;
-                return (
-                  <button
-                    key={hub.code}
-                    onClick={() => navigate(hub.routes[0])}
-                    className="flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors text-muted-foreground active:text-primary"
-                  >
-                    <Icon className="w-7 h-7 mb-1" />
-                    <span className="text-xs font-semibold truncate max-w-full">{hub.name}</span>
-                  </button>
-                );
-              })}
-            </>
-          )}
+        {/* Content Overlay (Itens de Navegação) */}
+        <div className="relative z-10 flex items-center justify-between h-[88px] px-2 pb-2 pointer-events-auto">
 
-          {/* Botão Menu - apenas para não-clientes */}
-          {!isCliente && (
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-              <SheetTrigger asChild>
-                <button
+          {/* Lado Esquerdo */}
+          <div className="flex h-full flex-1">
+            {quickRoutes !== null && quickRoutes.slice(0, 2).map((route) => {
+              const Icon = routeIcons[route] || Home;
+              const label = routeLabels[route] || route;
+              const isActive = isRouteActive(route);
+
+              return (
+                <Link
+                  key={route}
+                  to={route}
                   className={cn(
-                    'flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors',
-                    'text-muted-foreground active:text-primary'
+                    'flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all',
+                    isActive ? 'text-primary' : 'text-muted-foreground'
                   )}
                 >
-                  <Menu className="w-7 h-7 mb-1" />
-                  <span className="text-xs font-semibold">Menu</span>
-                </button>
-              </SheetTrigger>
+                  <Icon className={cn('w-6 h-6 mb-1 transition-transform', isActive && 'scale-110')} />
+                  <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{label}</span>
+                  {isActive && <div className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />}
+                </Link>
+              );
+            })}
 
-              <SheetContent side="right" className="w-80 p-0 flex flex-col">
-                <SheetHeader className="p-5 border-b border-border">
-                  <div className="flex items-center justify-between">
-                    <SheetTitle className="text-left text-xl">Menu</SheetTitle>
-                    <ThemeToggle size="default" />
-                  </div>
-                </SheetHeader>
+            {/* Hub Modes Left */}
+            {quickRoutes === null && (
+              <>
+                <Link
+                  to="/"
+                  className={cn(
+                    'flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all',
+                    location.pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  <Home className={cn('w-6 h-6 mb-1 transition-transform', location.pathname === '/' && 'scale-110')} />
+                  <span className="text-[10px] font-bold tracking-tight">Início</span>
+                  {location.pathname === '/' && <div className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />}
+                </Link>
+                {hubSlots[0] && (
+                  <button
+                    onClick={() => navigate(hubSlots[0].routes[0])}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all text-muted-foreground"
+                  >
+                    {(() => { const Icon = hubIcons[hubSlots[0].code] || Building2; return <Icon className="w-6 h-6 mb-1" />; })()}
+                    <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{hubSlots[0].name}</span>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
 
-                <div className="flex-1 overflow-auto">
-                  {/* Hubs e suas rotas — hub atual primeiro */}
-                  {sortedHubs.map((hub) => {
-                    const isCurrentHub = hub.code === bottomBarHubCode;
-                    return (
-                      <div key={hub.code} className="border-b border-border">
-                        <div className={cn(
-                          'px-5 py-3',
-                          isCurrentHub ? 'bg-primary/5' : 'bg-muted/50'
-                        )}>
-                          <span className={cn(
-                            'text-sm font-bold uppercase tracking-wider',
-                            isCurrentHub ? 'text-primary' : 'text-muted-foreground'
+          {/* Espaço Vazio Central (onde o FAB se encaixa) */}
+          <div className="w-[80px] shrink-0" />
+
+          {/* Lado Direito */}
+          <div className="flex h-full flex-1">
+            {quickRoutes !== null && quickRoutes.slice(2, 4).map((route) => {
+              const Icon = routeIcons[route] || Home;
+              const label = routeLabels[route] || route;
+              const isActive = isRouteActive(route);
+
+              return (
+                <Link
+                  key={route}
+                  to={route}
+                  className={cn(
+                    'flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all',
+                    isActive ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  <Icon className={cn('w-6 h-6 mb-1 transition-transform', isActive && 'scale-110')} />
+                  <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{label}</span>
+                  {isActive && <div className="absolute bottom-2 w-1 h-1 rounded-full bg-primary" />}
+                </Link>
+              );
+            })}
+
+            {/* Hub Modes Right */}
+            {quickRoutes === null && (
+              <>
+                {hubSlots[1] && (
+                  <button
+                    onClick={() => navigate(hubSlots[1].routes[0])}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all text-muted-foreground"
+                  >
+                    {(() => { const Icon = hubIcons[hubSlots[1].code] || Building2; return <Icon className="w-6 h-6 mb-1" />; })()}
+                    <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{hubSlots[1].name}</span>
+                  </button>
+                )}
+                {hubSlots[2] && (
+                  <button
+                    onClick={() => navigate(hubSlots[2].routes[0])}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all text-muted-foreground"
+                  >
+                    {(() => { const Icon = hubIcons[hubSlots[2].code] || Building2; return <Icon className="w-6 h-6 mb-1" />; })()}
+                    <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{hubSlots[2].name}</span>
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Botão Menu (Sheet) */}
+            {!isCliente && (
+              <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetTrigger asChild>
+                  <button
+                    className="flex flex-col items-center justify-center flex-1 h-full py-2 hover:bg-primary/5 rounded-2xl mx-1 transition-all text-muted-foreground"
+                  >
+                    <Menu className="w-6 h-6 mb-1" />
+                    <span className="text-[10px] font-bold tracking-tight">Menu</span>
+                  </button>
+                </SheetTrigger>
+
+                {/* Mantém o código do Sheet original inalterado */}
+                <SheetContent side="right" className="w-80 p-0 flex flex-col rounded-l-[1.5rem] overflow-hidden border-l-0 shadow-2xl">
+                  <SheetHeader className="p-6 border-b border-border bg-card/50 backdrop-blur-md">
+                    <div className="flex items-center justify-between">
+                      <SheetTitle className="text-left text-xl font-extrabold text-primary-800 dark:text-primary-100">PassaGene Menu</SheetTitle>
+                      <ThemeToggle size="default" />
+                    </div>
+                  </SheetHeader>
+
+                  <div className="flex-1 overflow-auto p-2">
+                    {/* Hubs e suas rotas — hub atual primeiro */}
+                    {sortedHubs.map((hub) => {
+                      const isCurrentHub = hub.code === bottomBarHubCode;
+                      return (
+                        <div key={hub.code} className="mb-4">
+                          <div className={cn(
+                            'px-4 py-2 mx-2 rounded-lg font-extrabold uppercase text-[11px] tracking-wider mb-1',
+                            isCurrentHub ? 'text-primary bg-primary/10' : 'text-muted-foreground'
                           )}>
                             {hub.name}
-                          </span>
-                        </div>
-                        <div className="py-2">
-                          {hub.routes.map((route) => {
-                            const Icon = routeIcons[route] || Home;
-                            const label = routeLabels[route] || route;
-                            const isActive = isRouteActive(route);
+                          </div>
+                          <div className="space-y-1">
+                            {hub.routes.map((route) => {
+                              const Icon = routeIcons[route] || Home;
+                              const label = routeLabels[route] || route;
+                              const isActive = isRouteActive(route);
 
-                            return (
-                              <Link
-                                key={route}
-                                to={route}
-                                onClick={() => setSheetOpen(false)}
-                                className={cn(
-                                  'flex items-center gap-4 px-5 py-4 transition-colors',
-                                  isActive
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-foreground active:bg-muted'
-                                )}
-                              >
-                                <Icon className="w-6 h-6" />
-                                <span className="text-base font-medium">{label}</span>
-                              </Link>
-                            );
-                          })}
+                              return (
+                                <Link
+                                  key={route}
+                                  to={route}
+                                  onClick={() => setSheetOpen(false)}
+                                  className={cn(
+                                    'flex items-center gap-4 px-4 py-3 mx-2 rounded-xl transition-all',
+                                    isActive
+                                      ? 'bg-primary/10 text-primary font-bold shadow-sm'
+                                      : 'text-foreground hover:bg-muted font-medium'
+                                  )}
+                                >
+                                  <Icon className="w-5 h-5" />
+                                  <span className="text-sm">{label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  {/* Link Home */}
-                  <div className="p-3">
-                    <Link
-                      to="/"
-                      onClick={() => setSheetOpen(false)}
-                      className={cn(
-                        'flex items-center gap-4 px-5 py-4 rounded-xl transition-colors',
-                        isRouteActive('/')
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-foreground active:bg-muted'
-                      )}
-                    >
-                      <Home className="w-6 h-6" />
-                      <span className="text-base font-medium">Início</span>
-                    </Link>
+                    {/* Link Home */}
+                    <div className="mt-8 border-t border-border pt-4">
+                      <Link
+                        to="/"
+                        onClick={() => setSheetOpen(false)}
+                        className={cn(
+                          'flex items-center gap-4 px-4 py-3 mx-2 rounded-xl transition-all',
+                          isRouteActive('/')
+                            ? 'bg-primary/10 text-primary font-bold'
+                            : 'text-foreground hover:bg-muted font-medium'
+                        )}
+                      >
+                        <Home className="w-5 h-5" />
+                        <span className="text-sm">Início</span>
+                      </Link>
+                    </div>
+
                   </div>
 
-                </div>
-
-                {/* Sair — fixo no rodapé */}
-                <div className="p-3 border-t border-border mt-auto">
-                  <button
-                    onClick={() => { setSheetOpen(false); signOut(); }}
-                    className="flex items-center gap-4 px-5 py-4 rounded-xl w-full text-red-500 active:bg-red-500/10 transition-colors"
-                  >
-                    <LogOut className="w-6 h-6" />
-                    <span className="text-base font-medium">Sair</span>
-                  </button>
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
+                  {/* Sair — fixo no rodapé */}
+                  <div className="p-4 border-t border-border bg-card/50 backdrop-blur-md mt-auto">
+                    <button
+                      onClick={() => { setSheetOpen(false); signOut(); }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl w-full text-red-500 hover:bg-red-500/10 transition-all font-bold"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span className="text-sm">Encerrar Sessão</span>
+                    </button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+          </div>
         </div>
       </nav>
     </>

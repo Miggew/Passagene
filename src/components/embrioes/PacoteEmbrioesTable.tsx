@@ -38,6 +38,16 @@ import {
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
 
+const STAGE_LABELS: Record<number, string> = {
+  3: 'Mórula Inicial',
+  4: 'Mórula',
+  5: 'Blasto Inicial',
+  6: 'Blastocisto',
+  7: 'Blasto Expandido',
+  8: 'Blasto Eclodido',
+  9: 'Blasto Eclodido Exp.'
+};
+
 interface PacoteEmbrioesTableProps {
   pacote: PacoteEmbrioes;
   embrioesSelecionados: Set<string>;
@@ -512,7 +522,7 @@ export function PacoteEmbrioesTable({
                     className="flex items-center gap-0.5"
                   >
                     <EmbryoScoreBadge score={score} compact />
-                    {classificacao && getDiscrepancy(classificacao, score.embryo_score) && (
+                    {classificacao && getDiscrepancy(classificacao, score.gemini_classification) && (
                       <AlertTriangle className="w-3 h-3 text-amber-500" />
                     )}
                   </button>
@@ -659,7 +669,7 @@ export function PacoteEmbrioesTable({
                     {score ? (
                       <div className="flex items-center gap-1">
                         <EmbryoScoreBadge score={score} compact />
-                        {classificacao && getDiscrepancy(classificacao, score.embryo_score) && (
+                        {classificacao && getDiscrepancy(classificacao, score.gemini_classification) && (
                           <AlertTriangle className="w-3 h-3 text-amber-500" />
                         )}
                       </div>
@@ -760,18 +770,31 @@ export function PacoteEmbrioesTable({
                 </DropdownMenu>
               </div>
 
-              {/* Linha 2: Info + Status */}
+              {/* Linha 2: Estágio/Grau + Status */}
               <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-                <div className="text-muted-foreground truncate">
-                  {score?.stage_code || 'Estágio desconhecido'} | {score?.transfer_recommendation || 'Sem recomendação'}
+                <div className="text-muted-foreground truncate flex items-center gap-1.5">
+                  {score?.stage_code != null && (
+                    <span>{STAGE_LABELS[score.stage_code] || `Est. ${score.stage_code}`}</span>
+                  )}
+                  {score?.stage_code != null && score?.quality_grade != null && (
+                    <span className="text-muted-foreground/50">·</span>
+                  )}
+                  {score?.quality_grade != null && (
+                    <span>Grau {score.quality_grade}</span>
+                  )}
+                  {!score?.stage_code && !score?.quality_grade && (
+                    <span>{embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}</span>
+                  )}
                 </div>
                 <StatusBadge status={embriao.status_atual} />
               </div>
 
-              {/* Linha 3 (opcional): Cruzamento */}
-              <div className="mt-1 text-xs text-muted-foreground truncate">
-                {embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}
-              </div>
+              {/* Linha 3: Cruzamento (se estágio/grau já mostrados) */}
+              {(score?.stage_code != null || score?.quality_grade != null) && (
+                <div className="mt-1 text-xs text-muted-foreground truncate">
+                  {embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}
+                </div>
+              )}
 
               {/* Barra de redetecção inline */}
               {redetectProgress?.id === embriao.id && (

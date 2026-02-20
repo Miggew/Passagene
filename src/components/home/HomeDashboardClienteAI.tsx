@@ -1,14 +1,11 @@
-/**
- * Dashboard do Cliente — Cockpit V2 (No-Scroll, Expandable)
- */
-
 import { useState } from 'react';
-import { Sparkles, X, Maximize2 } from 'lucide-react';
+import { Sparkles, Maximize2, X, Dna } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WeatherWidget } from './widgets/WeatherWidget';
 import { MarketWidget } from './widgets/MarketWidget';
 import { NewsWidget } from './widgets/NewsWidget';
-import { FarmSummaryWidget } from './widgets/FarmSummaryWidget';
+import { MarketNewsWidget } from './widgets/MarketNewsWidget';
+import { AITeaserWidget } from './widgets/AITeaserWidget';
 
 interface Props {
   clienteId?: string;
@@ -26,13 +23,12 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
     return 'Boa noite';
   };
 
-  // Wrapper para tornar qualquer widget clicável/expansível
+  // Wrapper para tornar qualquer widget clicável/expansível (2x2 grid style)
   const WidgetWrapper = ({ id, children, className = '' }: { id: string, children: React.ReactNode, className?: string }) => (
     <motion.div
       layoutId={`widget-${id}`}
       onClick={() => setExpandedWidget(id)}
-      className={`relative cursor-pointer group ${className}`}
-      whileHover={{ scale: 1.01 }}
+      className={`relative cursor-pointer group rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ${className}`}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
       {children}
@@ -45,42 +41,57 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
   return (
     <div className="flex flex-col h-full w-full px-1 py-1 overflow-hidden">
       {/* Header Saudação */}
-      <div className="flex items-center gap-3 mb-4 shrink-0">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#34d399]/20 to-[#34d399]/5 border border-[#34d399]/20 flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-[#34d399]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-white font-heading leading-tight">
-            {getSaudacao()}, {primeiroNome}!
-          </h1>
-          <p className="text-xs text-[#8a9e94]">
-            Visão geral da fazenda
-          </p>
+      <div className="flex items-center justify-between mb-4 shrink-0 px-2 mt-1">
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white font-heading leading-tight drop-shadow-sm">
+              {getSaudacao()}, {primeiroNome}!
+            </h1>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+              Cockpit Cliente
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Grid Cockpit Principal - 2x2 (4 cantos) */}
-      <div className="grid grid-cols-2 grid-rows-2 gap-3 flex-1 min-h-0">
+      {/* Mini Banner Genética (Compacto para não gerar scroll) */}
+      <div className="mb-3 shrink-0 px-1">
+        <div className="relative w-full rounded-xl overflow-hidden min-h-[50px] bg-gradient-to-r from-card to-card/50 border border-border flex items-center px-4 py-2 justify-between cursor-pointer hover:border-primary/30 transition-colors">
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+              <Dna className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Bolsa de Genética</h3>
+              <p className="text-[10px] text-muted-foreground">Compre e venda prenhezes elite</p>
+            </div>
+          </div>
+          <span className="text-[10px] bg-primary/10 text-primary-light px-2 py-0.5 rounded border border-primary/20 font-bold uppercase tracking-wider">
+            Em Breve
+          </span>
+        </div>
+      </div>
 
-        {/* Canto Superior Esquerdo: Fazenda */}
-        <WidgetWrapper id="farm" className="h-full">
-          <FarmSummaryWidget compact={true} clienteId={clienteId} />
+      {/* Grid Cockpit Principal - Elegante e Estruturado */}
+      <div className="flex flex-col gap-4 md:gap-5 flex-1 min-h-0 px-2 pb-4">
+
+        {/* Topo (Largura Total): Teaser Geno AI com Premium Glassmorphism */}
+        <WidgetWrapper id="farm" className="w-full h-auto border-none bg-transparent shrink-0">
+          <AITeaserWidget clienteId={clienteId} compact={true} />
         </WidgetWrapper>
 
-        {/* Canto Superior Direito: Clima */}
-        <WidgetWrapper id="weather" className="h-full">
-          <WeatherWidget compact={true} />
-        </WidgetWrapper>
+        {/* Base: Lado a Lado forçado em TODAS as telas (CSS Grid 2 colunas) */}
+        <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 mt-2">
+          {/* Base Esquerda: Fusão Mercado + Notícias */}
+          <WidgetWrapper id="market_news" className="w-full min-w-0 border-none bg-transparent">
+            <MarketNewsWidget compact={true} />
+          </WidgetWrapper>
 
-        {/* Canto Inferior Esquerdo: Mercado */}
-        <WidgetWrapper id="market" className="h-full">
-          <MarketWidget compact={true} />
-        </WidgetWrapper>
-
-        {/* Canto Inferior Direito: Notícias */}
-        <WidgetWrapper id="news" className="h-full">
-          <NewsWidget compact={true} />
-        </WidgetWrapper>
+          {/* Base Direita: Clima Expandido */}
+          <WidgetWrapper id="weather" className="w-full min-w-0 border-none bg-transparent">
+            <WeatherWidget compact={true} />
+          </WidgetWrapper>
+        </div>
       </div>
 
       {/* Overlay de Expansão */}
@@ -89,24 +100,28 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setExpandedWidget(null)}>
             <motion.div
               layoutId={`widget-${expandedWidget}`}
-              className="w-full max-w-4xl h-[80vh] bg-[#0a0f0d] rounded-2xl border border-[#1e2e28] overflow-hidden relative shadow-2xl"
+              className="w-full max-w-4xl h-[80vh] bg-card rounded-2xl border border-border overflow-hidden relative shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={() => setExpandedWidget(null)}
-                className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors"
+                className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors border border-white/10"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="h-full p-8 overflow-y-auto">
-                <h2 className="text-2xl font-bold text-white mb-6">Detalhamento Completo</h2>
-                {expandedWidget === 'farm' && <FarmSummaryWidget clienteId={clienteId} />}
+              <div className="h-full p-8 overflow-y-auto custom-scrollbar">
+                <h2 className="text-2xl font-bold text-foreground mb-6">Detalhamento Completo</h2>
+                {expandedWidget === 'farm' && <AITeaserWidget clienteId={clienteId} compact={false} />}
                 {expandedWidget === 'weather' && <WeatherWidget />}
-                {expandedWidget === 'market' && <MarketWidget />}
-                {expandedWidget === 'news' && <NewsWidget />}
+                {expandedWidget === 'market_news' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <MarketWidget />
+                    <NewsWidget />
+                  </div>
+                )}
 
-                <div className="mt-8 p-4 bg-[#131c18] rounded-xl border border-[#1e2e28] text-[#8a9e94] text-sm">
+                <div className="mt-8 p-4 bg-muted/30 rounded-xl border border-border text-muted-foreground text-sm">
                   Em breve: Gráficos históricos e relatórios detalhados nesta visualização expandida.
                 </div>
               </div>

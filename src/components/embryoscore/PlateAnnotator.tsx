@@ -319,10 +319,12 @@ export default function PlateAnnotator({ queueId }: PlateAnnotatorProps) {
 
     if (hitIdx >= 0) {
       const marker = markers[hitIdx];
-      // Cycle radius
+      // Cycle radius only for small standard-size markers
       const curIdx = RADIUS_SIZES.indexOf(marker.radius_percent);
-      const nextIdx = (curIdx + 1) % RADIUS_SIZES.length;
-      updateMarkerRadius(hitIdx, RADIUS_SIZES[nextIdx]);
+      if (curIdx >= 0) {
+        const nextIdx = (curIdx + 1) % RADIUS_SIZES.length;
+        updateMarkerRadius(hitIdx, RADIUS_SIZES[nextIdx]);
+      }
       // Show popup if unclassified
       if (!marker.classification) {
         const pos = calcPopupPosition(marker.x_percent, marker.y_percent);
@@ -331,11 +333,14 @@ export default function PlateAnnotator({ queueId }: PlateAnnotatorProps) {
         setPopupPos(null);
       }
     } else {
-      // New marker
+      // New marker — use average existing radius (correction mode) or default
+      const avgRadius = markers.length > 0
+        ? markers.reduce((sum, m) => sum + m.radius_percent, 0) / markers.length
+        : RADIUS_SIZES[DEFAULT_RADIUS_IDX];
       addMarker({
         x_percent,
         y_percent,
-        radius_percent: RADIUS_SIZES[DEFAULT_RADIUS_IDX],
+        radius_percent: Math.round(avgRadius * 10) / 10,
       });
       navigator.vibrate?.(15);
       const pos = calcPopupPosition(x_percent, y_percent);
@@ -600,7 +605,7 @@ export default function PlateAnnotator({ queueId }: PlateAnnotatorProps) {
         </div>
 
         {/* Footer overlay — Save button */}
-        {progress.classified > 0 && (
+        {markers.length > 0 && (
           <div className="absolute bottom-0 inset-x-0 z-10 p-3 bg-black/40 backdrop-blur-sm">
             <button
               onClick={handleSave}
@@ -608,7 +613,9 @@ export default function PlateAnnotator({ queueId }: PlateAnnotatorProps) {
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-medium text-sm transition-colors disabled:opacity-50"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {isSaving ? 'Salvando...' : `Salvar e Analisar (${progress.classified})`}
+              {isSaving ? 'Salvando...' : progress.classified > 0
+                ? `Salvar e Analisar (${progress.classified})`
+                : `Salvar marcações e Analisar (${markers.length})`}
             </button>
           </div>
         )}

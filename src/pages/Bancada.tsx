@@ -139,12 +139,16 @@ function PlateDetail({ queueId, onBack }: { queueId: string; onBack: () => void 
   const { data: plateFrameUrl } = useEmbryoscoreUrl(data?.job?.plate_frame_path);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   if (isLoading) return <LoadingSpinner />;
   if (!data?.job) return <p className="text-sm text-muted-foreground p-6">Job não encontrado</p>;
 
   const { job, embryos } = data;
   const bboxes = job.manual_bboxes || job.detected_bboxes || [];
+  const detectedCount = (job.detected_bboxes || []).length;
+  const expectedCount = job.expected_count || embryos.length;
+  const hasMismatch = job.status === 'completed' && detectedCount > 0 && detectedCount < expectedCount;
 
   // Concordance stats
   let concordCount = 0;
@@ -178,6 +182,29 @@ function PlateDetail({ queueId, onBack }: { queueId: string; onBack: () => void 
         <ArrowLeft className="w-4 h-4" />
         Voltar
       </button>
+
+      {/* Detection mismatch warning */}
+      {hasMismatch && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              Detectados {detectedCount}/{expectedCount} embriões
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {expectedCount - detectedCount} embrião(ões) não detectado(s) automaticamente
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/bancada/rapida/${queueId}`)}
+            className="shrink-0"
+          >
+            Corrigir marcações
+          </Button>
+        </div>
+      )}
 
       {/* Plate panorama */}
       {bboxes.length > 0 && (

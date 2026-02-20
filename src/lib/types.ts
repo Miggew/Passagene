@@ -473,13 +473,13 @@ export interface EmbryoScore {
   gemini_reasoning?: string | null;
   kinetic_assessment?: string | null;
 
-  // Morfologia (Legacy fields removed)
+  // @deprecated Morfologia v1 — pipeline v6 uses visual_features instead
   icm_description?: string;
   te_description?: string;
   zp_status?: string;
   fragmentation?: string;
 
-  // Cinética (Legacy fields removed)
+  // @deprecated Cinética v1 — pipeline v6 uses kinetic_intensity/harmony/symmetry/stability instead
   global_motion?: string;
   icm_activity?: string;
   te_activity?: string;
@@ -517,10 +517,10 @@ export interface EmbryoScore {
   biologo_estagio?: string | null;
   biologo_descricao_erros?: string[] | null;
 
-  // v3: Activity Score (Cloud Run pixel subtraction)
+  // @deprecated v3: Activity Score — pipeline v6 uses kinetic_intensity instead
   activity_score?: number;
 
-  // v3: Perfil cinético (dados do Cloud Run — análise computacional de pixels, compensado por câmera)
+  // @deprecated v3: Perfil cinético — pipeline v6 uses kinetic_* fields at top level
   temporal_analysis?: {
     core_activity?: number;
     periphery_activity?: number;
@@ -563,7 +563,7 @@ export interface EmbryoScore {
     [key: string]: unknown;
   };
 
-  // ── v2: KNN + DINOv2 + MLP ──
+  // @deprecated v2: KNN + DINOv2 + MLP — pipeline v6 uses gemini_classification directly
   knn_classification?: string | null;
   knn_confidence?: number | null;
   knn_votes?: Record<string, number> | null;
@@ -579,9 +579,11 @@ export interface EmbryoScore {
   composite_path?: string | null;
   biologist_classification?: string | null;
   biologist_agreed?: boolean | null;
+  // @deprecated v2: MLP fields — pipeline v6 uses gemini_classification directly
   mlp_classification?: string | null;
   mlp_confidence?: number | null;
   mlp_probabilities?: Record<string, number> | null;
+  // @deprecated v2: Combined KNN+MLP fields — pipeline v6 uses gemini_classification directly
   combined_source?: 'knn' | 'knn_mlp_agree' | 'knn_mlp_disagree' | 'mlp_only' | 'insufficient' | null;
   combined_classification?: string | null;
   combined_confidence?: number | null;

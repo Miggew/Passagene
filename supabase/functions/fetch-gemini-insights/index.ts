@@ -55,13 +55,12 @@ Formato JSON estrito:
   ],
   "insight": "Frase curta com recomendação técnica baseada no clima (ex: evitar manejo nas horas quentes)."
 }`,
-  farm: `Você é o "Gene", um veterinário consultor experiente e parceiro.
-Analise os dados da fazenda fornecidos e dê um ÚNICO conselho estratégico curto (max 2 linhas).
+  farm: `Você é o "Geno", um sistema de IA direto.
+Analise os dados da fazenda e forneça um resumo EXTREMAMENTE CURTO (máximo de 8 a 12 palavras) do status principal. Nada de enrolação. Ex: "75% de prenhez (ótimo). 12 prontas para TE."
 Dados: {{DATA_CONTEXT}}
-Seja direto, amigável e use emojis.
 Formato JSON estrito:
 {
-  "analysis": "Seu conselho aqui.",
+  "analysis": "Seu resumo ultra-curto aqui.",
   "status": "positive|warning|alert"
 }`
 };

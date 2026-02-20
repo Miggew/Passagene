@@ -389,3 +389,29 @@ Home | Rebanho | Serviços | Botijão
   },
 }
 ```
+
+---
+
+## 13. Elementos Disruptivos (Orgânicos e de Alta Performance)
+
+Para quebrar a dureza "mecânica" das interfaces tradicionais, o PassaGene utiliza 3 padrões não-convencionais e de alto desempenho que mimetizam propriedades biológicas. Estes padrões **substituem** soluções quadradas ou estáticas em futuras refatorações estéticas.
+
+### 13.1 Membrana Curva (Menu/Navegação)
+- **O que é**: Evitar barras de navegação (Bottom Nav Mobile ou Sidebar Desktop) perfeitamente retas. Uma "vala" ou "barriga" suave deforma a barra para abraçar a principal Ação Flutuante (FAB).
+- **Como implementar**: Usar um `<svg>` com fundo opaco preenchendo o espaço (ex: `fill-white dark:fill-card`) com filtro `drop-shadow`.
+- **Custo de Performance**: **ZERO GPU/CPU**. É uma ilusão de ótica estática gerada uma única vez pelo navegador.
+- **Caso de uso**: `MobileNav` (app celular) e menus principais isolados.
+
+### 13.2 Botão "Mitose" de Ação (Apenas CSS)
+- **O que é**: Ao clicar no Botão de Ação Principal (FAB), em vez de um menu seco, bolhas menores "deslizam" de dentro dele esticando uma membrana (linha de ligação) invisível como uma célula se dividindo. 
+- **Como implementar**: **NUNCA usar SVG Filters (`feColorMatrix` ou `goo`).** Construir exclusivamente com `transform: scale()`, `translate()` e `opacity` do CSS Tailwind com tempos em cascata (`delay-75`, `delay-150`). As propriedades de curvatura e estiramento são ilusões de escala no CSS.
+- **Custo de Performance**: **Extremamente Baixo**. Os navegadores aceleram as propriedades `transform` na placa gráfica do celular, rodando a 60FPS num piscar de olhos sem exigir da bateria.
+- **Caso de uso**: Inserção rápida de dados essenciais (ex: Botão Central para "Transferir Embrião", "Novo Animal").
+
+### 13.3 Fecho Ecler Dinâmico "Dupla Hélice" (Listas Animadas)
+- **O que é**: Uma Timeline vertical onde as células (cards) não descem do topo, mas sim cruzam animadas dos lados esquerdo e direito simulando os degraus (bases nitrogenadas) de uma dupla-hélice de DNA conectando-se na espinha dorsal.
+- **Como implementar**: Usar transição CSS (`transition-all duration-700 delay-[staggered]`) mesclada a `translate-x` reversos dependendo se o item é par ou ímpar (side `left`/`right`). A linha central vertical deve ter propriedades gradientes.
+- **Custo de Performance**: **Seguro e leve**. Depende de CSS Transforms acionados apenas na montagem da tela (`mount`).
+- **Caso de uso**: Páginas de Históricos longos (Histórico de Vida do Animal, Protocolo FIV de uma Doadora, Etapas de um Lote).
+
+> **Aviso de Performance Geral:** Efeitos de intersecção complexa com embaçamento e "Blobs" constantes na membrana geométrica (ex: `animate-blob` deformando `border-radius` em milisegundos) foram **testados e REPROVADOS** para telas múltiplas por fritarem o processador de celulares antigos. Limite os blobs a casos excepcionais, muito contidos. No dia a dia, use apenas as 3 regras acima.

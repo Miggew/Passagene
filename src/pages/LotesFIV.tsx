@@ -425,36 +425,58 @@ export default function LotesFIV() {
             }
           }
 
-          // 3. Criar job de análise (sem bboxes/crops — detecção será server-side)
-          const { data: queueData, error: queueError } = await supabase
+          // 3. Deduplicação: verificar se já existe job pending/processing para este media+acasalamento
+          const { data: existingJob } = await supabase
             .from('embryo_analysis_queue')
-            .insert({
-              media_id: mediaId,
-              lote_fiv_acasalamento_id: ac.acasalamento_id,
-              status: 'pending',
-              expected_count: ac.quantidade,
-            })
             .select('id')
-            .single();
+            .eq('media_id', mediaId)
+            .eq('lote_fiv_acasalamento_id', ac.acasalamento_id)
+            .in('status', ['pending', 'processing'])
+            .maybeSingle();
 
-          if (queueError) {
-            console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
+          let queueId: string | null = null;
+
+          if (existingJob) {
+            // Reusar job existente — vincular novos embriões e re-invocar
+            queueId = existingJob.id;
+          } else {
+            // 4. Criar job de análise (sem bboxes/crops — detecção será server-side)
+            const { data: queueData, error: queueError } = await supabase
+              .from('embryo_analysis_queue')
+              .insert({
+                media_id: mediaId,
+                lote_fiv_acasalamento_id: ac.acasalamento_id,
+                status: 'pending',
+                expected_count: novosEmbrioesIds.length,
+              })
+              .select('id')
+              .single();
+
+            if (queueError) {
+              console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
+            }
+            queueId = queueData?.id || null;
           }
 
-          // 4. Vincular queue_id a TODOS os embriões do acasalamento
-          if (queueData?.id) {
+          // 5. Vincular queue_id a TODOS os embriões do acasalamento
+          if (queueId) {
             const { error: queueLinkError } = await supabase
               .from('embrioes')
-              .update({ queue_id: queueData.id })
+              .update({ queue_id: queueId })
               .eq('lote_fiv_acasalamento_id', ac.acasalamento_id);
             if (queueLinkError) {
               console.warn('EmbryoScore: falha ao vincular queue_id:', queueLinkError.message);
             }
           }
 
-          // 5. Guardar queue ID para toast de classificação rápida
-          if (queueData?.id) {
-            queueIds.push(queueData.id);
+          // 6. Disparar Edge Function automaticamente (não-bloqueante)
+          if (queueId) {
+            queueIds.push(queueId);
+            supabase.functions.invoke('embryo-analyze', {
+              body: { queue_id: queueId },
+            }).catch(err => {
+              console.warn('EmbryoScore: falha ao invocar análise (não-bloqueante):', err);
+            });
           }
         } catch (embryoScoreErr) {
           console.warn('EmbryoScore: erro não-bloqueante no processamento de vídeo:', embryoScoreErr);
@@ -485,15 +507,10 @@ export default function LotesFIV() {
 
       toast({
         title: `${embrioesParaCriar.length} embriões despachados`,
-        description: nomePacote,
+        description: queueIds.length > 0
+          ? `${nomePacote} — análise EmbryoScore iniciada automaticamente`
+          : nomePacote,
       });
-
-      // Navegar direto para classificação rápida se há vídeo com queue
-      if (queueIds.length > 0) {
-        const lastQueueId = queueIds[queueIds.length - 1];
-        navigate(`/bancada/rapida/${lastQueueId}`);
-        return; // skip loadLoteDetail — estamos saindo da página
-      }
 
       loadLoteDetail(selectedLote.id);
     } catch (error) {

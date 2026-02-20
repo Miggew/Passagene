@@ -282,10 +282,22 @@ export function useRetryAnalysis() {
 
   return useMutation({
     mutationFn: async (queueId: string) => {
-      // Reset do job na fila
+      // Ler retry_count atual antes de incrementar
+      const { data: current } = await supabase
+        .from('embryo_analysis_queue')
+        .select('retry_count')
+        .eq('id', queueId)
+        .single();
+
       const { error: updateError } = await supabase
         .from('embryo_analysis_queue')
-        .update({ status: 'pending', retry_count: 0, error_message: null, started_at: null, completed_at: null })
+        .update({
+          status: 'pending',
+          retry_count: (current?.retry_count || 0) + 1,
+          error_message: null,
+          started_at: null,
+          completed_at: null,
+        })
         .eq('id', queueId);
 
       if (updateError) throw updateError;

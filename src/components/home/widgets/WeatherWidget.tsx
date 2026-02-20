@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CloudRain, Sun, Cloud, Droplets, Wind, MapPin, ArrowRight, Sparkles } from 'lucide-react';
-import { LogoLoader } from '@/components/shared/LogoLoader';
+import { LoadingInline } from '@/components/shared/LoadingScreen';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 
@@ -46,7 +46,7 @@ export function WeatherWidget({ compact = false }: { compact?: boolean }) {
     if (loading) {
         return (
             <Card className="h-full bg-card border-border p-5 flex items-center justify-center">
-                <LogoLoader size={48} />
+                <LoadingInline text="Lendo atmosfera..." />
             </Card>
         );
     }
@@ -54,34 +54,42 @@ export function WeatherWidget({ compact = false }: { compact?: boolean }) {
 
 
     if (compact) {
+        // Build a short literary summary of the forecast
+        const forecastSummary = forecast && forecast.length > 0
+            ? `Próximos dias: ${forecast.map(f => `${f.day} (${f.min}°-${f.max}°)`).join(', ')}.`
+            : 'Previsão indisponível no momento.';
+
         return (
-            <Card className="h-full bg-card border-border p-5 flex flex-col justify-between hover:border-primary/50 transition-colors group relative overflow-hidden">
-                {/* Decorative Background for 'Clima Tempo' feel - subtle gradient corner */}
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full -z-0" />
+            <Card className="h-full min-h-[160px] bg-card border-border/50 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
 
-                <div className="flex items-center justify-between z-10 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-semibold text-foreground">{current.location}</span>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-2 z-10 flex-1">
-                    <div className="flex flex-col">
-                        <span className="text-5xl font-bold text-foreground tracking-tighter">{current.temp}°</span>
-                        <div className="flex gap-2 text-xs font-medium mt-1">
-                            <span className="text-blue-400">Min {current.min}°</span>
-                            <span className="text-red-400">Max {current.max}°</span>
+                {/* Top: Location & Current Temp in a structured row */}
+                <div className="flex items-start justify-between z-10 shrink-0 mb-4">
+                    <div>
+                        <span className="text-sm font-semibold text-foreground tracking-wide block mb-1">{current.location}</span>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black text-foreground tracking-tighter">{current.temp}°</span>
+                            <span className="text-xs text-muted-foreground font-medium capitalize mt-1 block">{current.condition}</span>
                         </div>
                     </div>
-                    <Sun className="w-12 h-12 text-yellow-500 drop-shadow-sm" />
+
+                    <Sun className="w-12 h-12 text-yellow-500 drop-shadow-sm mt-1" />
                 </div>
 
-                <div className="mt-3 overflow-hidden shrink-0 z-10">
-                    <p className="text-xs text-muted-foreground font-medium capitalize mb-2">{current.condition}</p>
-                    <div className="flex gap-3 text-[10px] text-muted-foreground uppercase tracking-wide">
-                        <span className="bg-muted px-1.5 py-0.5 rounded">Umidade {current.humidity}%</span>
-                    </div>
+                {/* Middle: Details (Min/Max, Humidity) */}
+                <div className="flex gap-4 text-xs font-bold mt-auto mb-3 z-10 bg-muted/20 p-2 rounded-lg border border-border/30">
+                    <span className="text-blue-500">Min {current.min}°</span>
+                    <span className="text-red-500">Max {current.max}°</span>
+                    <span className="text-muted-foreground ml-auto">Umid {current.humidity}%</span>
+                </div>
+
+                {/* Divisor Elegante */}
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent mb-3 opacity-60" />
+
+                {/* Bottom: Literary Forecast / Insight */}
+                <div className="shrink-0 z-10">
+                    <p className="text-xs font-medium text-foreground/80 leading-relaxed group-hover:text-foreground transition-colors">
+                        {insight || forecastSummary}
+                    </p>
                 </div>
             </Card>
         );

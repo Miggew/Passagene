@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
     // ─── 2. Mark as processing ────────────────────────
     await supabase
       .from('embryo_analysis_queue')
-      .update({ status: 'processing', started_at: new Date().toISOString(), error_log: null })
+      .update({ status: 'processing', started_at: new Date().toISOString(), error_message: null })
       .eq('id', queue_id);
 
     // ─── 3. Fetch job context ─────────────────────────
@@ -164,7 +164,7 @@ Deno.serve(async (req: Request) => {
 
       await supabase.from('embryo_analysis_queue').update({
         status: 'failed',
-        error_log: reason.slice(0, 1000),
+        error_message: reason.slice(0, 1000),
         completed_at: new Date().toISOString(),
       }).eq('id', queue_id);
 
@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
         );
         await sb.from('embryo_analysis_queue').update({
           status: 'failed',
-          error_log: message.slice(0, 1000),
+          error_message: message.slice(0, 1000),
           completed_at: new Date().toISOString(),
         }).eq('id', queue_id);
       } catch (dbErr) {

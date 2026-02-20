@@ -14,10 +14,10 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
           'file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground',
           // Placeholder
           'placeholder:text-muted-foreground',
-          // Hover: borda verde sutil
-          'hover:border-primary/50',
-          // Focus: ring verde, borda verde, shadow
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:border-primary focus-visible:shadow-md',
+          // Hover: borda mais escura
+          'hover:border-primary/40',
+          // Focus: ring verde translúcido supersuave, borda
+          'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 focus-visible:border-primary/50',
           // Disabled
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input',
           // Responsive

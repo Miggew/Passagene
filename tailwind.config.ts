@@ -122,10 +122,38 @@ export default {
             height: "0",
           },
         },
+        "mitosis-left": {
+          "0%, 100%": { transform: "translateX(0) scale(1.1)", opacity: "0.9" },
+          "50%": { transform: "translateX(-120%) scale(0.6)", opacity: "0.4" },
+        },
+        "mitosis-right": {
+          "0%, 100%": { transform: "translateX(0) scale(1.1)", opacity: "0.9" },
+          "50%": { transform: "translateX(120%) scale(0.6)", opacity: "0.4" },
+        },
+        "bio-breathe": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.05)" },
+        },
+        "dna-spin": {
+          "0%": { top: "0", transform: "scale(1)", zIndex: "2", opacity: "1" },
+          "50%": { top: "100%", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
+          "100%": { top: "0", transform: "scale(1)", zIndex: "2", opacity: "1" },
+        },
+        "dna-spin-rev": {
+          "0%": { bottom: "0", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
+          "50%": { bottom: "100%", transform: "scale(1)", zIndex: "2", opacity: "1" },
+          "100%": { bottom: "0", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "mitosis-left": "mitosis-left 1.6s ease-in-out infinite",
+        "mitosis-right": "mitosis-right 1.6s ease-in-out infinite",
+        "bio-breathe": "bio-breathe 3s ease-in-out infinite",
+        "bio-breathe-fast": "bio-breathe 2s ease-in-out infinite",
+        "dna-spin": "dna-spin 1.5s ease-in-out infinite",
+        "dna-spin-rev": "dna-spin-rev 1.5s ease-in-out infinite",
       },
     },
   },

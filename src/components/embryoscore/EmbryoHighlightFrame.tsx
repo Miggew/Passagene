@@ -20,11 +20,11 @@ interface EmbryoHighlightFrameProps {
 
 /**
  * Determine which bucket the crop is stored in.
- * v2 scores (with knn_classification) use 'embryoscore' bucket.
+ * v6 (gemini), v2 (knn) scores use 'embryoscore' bucket.
  * v1 scores use 'embryo-videos' bucket.
  */
 function getBucket(score: EmbryoScore): string {
-  if (score.knn_classification != null || score.combined_source != null) {
+  if (score.gemini_classification != null || score.knn_classification != null || score.combined_source != null) {
     return 'embryoscore';
   }
   return 'embryo-videos';
@@ -60,11 +60,8 @@ export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightF
     );
   }
 
-  // v2: Show class badge instead of numeric score
-  const isV2 = score.combined_classification != null;
-  const badgeLabel = isV2
-    ? score.combined_classification
-    : String(Math.round(score.embryo_score));
+  const badgeLabel = score.gemini_classification
+    || String(Math.round(score.embryo_score));
 
   return (
     <div
@@ -80,7 +77,9 @@ export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightF
       {signedUrl && (
         <img
           src={signedUrl}
-          alt={isV2 ? `Embrião — ${score.combined_classification}` : `Embrião — ${score.classification} (Score ${Math.round(score.embryo_score)})`}
+          alt={score.gemini_classification
+            ? `Embrião — ${score.gemini_classification}`
+            : `Embrião — ${score.classification} (Score ${Math.round(score.embryo_score)})`}
           className="w-full h-full object-cover"
         />
       )}

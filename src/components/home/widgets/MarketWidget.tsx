@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
+import { LoadingInline } from '@/components/shared/LoadingScreen';
 
 export function MarketWidget({ compact = false }: { compact?: boolean }) {
     // Mock data
@@ -32,27 +33,25 @@ export function MarketWidget({ compact = false }: { compact?: boolean }) {
 
     if (compact) {
         return (
-            <Card className="h-full bg-card border-border p-5 flex flex-col justify-between hover:border-primary/50 transition-colors group">
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="p-1.5 bg-emerald-500/10 rounded-md">
-                        <DollarSign className="w-4 h-4 text-emerald-500" />
-                    </div>
-                    <span className="text-sm font-medium text-muted-foreground">Mercado</span>
+            <Card className="h-full bg-white dark:bg-zinc-900 border-border p-4 flex flex-col justify-between shadow-sm">
+                <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2">
+                    <span className="text-base font-heading font-bold text-foreground">Cotações Hoje</span>
+                    <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {loading ? (
-                        <div className="flex justify-center p-4"><Loader2 className="animate-spin w-4 h-4 text-emerald-500" /></div>
+                        <LoadingInline text="" />
                     ) : quotes.slice(0, 2).map((quote, i) => (
-                        <div key={i} className="flex justify-between items-center bg-muted/30 p-2 rounded-lg">
+                        <div key={i} className="flex justify-between items-center">
                             <div>
-                                <span className="text-sm font-semibold text-foreground block">{quote.item}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase">{quote.unit}</span>
+                                <span className="text-base font-bold text-foreground block">{quote.item}</span>
+                                <span className="text-xs text-muted-foreground uppercase font-medium">/{quote.unit}</span>
                             </div>
                             <div className="text-right">
-                                <span className="text-base font-bold text-foreground block">R$ {quote.price.split(',')[0]}</span>
-                                <div className={`flex items-center justify-end gap-1 text-[10px] font-medium ${quote.trend === 'up' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                    {quote.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                <span className="text-lg font-black text-foreground block">R$ {quote.price.split(',')[0]}</span>
+                                <div className={`flex items-center justify-end gap-1 text-xs font-bold ${quote.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                    {quote.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                                     {quote.variation}%
                                 </div>
                             </div>
@@ -86,7 +85,7 @@ export function MarketWidget({ compact = false }: { compact?: boolean }) {
                     </thead>
                     <tbody className="divide-y divide-border">
                         {loading ? (
-                            <tr><td colSpan={3} className="text-center py-8"><Loader2 className="animate-spin w-6 h-6 mx-auto text-emerald-500" /></td></tr>
+                            <tr><td colSpan={3} className="text-center py-8"><LoadingInline text="Checando cotações..." /></td></tr>
                         ) : quotes.map((quote, i) => (
                             <tr key={i} className="hover:bg-muted/30 transition-colors">
                                 <td className="py-3">

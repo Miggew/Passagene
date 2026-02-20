@@ -1,51 +1,41 @@
 /**
- * Alerta de discrepância entre classificação manual do biólogo e score da IA.
+ * Alerta de discrepância entre classificação manual do biólogo e classificação Gemini.
  *
- * Mapeamento classificação → faixa de score esperada:
- *   BE (Excelente) → 80-100 (midpoint 90)
- *   BN (Normal)    → 60-79  (midpoint 70)
- *   BX (Regular)   → 40-59  (midpoint 50)
- *   BL (Limitado)  → 20-39  (midpoint 30)
- *   BI (Irregular) → 0-19   (midpoint 10)
- *
- * Se |score_ia - midpoint| > 25 → mostrar aviso
+ * Comparação direta IETS vs IETS:
+ *   Se classificacaoManual !== geminiClassification → mostrar aviso
  */
 
 import { AlertTriangle } from 'lucide-react';
 
 interface DiscrepancyAlertProps {
   classificacaoManual: string;
-  scoreIA: number;
-  classificationIA: string;
+  geminiClassification: string;
 }
 
-const CLASSIFICACAO_MAP: Record<string, { label: string; midpoint: number; range: string }> = {
-  BE: { label: 'Excelente', midpoint: 90, range: '80-100' },
-  BN: { label: 'Normal', midpoint: 70, range: '60-79' },
-  BX: { label: 'Regular', midpoint: 50, range: '40-59' },
-  BL: { label: 'Limitado', midpoint: 30, range: '20-39' },
-  BI: { label: 'Irregular', midpoint: 10, range: '0-19' },
+const IETS_LABELS: Record<string, string> = {
+  BE: 'Excelente',
+  BN: 'Normal',
+  BX: 'Regular',
+  BL: 'Limitado',
+  BI: 'Irregular',
+  Mo: 'Mórula',
+  Dg: 'Degenerado',
 };
 
-export function getDiscrepancy(classificacaoManual: string, scoreIA: number) {
-  const mapping = CLASSIFICACAO_MAP[classificacaoManual];
-  if (!mapping) return null;
-
-  const diff = Math.abs(scoreIA - mapping.midpoint);
-  if (diff <= 25) return null;
+export function getDiscrepancy(classificacaoManual: string, geminiClassification: string | null | undefined) {
+  if (!geminiClassification) return null;
+  if (classificacaoManual === geminiClassification) return null;
 
   return {
-    classificacao: classificacaoManual,
-    label: mapping.label,
-    expectedRange: mapping.range,
-    midpoint: mapping.midpoint,
-    scoreIA: Math.round(scoreIA),
-    diff: Math.round(diff),
+    classificacaoManual,
+    labelManual: IETS_LABELS[classificacaoManual] || classificacaoManual,
+    geminiClassification,
+    labelGemini: IETS_LABELS[geminiClassification] || geminiClassification,
   };
 }
 
-export function DiscrepancyAlert({ classificacaoManual, scoreIA, classificationIA }: DiscrepancyAlertProps) {
-  const discrepancy = getDiscrepancy(classificacaoManual, scoreIA);
+export function DiscrepancyAlert({ classificacaoManual, geminiClassification }: DiscrepancyAlertProps) {
+  const discrepancy = getDiscrepancy(classificacaoManual, geminiClassification);
   if (!discrepancy) return null;
 
   return (
@@ -56,12 +46,10 @@ export function DiscrepancyAlert({ classificacaoManual, scoreIA, classificationI
           Divergência IA vs Biólogo
         </p>
         <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-          Biólogo: <span className="font-semibold">{discrepancy.classificacao} ({discrepancy.label})</span>
-          {' '}— faixa esperada: {discrepancy.expectedRange}
+          Biólogo: <span className="font-semibold">{discrepancy.classificacaoManual} ({discrepancy.labelManual})</span>
         </p>
         <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80">
-          IA: <span className="font-semibold">{Math.round(scoreIA)} ({classificationIA})</span>
-          {' '}— diferença de {discrepancy.diff} pontos
+          Gemini IA: <span className="font-semibold">{discrepancy.geminiClassification} ({discrepancy.labelGemini})</span>
         </p>
       </div>
     </div>

@@ -125,17 +125,17 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex w-64 bg-card border-r border-border min-h-full flex-col">
+    <aside className="hidden md:flex w-72 bg-card/80 backdrop-blur-md border-r border-border/40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] min-h-full flex-col rounded-r-[2rem]">
       {/* Header do hub atual */}
-      <div className="p-4 border-b border-border">
-        <h2 className="font-heading text-lg font-semibold text-foreground">{currentHub.name}</h2>
+      <div className="p-6 border-b border-border/50">
+        <h2 className="font-heading text-xl font-extrabold text-primary-800 dark:text-primary-100">{currentHub.name}</h2>
         {currentHub.description && (
           <p className="text-xs text-muted-foreground mt-1">{currentHub.description}</p>
         )}
       </div>
 
       {/* Menu de navegação do hub */}
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
         {currentHub.routes.map((route) => {
           const Icon = routeIcons[route] || Home;
           const label = routeLabels[route] || route;
@@ -146,13 +146,13 @@ export default function Sidebar() {
               key={route}
               to={route}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                'flex items-center gap-4 px-4 py-3 mx-4 my-1.5 rounded-2xl transition-all duration-300',
                 isActive
-                  ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary -ml-px pl-[11px]'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary/10 text-primary font-bold shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium'
               )}
             >
-              <Icon className={cn('w-5 h-5', isActive ? 'text-primary' : '')} />
+              <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-primary scale-110' : '')} />
               <span className="text-sm">{label}</span>
             </Link>
           );

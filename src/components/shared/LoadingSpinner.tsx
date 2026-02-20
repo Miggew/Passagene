@@ -1,4 +1,3 @@
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LoadingSpinnerProps {
@@ -7,28 +6,46 @@ interface LoadingSpinnerProps {
 }
 
 export default function LoadingSpinner({ className, size }: LoadingSpinnerProps) {
-  // Inline / small spinner (e.g., inside buttons)
+  const s = size ?? 24;
+
+  const dotClass = "relative w-1.5 h-full mx-0.5";
+  const glowCore = "absolute w-1.5 h-1.5 rounded-full";
+  // Usamos bg-background para dar a ilusão de serem "vazados" (transparente até o fundo da página)
+  const glowTop = `${glowCore} bg-background animate-dna-spin`;
+  const glowBot = `${glowCore} bg-background animate-dna-spin-rev opacity-80`; // Leve opacidade para dar a profundidade da fita de trás
+
+  // Spinner inline (Substitui loader comum de botões pela hélice)
   if (className) {
-    return <Loader2 className={cn('animate-spin text-primary', className)} size={size ?? 16} />;
+    return (
+      <div
+        className={cn('relative flex items-center justify-center shrink-0', className)}
+        style={{ height: s }}
+      >
+        <div className="flex items-center justify-center h-full -rotate-45 scale-[1.2]">
+          <div className={dotClass}><div className={glowTop} style={{ animationDelay: "-1.4s" }} /><div className={glowBot} style={{ animationDelay: "-1.4s" }} /></div>
+          <div className={dotClass}><div className={glowTop} style={{ animationDelay: "-1.25s" }} /><div className={glowBot} style={{ animationDelay: "-1.25s" }} /></div>
+          <div className={dotClass}><div className={glowTop} style={{ animationDelay: "-1.1s" }} /><div className={glowBot} style={{ animationDelay: "-1.1s" }} /></div>
+        </div>
+      </div>
+    );
   }
 
-  // DNA wave — shield silhouette with pulsing marks
+  // Splash / Full size spinner (Para Dashboards e Telas Principais)
   return (
     <div className="flex items-center justify-center p-8">
-      <svg className="dna-wave" width={size ?? 48} height={size ?? 48} viewBox="0 0 500 500" fill="none">
-        {/* Frame fills — constant dim */}
-        <path fill="#09C972" opacity="0.15" d="M275.4111 225.5622L389.922 225.5622C432.7058 225.5622 467.4223 190.8839 467.4223 148.0619L467.4223 31.5246 352.9114 31.5246C310.1276 31.5246 275.4111 66.2029 275.4111 109.0249L275.4111 225.5622Z"/>
-        <path fill="#049357" opacity="0.15" d="M392.3298 271.1009L201.8097 271.1009C201.8097 271.1009 110.0864 271.1009 110.0864 271.1009 67.3025 271.1009 32.5861 305.7791 32.5861 348.6012L32.5861 468.3501 152.0673 468.3501C194.8512 468.3501 229.5676 433.6718 229.5676 390.8498L229.5676 301.8028 275.1043 301.8028 275.1043 393.2967C275.1043 439.4069 249.2199 479.5144 211.1771 499.7784L414.0849 499.7784C461.4568 499.7784 499.8055 461.3915 499.8055 414.0196L499.8055 205.109C479.8856 244.2606 439.2047 271.0626 392.2915 271.0626Z"/>
-        <path fill="#09C972" opacity="0.15" d="M107.6766 225.5623L111.0794 225.5623C111.0794 225.5623 229.8342 225.5623 229.8342 225.5623L229.8342 106.5781C229.8342 60.4679 255.7186 20.3604 293.7615 0.0964L85.8832 0.0964C38.5495 0.0964 0.1243 38.4833 0.1243 85.8553L0.1243 291.5542C20.0443 252.4026 60.7252 225.6005 107.6383 225.6005Z"/>
-
-        {/* Marks — wave pulse top-right → bottom-left */}
-        <path className="dna-m1" fill="#09C972" d="M394.9688 49.8387C398.4099 49.8387 401.7363 51.2151 404.1832 53.6621L445.2848 94.7637C447.7318 97.2106 449.1082 100.4988 449.1082 103.9781 449.1082 115.563 435.0763 121.3745 426.8942 113.1924L385.7927 72.0909C377.6106 63.9088 383.3839 49.8769 395.0071 49.8769Z"/>
-        <path className="dna-m2" fill="#09C972" d="M309.5923 68.7263C309.5923 68.7263 309.707 68.6116 309.7835 68.5351 314.7539 63.2588 323.1272 63.1441 328.2505 68.3057L431.6735 171.7287C436.7204 176.7756 436.7204 184.9577 431.6735 190.0046 431.597 190.081 431.5588 190.1193 431.4823 190.1957 426.4354 195.1661 418.2916 195.1661 413.2829 190.1575L309.86 86.7345C304.9278 81.8023 304.8513 73.8879 309.5923 68.7645Z"/>
-        <path className="dna-m3" fill="#09C972" d="M315.9392 144.812L356.1231 184.9959C364.3434 193.2162 358.5318 207.2099 346.9087 207.2099 343.4676 207.2099 340.1413 205.8334 337.6943 203.3865L297.5104 163.2025C295.0634 160.7555 293.687 157.4674 293.687 153.9881 293.687 142.4032 307.7189 136.5917 315.9009 144.7737Z"/>
-        <path className="dna-m6" fill="#049357" d="M211.2535 342.1779C211.2535 353.7628 197.2217 359.5743 189.0396 351.3923L149.3145 311.6671C141.1324 303.4851 146.9057 289.4532 158.5289 289.4532 161.9699 289.4532 165.2963 290.8296 167.7433 293.2766L207.4684 333.0017C209.9154 335.4487 211.2918 338.7368 211.2918 342.2161Z"/>
-        <path className="dna-m5" fill="#049357" d="M195.5394 428.8926L195.3482 429.0838C190.416 434.5894 181.8516 434.8189 176.6518 429.5808L70.2466 323.1756C65.0467 317.9757 65.1997 309.4113 70.6671 304.5174 70.7436 304.4409 70.7818 304.4027 70.8583 304.3262 76.0199 299.7764 83.7814 299.8911 88.6371 304.7468L195.0423 411.152C199.898 416.0077 200.0892 423.7692 195.5011 428.8926Z"/>
-        <path className="dna-m4" fill="#049357" d="M113.7186 450.0742C110.2775 450.0742 106.9512 448.6978 104.5042 446.2508L54.7618 396.5084C52.3148 394.0614 50.9384 390.7733 50.9384 387.294 50.9384 375.7091 64.9703 369.8975 73.1523 378.0796L122.933 427.822C131.1151 436.0041 125.3417 450.036 113.7186 450.036Z"/>
-      </svg>
+      <div
+        className="relative flex items-center justify-center bg-primary rounded-2xl shadow-md"
+        style={{ width: 80, height: 80 }}
+      >
+        {/* Hélice Maior Diagonal (PassaGene) - Vazada */}
+        <div className="flex items-center justify-center h-[50%] -rotate-45 scale-[1.3]">
+          <div className="relative w-2.5 h-full mx-1"><div className="absolute w-2.5 h-2.5 rounded-full bg-background animate-dna-spin" style={{ animationDelay: "-1.4s" }} /><div className="absolute w-2.5 h-2.5 rounded-full bg-background/80 animate-dna-spin-rev" style={{ animationDelay: "-1.4s" }} /></div>
+          <div className="relative w-2.5 h-full mx-1"><div className="absolute w-2.5 h-2.5 rounded-full bg-background animate-dna-spin" style={{ animationDelay: "-1.25s" }} /><div className="absolute w-2.5 h-2.5 rounded-full bg-background/80 animate-dna-spin-rev" style={{ animationDelay: "-1.25s" }} /></div>
+          <div className="relative w-2.5 h-full mx-1"><div className="absolute w-2.5 h-2.5 rounded-full bg-background animate-dna-spin" style={{ animationDelay: "-1.1s" }} /><div className="absolute w-2.5 h-2.5 rounded-full bg-background/80 animate-dna-spin-rev" style={{ animationDelay: "-1.1s" }} /></div>
+          <div className="relative w-2.5 h-full mx-1"><div className="absolute w-2.5 h-2.5 rounded-full bg-background animate-dna-spin" style={{ animationDelay: "-0.95s" }} /><div className="absolute w-2.5 h-2.5 rounded-full bg-background/80 animate-dna-spin-rev" style={{ animationDelay: "-0.95s" }} /></div>
+          <div className="relative w-2.5 h-full mx-1"><div className="absolute w-2.5 h-2.5 rounded-full bg-background animate-dna-spin" style={{ animationDelay: "-0.8s" }} /><div className="absolute w-2.5 h-2.5 rounded-full bg-background/80 animate-dna-spin-rev" style={{ animationDelay: "-0.8s" }} /></div>
+        </div>
+      </div>
     </div>
   );
 }

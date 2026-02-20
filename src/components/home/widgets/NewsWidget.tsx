@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Newspaper, ExternalLink, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
-import { LogoLoader } from '@/components/shared/LogoLoader';
+import { LoadingInline } from '@/components/shared/LoadingScreen';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,34 +73,26 @@ export function NewsWidget({ compact = false }: { compact?: boolean }) {
 
     if (compact) {
         return (
-            <Card className="h-full bg-card border-border p-5 flex flex-col justify-between hover:border-primary/50 transition-colors group cursor-pointer relative overflow-hidden">
-                {/* AI Gradient Hint */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-0" />
-
-                <div className="flex items-center justify-between z-10 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-purple-500/10 rounded-md border border-purple-500/20">
-                            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                        </div>
-                        <span className="text-xs font-semibold text-purple-300">Destaques AI</span>
-                    </div>
+            <Card className="h-full bg-white dark:bg-zinc-900 border-border p-5 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                <div className="flex items-center justify-between z-10 shrink-0 border-b border-border/50 pb-2">
+                    <span className="text-sm font-heading font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Notícias do Setor</span>
                 </div>
 
-                <div className="flex-1 flex flex-col justify-center mt-2 z-10 min-h-0">
+                <div className="flex-1 flex flex-col justify-center mt-3 mb-3 z-10 min-h-0">
                     {loading ? (
                         <div className="flex items-center gap-2 text-muted-foreground animate-pulse">
-                            <div className="h-4 w-3/4 bg-muted rounded"></div>
+                            <div className="h-5 w-full bg-muted rounded"></div>
                         </div>
                     ) : (
-                        <p className="text-sm font-medium text-foreground leading-relaxed line-clamp-3">
-                            "{news[0]?.title || 'Carregando insights...'}"
+                        <p className="text-base font-bold text-foreground leading-snug line-clamp-3">
+                            {news[0]?.title || 'Carregando insights...'}
                         </p>
                     )}
                 </div>
 
-                <div className="mt-2 shrink-0 z-10 flex items-center justify-between border-t border-border pt-2">
-                    <span className="text-[10px] text-muted-foreground">Curadoria Gemini AI</span>
-                    <Badge variant="outline" className="text-[9px] h-4 px-1 border-purple-500/30 text-purple-400">Novo</Badge>
+                <div className="mt-auto shrink-0 z-10 flex items-center justify-between pt-2">
+                    <span className="text-xs font-medium text-muted-foreground">Ler matéria completa</span>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
                 </div>
             </Card>
         );
@@ -136,9 +128,8 @@ export function NewsWidget({ compact = false }: { compact?: boolean }) {
 
             <div className="grid grid-cols-1 gap-4 flex-1 overflow-y-auto mb-4 z-10 pr-2">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground">
-                        <LogoLoader size={48} />
-                        <p className="text-sm">Gemini está analisando o mercado...</p>
+                    <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground w-full">
+                        <LoadingInline text="Gemini está selecionando notícias..." />
                     </div>
                 ) : (
                     news.map((item, i) => (
