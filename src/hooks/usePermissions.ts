@@ -13,11 +13,22 @@ export function usePermissions() {
     hasAccessToRoute,
   } = useAuth();
 
-  // Retorna os hubs que o usuário tem acesso
+  // Retorna os hubs que o usuário tem acesso (filtrando rotas obsoletas que viraram abas)
   const getAccessibleHubs = (): Hub[] => {
     if (!permissions) return [];
 
-    return hubs.filter(hub => hasAccessToHub(hub.code));
+    return hubs
+      .filter(hub => hasAccessToHub(hub.code))
+      .map(hub => {
+        const newRoutes = hub.routes
+          .filter(r => r !== '/escritorio/historico' && !r.startsWith('/relatorios') && r !== '/escritorio')
+          .map(r => (r === '/escritorio/protocolo-p1' || r === '/escritorio/protocolo-p2') ? '/escritorio/protocolos' : r);
+
+        return {
+          ...hub,
+          routes: [...new Set(newRoutes)]
+        };
+      });
   };
 
   // Verifica se o usuário é admin

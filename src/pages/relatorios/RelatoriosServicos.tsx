@@ -33,8 +33,15 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Fazenda } from '@/lib/types';
 import { exportRelatorio, pdfConfigs } from '@/lib/exportPdf';
+import { cn } from '@/lib/utils';
+
 
 type TipoServico = 'protocolos' | 'aspiracoes' | 'te' | 'dg' | 'sexagem';
+
+export interface RelatoriosServicosProps {
+  fixedTab?: TipoServico;
+  hideHeader?: boolean;
+}
 
 interface ProtocoloRow {
   id: string;
@@ -67,14 +74,14 @@ interface SessaoRow {
 
 const ITENS_POR_PAGINA = 15;
 
-export default function RelatoriosServicos() {
+export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosServicosProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { clienteIdFilter } = useClienteFilter();
 
-  // Tab ativa (pode vir da URL)
+  // Tab ativa (pode vir da URL ou via prop fixedTab)
   const [tipoServico, setTipoServico] = useState<TipoServico>(
-    (searchParams.get('tipo') as TipoServico) || 'protocolos'
+    fixedTab || (searchParams.get('tipo') as TipoServico) || 'protocolos'
   );
 
   // Filtros
@@ -720,68 +727,72 @@ export default function RelatoriosServicos() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <PageHeader
-        title="Serviços de Campo"
-        description="Histórico de protocolos, aspirações, transferências e diagnósticos"
-      />
+    <div className={hideHeader ? "space-y-4" : "p-4 md:p-6 space-y-4 md:space-y-6"}>
+      {!hideHeader && (
+        <PageHeader
+          title="Serviços de Campo"
+          description="Histórico de protocolos, aspirações, transferências e diagnósticos"
+        />
+      )}
 
       {/* Tabs de tipo de serviço */}
       <Tabs value={tipoServico} onValueChange={handleTabChange}>
-        {/* Tabs Premium */}
-        <div className="rounded-xl border border-border bg-card p-1.5">
-          <div className="flex gap-1">
-            {[
-              { value: 'protocolos', label: 'Protocolos', icon: Syringe },
-              { value: 'aspiracoes', label: 'Aspirações', icon: TestTube },
-              { value: 'te', label: 'Transferência', icon: ArrowRightLeft },
-              { value: 'dg', label: 'Diagnóstico', icon: ThumbsUp },
-              { value: 'sexagem', label: 'Sexagem', icon: GenderIcon },
-            ].map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => handleTabChange(value)}
-                className={`
+        {/* Tabs Premium (Ocultar se fixedTab for passado) */}
+        {!fixedTab && (
+          <div className="rounded-xl border border-border bg-card p-1.5">
+            <div className="flex gap-1">
+              {[
+                { value: 'protocolos', label: 'Protocolos', icon: Syringe },
+                { value: 'aspiracoes', label: 'Aspirações', icon: TestTube },
+                { value: 'te', label: 'Transferência', icon: ArrowRightLeft },
+                { value: 'dg', label: 'Diagnóstico', icon: ThumbsUp },
+                { value: 'sexagem', label: 'Sexagem', icon: GenderIcon },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => handleTabChange(value)}
+                  className={`
                   relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
                   text-sm font-medium transition-all duration-200
                   ${tipoServico === value
-                    ? 'bg-muted/80 text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                  }
+                      ? 'bg-muted/80 text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    }
                 `}
-              >
-                {/* Indicador inferior para tab ativa */}
-                {tipoServico === value && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
-                )}
+                >
+                  {/* Indicador inferior para tab ativa */}
+                  {tipoServico === value && (
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
+                  )}
 
-                {/* Ícone com container */}
-                <div className={`
+                  {/* Ícone com container */}
+                  <div className={`
                   flex items-center justify-center w-7 h-7 rounded-md transition-colors
                   ${tipoServico === value
-                    ? 'bg-primary/15'
-                    : 'bg-muted/50'
-                  }
+                      ? 'bg-primary/15'
+                      : 'bg-muted/50'
+                    }
                 `}>
-                  <Icon className={`w-4 h-4 ${tipoServico === value ? 'text-primary' : 'text-muted-foreground'}`} />
-                </div>
+                    <Icon className={`w-4 h-4 ${tipoServico === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
 
-                {/* Label - esconde em mobile */}
-                <span className="hidden sm:inline">{label}</span>
+                  {/* Label - esconde em mobile */}
+                  <span className="hidden sm:inline">{label}</span>
 
-                {/* Badge de contagem */}
-                {tipoServico === value && dadosFiltrados.length > 0 && (
-                  <span className="hidden md:inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold bg-primary/15 text-primary rounded-full">
-                    {dadosFiltrados.length}
-                  </span>
-                )}
-              </button>
-            ))}
+                  {/* Badge de contagem */}
+                  {tipoServico === value && dadosFiltrados.length > 0 && (
+                    <span className="hidden md:inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold bg-primary/15 text-primary rounded-full">
+                      {dadosFiltrados.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Filtros */}
-        <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
+        <div className={cn("rounded-xl border border-border bg-card overflow-hidden", fixedTab ? "" : "mt-4")}>
           <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
             {/* Grupo: Busca */}
             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">

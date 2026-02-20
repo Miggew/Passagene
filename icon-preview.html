@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PassaGene — Icon System Preview</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --card: #141414;
+    --card-hover: #1a1a1a;
+    --border: #262626;
+    --border-light: #333;
+    --text: #e5e5e5;
+    --text-muted: #737373;
+    --text-dim: #525252;
+    --green-brand: #09C972;
+    --green-deep: #049357;
+    --green-bg: rgba(9,201,114,0.08);
+    --green-border: rgba(9,201,114,0.2);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --red-border: rgba(239,68,68,0.2);
+    --blue: #3b82f6;
+    --blue-bg: rgba(59,130,246,0.08);
+    --blue-border: rgba(59,130,246,0.2);
+    --pink: #ec4899;
+    --pink-bg: rgba(236,72,153,0.08);
+    --pink-border: rgba(236,72,153,0.2);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,0.08);
+    --amber-border: rgba(245,158,11,0.2);
+    --violet: #8b5cf6;
+    --violet-bg: rgba(139,92,246,0.08);
+    --violet-border: rgba(139,92,246,0.2);
+    --cyan: #06b6d4;
+    --cyan-bg: rgba(6,182,212,0.08);
+    --cyan-border: rgba(6,182,212,0.2);
+    --indigo: #6366f1;
+    --purple: #a855f7;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 40px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  h1 span { color: var(--green-brand); }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .count {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--green-brand);
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .section-desc {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  section { margin-bottom: 56px; }
+
+  /* Icon grid */
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .icon-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .icon-card:hover {
+    border-color: var(--border-light);
+    background: var(--card-hover);
+  }
+
+  .icon-card .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .icon-preview {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .icon-preview svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .icon-preview.green  { background: var(--green-bg); border: 1px solid var(--green-border); }
+  .icon-preview.green svg { stroke: var(--green-brand); }
+
+  .icon-preview.red    { background: var(--red-bg); border: 1px solid var(--red-border); }
+  .icon-preview.red svg { stroke: var(--red); }
+  .icon-preview.red svg circle[fill="black"] { fill: var(--red); }
+
+  .icon-preview.blue   { background: var(--blue-bg); border: 1px solid var(--blue-border); }
+  .icon-preview.blue svg { stroke: var(--blue); }
+  .icon-preview.blue svg circle[fill="black"] { fill: var(--blue); }
+
+  .icon-preview.pink   { background: var(--pink-bg); border: 1px solid var(--pink-border); }
+  .icon-preview.pink svg { stroke: var(--pink); }
+
+  .icon-preview.amber  { background: var(--amber-bg); border: 1px solid var(--amber-border); }
+  .icon-preview.amber svg { stroke: var(--amber); }
+
+  .icon-preview.violet { background: var(--violet-bg); border: 1px solid var(--violet-border); }
+  .icon-preview.violet svg { stroke: var(--violet); }
+  .icon-preview.violet svg circle[fill="black"] { fill: var(--violet); }
+
+  .icon-preview.cyan   { background: var(--cyan-bg); border: 1px solid var(--cyan-border); }
+  .icon-preview.cyan svg { stroke: var(--cyan); }
+  .icon-preview.cyan svg circle[fill="black"] { fill: var(--cyan); }
+
+  .icon-preview.neutral { background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+  .icon-preview.neutral svg { stroke: var(--text); }
+  .icon-preview.neutral svg circle[fill="black"] { fill: var(--text); }
+
+  .icon-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .icon-context {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .tag {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .tag.page { color: var(--green-brand); border-color: var(--green-border); background: var(--green-bg); }
+  .tag.component { color: var(--blue); border-color: var(--blue-border); background: var(--blue-bg); }
+  .tag.nav { color: var(--violet); border-color: rgba(139,92,246,0.2); background: var(--violet-bg); }
+  .tag.new { color: var(--amber); border-color: var(--amber-border); background: var(--amber-bg); }
+
+  /* Sizes demo */
+  .sizes-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 16px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  .size-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .size-item svg { stroke: var(--green-brand); }
+  .size-label { font-size: 10px; color: var(--text-dim); }
+
+  /* Replacement table */
+  .replace-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+  }
+
+  .replace-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .replace-arrow {
+    color: var(--text-dim);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .replace-old {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .replace-new {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .replace-new svg { width: 20px; height: 20px; stroke: var(--green-brand); }
+
+  .replace-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .replace-label {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .replace-where {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Color demo bar */
+  .color-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .color-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+  .swatch-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  .badge-demo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-demo svg { width: 14px; height: 14px; }
+
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+    margin-bottom: 24px;
+  }
+
+  .badge-green  { background: var(--green-bg);  color: var(--green-brand); border: 1px solid var(--green-border); }
+  .badge-green svg { stroke: var(--green-brand); }
+  .badge-red    { background: var(--red-bg);    color: var(--red);   border: 1px solid var(--red-border); }
+  .badge-red svg { stroke: var(--red); }
+  .badge-blue   { background: var(--blue-bg);   color: var(--blue);  border: 1px solid var(--blue-border); }
+  .badge-blue svg { stroke: var(--blue); }
+  .badge-pink   { background: var(--pink-bg);   color: var(--pink);  border: 1px solid var(--pink-border); }
+  .badge-pink svg { stroke: var(--pink); }
+  .badge-amber  { background: var(--amber-bg);  color: var(--amber); border: 1px solid var(--amber-border); }
+  .badge-amber svg { stroke: var(--amber); }
+  .badge-violet { background: var(--violet-bg); color: var(--violet); border: 1px solid rgba(139,92,246,0.2); }
+  .badge-violet svg { stroke: var(--violet); }
+  .badge-cyan   { background: var(--cyan-bg);   color: var(--cyan);  border: 1px solid var(--cyan-border); }
+  .badge-cyan svg { stroke: var(--cyan); }
+
+  /* SVG definitions for reuse */
+  .hidden-defs { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Hidden SVG definitions for reuse -->
+<div class="hidden-defs">
+  <!-- Base Cow -->
+  <svg id="svg-cow-base" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+  </svg>
+  <!-- Prenhe -->
+  <svg id="svg-cow-prenhe" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M13 19l-1 2"/><path d="M17 16l1 5"/>
+    <path d="M10 16c0-1 1-1 2-1s2 0 2 1"/>
+    <path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+    <path d="M11 19a3 3 0 0 0 4 0"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+  </svg>
+  <!-- Prenhe Femea -->
+  <svg id="svg-cow-femea" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M17 16l1 5"/>
+    <path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+    <circle cx="13" cy="17" r="1.5"/><path d="M13 18.5v3"/><path d="M11.5 20h3"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+  </svg>
+  <!-- Prenhe Macho -->
+  <svg id="svg-cow-macho" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M17 16l1 5"/>
+    <path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+    <circle cx="12.5" cy="17.5" r="1.5"/>
+    <path d="M13.5 16.5l2-2"/><path d="M15.5 14.5h-2"/><path d="M15.5 14.5v2"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+  </svg>
+  <!-- Doadora -->
+  <svg id="svg-cow-doadora" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M13 16l-1 5"/><path d="M17 16l1 5"/>
+    <path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+    <path d="M9 10c1 1 1 3 0 4s-2 1-2-2 1-3 2-2z"/><path d="M9 10l-2 4"/><path d="M7 10l2 4"/>
+  </svg>
+  <!-- Vazia -->
+  <svg id="svg-cow-vazia" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M13 16l-1 5"/><path d="M17 16l1 5"/>
+    <path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+    <path d="M10 11l4 4"/><path d="M14 11l-4 4"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+  </svg>
+  <!-- TE -->
+  <svg id="svg-cow-te" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M13 16l-1 5"/><path d="M17 16l1 5"/>
+    <path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+    <path d="M22 13c0 0-2-1-3 1s-2 3-4 2"/>
+    <polyline points="16 14 15 16 17 17"/>
+    <circle cx="22" cy="13" r="1" fill="black"/>
+  </svg>
+  <!-- Aspiracao -->
+  <svg id="svg-cow-aspiracao" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1"/>
+    <path d="M3 13l1 5"/><path d="M7 16l1 5"/><path d="M13 16l-1 5"/><path d="M17 16l1 5"/>
+    <path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+    <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+    <path d="M13 8l-3 3"/><path d="M14 7l1-1"/>
+    <circle cx="10.5" cy="10.5" r="0.5" fill="black" stroke="none"/>
+    <circle cx="12" cy="12" r="0.5" fill="black" stroke="none"/>
+  </svg>
+  <!-- Protocolo -->
+  <svg id="svg-cow-protocolo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1" opacity="0.5"/>
+    <path d="M20 10v4a2 2 0 0 1-2 2h-1" opacity="0.5"/>
+    <path d="M3 13l1 5" opacity="0.5"/><path d="M7 16l1 5" opacity="0.5"/>
+    <path d="M13 16l-1 5" opacity="0.5"/><path d="M17 16l1 5" opacity="0.5"/>
+    <path d="M1 9l2-2" opacity="0.5"/><path d="M6 7l2-2" opacity="0.5"/>
+    <path d="M12 9a4 4 0 1 1-4 4"/><path d="M12 13V9l-2 2"/>
+  </svg>
+  <!-- Embriao -->
+  <svg id="svg-embriao" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8"/>
+    <circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+  </svg>
+</div>
+
+<h1>PassaGene <span>Icon System</span></h1>
+<p class="subtitle">Inventario de icones SVG personalizados, aplicacoes no app e oportunidades de substituicao</p>
+
+<!-- Color reference -->
+<div class="color-bar">
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--green-brand)"></div><span class="swatch-label">PRENHE</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--red)"></div><span class="swatch-label">VAZIA</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--amber)"></div><span class="swatch-label">RETOQUE</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--pink)"></div><span class="swatch-label">FEMEA</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--blue)"></div><span class="swatch-label">MACHO</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--indigo)"></div><span class="swatch-label">2 SEXOS</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--purple)"></div><span class="swatch-label">SEM SEXO</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--violet)"></div><span class="swatch-label">SERVIDA</span></div>
+  <div class="color-swatch"><div class="swatch-circle" style="background:var(--cyan)"></div><span class="swatch-label">CONGELADO</span></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: Custom Icons -->
+<!-- ============================================================ -->
+<section>
+  <h2>Icones Personalizados <span class="count">10 icones</span></h2>
+  <p class="section-desc">Icones SVG com estilo consistente (viewBox 24x24, stroke 1.5, round caps). Substituem os antigos CowIcon, DonorCowIcon, EmbryoIcon, etc.</p>
+
+  <div class="icon-grid">
+
+    <!-- 1. Vaca Base -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview green">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Vaca Base</div>
+          <div class="icon-context">Receptora / Animal generico</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag component">ReceptoraCard</span>
+        <span class="tag component">ReceptorasTable</span>
+        <span class="tag nav">Sidebar</span>
+        <span class="tag nav">MobileNav</span>
+        <span class="tag page">ClienteRebanho</span>
+        <span class="tag page">RelatoriosAnimais</span>
+      </div>
+    </div>
+
+    <!-- 2. Vaca Prenhe -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview green">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M13 19l-1 2"/><path d="M17 16l1 5"/>
+            <path d="M10 16c0-1 1-1 2-1s2 0 2 1"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+            <path d="M11 19a3 3 0 0 0 4 0"/><path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Vaca Prenhe</div>
+          <div class="icon-context">Status PRENHE / PRENHE_RETOQUE</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag component">StatusBadge</span>
+        <span class="tag component">ResultBadge (DG)</span>
+        <span class="tag page">DiagnosticoSessao</span>
+        <span class="tag page">ClienteEmbrioesTab</span>
+        <span class="tag page">HomeDashboard</span>
+      </div>
+    </div>
+
+    <!-- 3. Prenhe Femea -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview pink">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M17 16l1 5"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+            <circle cx="13" cy="17" r="1.5"/><path d="M13 18.5v3"/><path d="M11.5 20h3"/>
+            <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Prenhe Femea</div>
+          <div class="icon-context">Status PRENHE_FEMEA (Sexagem)</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag component">StatusBadge</span>
+        <span class="tag component">ResultBadge (Sexagem)</span>
+        <span class="tag page">SexagemSessao</span>
+        <span class="tag page">EscritorioSexagem</span>
+      </div>
+    </div>
+
+    <!-- 4. Prenhe Macho -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M17 16l1 5"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+            <circle cx="12.5" cy="17.5" r="1.5"/>
+            <path d="M13.5 16.5l2-2"/><path d="M15.5 14.5h-2"/><path d="M15.5 14.5v2"/>
+            <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Prenhe Macho</div>
+          <div class="icon-context">Status PRENHE_MACHO (Sexagem)</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag component">StatusBadge</span>
+        <span class="tag component">ResultBadge (Sexagem)</span>
+        <span class="tag page">SexagemSessao</span>
+        <span class="tag page">EscritorioSexagem</span>
+      </div>
+    </div>
+
+    <!-- 5. Doadora -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview green">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+            <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+            <path d="M9 10c1 1 1 3 0 4s-2 1-2-2 1-3 2-2z"/><path d="M9 10l-2 4"/><path d="M7 10l2 4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Vaca Doadora</div>
+          <div class="icon-context">Doadora de genetica (DNA helix)</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag component">DoadoraCard</span>
+        <span class="tag nav">Sidebar (Doadoras)</span>
+        <span class="tag nav">MobileNav</span>
+        <span class="tag page">Doadoras</span>
+        <span class="tag page">DoadoraDetail</span>
+        <span class="tag page">GeneticaHome</span>
+        <span class="tag page">ClienteRebanho</span>
+      </div>
+    </div>
+
+    <!-- 6. Vazia -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview red">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+            <path d="M10 11l4 4"/><path d="M14 11l-4 4"/>
+            <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Vaca Vazia</div>
+          <div class="icon-context">Status VAZIA (DG negativo)</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag component">StatusBadge</span>
+        <span class="tag component">ResultBadge (DG)</span>
+        <span class="tag page">DiagnosticoSessao</span>
+        <span class="tag page">EscritorioDG</span>
+      </div>
+    </div>
+
+    <!-- 7. TE -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview violet">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+            <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+            <path d="M22 13c0 0-2-1-3 1s-2 3-4 2"/>
+            <polyline points="16 14 15 16 17 17"/>
+            <circle cx="22" cy="13" r="1" fill="black"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Transferencia Embriao</div>
+          <div class="icon-context">TE — seta com embriao entrando</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag nav">Sidebar (TE)</span>
+        <span class="tag nav">MobileNav</span>
+        <span class="tag page">TransferenciaEmbrioes</span>
+        <span class="tag page">EscritorioTE</span>
+        <span class="tag page">EscritorioHome</span>
+        <span class="tag page">LaboratorioHome</span>
+      </div>
+    </div>
+
+    <!-- 8. Aspiracao -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview cyan">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+            <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+            <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+            <path d="M13 8l-3 3"/><path d="M14 7l1-1"/>
+            <circle cx="10.5" cy="10.5" r="0.5" fill="black" stroke="none"/>
+            <circle cx="12" cy="12" r="0.5" fill="black" stroke="none"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Aspiracao (OPU)</div>
+          <div class="icon-context">Pipeta aspirando oocitos</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag nav">Sidebar (Aspiracoes)</span>
+        <span class="tag nav">MobileNav</span>
+        <span class="tag page">Aspiracoes</span>
+        <span class="tag page">EscritorioAspiracao</span>
+        <span class="tag page">LaboratorioHome</span>
+        <span class="tag component">AspiracaoDoadoras</span>
+      </div>
+    </div>
+
+    <!-- 9. Protocolo -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview amber">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1" opacity="0.5"/>
+            <path d="M20 10v4a2 2 0 0 1-2 2h-1" opacity="0.5"/>
+            <path d="M3 13l1 5" opacity="0.5"/><path d="M7 16l1 5" opacity="0.5"/>
+            <path d="M13 16l-1 5" opacity="0.5"/><path d="M17 16l1 5" opacity="0.5"/>
+            <path d="M1 9l2-2" opacity="0.5"/><path d="M6 7l2-2" opacity="0.5"/>
+            <path d="M12 9a4 4 0 1 1-4 4"/><path d="M12 13V9l-2 2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Protocolo (IATF)</div>
+          <div class="icon-context">Sincronizacao — ciclo reprodutivo</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag nav">Sidebar (Protocolos)</span>
+        <span class="tag nav">MobileNav</span>
+        <span class="tag page">Protocolos</span>
+        <span class="tag page">ProtocoloDetail</span>
+        <span class="tag page">EscritorioP1</span>
+        <span class="tag page">EscritorioP2</span>
+      </div>
+    </div>
+
+    <!-- 10. Embriao -->
+    <div class="icon-card">
+      <div class="header">
+        <div class="icon-preview green">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="8"/>
+            <circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Embriao</div>
+          <div class="icon-context">Celulas na zona pelucida</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag nav">Sidebar (Embrioes)</span>
+        <span class="tag nav">MobileNav</span>
+        <span class="tag page">EmbrioesCongelados</span>
+        <span class="tag page">LotesFIV</span>
+        <span class="tag page">RelatoriosMaterial</span>
+        <span class="tag component">PacoteEmbrioesTable</span>
+        <span class="tag component">EmbrioCard</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: Badge Usage Demo -->
+<!-- ============================================================ -->
+<section>
+  <h2>Uso em Badges de Status</h2>
+  <p class="section-desc">Como os icones apareceriam nos badges do sistema (StatusBadge / ResultBadge), substituindo texto puro por icone + label.</p>
+
+  <div class="badge-row">
+    <span class="badge-demo badge-green">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+        <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+        <path d="M13 19l-1 2"/><path d="M17 16l1 5"/>
+        <path d="M10 16c0-1 1-1 2-1s2 0 2 1"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+        <path d="M11 19a3 3 0 0 0 4 0"/><path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+      </svg>
+      PRENHE
+    </span>
+
+    <span class="badge-demo badge-red">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+        <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+        <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+        <path d="M10 11l4 4"/><path d="M14 11l-4 4"/><path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+      </svg>
+      VAZIA
+    </span>
+
+    <span class="badge-demo badge-pink">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+        <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+        <path d="M17 16l1 5"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+        <circle cx="13" cy="17" r="1.5"/><path d="M13 18.5v3"/><path d="M11.5 20h3"/>
+        <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+      </svg>
+      PRENHE FEMEA
+    </span>
+
+    <span class="badge-demo badge-blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+        <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+        <path d="M17 16l1 5"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+        <circle cx="12.5" cy="17.5" r="1.5"/>
+        <path d="M13.5 16.5l2-2"/><path d="M15.5 14.5h-2"/><path d="M15.5 14.5v2"/>
+        <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+      </svg>
+      PRENHE MACHO
+    </span>
+
+    <span class="badge-demo badge-amber">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1" opacity="0.5"/>
+        <path d="M20 10v4a2 2 0 0 1-2 2h-1" opacity="0.5"/>
+        <path d="M3 13l1 5" opacity="0.5"/><path d="M7 16l1 5" opacity="0.5"/>
+        <path d="M13 16l-1 5" opacity="0.5"/><path d="M17 16l1 5" opacity="0.5"/>
+        <path d="M1 9l2-2" opacity="0.5"/><path d="M6 7l2-2" opacity="0.5"/>
+        <path d="M12 9a4 4 0 1 1-4 4"/><path d="M12 13V9l-2 2"/>
+      </svg>
+      PROTOCOLO
+    </span>
+
+    <span class="badge-demo badge-violet">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+        <path d="M22 13c0 0-2-1-3 1s-2 3-4 2"/>
+        <polyline points="16 14 15 16 17 17"/>
+        <circle cx="22" cy="13" r="1"/>
+      </svg>
+      TE
+    </span>
+
+    <span class="badge-demo badge-cyan">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/>
+        <circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+      </svg>
+      EMBRIAO
+    </span>
+  </div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: Size Reference -->
+<!-- ============================================================ -->
+<section>
+  <h2>Tamanhos de Referencia</h2>
+  <p class="section-desc">Os icones renderizam bem de 16px a 48px por usarem viewBox 24x24 com strokes proporcionais.</p>
+
+  <div class="sizes-row">
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+      </svg>
+      <span class="size-label">16px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+      </svg>
+      <span class="size-label">20px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+      </svg>
+      <span class="size-label">24px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+      </svg>
+      <span class="size-label">32px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5,10c.28,0,.5-0.22.5-0.5V8.5c0-1.38-1.12-2.5-2.5-2.5h-2.8c-0.55-0.92-1.53-1.5-2.66-1.5c-1.03,0-1.94,0.49-2.5,1.25C6.94,5.49,6.03,5,5,5c-1.13,0-2.11,0.58-2.66,1.5H0v2h2.1c0.09,0.17,0.21,0.32,0.35,0.46C3.05,9.34,3.82,10,4.66,10h0.44c0.52,1.19,1.43,2.15,2.57,2.68C8.04,13.93,8,15.43,8,17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2.5c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5V17c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-4c0.58-0.58,1-1.38,1-2.25V10H17.5z M13.5,12h-4c-0.28,0-0.5,0.22-0.5,0.5v1.1c-0.36-0.23-0.79-0.36-1.25-0.36c-0.9,0-1.67,0.52-2.03,1.26C5.34,14.06,5,13.07,5,12c0-1.66-1.34-3-3-3v-1h1.34C4.03,8.31,5.12,8.5,6,8.5c1.03,0,1.94-0.49,2.5-1.25C9.06,8.01,9.97,8.5,11,8.5c0.55,0,1-0.45,1-1s-0.45-1-1-1c-1.03,0-1.94,0.49-2.5,1.25C8.06,7.01,7.15,6.5,6,6.5c-1.13,0-2.11,0.58-2.66,1.5H2.5c0-0.18,0.04-0.36,0.1-0.53C2.12,7.84,2.02,8.26,2.02,8.7C2.2,8.87,2.37,9,2.57,9.09C2.23,9.35,2,9.78,2,10.25C2,11.22,2.78,12,3.75,12H4v0.5C4,14.43,5.57,16,7.5,16c0.46,0,0.89-0.13,1.25-0.36v1.1c0,0.28,0.22,0.5,0.5,0.5h4c0.28,0,0.5-0.22,0.5-0.5v-1.1c0.36,0.23,0.79,0.36,1.25,0.36c0.46,0,0.89-0.13,1.25-0.36v-4.28C15.19,11.9,14.38,12,13.5,12z"/>
+      </svg>
+      <span class="size-label">48px</span>
+    </div>
+  </div>
+
+  <div class="sizes-row">
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+      </svg>
+      <span class="size-label">16px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+      </svg>
+      <span class="size-label">20px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+      </svg>
+      <span class="size-label">24px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+      </svg>
+      <span class="size-label">32px</span>
+    </div>
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+      </svg>
+      <span class="size-label">48px</span>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: Lucide icons to replace -->
+<!-- ============================================================ -->
+<section>
+  <h2>Icones Lucide Genericos para Substituir <span class="count">Oportunidades</span></h2>
+  <p class="section-desc">Icones genericos do Lucide que hoje representam conceitos bovinos/FIV e poderiam ser substituidos por icones personalizados do mesmo estilo.</p>
+
+  <div class="replace-grid">
+
+    <div class="replace-card">
+      <div class="replace-old">Beef</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+          <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+          <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">Beef &rarr; Vaca Base</div>
+        <div class="replace-where">ReceptoraCard, ClienteRebanho, FazendaDetail, HomeDashboard</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">Baby</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+          <path d="M13 19l-1 2"/><path d="M17 16l1 5"/>
+          <path d="M10 16c0-1 1-1 2-1s2 0 2 1"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+          <path d="M11 19a3 3 0 0 0 4 0"/><path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">Baby &rarr; Vaca Prenhe</div>
+        <div class="replace-where">ReceptorasTable, HomeDashboard, FazendaDetail, LaboratorioHome</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">Syringe</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1" opacity="0.5"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1" opacity="0.5"/>
+          <path d="M3 13l1 5" opacity="0.5"/><path d="M7 16l1 5" opacity="0.5"/>
+          <path d="M13 16l-1 5" opacity="0.5"/><path d="M17 16l1 5" opacity="0.5"/>
+          <path d="M1 9l2-2" opacity="0.5"/><path d="M6 7l2-2" opacity="0.5"/>
+          <path d="M12 9a4 4 0 1 1-4 4"/><path d="M12 13V9l-2 2"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">Syringe &rarr; Protocolo IATF</div>
+        <div class="replace-where">Sidebar, MobileNav, Protocolos, EscritorioP1, EscritorioP2, HomeDashboard</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">TestTube</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+          <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+          <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          <path d="M13 8l-3 3"/><path d="M14 7l1-1"/>
+          <circle cx="10.5" cy="10.5" r="0.5" fill="black" stroke="none"/>
+          <circle cx="12" cy="12" r="0.5" fill="black" stroke="none"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">TestTube &rarr; Aspiracao OPU</div>
+        <div class="replace-where">Sidebar, MobileNav, EscritorioAspiracao, HomeDashboard, LaboratorioHome</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">ArrowRightLeft</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+          <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+          <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          <path d="M22 13c0 0-2-1-3 1s-2 3-4 2"/>
+          <polyline points="16 14 15 16 17 17"/>
+          <circle cx="22" cy="13" r="1"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">ArrowRightLeft &rarr; Transferencia TE</div>
+        <div class="replace-where">Sidebar, MobileNav, EscritorioTE, TransferenciaEmbrioes, LaboratorioHome</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">Snowflake</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2.5"/><circle cx="14" cy="10" r="2.5"/><circle cx="12" cy="14.5" r="2.5"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">Snowflake &rarr; Embriao</div>
+        <div class="replace-where">EmbrioesCongelados, BulkActionsBar, EmbrioCard, ClienteBotijao, PacoteEmbrioesTable</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">Dna</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+          <path d="M13 16l-1 5"/><path d="M17 16l1 5"/><path d="M10 16c0-2 2-3 4-3s4 1 4 3"/>
+          <path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+          <path d="M9 10c1 1 1 3 0 4s-2 1-2-2 1-3 2-2z"/><path d="M9 10l-2 4"/><path d="M7 10l2 4"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">Dna &rarr; Vaca Doadora</div>
+        <div class="replace-where">Sidebar (Genetica), MobileNav, AdminCatalogoTab, GeneticaHome, Doadoras</div>
+      </div>
+    </div>
+
+    <div class="replace-card">
+      <div class="replace-old">ThumbsUp</div>
+      <div class="replace-arrow">&rarr;</div>
+      <div class="replace-new" style="background:var(--green-bg); border-color:var(--green-border);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green-brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 6h-4a3 3 0 0 0-3 3l-2 2a2 2 0 0 0 0 3v0a2 2 0 0 0 2 2h1"/>
+          <path d="M20 10v4a2 2 0 0 1-2 2h-1"/><path d="M3 13l1 5"/><path d="M7 16l1 5"/>
+          <path d="M13 19l-1 2"/><path d="M17 16l1 5"/>
+          <path d="M10 16c0-1 1-1 2-1s2 0 2 1"/><path d="M7 16c0 3 2.5 5 6 5s6-2 6-5"/>
+          <path d="M11 19a3 3 0 0 0 4 0"/><path d="M1 9l2-2"/><path d="M6 7l2-2"/>
+        </svg>
+      </div>
+      <div class="replace-info">
+        <div class="replace-label">ThumbsUp &rarr; Vaca Prenhe (DG+)</div>
+        <div class="replace-where">Sidebar (DG), MobileNav, EscritorioDG, EscritorioHome, RelatoriosServicos</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: Icons still needed -->
+<!-- ============================================================ -->
+<section>
+  <h2>Icones Personalizados Ainda Necessarios <span class="count">A criar</span></h2>
+  <p class="section-desc">Conceitos do dominio FIV bovino que usam icones Lucide genericos e mereceriam icones proprios no mesmo estilo das vacas.</p>
+
+  <div class="icon-grid">
+
+    <div class="icon-card" style="border-color: var(--amber-border); border-style: dashed;">
+      <div class="header">
+        <div class="icon-preview neutral" style="border-style:dashed;">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="4" width="12" height="16" rx="2"/><line x1="10" y1="9" x2="14" y2="9"/><line x1="10" y1="13" x2="14" y2="13"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Touro / Bull</div>
+          <div class="icon-context">Hoje usa Hash, Beef, ou nada especifico</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag new">CRIAR</span>
+        <span class="tag">TouroCard</span>
+        <span class="tag">TouroDetail</span>
+        <span class="tag">GeneticaTouroDetail</span>
+        <span class="tag">DosesSemen</span>
+      </div>
+    </div>
+
+    <div class="icon-card" style="border-color: var(--amber-border); border-style: dashed;">
+      <div class="header">
+        <div class="icon-preview neutral" style="border-style:dashed;">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="2" x2="12" y2="22"/><path d="M8 6c2 2 4 2 6 0"/><path d="M8 18c2-2 4-2 6 0"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Espermatozoide / Semen</div>
+          <div class="icon-context">Doses de semen — hoje sem icone no estilo 24x24</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag new">CRIAR</span>
+        <span class="tag">Sidebar (DosesSemen)</span>
+        <span class="tag">MobileNav</span>
+        <span class="tag">ClienteBotijao</span>
+        <span class="tag">RelatoriosMaterial</span>
+      </div>
+    </div>
+
+    <div class="icon-card" style="border-color: var(--amber-border); border-style: dashed;">
+      <div class="header">
+        <div class="icon-preview neutral" style="border-style:dashed;">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="9" r="3"/><circle cx="15" cy="9" r="3"/><path d="M6 15a6 6 0 0 0 12 0"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Sexagem</div>
+          <div class="icon-context">Hoje usa GenderIcon (antigo) — recriar no estilo 24x24</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag new">CRIAR</span>
+        <span class="tag">Sidebar (Sexagem)</span>
+        <span class="tag">MobileNav</span>
+        <span class="tag">EscritorioSexagem</span>
+        <span class="tag">EscritorioHome</span>
+      </div>
+    </div>
+
+    <div class="icon-card" style="border-color: var(--amber-border); border-style: dashed;">
+      <div class="header">
+        <div class="icon-preview neutral" style="border-style:dashed;">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><circle cx="12" cy="16" r="0.5" fill="var(--text-dim)"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Botijao / Criotanque</div>
+          <div class="icon-context">Container de nitrogenio — hoje usa Container ou Snowflake</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag new">CRIAR</span>
+        <span class="tag">Sidebar (Congelados)</span>
+        <span class="tag">MobileNav</span>
+        <span class="tag">ClienteBotijao</span>
+        <span class="tag">EmbrioesCongelados</span>
+      </div>
+    </div>
+
+    <div class="icon-card" style="border-color: var(--amber-border); border-style: dashed;">
+      <div class="header">
+        <div class="icon-preview neutral" style="border-style:dashed;">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="M12 5v14"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Stethoscope / DG</div>
+          <div class="icon-context">Diagnostico de gestacao — hoje usa Stethoscope ou ThumbsUp</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag new">CRIAR</span>
+        <span class="tag">Sidebar (DG)</span>
+        <span class="tag">RelatoriosHome</span>
+        <span class="tag">RelatoriosServicos</span>
+        <span class="tag">HomeDashboardCliente</span>
+      </div>
+    </div>
+
+    <div class="icon-card" style="border-color: var(--amber-border); border-style: dashed;">
+      <div class="header">
+        <div class="icon-preview neutral" style="border-style:dashed;">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icon-name">Lote FIV / Placa</div>
+          <div class="icon-context">Lotes de producao in-vitro — hoje usa Package ou nada</div>
+        </div>
+      </div>
+      <div class="tags">
+        <span class="tag new">CRIAR</span>
+        <span class="tag">LotesFIV</span>
+        <span class="tag">LoteDetailView</span>
+        <span class="tag">LaboratorioHome</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: Lucide icons to keep -->
+<!-- ============================================================ -->
+<section>
+  <h2>Lucide Icons que Permanecem <span class="count">~80 icones</span></h2>
+  <p class="section-desc">Icones UI genericos (navegacao, acoes, status) que nao fazem sentido personalizar. Continuam como Lucide React.</p>
+
+  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+    <span class="tag">Search</span><span class="tag">X</span><span class="tag">Check</span>
+    <span class="tag">ChevronRight</span><span class="tag">ChevronLeft</span><span class="tag">ChevronDown</span><span class="tag">ChevronUp</span>
+    <span class="tag">Loader2</span><span class="tag">Save</span><span class="tag">Plus</span>
+    <span class="tag">AlertTriangle</span><span class="tag">AlertCircle</span>
+    <span class="tag">Filter</span><span class="tag">Eye</span><span class="tag">EyeOff</span>
+    <span class="tag">ArrowLeft</span><span class="tag">ArrowRight</span><span class="tag">ArrowUp</span><span class="tag">ArrowDown</span>
+    <span class="tag">Brain</span><span class="tag">History</span><span class="tag">Calendar</span>
+    <span class="tag">MapPin</span><span class="tag">Trash2</span><span class="tag">Edit</span><span class="tag">Pencil</span>
+    <span class="tag">Star</span><span class="tag">Gem</span><span class="tag">Lock</span>
+    <span class="tag">LogIn</span><span class="tag">LogOut</span><span class="tag">Moon</span><span class="tag">Sun</span>
+    <span class="tag">Home</span><span class="tag">Menu</span><span class="tag">Settings</span>
+    <span class="tag">Shield</span><span class="tag">ShieldX</span><span class="tag">Users</span><span class="tag">User</span>
+    <span class="tag">Mail</span><span class="tag">Phone</span><span class="tag">Bell</span>
+    <span class="tag">Download</span><span class="tag">Upload</span><span class="tag">Camera</span><span class="tag">Video</span>
+    <span class="tag">FileText</span><span class="tag">FileBarChart</span><span class="tag">Image</span>
+    <span class="tag">Activity</span><span class="tag">TrendingUp</span><span class="tag">TrendingDown</span><span class="tag">BarChart3</span>
+    <span class="tag">Info</span><span class="tag">CheckCircle</span><span class="tag">RefreshCw</span>
+    <span class="tag">Sparkles</span><span class="tag">Microscope</span><span class="tag">FlaskConical</span>
+    <span class="tag">Maximize2</span><span class="tag">ZoomIn</span><span class="tag">ZoomOut</span>
+    <span class="tag">MoreHorizontal</span><span class="tag">ExternalLink</span><span class="tag">Keyboard</span>
+    <span class="tag">Play</span><span class="tag">Undo2</span><span class="tag">RotateCcw</span>
+    <span class="tag">DollarSign</span><span class="tag">Percent</span><span class="tag">Target</span>
+    <span class="tag">Cloud</span><span class="tag">CloudRain</span><span class="tag">Wind</span><span class="tag">Droplets</span>
+    <span class="tag">Navigation</span><span class="tag">Building2</span><span class="tag">Newspaper</span>
+    <span class="tag">MessageCircle</span><span class="tag">MessageSquare</span>
+    <span class="tag">Palette</span><span class="tag">Type</span><span class="tag">Monitor</span>
+  </div>
+</section>
+
+</body>
+</html>

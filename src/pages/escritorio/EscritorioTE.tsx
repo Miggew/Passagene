@@ -14,6 +14,9 @@ import { useReportImports } from '@/hooks/escritorio/useReportImports';
 import type { EntryMode, TEEntryRow } from '@/lib/types/escritorio';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import ImportHistoryList from '@/components/escritorio/ImportHistoryList';
+import RelatoriosServicos from '@/pages/relatorios/RelatoriosServicos';
 
 export default function EscritorioTE() {
   const [mode, setMode] = useState<EntryMode>('manual');
@@ -165,77 +168,102 @@ export default function EscritorioTE() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <PageHeader
         title="Transferência de Embriões (TE)"
-        description="Registrar transferências via foto ou entrada manual"
+        description="Registrar transferências via foto ou entrada manual e consultar o histórico"
         icon={ArrowRightLeft}
-        actions={<EntryModeSwitch mode={mode} onChange={setMode} />}
+        actions={
+          <div className="hidden sm:block">
+            {/* Action helpers */}
+          </div>
+        }
       />
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Fazenda</Label>
-              <select value={fazendaId} onChange={e => { setFazendaId(e.target.value); setProtocoloId(''); }} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Selecione...</option>
-                {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Protocolo</Label>
-              <select value={protocoloId} onChange={e => setProtocoloId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Selecione...</option>
-                {protocolos?.map(p => <option key={p.id} value={p.id}>{p.data_inicio}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Lote FIV</Label>
-              <select value={loteFivId} onChange={e => setLoteFivId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Selecione...</option>
-                {lotesFiv?.map(l => <option key={l.id} value={l.id}>{l.codigo} ({l.data_abertura})</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Data da TE</Label>
-              <Input type="date" value={dataTE} onChange={e => setDataTE(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Veterinário</Label>
-              <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Técnico</Label>
-              <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button variant="outline" size="sm" onClick={handleLoadReceptoras} disabled={!protocoloId || isLoading}>
-              {isLoading ? 'Carregando...' : 'Carregar Receptoras'}
-            </Button>
-            {embrioes.length > 0 && (
-              <span className="ml-3 text-sm text-muted-foreground">{embrioes.length} embriões disponíveis</span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="novo" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <TabsTrigger value="novo">Novo Registro</TabsTrigger>
+          <TabsTrigger value="historico">Consultas / Histórico</TabsTrigger>
+        </TabsList>
 
-      {rows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {rows.length} receptoras — {rows.filter(r => r.embriao_id).length} com embrião
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ManualEntryGrid rows={rows} columns={teColumns} onRowChange={handleRowChange} />
-            <div className="flex justify-end gap-2 mt-4">
-              <Button onClick={handleSave} disabled={isSaving}>
-                <Save className="w-4 h-4 mr-1" />
-                {isSaving ? 'Salvando...' : 'Salvar Transferências'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="historico" className="mt-0 space-y-8">
+          <RelatoriosServicos fixedTab="te" hideHeader />
+          <div className="pt-6 border-t border-border">
+            <h3 className="text-sm font-medium text-muted-foreground mb-4">Importações Recentes (Permite Desfazer)</h3>
+            <ImportHistoryList reportType="te" />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="novo" className="mt-0 space-y-6">
+          <div className="flex items-center justify-end mb-4">
+            <EntryModeSwitch mode={mode} onChange={setMode} />
+          </div>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Fazenda</Label>
+                  <select value={fazendaId} onChange={e => { setFazendaId(e.target.value); setProtocoloId(''); }} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Selecione...</option>
+                    {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Protocolo</Label>
+                  <select value={protocoloId} onChange={e => setProtocoloId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Selecione...</option>
+                    {protocolos?.map(p => <option key={p.id} value={p.id}>{p.data_inicio}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Lote FIV</Label>
+                  <select value={loteFivId} onChange={e => setLoteFivId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Selecione...</option>
+                    {lotesFiv?.map(l => <option key={l.id} value={l.id}>{l.codigo} ({l.data_abertura})</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Data da TE</Label>
+                  <Input type="date" value={dataTE} onChange={e => setDataTE(e.target.value)} className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Veterinário</Label>
+                  <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Técnico</Label>
+                  <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                </div>
+              </div>
+              <div className="mt-4">
+                <Button variant="outline" size="sm" onClick={handleLoadReceptoras} disabled={!protocoloId || isLoading}>
+                  {isLoading ? 'Carregando...' : 'Carregar Receptoras'}
+                </Button>
+                {embrioes.length > 0 && (
+                  <span className="ml-3 text-sm text-muted-foreground">{embrioes.length} embriões disponíveis</span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {rows.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {rows.length} receptoras — {rows.filter(r => r.embriao_id).length} com embrião
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ManualEntryGrid rows={rows} columns={teColumns} onRowChange={handleRowChange} />
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    <Save className="w-4 h-4 mr-1" />
+                    {isSaving ? 'Salvando...' : 'Salvar Transferências'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

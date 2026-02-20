@@ -311,3 +311,17 @@ html.font-grande {
     transform: scale(1.05);
   }
 }
+
+/* Organic Mitosis Text Float */
+@keyframes organic-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-organic-float {
+  animation: organic-float 3s ease-in-out infinite;
+}

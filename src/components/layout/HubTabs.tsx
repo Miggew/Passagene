@@ -51,8 +51,8 @@ export default function HubTabs() {
             />
           </button>
 
-          {/* Tabs dos hubs - esconde para clientes */}
-          {!isCliente && (
+          {/* Tabs dos hubs - esconde para clientes ou se houver apenas 1 hub */}
+          {!isCliente && accessibleHubs.length > 1 && (
             <nav className="flex items-center overflow-x-auto">
               {accessibleHubs.map((hub) => {
                 const Icon = hubIcons[hub.code] || Building2;

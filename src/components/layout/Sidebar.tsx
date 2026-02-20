@@ -103,10 +103,15 @@ const routeLabels: Record<string, string> = {
 
 export default function Sidebar() {
   const location = useLocation();
-  const { isCliente, getHubForRoute } = usePermissions();
+  const { isCliente, getHubForRoute, getAccessibleHubs } = usePermissions();
 
-  // Encontra o hub atual baseado na rota
-  const currentHub = getHubForRoute(location.pathname);
+  const accessibleHubs = getAccessibleHubs();
+
+  // Encontra o hub atual baseado na rota, ou força o único caso exista apenas 1
+  let currentHub = getHubForRoute(location.pathname);
+  if (!currentHub && accessibleHubs.length === 1) {
+    currentHub = accessibleHubs[0];
+  }
 
   const isRouteActive = (path: string) => {
     // Verifica match exato ou se é uma sub-rota (ex: /embrioes/123)

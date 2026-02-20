@@ -1,0 +1,192 @@
+/**
+ * Fonte única de verdade para navegação — ícones, labels e rotas rápidas.
+ * Importado por Sidebar, MobileNav e HubTabs.
+ */
+
+import {
+  Home,
+  Syringe,
+  TestTube,
+  ArrowRightLeft,
+  ThumbsUp,
+  Sparkles,
+  Shield,
+  Snowflake,
+  FileBarChart,
+  FileText,
+  ClipboardList,
+  TrendingUp,
+  Brain,
+  FlaskConical,
+  History,
+  Microscope,
+  Dna,
+  Beef,
+  Container,
+  Building2,
+} from 'lucide-react';
+import { GenderIcon } from '@/components/icons/GenderIcon';
+import { SpermIcon } from '@/components/icons/SpermIcon';
+import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
+import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
+import { CowIcon } from '@/components/icons/CowIcon';
+import type { Hub } from '@/lib/types';
+
+// ─── Ícones dos Hubs ───────────────────────────────────────────────
+export const hubIcons: Record<string, React.ElementType> = {
+  administrativo: Building2,
+  laboratorio: FlaskConical,
+  escritorio: FileText,
+  relatorios: FileBarChart,
+  genetica: Dna,
+  campo: CowIcon,
+};
+
+// ─── Ícones por Rota ───────────────────────────────────────────────
+export const routeIcons: Record<string, React.ElementType> = {
+  '/': Home,
+  '/administrativo': Shield,
+  '/embryoscore': Brain,
+  '/doadoras': DonorCowIcon,
+  '/touros': Sparkles,
+  '/lotes-fiv': TestTube,
+  '/embrioes': EmbryoIcon,
+  '/embrioes-congelados': Snowflake,
+  '/doses-semen': SpermIcon,
+  '/protocolos': Syringe,
+  '/aspiracoes': TestTube,
+  '/transferencia': ArrowRightLeft,
+  '/dg': ThumbsUp,
+  '/sexagem': GenderIcon,
+  // Hub Relatórios (agora amalgamado no Escritório, mas ainda são as mesmas rotas)
+  '/relatorios': FileBarChart,
+  '/relatorios/servicos': ClipboardList,
+  '/relatorios/animais': DonorCowIcon,
+  '/relatorios/material': EmbryoIcon,
+  '/relatorios/producao': TrendingUp,
+  // Hub Laboratório
+  '/laboratorio': FlaskConical,
+  '/bancada': Microscope,
+  // Hub Genética
+  '/genetica': Dna,
+  '/genetica/doadoras': DonorCowIcon,
+  '/genetica/touros': Sparkles,
+  // Hub Escritório
+  '/escritorio': FileText,
+  '/escritorio/dg': ThumbsUp,
+  '/escritorio/sexagem': GenderIcon,
+  '/escritorio/protocolos': Syringe,
+  '/escritorio/te': ArrowRightLeft,
+  '/escritorio/aspiracao': TestTube,
+  '/escritorio/historico': History,
+  '/escritorio/relatorios': FileBarChart,
+  '/escritorio/relatorios/servicos': ClipboardList,
+  '/escritorio/relatorios/animais': DonorCowIcon,
+  '/escritorio/relatorios/material': EmbryoIcon,
+  '/escritorio/relatorios/producao': TrendingUp,
+  // Rotas do cliente
+  '/cliente/rebanho': Beef,
+  '/cliente/relatorios': FileBarChart,
+  '/cliente/botijao': Container,
+};
+
+// ─── Labels Curtos (mobile bottom bar / menu) ──────────────────────
+export const routeLabels: Record<string, string> = {
+  '/': 'Início',
+  '/administrativo': 'Admin',
+  '/doadoras': 'Doadoras',
+  '/touros': 'Touros',
+  '/lotes-fiv': 'Lotes FIV',
+  '/embrioes': 'Embriões',
+  '/embrioes-congelados': 'Congelados',
+  '/doses-semen': 'Doses',
+  '/protocolos': 'Protocolos',
+  '/aspiracoes': 'Aspirações',
+  '/transferencia': 'TE',
+  '/dg': 'DG',
+  '/sexagem': 'Sexagem',
+  '/relatorios': 'Relatórios',
+  '/relatorios/servicos': 'Serviços',
+  '/relatorios/animais': 'Animais',
+  '/relatorios/material': 'Material',
+  '/relatorios/producao': 'Produção',
+  '/laboratorio': 'Laboratório',
+  '/bancada': 'Bancada',
+  '/embryoscore': 'EmbryoScore',
+  '/genetica': 'Genética',
+  '/genetica/doadoras': 'Doadoras',
+  '/genetica/touros': 'Touros',
+  '/escritorio': 'Escritório',
+  '/escritorio/dg': 'DG',
+  '/escritorio/sexagem': 'Sexagem',
+  '/escritorio/protocolos': 'Protocolos',
+  '/escritorio/te': 'TE',
+  '/escritorio/aspiracao': 'Aspiração',
+  '/escritorio/historico': 'Histórico',
+  '/cliente/rebanho': 'Rebanho',
+  '/cliente/relatorios': 'Relatórios',
+  '/cliente/botijao': 'Botijão',
+};
+
+// ─── Labels Longos (sidebar desktop) ───────────────────────────────
+export const routeLabelsLong: Record<string, string> = {
+  '/administrativo': 'Painel Admin',
+  '/embryoscore': 'EmbryoScore IA',
+  '/bancada': 'Bancada',
+  '/doadoras': 'Doadoras',
+  '/touros': 'Catálogo de Touros',
+  '/lotes-fiv': 'Lotes FIV',
+  '/embrioes': 'Embriões',
+  '/embrioes-congelados': 'Embriões Congelados',
+  '/doses-semen': 'Doses de Sêmen',
+  '/protocolos': 'Protocolos',
+  '/aspiracoes': 'Aspirações',
+  '/transferencia': 'Transferência (TE)',
+  '/dg': 'Diagnóstico Gestação',
+  '/sexagem': 'Sexagem',
+  '/relatorios': 'Visão Geral',
+  '/relatorios/servicos': 'Serviços de Campo',
+  '/relatorios/animais': 'Animais',
+  '/relatorios/material': 'Material Genético',
+  '/relatorios/producao': 'Produção',
+  '/laboratorio': 'Visão Geral',
+  '/genetica': 'Genética',
+  '/genetica/doadoras': 'Doadoras',
+  '/genetica/touros': 'Catálogo de Touros',
+  '/escritorio': 'Visão Geral',
+  '/escritorio/dg': 'Diagnóstico (DG)',
+  '/escritorio/sexagem': 'Sexagem',
+  '/escritorio/protocolos': 'Protocolos',
+  '/escritorio/te': 'Transferência (TE)',
+  '/escritorio/aspiracao': 'Aspiração',
+  '/escritorio/historico': 'Histórico',
+};
+
+// ─── Rotas Rápidas por Hub (bottom bar mobile) ────────────────────
+export const HUB_QUICK_ROUTES: Record<string, string[]> = {
+  administrativo: ['/protocolos', '/transferencia', '/dg'],
+  laboratorio: ['/bancada', '/lotes-fiv', '/embryoscore'],
+  escritorio: ['/escritorio/dg', '/escritorio/te', '/escritorio/aspiracao'],
+  relatorios: ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
+  genetica: ['/genetica/doadoras', '/genetica/touros'],
+};
+
+// ─── Rotas do Cliente (bottom bar) ────────────────────────────────
+export const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios', '/cliente/botijao'];
+
+// ─── Detecção de Hub por URL ──────────────────────────────────────
+export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
+  if (pathname.startsWith('/escritorio')) return 'escritorio';
+  if (pathname.startsWith('/relatorios')) return 'escritorio'; // Fusão: Relatórios agora é resolvido como aba do Escritório
+  if (pathname.startsWith('/genetica')) return 'genetica';
+  if (pathname.startsWith('/cliente')) return 'cliente';
+  // Rotas do Lab
+  if (pathname === '/bancada' || pathname.startsWith('/bancada/')) return 'laboratorio';
+  if (pathname === '/embryoscore' || pathname.startsWith('/embryoscore/')) return 'laboratorio';
+  if (pathname === '/laboratorio') return 'laboratorio';
+  if (pathname === '/lotes-fiv' || pathname.startsWith('/lotes-fiv/')) return 'laboratorio';
+  // Home → null (modo hubs)
+  if (pathname === '/') return null;
+  // Default: use hub do DB ou administrativo
+  return fallbackHub?.code ?? 'administrativo';
+}

@@ -15,6 +15,9 @@ import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
 import { useOcrCorrections } from '@/hooks/escritorio/useOcrCorrections';
 import { useReportImports } from '@/hooks/escritorio/useReportImports';
 import { uploadReportImageBackground } from '@/lib/cloudRunOcr';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import ImportHistoryList from '@/components/escritorio/ImportHistoryList';
+import RelatoriosServicos from '@/pages/relatorios/RelatoriosServicos';
 import type { EntryMode, AspiracaoEntryRow, OcrAspiracaoRow, OcrAspiracaoResult } from '@/lib/types/escritorio';
 
 const EMPTY_ROW: AspiracaoEntryRow = {
@@ -190,183 +193,208 @@ export default function EscritorioAspiracao() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <PageHeader
         title="Aspiração Folicular"
-        description="Registrar aspirações via foto ou entrada manual"
+        description="Registrar aspirações via foto ou entrada manual e consultar o histórico de serviços"
         icon={TestTube}
-        actions={<EntryModeSwitch mode={mode} onChange={setMode} />}
+        actions={
+          <div className={mode === 'ocr' ? 'hidden sm:block' : 'hidden sm:block'}>
+            {/* Actions kept simple */}
+          </div>
+        }
       />
 
-      {mode === 'ocr' && (
-        <>
-          {/* Card 1: Foto */}
-          <Card>
-            <CardHeader><CardTitle className="text-base">1. Foto do Relatório</CardTitle></CardHeader>
-            <CardContent>
-              <ReportScanner onFileSelected={handleFileSelected} />
-            </CardContent>
-          </Card>
+      <Tabs defaultValue="novo" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <TabsTrigger value="novo">Novo Registro</TabsTrigger>
+          <TabsTrigger value="historico">Consultas / Histórico</TabsTrigger>
+        </TabsList>
 
-          {/* Card 2: Dados (after photo) */}
-          {capturedFile && !ocrResult && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">2. Dados da Aspiração</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Fazenda (origem) *</Label>
-                    <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                      <option value="">Selecione...</option>
-                      {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Data *</Label>
-                    <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Veterinário *</Label>
-                    <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Técnico *</Label>
-                    <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
-                    <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                      <option value="">Mesma</option>
-                      {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Horário Início</Label>
-                    <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
-                  </div>
-                </div>
+        <TabsContent value="historico" className="mt-0 space-y-8">
+          <RelatoriosServicos fixedTab="aspiracoes" hideHeader />
+          <div className="pt-6 border-t border-border">
+            <h3 className="text-sm font-medium text-muted-foreground mb-4">Importações Recentes (Permite Desfazer)</h3>
+            <ImportHistoryList reportType="aspiracao" />
+          </div>
+        </TabsContent>
 
-                <div className="flex justify-end pt-2">
-                  <Button onClick={handleAnalyze} disabled={!ocrFieldsReady || isAnalyzing}>
-                    {isAnalyzing ? (
-                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Analisando...</>
-                    ) : (
-                      <><Search className="w-4 h-4 mr-1" /> Analisar Relatório</>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="novo" className="mt-0 space-y-6">
+          <div className="flex items-center justify-end mb-4">
+            <EntryModeSwitch mode={mode} onChange={setMode} />
+          </div>
 
-          {/* Card 3: Revisão OCR */}
-          {ocrResult && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">3. Revisão dos Dados Extraídos</CardTitle></CardHeader>
-              <CardContent>
-                <OcrReviewGridAspiracao
-                  rows={ocrResult.rows}
-                  imageUrl={previewUrl || undefined}
-                  onSave={handleOcrSave}
-                  onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
-                />
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
+          {mode === 'ocr' && (
+            <>
+              {/* Card 1: Foto */}
+              <Card>
+                <CardHeader><CardTitle className="text-base">1. Foto do Relatório</CardTitle></CardHeader>
+                <CardContent>
+                  <ReportScanner onFileSelected={handleFileSelected} />
+                </CardContent>
+              </Card>
 
-      {mode === 'manual' && (
-        <>
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Fazenda (origem)</Label>
-                <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">Selecione...</option>
-                  {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
-                <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">Mesma</option>
-                  {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Data</Label>
-                <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Horário Início</Label>
-                <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Veterinário</Label>
-                <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Técnico</Label>
-                <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{rows.length} doadora{rows.length > 1 ? 's' : ''}</CardTitle>
-              <Button variant="outline" size="sm" onClick={addRow}>
-                <Plus className="w-4 h-4 mr-1" /> Adicionar
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <div className="min-w-[900px]">
-                <div className="grid grid-cols-[40px_180px_80px_60px_60px_60px_60px_60px_60px_40px] gap-1 text-xs font-medium text-muted-foreground mb-2 px-1">
-                  <span>#</span><span>Doadora</span><span>Raça</span>
-                  <span>ATR</span><span>DEG</span><span>EXP</span><span>DES</span><span>VIA</span><span>Total</span>
-                  <span></span>
-                </div>
-                {rows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[40px_180px_80px_60px_60px_60px_60px_60px_60px_40px] gap-1 items-center mb-1">
-                    <span className="text-sm text-muted-foreground pl-1">{i + 1}</span>
-                    <AnimalAutocomplete
-                      animals={doadoras}
-                      value={row.registro}
-                      onChange={(v, a) => handleAnimalSelect(i, v, a)}
+              {/* Card 2: Dados (after photo) */}
+              {capturedFile && !ocrResult && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">2. Dados da Aspiração</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Fazenda (origem) *</Label>
+                        <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                          <option value="">Selecione...</option>
+                          {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Data *</Label>
+                        <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Veterinário *</Label>
+                        <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Técnico *</Label>
+                        <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
+                        <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                          <option value="">Mesma</option>
+                          {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Horário Início</Label>
+                        <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <Button onClick={handleAnalyze} disabled={!ocrFieldsReady || isAnalyzing}>
+                        {isAnalyzing ? (
+                          <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Analisando...</>
+                        ) : (
+                          <><Search className="w-4 h-4 mr-1" /> Analisar Relatório</>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Card 3: Revisão OCR */}
+              {ocrResult && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">3. Revisão dos Dados Extraídos</CardTitle></CardHeader>
+                  <CardContent>
+                    <OcrReviewGridAspiracao
+                      rows={ocrResult.rows}
+                      imageUrl={previewUrl || undefined}
+                      onSave={handleOcrSave}
+                      onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
                     />
-                    <Input value={row.raca || ''} onChange={e => updateRow(i, 'raca', e.target.value)} className="h-8 text-sm" placeholder="Raça" />
-                    <Input type="number" min={0} value={row.atresicos || ''} onChange={e => updateRow(i, 'atresicos', Number(e.target.value))} className="h-8 text-sm text-center" />
-                    <Input type="number" min={0} value={row.degenerados || ''} onChange={e => updateRow(i, 'degenerados', Number(e.target.value))} className="h-8 text-sm text-center" />
-                    <Input type="number" min={0} value={row.expandidos || ''} onChange={e => updateRow(i, 'expandidos', Number(e.target.value))} className="h-8 text-sm text-center" />
-                    <Input type="number" min={0} value={row.desnudos || ''} onChange={e => updateRow(i, 'desnudos', Number(e.target.value))} className="h-8 text-sm text-center" />
-                    <Input type="number" min={0} value={row.viaveis || ''} onChange={e => updateRow(i, 'viaveis', Number(e.target.value))} className="h-8 text-sm text-center" />
-                    <span className="text-sm font-medium text-center">{row.total}</span>
-                    {rows.length > 1 && (
-                      <button onClick={() => removeRow(i)} className="p-1 text-muted-foreground hover:text-red-500">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
 
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-              <div className="text-sm text-muted-foreground">
-                Total geral: <span className="font-medium text-foreground">{rows.reduce((s, r) => s + r.total, 0)}</span> oócitos
-                {' '}| Viáveis: <span className="font-medium text-foreground">{rows.reduce((s, r) => s + (r.viaveis || 0), 0)}</span>
-              </div>
-              <Button onClick={handleSave} disabled={isSaving}>
-                <Save className="w-4 h-4 mr-1" />
-                {isSaving ? 'Salvando...' : 'Salvar Aspiração'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-        </>
-      )}
+          {mode === 'manual' && (
+            <>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Fazenda (origem)</Label>
+                      <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">Selecione...</option>
+                        {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Fazenda (destino lab)</Label>
+                      <select value={fazendaDestinoId} onChange={e => setFazendaDestinoId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">Mesma</option>
+                        {fazendas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Data</Label>
+                      <Input type="date" value={dataAspiracao} onChange={e => setDataAspiracao(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Horário Início</Label>
+                      <Input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Veterinário</Label>
+                      <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Técnico</Label>
+                      <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{rows.length} doadora{rows.length > 1 ? 's' : ''}</CardTitle>
+                    <Button variant="outline" size="sm" onClick={addRow}>
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[900px]">
+                      <div className="grid grid-cols-[40px_180px_80px_60px_60px_60px_60px_60px_60px_40px] gap-1 text-xs font-medium text-muted-foreground mb-2 px-1">
+                        <span>#</span><span>Doadora</span><span>Raça</span>
+                        <span>ATR</span><span>DEG</span><span>EXP</span><span>DES</span><span>VIA</span><span>Total</span>
+                        <span></span>
+                      </div>
+                      {rows.map((row, i) => (
+                        <div key={i} className="grid grid-cols-[40px_180px_80px_60px_60px_60px_60px_60px_60px_40px] gap-1 items-center mb-1">
+                          <span className="text-sm text-muted-foreground pl-1">{i + 1}</span>
+                          <AnimalAutocomplete
+                            animals={doadoras}
+                            value={row.registro}
+                            onChange={(v, a) => handleAnimalSelect(i, v, a)}
+                          />
+                          <Input value={row.raca || ''} onChange={e => updateRow(i, 'raca', e.target.value)} className="h-8 text-sm" placeholder="Raça" />
+                          <Input type="number" min={0} value={row.atresicos || ''} onChange={e => updateRow(i, 'atresicos', Number(e.target.value))} className="h-8 text-sm text-center" />
+                          <Input type="number" min={0} value={row.degenerados || ''} onChange={e => updateRow(i, 'degenerados', Number(e.target.value))} className="h-8 text-sm text-center" />
+                          <Input type="number" min={0} value={row.expandidos || ''} onChange={e => updateRow(i, 'expandidos', Number(e.target.value))} className="h-8 text-sm text-center" />
+                          <Input type="number" min={0} value={row.desnudos || ''} onChange={e => updateRow(i, 'desnudos', Number(e.target.value))} className="h-8 text-sm text-center" />
+                          <Input type="number" min={0} value={row.viaveis || ''} onChange={e => updateRow(i, 'viaveis', Number(e.target.value))} className="h-8 text-sm text-center" />
+                          <span className="text-sm font-medium text-center">{row.total}</span>
+                          {rows.length > 1 && (
+                            <button onClick={() => removeRow(i)} className="p-1 text-muted-foreground hover:text-red-500">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                    <div className="text-sm text-muted-foreground">
+                      Total geral: <span className="font-medium text-foreground">{rows.reduce((s, r) => s + r.total, 0)}</span> oócitos
+                      {' '}| Viáveis: <span className="font-medium text-foreground">{rows.reduce((s, r) => s + (r.viaveis || 0), 0)}</span>
+                    </div>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                      <Save className="w-4 h-4 mr-1" />
+                      {isSaving ? 'Salvando...' : 'Salvar Aspiração'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

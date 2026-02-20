@@ -255,7 +255,7 @@ export function TransferenciaSessao({
                                 >
                                     {submitting ? (
                                         <>
-                                            <LoadingSpinner className="mr-2 h-4 w-4" />
+                                            <LoadingSpinner className="mr-2" size={20} />
                                             Registrando...
                                         </>
                                     ) : (

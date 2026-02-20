@@ -78,8 +78,7 @@ const QuickClassifyPage = lazy(() => import('./pages/QuickClassifyPage'));
 const EscritorioHome = lazy(() => import('./pages/escritorio/EscritorioHome'));
 const EscritorioDG = lazy(() => import('./pages/escritorio/EscritorioDG'));
 const EscritorioSexagem = lazy(() => import('./pages/escritorio/EscritorioSexagem'));
-const EscritorioP1 = lazy(() => import('./pages/escritorio/EscritorioP1'));
-const EscritorioP2 = lazy(() => import('./pages/escritorio/EscritorioP2'));
+const EscritorioProtocolos = lazy(() => import('./pages/escritorio/EscritorioProtocolos'));
 const EscritorioTE = lazy(() => import('./pages/escritorio/EscritorioTE'));
 const EscritorioAspiracao = lazy(() => import('./pages/escritorio/EscritorioAspiracao'));
 const EscritorioHistorico = lazy(() => import('./pages/escritorio/EscritorioHistorico'));
@@ -244,8 +243,10 @@ const AppRoutes = () => {
             <Route path="/escritorio" element={<EscritorioHome />} />
             <Route path="/escritorio/dg" element={<EscritorioDG />} />
             <Route path="/escritorio/sexagem" element={<EscritorioSexagem />} />
-            <Route path="/escritorio/protocolo-p1" element={<EscritorioP1 />} />
-            <Route path="/escritorio/protocolo-p2" element={<EscritorioP2 />} />
+            <Route path="/escritorio/protocolos" element={<EscritorioProtocolos />} />
+            {/* Fallbacks para rotas antigas caso algum link ainda aponte para elas */}
+            <Route path="/escritorio/protocolo-p1" element={<Navigate to="/escritorio/protocolos?step=1" replace />} />
+            <Route path="/escritorio/protocolo-p2" element={<Navigate to="/escritorio/protocolos?step=2" replace />} />
             <Route path="/escritorio/te" element={<EscritorioTE />} />
             <Route path="/escritorio/aspiracao" element={<EscritorioAspiracao />} />
             <Route path="/escritorio/historico" element={<EscritorioHistorico />} />

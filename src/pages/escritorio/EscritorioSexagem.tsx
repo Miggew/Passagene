@@ -21,6 +21,9 @@ import { detectCorrections } from '@/utils/escritorio/postProcess';
 import type { EntryMode, SexagemEntryRow, OcrRow, OcrResult } from '@/lib/types/escritorio';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import ImportHistoryList from '@/components/escritorio/ImportHistoryList';
+import RelatoriosServicos from '@/pages/relatorios/RelatoriosServicos';
 
 export default function EscritorioSexagem() {
   const [mode, setMode] = useState<EntryMode>('manual');
@@ -185,150 +188,175 @@ export default function EscritorioSexagem() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <PageHeader
         title="Sexagem"
-        description="Registrar resultados de sexagem fetal via foto ou entrada manual"
+        description="Registrar resultados de sexagem fetal via foto ou entrada manual e consultar histórico"
         icon={GenderIcon}
-        actions={<EntryModeSwitch mode={mode} onChange={setMode} />}
+        actions={
+          <div className="hidden sm:block">
+            {/* Action helpers */}
+          </div>
+        }
       />
 
-      {/* OCR mode: photo first */}
-      {mode === 'ocr' && (
-        <>
-          <Card>
-            <CardHeader><CardTitle className="text-base">1. Foto do Relatório</CardTitle></CardHeader>
-            <CardContent>
-              <ReportScanner onFileSelected={handleFileSelected} />
-            </CardContent>
-          </Card>
+      <Tabs defaultValue="novo" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <TabsTrigger value="novo">Novo Registro</TabsTrigger>
+          <TabsTrigger value="historico">Consultas / Histórico</TabsTrigger>
+        </TabsList>
 
-          {capturedFile && !ocrResult && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">2. Dados do Serviço</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Fazenda *</Label>
-                    <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                      <option value="">Selecione...</option>
-                      {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Data da Sexagem *</Label>
-                    <Input type="date" value={dataSexagem} onChange={e => setDataSexagem(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Veterinário *</Label>
-                    <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Técnico</Label>
-                    <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-                  </div>
-                </div>
-                <div className="flex justify-end pt-2">
-                  <Button onClick={handleAnalyze} disabled={!ocrFieldsReady || isAnalyzing}>
-                    {isAnalyzing ? (
-                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Analisando...</>
-                    ) : (
-                      <><Search className="w-4 h-4 mr-1" /> Analisar Relatório</>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="historico" className="mt-0 space-y-8">
+          <RelatoriosServicos fixedTab="sexagem" hideHeader />
+          <div className="pt-6 border-t border-border">
+            <h3 className="text-sm font-medium text-muted-foreground mb-4">Importações Recentes (Permite Desfazer)</h3>
+            <ImportHistoryList reportType="sexagem" />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="novo" className="mt-0 space-y-6">
+          <div className="flex items-center justify-end mb-4">
+            <EntryModeSwitch mode={mode} onChange={setMode} />
+          </div>
+
+          {/* OCR mode: photo first */}
+          {mode === 'ocr' && (
+            <>
+              <Card>
+                <CardHeader><CardTitle className="text-base">1. Foto do Relatório</CardTitle></CardHeader>
+                <CardContent>
+                  <ReportScanner onFileSelected={handleFileSelected} />
+                </CardContent>
+              </Card>
+
+              {capturedFile && !ocrResult && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">2. Dados do Serviço</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Fazenda *</Label>
+                        <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                          <option value="">Selecione...</option>
+                          {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Data da Sexagem *</Label>
+                        <Input type="date" value={dataSexagem} onChange={e => setDataSexagem(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Veterinário *</Label>
+                        <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Técnico</Label>
+                        <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button onClick={handleAnalyze} disabled={!ocrFieldsReady || isAnalyzing}>
+                        {isAnalyzing ? (
+                          <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Analisando...</>
+                        ) : (
+                          <><Search className="w-4 h-4 mr-1" /> Analisar Relatório</>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {ocrResult && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">3. Revisão dos Dados</CardTitle></CardHeader>
+                  <CardContent>
+                    <OcrReviewGrid
+                      rows={ocrResult.rows}
+                      imageUrl={previewUrl || undefined}
+                      onSave={handleOcrSave}
+                      onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
+                      columns={['registro', 'raca', 'resultado', 'obs']}
+                      resultadoLabel="Sexo (F/M/S/D/V)"
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
 
-          {ocrResult && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">3. Revisão dos Dados</CardTitle></CardHeader>
-              <CardContent>
-                <OcrReviewGrid
-                  rows={ocrResult.rows}
-                  imageUrl={previewUrl || undefined}
-                  onSave={handleOcrSave}
-                  onCancel={() => { setOcrResult(null); ocrHook.reset(); }}
-                  columns={['registro', 'raca', 'resultado', 'obs']}
-                  resultadoLabel="Sexo (F/M/S/D/V)"
-                />
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
+          {/* Manual mode */}
+          {mode === 'manual' && (
+            <>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Fazenda</Label>
+                      <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">Selecione...</option>
+                        {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Data da Sexagem</Label>
+                      <Input type="date" value={dataSexagem} onChange={e => setDataSexagem(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Veterinário</Label>
+                      <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Técnico</Label>
+                      <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button variant="outline" size="sm" onClick={handleLoadReceptoras} disabled={!fazendaId || isLoading}>
+                      {isLoading ? 'Carregando...' : 'Carregar Receptoras Prenhe'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-      {/* Manual mode */}
-      {mode === 'manual' && (
-        <>
-          <Card>
-            <CardContent className="p-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Fazenda</Label>
-                  <select value={fazendaId} onChange={e => setFazendaId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">Selecione...</option>
-                    {fazendas?.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Data da Sexagem</Label>
-                  <Input type="date" value={dataSexagem} onChange={e => setDataSexagem(e.target.value)} className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Veterinário</Label>
-                  <Input value={veterinario} onChange={e => setVeterinario(e.target.value)} placeholder="Nome" className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Técnico</Label>
-                  <Input value={tecnico} onChange={e => setTecnico(e.target.value)} placeholder="Nome" className="h-9" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <Button variant="outline" size="sm" onClick={handleLoadReceptoras} disabled={!fazendaId || isLoading}>
-                  {isLoading ? 'Carregando...' : 'Carregar Receptoras Prenhe'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              {rows.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {rows.length} receptoras — {rows.filter(r => r.resultado !== '').length} preenchidas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ManualEntryGrid
+                      rows={rows}
+                      columns={sexagemColumns}
+                      onRowChange={handleRowChange}
+                      getRowClassName={(row) =>
+                        row.resultado === 'PRENHE_FEMEA' ? 'bg-pink-500/5' :
+                          row.resultado === 'PRENHE_MACHO' ? 'bg-blue-500/5' :
+                            row.resultado === 'VAZIA' ? 'bg-red-500/5' : ''
+                      }
+                    />
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button onClick={handleSave} disabled={isSaving}>
+                        <Save className="w-4 h-4 mr-1" />
+                        {isSaving ? 'Salvando...' : 'Salvar Sexagens'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-          {rows.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {rows.length} receptoras — {rows.filter(r => r.resultado !== '').length} preenchidas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ManualEntryGrid
-                  rows={rows}
-                  columns={sexagemColumns}
-                  onRowChange={handleRowChange}
-                  getRowClassName={(row) =>
-                    row.resultado === 'PRENHE_FEMEA' ? 'bg-pink-500/5' :
-                    row.resultado === 'PRENHE_MACHO' ? 'bg-blue-500/5' :
-                    row.resultado === 'VAZIA' ? 'bg-red-500/5' : ''
-                  }
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    <Save className="w-4 h-4 mr-1" />
-                    {isSaving ? 'Salvando...' : 'Salvar Sexagens'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              {rows.length > 0 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Atalhos: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">F</kbd> Fêmea{' '}
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">M</kbd> Macho{' '}
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">S</kbd> Sem sexo{' '}
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">D</kbd> 2 Sexos{' '}
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">V</kbd> Vazia
+                </p>
+              )}
+            </>
           )}
-
-          {rows.length > 0 && (
-            <p className="text-xs text-muted-foreground text-center">
-              Atalhos: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">F</kbd> Fêmea{' '}
-              <kbd className="px-1 py-0.5 bg-muted rounded text-xs">M</kbd> Macho{' '}
-              <kbd className="px-1 py-0.5 bg-muted rounded text-xs">S</kbd> Sem sexo{' '}
-              <kbd className="px-1 py-0.5 bg-muted rounded text-xs">D</kbd> 2 Sexos{' '}
-              <kbd className="px-1 py-0.5 bg-muted rounded text-xs">V</kbd> Vazia
-            </p>
-          )}
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
