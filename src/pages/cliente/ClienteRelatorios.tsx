@@ -258,7 +258,7 @@ export default function ClienteRelatorios() {
       const descartesTE: { receptora_id: string; motivo: string; data: string; fazenda_id: string }[] = [];
       if (ultimosProtocolosResult.data) {
         for (const protocolo of ultimosProtocolosResult.data) {
-          const receptorasProtocolo = (protocolo.protocolo_receptoras as any[]) || [];
+          const receptorasProtocolo = (protocolo.protocolo_receptoras as { receptora_id: string; status: string; motivo_inapta?: string }[]) || [];
           const dataTE = protocolo.passo2_data || protocolo.data_inicio;
           for (const pr of receptorasProtocolo) {
             if (pr.status === 'INAPTA' && pr.motivo_inapta && pr.motivo_inapta.toLowerCase().includes('te')) {
@@ -442,7 +442,7 @@ export default function ClienteRelatorios() {
               fazenda_nome: fazendaNomeMap.get(asp.fazenda_id) || 'Fazenda',
               detalhes: doadorasAsp.map(a => ({
                 id: a.doadora_id,
-                identificacao: (a.doadoras as any)?.nome || (a.doadoras as any)?.registro || 'Sem ID',
+                identificacao: (a.doadoras as { nome?: string; registro?: string } | null)?.nome || (a.doadoras as { nome?: string; registro?: string } | null)?.registro || 'Sem ID',
                 resultado: `${a.viaveis || 0} oócitos`,
               })),
             });
@@ -453,7 +453,7 @@ export default function ClienteRelatorios() {
       // Processar Protocolos
       if (ultimosProtocolosResult.data && ultimosProtocolosResult.data.length > 0) {
         for (const p of ultimosProtocolosResult.data) {
-          const receptorasProtocolo = (p.protocolo_receptoras as any[]) || [];
+          const receptorasProtocolo = (p.protocolo_receptoras as { receptora_id: string; status: string; motivo_inapta?: string }[]) || [];
           if (receptorasProtocolo.length > 0) {
             const dataReferencia = p.passo2_data ? new Date(p.passo2_data) : new Date(p.data_inicio);
             const sincronizadas = receptorasProtocolo.length;
@@ -475,8 +475,8 @@ export default function ClienteRelatorios() {
               protocolo_id: p.id,
               data_passo1: new Date(p.data_inicio),
               data_passo2: p.passo2_data ? new Date(p.passo2_data) : undefined,
-              veterinario_passo1: (p as any).responsavel_inicio || undefined,
-              veterinario_passo2: (p as any).passo2_tecnico_responsavel || undefined,
+              veterinario_passo1: (p as { responsavel_inicio?: string }).responsavel_inicio || undefined,
+              veterinario_passo2: (p as { passo2_tecnico_responsavel?: string }).passo2_tecnico_responsavel || undefined,
               sincronizadas,
               servidas,
               descartadas: descartadasCount,

@@ -170,10 +170,10 @@ export default function RelatoriosMaterial() {
     const groupMap = new Map<string, EmbriaoRow>();
 
     data?.forEach(e => {
-      const acasalamento = e.acasalamento as any;
+      const acasalamento = e.acasalamento as { aspiracao?: { doadora?: { registro?: string; nome?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string } } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
-      const cliente = e.cliente as any;
+      const cliente = e.cliente as { nome?: string } | null;
 
       // Agrupar por cliente + doadora + touro + classificação
       const groupKey = `${e.cliente_id}-${doadora?.id || 'sem'}-${touro?.id || 'sem'}-${e.classificacao || 'sem'}`;

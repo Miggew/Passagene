@@ -106,7 +106,7 @@ export default function FazendaDetail() {
 
       const fazendaData = fazendaResult.data;
       setFazenda(fazendaData);
-      setClienteNome((fazendaData.cliente as any)?.nome || '');
+      setClienteNome((fazendaData.cliente as { nome: string } | null)?.nome || '');
 
       const receptoraIds = (receptorasViewResult.data || []).map(r => r.id);
       const receptorasDaFazenda = new Set(receptoraIds);

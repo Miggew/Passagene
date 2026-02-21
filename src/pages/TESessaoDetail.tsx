@@ -132,7 +132,7 @@ export default function TESessaoDetail() {
         .in('id', receptoraIds);
 
       const fazendaMap = new Map(
-        (viewData || []).map(v => [v.id, (v.fazendas as any)?.nome])
+        (viewData || []).map(v => [v.id, (v.fazendas as { nome: string } | null)?.nome])
       );
 
       // 3. Buscar dados de protocolo_receptoras para ciclando e qualidade

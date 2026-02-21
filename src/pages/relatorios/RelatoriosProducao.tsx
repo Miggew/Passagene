@@ -213,7 +213,7 @@ export default function RelatoriosProducao() {
           id: l.id,
           codigo: l.codigo,
           data_abertura: l.data_abertura,
-          fazenda_nome: (pacote?.fazendas as any)?.nome ?? 'N/A',
+          fazenda_nome: (pacote?.fazendas as { nome: string } | null)?.nome ?? 'N/A',
           total_oocitos: totalOocitos,
           total_embrioes: totalEmbrioes,
           taxa_sucesso: taxaSucesso,

@@ -65,6 +65,8 @@ function useFullscreenLandscape() {
 
 interface GeminiResult {
   embriao_id: string;
+  identificacao: string | null;
+  classificacao: string | null;
   gemini_classification: string | null;
   gemini_reasoning: string | null;
   biologist_classification: string | null;
@@ -187,10 +189,10 @@ function JobStatusPanel({ queueId }: { queueId: string }) {
               </thead>
               <tbody>
                 {results.map((r, i) => {
-                  const rapida = (r as any).classificacao || '\u2014';
+                  const rapida = r.classificacao || '\u2014';
                   const gemini = r.gemini_classification || '\u2014';
-                  const match = (r as any).classificacao && r.gemini_classification
-                    ? (r as any).classificacao === r.gemini_classification
+                  const match = r.classificacao && r.gemini_classification
+                    ? r.classificacao === r.gemini_classification
                     : null;
                   return (
                     <tr key={r.embriao_id} className="border-b border-border last:border-0">

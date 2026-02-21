@@ -123,7 +123,7 @@ export default function EmbrioesCongelados() {
         classSet.add(embriao.classificacao);
       }
 
-      const acasalamento = embriao.acasalamento as any;
+      const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
 
@@ -146,7 +146,7 @@ export default function EmbrioesCongelados() {
   // Filtrar embriões
   const filteredEmbrioes = useMemo(() => {
     return embrioes.filter((embriao) => {
-      const acasalamento = embriao.acasalamento as any;
+      const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
 
@@ -209,7 +209,7 @@ export default function EmbrioesCongelados() {
   const handleExportCSV = () => {
     const headers = ['Identificação', 'Cliente', 'Classificação', 'Doadora', 'Touro', 'Raça', 'Data Cong.', 'Localização'];
     const rows = filteredEmbrioes.map((embriao) => {
-      const acasalamento = embriao.acasalamento as any;
+      const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
       return [
@@ -243,7 +243,7 @@ export default function EmbrioesCongelados() {
   };
 
   const DialogDetalheContent = ({ embriao }: { embriao: EmbriaoCongelado }) => {
-    const acasalamento = embriao.acasalamento as any;
+    const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
     const dose = acasalamento?.dose_semen;
     const touro = dose?.touro;
     const aspiracao = acasalamento?.aspiracao;
@@ -540,7 +540,7 @@ export default function EmbrioesCongelados() {
               />
             ) : (
               filteredEmbrioes.map((embriao) => {
-                const acasalamento = embriao.acasalamento as any;
+                const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
                 const doadora = acasalamento?.aspiracao?.doadora;
                 const touro = acasalamento?.dose_semen?.touro;
                 const raca = doadora?.raca || touro?.raca;
@@ -614,7 +614,7 @@ export default function EmbrioesCongelados() {
                 </TableHeader>
                 <TableBody>
                   {filteredEmbrioes.map((embriao) => {
-                    const acasalamento = embriao.acasalamento as any;
+                    const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
                     const doadora = acasalamento?.aspiracao?.doadora;
                     const touro = acasalamento?.dose_semen?.touro;
                     const raca = doadora?.raca || touro?.raca;

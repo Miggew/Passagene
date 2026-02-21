@@ -61,7 +61,7 @@ export default function EscritorioHistorico() {
   };
 
   const getRowCount = (imp: ReportImport): number => {
-    const fd = imp.final_data as any;
+    const fd = imp.final_data as { resultados?: unknown[]; transferencias?: unknown[]; doadoras?: unknown[]; rows?: unknown[] } | null;
     if (!fd) return 0;
     if (fd.resultados) return fd.resultados.length;
     if (fd.transferencias) return fd.transferencias.length;

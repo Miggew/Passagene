@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Select,
   SelectContent,
@@ -137,7 +137,7 @@ export default function Embrioes() {
   }, [selectedFazendaDestinoId, loadData]);
 
   // Toggle pacote expansion
-  const toggleExpandirPacote = (pacoteId: string) => {
+  const toggleExpandirPacote = useCallback((pacoteId: string) => {
     setPacotesExpandidos((prev) => {
       const next = new Set(prev);
       if (next.has(pacoteId)) {
@@ -147,10 +147,10 @@ export default function Embrioes() {
       }
       return next;
     });
-  };
+  }, []);
 
   // Selection helpers
-  const toggleSelecionarEmbriao = (embriaoId: string) => {
+  const toggleSelecionarEmbriao = useCallback((embriaoId: string) => {
     setEmbrioesSelecionados((prev) => {
       const next = new Set(prev);
       if (next.has(embriaoId)) {
@@ -161,9 +161,9 @@ export default function Embrioes() {
       setShowAcoesEmMassa(next.size > 0);
       return next;
     });
-  };
+  }, []);
 
-  const selecionarTodosDaPagina = (embrioesPagina: EmbrioCompleto[]) => {
+  const selecionarTodosDaPagina = useCallback((embrioesPagina: EmbrioCompleto[]) => {
     setEmbrioesSelecionados((prev) => {
       const next = new Set(prev);
       const todosSelecionados = embrioesPagina.every((e) => next.has(e.id));
@@ -175,13 +175,13 @@ export default function Embrioes() {
       setShowAcoesEmMassa(next.size > 0);
       return next;
     });
-  };
+  }, []);
 
   // Pagination helpers
-  const getPaginaPacote = (pacoteId: string) => paginasPacotes[pacoteId] ?? 1;
-  const setPaginaPacote = (pacoteId: string, pagina: number) => {
+  const getPaginaPacote = useCallback((pacoteId: string) => paginasPacotes[pacoteId] ?? 1, [paginasPacotes]);
+  const setPaginaPacote = useCallback((pacoteId: string, pagina: number) => {
     setPaginasPacotes((prev) => ({ ...prev, [pacoteId]: pagina }));
-  };
+  }, []);
 
   // Handle classification (saves to pending)
   const handleClassificar = () => {

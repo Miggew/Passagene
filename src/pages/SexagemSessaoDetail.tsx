@@ -131,7 +131,7 @@ export default function SexagemSessaoDetail() {
         .in('id', receptoraIds);
 
       const fazendaMap = new Map(
-        (viewData || []).map(v => [v.id, (v.fazendas as any)?.nome])
+        (viewData || []).map(v => [v.id, (v.fazendas as { nome: string } | null)?.nome])
       );
 
       // 4. Filtrar por fazenda e montar lista

@@ -159,7 +159,7 @@ export default function EscritorioAspiracao() {
         id: importRecord.id,
         status: 'completed',
         completed_at: new Date().toISOString(),
-        pacote_aspiracao_id: (result as any)?.pacote_id,
+        pacote_aspiracao_id: (result as { pacote_id?: string } | null)?.pacote_id,
       });
 
       // Background: upload image for audit trail

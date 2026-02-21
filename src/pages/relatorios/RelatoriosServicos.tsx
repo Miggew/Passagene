@@ -350,8 +350,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       (receptorasData || []).map(r => [
         r.id,
         {
-          id: (r.fazendas as any)?.id,
-          nome: (r.fazendas as any)?.nome
+          id: (r.fazendas as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as { id: string; nome: string } | null)?.nome
         }
       ])
     );
@@ -443,8 +443,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       (receptorasData || []).map(r => [
         r.id,
         {
-          id: (r.fazendas as any)?.id,
-          nome: (r.fazendas as any)?.nome
+          id: (r.fazendas as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as { id: string; nome: string } | null)?.nome
         }
       ])
     );
@@ -538,8 +538,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       (receptorasData || []).map(r => [
         r.id,
         {
-          id: (r.fazendas as any)?.id,
-          nome: (r.fazendas as any)?.nome
+          id: (r.fazendas as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as { id: string; nome: string } | null)?.nome
         }
       ])
     );

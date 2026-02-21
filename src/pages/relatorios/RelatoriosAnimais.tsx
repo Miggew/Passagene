@@ -161,7 +161,7 @@ export default function RelatoriosAnimais() {
 
     // Filtrar por fazenda se necessário
     let result = receptorasData.map(r => {
-      const fazendaInfo = r.fazendas as any;
+      const fazendaInfo = r.fazendas as { id: string; nome: string } | null;
       return {
         id: r.id,
         identificacao: r.identificacao,
@@ -246,7 +246,7 @@ export default function RelatoriosAnimais() {
           nome: d.nome,
           raca: d.raca,
           fazenda_id: d.fazenda_id,
-          fazenda_nome: (d.fazendas as any)?.nome ?? 'N/A',
+          fazenda_nome: (d.fazendas as { nome: string } | null)?.nome ?? 'N/A',
           disponivel_aspiracao: d.disponivel_aspiracao,
           classificacao_genetica: d.classificacao_genetica,
           total_aspiracoes: stats?.count ?? 0,

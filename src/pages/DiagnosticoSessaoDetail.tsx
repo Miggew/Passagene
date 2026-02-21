@@ -130,7 +130,7 @@ export default function DiagnosticoSessaoDetail() {
         .in('id', receptoraIds);
 
       const fazendaMap = new Map(
-        (receptorasFazendaData || []).map(v => [v.id, (v.fazendas as any)?.nome])
+        (receptorasFazendaData || []).map(v => [v.id, (v.fazendas as { nome: string } | null)?.nome])
       );
 
       // 4. Filtrar por fazenda e montar lista

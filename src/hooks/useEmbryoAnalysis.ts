@@ -89,7 +89,7 @@ export function useEmbryoAnalysis() {
             // Step 2: Fetch Lote Info manually (avoiding complex joins)
             const acasalamentoIds = [...new Set(
                 scores
-                    .map(s => (s.embriao as any)?.lote_fiv_acasalamento_id)
+                    .map(s => (s.embriao as { lote_fiv_acasalamento_id?: string } | null)?.lote_fiv_acasalamento_id)
                     .filter(id => !!id)
             )];
 
