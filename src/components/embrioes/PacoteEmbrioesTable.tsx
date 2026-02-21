@@ -169,7 +169,7 @@ export function PacoteEmbrioesTable({
       if (existingJob) {
         queueId = existingJob.id;
         // Resetar job existente para pending (pode estar travado)
-        await supabase
+        const { error: resetError } = await supabase
           .from('embryo_analysis_queue')
           .update({
             status: 'pending',
@@ -179,6 +179,7 @@ export function PacoteEmbrioesTable({
             detected_bboxes: [] // Force re-detection logic in Edge Function
           })
           .eq('id', existingJob.id);
+        if (resetError) { toast({ title: 'Erro ao resetar análise', variant: 'destructive' }); return; }
       } else {
         const { data: queueData, error: queueError } = await supabase
           .from('embryo_analysis_queue')
@@ -206,15 +207,17 @@ export function PacoteEmbrioesTable({
         if (mediaData.id !== embriao.acasalamento_media_id) {
           updateFields.acasalamento_media_id = mediaData.id;
         }
-        await supabase
+        const { error: linkError } = await supabase
           .from('embrioes')
           .update(updateFields)
           .eq('lote_fiv_acasalamento_id', acasIdForUpdate);
+        if (linkError) { toast({ title: 'Erro ao vincular embriões', variant: 'destructive' }); return; }
       } else {
-        await supabase
+        const { error: linkError } = await supabase
           .from('embrioes')
           .update({ queue_id: queueId })
           .eq('id', embriao.id);
+        if (linkError) { toast({ title: 'Erro ao vincular embrião', variant: 'destructive' }); return; }
       }
 
       // 3. Invocar Edge Function com retry

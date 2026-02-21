@@ -211,7 +211,8 @@ export function useCreateReceptoraProtocolo({
 
         if (historicoError) {
           if (historicoError.message?.includes('brinco') || historicoError.code === 'P0001') {
-            await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+            const { error: cleanupErr } = await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+            if (cleanupErr) console.warn('[CreateReceptora] Falha ao limpar receptora órfã:', cleanupErr.message);
             throw new Error('Já existe uma receptora com esse brinco nesta fazenda.');
           }
           throw historicoError;
@@ -228,7 +229,8 @@ export function useCreateReceptoraProtocolo({
         .maybeSingle();
 
       if (!historicoVerificado) {
-        await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        const { error: cleanupErr } = await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        if (cleanupErr) console.warn('[CreateReceptora] Falha ao limpar receptora órfã:', cleanupErr.message);
         toast({
           title: 'Erro ao criar receptora',
           description: 'Não foi possível vincular a receptora à fazenda.',
@@ -250,7 +252,8 @@ export function useCreateReceptoraProtocolo({
         }]);
 
       if (protocoloError) {
-        await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        const { error: cleanupErr } = await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        if (cleanupErr) console.warn('[CreateReceptora] Falha ao limpar receptora órfã:', cleanupErr.message);
         if (protocoloError.code === '23505') {
           toast({
             title: 'Receptora já está no protocolo',

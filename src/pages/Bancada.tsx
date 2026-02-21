@@ -165,10 +165,11 @@ function PlateDetail({ queueId, onBack }: { queueId: string; onBack: () => void 
   );
 
   const handleReclassify = async (embryoId: string, cls: ClassificacaoEmbriao) => {
-    await supabase.from('embrioes').update({
+    const { error } = await supabase.from('embrioes').update({
       classificacao: cls,
       data_classificacao: new Date().toISOString(),
     }).eq('id', embryoId);
+    if (error) { toast({ title: 'Erro ao reclassificar', variant: 'destructive' }); throw error; }
     toast({ title: `Reclassificado como ${cls}` });
     setExpandedIdx(null);
   };

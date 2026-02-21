@@ -180,13 +180,14 @@ export function useUndoClassification() {
   return useMutation({
     mutationFn: async ({ scoreId, embriaoId }: UndoClassificationParams) => {
       // 1. Clear biologist classification from score
-      await supabase
+      const { error: clearError } = await supabase
         .from('embryo_scores')
         .update({
           biologist_classification: null,
           biologist_agreed: null,
         })
         .eq('id', scoreId);
+      if (clearError) throw clearError;
 
       // 2. Remove latest reference for this embryo from atlas
       const { data: refs } = await supabase
@@ -202,7 +203,8 @@ export function useUndoClassification() {
         const refAge = Date.now() - new Date(ref.created_at).getTime();
         // Only allow undo within 5 minutes
         if (refAge <= 5 * 60 * 1000) {
-          await supabase.from('embryo_references').delete().eq('id', ref.id);
+          const { error: delError } = await supabase.from('embryo_references').delete().eq('id', ref.id);
+          if (delError) throw delError;
         }
       }
     },
