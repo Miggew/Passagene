@@ -3,13 +3,14 @@ import { supabase } from '@/lib/supabase';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalFarmData } from '@/hooks/useGlobalFarmData';
-import { Send, Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2 } from 'lucide-react';
+import { Send, Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { fetchReportDataFromIntent, type AIIntent } from '@/services/aiReportService';
 import { tipoIconConfig, tipoBadgeConfig } from '@/lib/receptoraHistoricoUtils';
 import { formatDateBR } from '@/lib/dateUtils';
+import { exportToPdf, type PdfColumn } from '@/lib/exportPdf';
 
 interface Message {
     id: string;
@@ -17,6 +18,177 @@ interface Message {
     content: string;
     isSearching?: boolean;
     intentData?: any;
+}
+
+// === PDF Export Helper ===
+
+function exportGenIAPdf(intentData: any) {
+    const tipo = intentData.tipo;
+    let title = '';
+    let columns: PdfColumn[] = [];
+    let data: Record<string, unknown>[] = [];
+
+    switch (tipo) {
+        case 'LISTA_RECEPTORAS':
+            title = 'Receptoras';
+            columns = [
+                { header: 'Identificação', key: 'identificacao', width: 25 },
+                { header: 'Status', key: 'status', width: 18 },
+                { header: 'Dias Gest.', key: 'diasGestacao', width: 12, align: 'center' },
+                { header: 'Próxima Etapa', key: 'etapaProxima', width: 18 },
+                { header: 'Data', key: 'dataEtapa', width: 15, align: 'center' },
+            ];
+            data = intentData.animais || [];
+            break;
+
+        case 'LISTA_DOADORAS':
+            title = 'Doadoras';
+            columns = [
+                { header: 'Nome', key: 'nome', width: 25 },
+                { header: 'Raça', key: 'raca', width: 20 },
+                { header: 'Aspirações', key: 'totalAspiracoes', width: 15, align: 'center' },
+                { header: 'Média Oócitos', key: 'mediaOocitos', width: 15, align: 'center' },
+            ];
+            data = intentData.animais || [];
+            break;
+
+        case 'PROXIMOS_PARTOS':
+            title = 'Próximos Partos';
+            columns = [
+                { header: 'Identificação', key: 'identificacao', width: 25 },
+                { header: 'Status', key: 'status', width: 18 },
+                { header: 'Data Parto', key: 'dataPartoPrevista', width: 18, align: 'center' },
+                { header: 'Dias Restantes', key: 'diasRestantes', width: 15, align: 'center' },
+            ];
+            data = intentData.animais || [];
+            break;
+
+        case 'PROXIMOS_SERVICOS':
+            title = 'Próximos Serviços';
+            columns = [
+                { header: 'Identificação', key: 'identificacao', width: 25 },
+                { header: 'Etapa', key: 'etapa', width: 18 },
+                { header: 'Data Esperada', key: 'dataEsperada', width: 18, align: 'center' },
+                { header: 'Dias', key: 'diasRestantes', width: 12, align: 'center' },
+            ];
+            data = intentData.itens || [];
+            break;
+
+        case 'ANALISE_REPETIDORAS':
+            title = 'Repetidoras';
+            columns = [
+                { header: 'Identificação', key: 'identificacao', width: 30 },
+                { header: 'Sem Prenhez', key: 'protocolosSemPrenhez', width: 18, align: 'center' },
+                { header: 'Total Prot.', key: 'totalProtocolos', width: 18, align: 'center' },
+            ];
+            data = intentData.animais || [];
+            break;
+
+        case 'DESEMPENHO_VET':
+        case 'DESEMPENHO_TOURO':
+        case 'COMPARACAO_FAZENDAS': {
+            const labels: Record<string, string> = {
+                DESEMPENHO_VET: 'Desempenho Veterinário',
+                DESEMPENHO_TOURO: 'Desempenho por Touro',
+                COMPARACAO_FAZENDAS: 'Comparação de Fazendas',
+            };
+            title = labels[tipo] || tipo;
+            columns = [
+                { header: 'Nome', key: 'nome', width: 30 },
+                { header: 'Total DGs', key: 'total', width: 15, align: 'center' },
+                { header: 'Prenhes', key: 'prenhes', width: 15, align: 'center' },
+                { header: 'Taxa', key: 'taxa', width: 15, align: 'center' },
+            ];
+            data = intentData.veterinarios || [];
+            break;
+        }
+
+        case 'ESTOQUE_SEMEN':
+            title = 'Estoque de Sêmen';
+            columns = [
+                { header: 'Touro', key: 'touro', width: 35 },
+                { header: 'Raça', key: 'raca', width: 25 },
+                { header: 'Doses', key: 'doses', width: 15, align: 'center' },
+            ];
+            data = intentData.itens || [];
+            break;
+
+        case 'ESTOQUE_EMBRIOES':
+            title = 'Embriões Congelados';
+            columns = [
+                { header: 'Classificação', key: 'classificacao', width: 40 },
+                { header: 'Quantidade', key: 'quantidade', width: 20, align: 'center' },
+            ];
+            data = intentData.itens || [];
+            break;
+
+        default: {
+            // Fallback: transpor campos numéricos como Chave → Valor
+            const tipoLabels: Record<string, string> = {
+                DG: 'Diagnóstico de Gestação', TE: 'Transferência de Embriões',
+                RESUMO: 'Resumo Geral', ASPIRACAO: 'Aspiração', SEXAGEM: 'Sexagem',
+                REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', NASCIMENTOS: 'Nascimentos',
+            };
+            title = tipoLabels[tipo] || tipo;
+            columns = [
+                { header: 'Indicador', key: 'chave', width: 50 },
+                { header: 'Valor', key: 'valor', width: 25, align: 'center' },
+            ];
+            const labelMap: Record<string, string> = {
+                total: 'Total', totalAnimais: 'Animais', totalDoadoras: 'Doadoras',
+                realizadas: 'Realizadas', taxaPrenhez: 'Taxa Prenhez', positivos: 'Positivos',
+                vazias: 'Vazias', prenhes: 'Prenhes', machos: 'Machos', femeas: 'Fêmeas',
+                totalSessoes: 'Sessões', tourosComEstoque: 'Touros c/ Estoque',
+                partosProximos: 'Partos Próx. 30d', cioLivre: 'Cio Livre',
+                totalProtocolos: 'Protocolos', totalReceptoras: 'Receptoras',
+                aptas: 'Aptas', inaptas: 'Inaptas', urgentes: 'Urgentes',
+            };
+            data = Object.entries(intentData)
+                .filter(([k, v]) => labelMap[k] && v !== undefined && v !== null)
+                .map(([k, v]) => ({ chave: labelMap[k], valor: v }));
+            break;
+        }
+    }
+
+    if (data.length === 0) return;
+
+    const fileName = `genia-${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`;
+    exportToPdf({
+        title: `Gen.IA — ${title}`,
+        subtitle: intentData.periodo || undefined,
+        columns,
+        data: data as Record<string, unknown>[],
+        fileName,
+        orientation: data.length > 20 ? 'landscape' : 'portrait',
+    });
+}
+
+function hasExportableData(intentData: any): boolean {
+    if (!intentData?.tipo) return false;
+    const { tipo } = intentData;
+    if (['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS'].includes(tipo))
+        return (intentData.animais?.length ?? 0) > 0;
+    if (['PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES'].includes(tipo))
+        return (intentData.itens?.length ?? 0) > 0;
+    if (['DESEMPENHO_VET', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(tipo))
+        return (intentData.veterinarios?.length ?? 0) > 0;
+    if (tipo === 'BUSCA_ANIMAL') return false;
+    // Fallback: has numeric fields
+    const numericKeys = ['total', 'totalAnimais', 'realizadas', 'prenhes', 'vazias', 'positivos', 'totalProtocolos', 'totalReceptoras', 'aptas', 'inaptas'];
+    return numericKeys.some(k => intentData[k] !== undefined && intentData[k] !== null);
+}
+
+function ExportPdfButton({ intentData }: { intentData: any }) {
+    if (!hasExportableData(intentData)) return null;
+    return (
+        <button
+            onClick={() => exportGenIAPdf(intentData)}
+            title="Exportar PDF"
+            className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+        >
+            <Download className="w-4 h-4" />
+        </button>
+    );
 }
 
 // === Helper Components for Animal Lists ===
@@ -58,7 +230,7 @@ function EtapaBadge({ etapa }: { etapa: string }) {
     );
 }
 
-function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, items, renderItem }: {
+function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, items, renderItem, onExport }: {
     icon: React.ReactNode;
     title: string;
     total: number;
@@ -67,6 +239,7 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
     summary?: string;
     items: any[];
     renderItem: (item: any) => React.ReactNode;
+    onExport?: () => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const displayItems = expanded ? items : items.slice(0, 15);
@@ -83,9 +256,16 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
                     {title}
                     <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{total}</span>
                 </div>
-                {mostrando != null && mostrando < total && (
-                    <span className="text-[10px] text-muted-foreground">mostrando {mostrando} de {total}</span>
-                )}
+                <div className="flex items-center gap-2">
+                    {mostrando != null && mostrando < total && (
+                        <span className="text-[10px] text-muted-foreground">mostrando {mostrando} de {total}</span>
+                    )}
+                    {onExport && (
+                        <button onClick={onExport} title="Exportar PDF" className="text-muted-foreground hover:text-primary transition-colors p-0.5">
+                            <Download className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
             {summary && (
                 <div className="text-[11px] text-muted-foreground mb-2">{summary}</div>
@@ -108,7 +288,7 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
 const WELCOME_MESSAGE: Message = {
     id: 'welcome',
     role: 'assistant',
-    content: 'Olá! Eu sou a Gen.Ia. Posso buscar relatórios de aspiração, transferência de embriões, ou analisar o desempenho do seu rebanho e veterinários. O que você gostaria de saber hoje?'
+    content: 'Olá! Eu sou a Gen.IA — sua inteligência reprodutiva.\n\nPosso te ajudar com:\n• Receptoras, doadoras e repetidoras\n• DGs, TEs, aspirações e protocolos\n• Partos previstos e agenda da semana\n• Desempenho de veterinários e touros\n• Estoque de sêmen e embriões congelados\n• Comparação entre fazendas\n• Buscar qualquer animal pelo nome ou brinco\n\nO que você gostaria de saber hoje?'
 };
 let persistedMessages: Message[] = [];
 
@@ -116,6 +296,7 @@ let persistedMessages: Message[] = [];
 
 export default function ConsultorIA() {
     const { toast } = useToast();
+    const { clienteId } = usePermissions();
     const { data: hubData, isLoading: hubLoading } = useGlobalFarmData();
 
     const humanizeStatus = (statusStr?: string | null) => {
@@ -227,7 +408,8 @@ export default function ConsultorIA() {
                     const reportData = await fetchReportDataFromIntent(
                         jsonIntent,
                         effectiveFarmIds,
-                        effectiveReceptoraIds
+                        effectiveReceptoraIds,
+                        clienteId
                     );
 
                     setMessages(prev => [...prev, {
@@ -259,11 +441,20 @@ export default function ConsultorIA() {
         }
     };
 
-    const suggestions = [
+    const allSuggestions = [
         "Quais os próximos partos?",
         "Quais receptoras posso protocolar?",
         "O que precisa ser feito essa semana?",
+        "Qual o estoque de sêmen?",
+        "Quais touros têm melhor desempenho?",
+        "Resumo geral da fazenda",
+        "Quais embriões estão congelados?",
+        "Compare o desempenho das fazendas",
+        "Mostre as doadoras com baixa produção",
     ];
+    // Rotate 4 suggestions based on conversation length
+    const sugStartIdx = Math.floor(messages.length / 2) % allSuggestions.length;
+    const suggestions = Array.from({ length: 4 }, (_, i) => allSuggestions[(sugStartIdx + i) % allSuggestions.length]);
 
     if (hubLoading) {
         return <div className="flex h-[calc(100vh-100px)] items-center justify-center"><LoadingInline text="Carregando Córtex da Fazenda..." /></div>;
@@ -278,10 +469,10 @@ export default function ConsultorIA() {
                 </div>
                 <div>
                     <h1 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-                        Gen.Ia
+                        Gen.IA
                         <span className="text-[10px] bg-primary/10 text-primary-dark px-1.5 py-0.5 rounded-md uppercase tracking-widest font-bold">Beta</span>
                     </h1>
-                    <p className="text-sm text-muted-foreground leading-tight mt-0.5">Relatórios dinâmicos e análises exclusivas do seu rebanho</p>
+                    <p className="text-sm text-muted-foreground leading-tight mt-0.5">Inteligência reprodutiva do seu rebanho</p>
                 </div>
             </div>
 
@@ -344,6 +535,7 @@ export default function ConsultorIA() {
                                                                 total={msg.intentData.total}
                                                                 mostrando={msg.intentData.mostrando}
                                                                 items={msg.intentData.animais}
+                                                                onExport={() => exportGenIAPdf(msg.intentData)}
                                                                 renderItem={(a: any) => (
                                                                     <div className="flex items-center justify-between gap-2 py-1.5">
                                                                         <div className="flex items-center gap-2 min-w-0">
@@ -376,6 +568,7 @@ export default function ConsultorIA() {
                                                                     title="Doadoras"
                                                                     total={msg.intentData.total}
                                                                     items={msg.intentData.animais}
+                                                                    onExport={() => exportGenIAPdf(msg.intentData)}
                                                                     renderItem={(d: any) => (
                                                                         <div className="flex items-center justify-between gap-2 py-1.5">
                                                                             <div className="flex items-center gap-2 min-w-0">
@@ -404,6 +597,7 @@ export default function ConsultorIA() {
                                                                         accentColor="red"
                                                                         summary={`Min. ${msg.intentData.minProtocolos} protocolos sem prenhez`}
                                                                         items={msg.intentData.animais}
+                                                                        onExport={() => exportGenIAPdf(msg.intentData)}
                                                                         renderItem={(a: any) => (
                                                                             <div className="flex items-center justify-between gap-2 py-1.5">
                                                                                 <span className="font-bold text-[13px] text-foreground truncate">{a.identificacao}</span>
@@ -429,6 +623,7 @@ export default function ConsultorIA() {
                                                                             accentColor="amber"
                                                                             summary={msg.intentData.urgentes > 0 ? `${msg.intentData.urgentes} urgente(s)` : undefined}
                                                                             items={msg.intentData.animais}
+                                                                            onExport={() => exportGenIAPdf(msg.intentData)}
                                                                             renderItem={(a: any) => (
                                                                                 <div className="flex items-center justify-between gap-2 py-1.5">
                                                                                     <div className="flex items-center gap-2 min-w-0">
@@ -457,6 +652,7 @@ export default function ConsultorIA() {
                                                                                     msg.intentData.passados > 0 ? `${msg.intentData.passados} atrasado(s)` : null,
                                                                                 ].filter(Boolean).join(' | ') || undefined}
                                                                                 items={msg.intentData.itens}
+                                                                                onExport={() => exportGenIAPdf(msg.intentData)}
                                                                                 renderItem={(i: any) => (
                                                                                     <div className="flex items-center justify-between gap-2 py-1.5">
                                                                                         <div className="flex items-center gap-2 min-w-0">
@@ -475,14 +671,17 @@ export default function ConsultorIA() {
                                                                             />
                                                                         ) :
                                                                             /* === DESEMPENHO_VET Card === */
-                                                                            msg.intentData.tipo === 'DESEMPENHO_VET' && msg.intentData.veterinarios?.length > 0 ? (
+                                                                            (msg.intentData.tipo === 'DESEMPENHO_VET' || msg.intentData.tipo === 'DESEMPENHO_TOURO' || msg.intentData.tipo === 'COMPARACAO_FAZENDAS') && msg.intentData.veterinarios?.length > 0 ? (
                                                                                 <div className="mt-2 bg-background/50 border border-violet-500/20 rounded-xl p-4 shadow-sm">
                                                                                     <div className="flex items-center gap-2 text-violet-700 font-semibold mb-3 border-b border-violet-500/10 pb-2">
                                                                                         <Award className="w-4 h-4" />
                                                                                         Desempenho Veterinário
-                                                                                        {msg.intentData.periodo && (
-                                                                                            <span className="text-xs bg-violet-500/10 text-violet-700 px-2 py-0.5 rounded-full ml-auto">{msg.intentData.periodo}</span>
-                                                                                        )}
+                                                                                        <div className="flex items-center gap-2 ml-auto">
+                                                                                            {msg.intentData.periodo && (
+                                                                                                <span className="text-xs bg-violet-500/10 text-violet-700 px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
+                                                                                            )}
+                                                                                            <ExportPdfButton intentData={msg.intentData} />
+                                                                                        </div>
                                                                                     </div>
                                                                                     <div className="flex flex-col gap-2">
                                                                                         {msg.intentData.veterinarios.map((v: any, i: number) => (
@@ -502,6 +701,48 @@ export default function ConsultorIA() {
                                                                                 </div>
                                                                             ) :
                                                                                 /* === PROTOCOLOS Card === */
+                                                                                /* === ESTOQUE_SEMEN Card === */
+                                                                                msg.intentData.tipo === 'ESTOQUE_SEMEN' && msg.intentData.itens?.length > 0 ? (
+                                                                                    <AnimalListCard
+                                                                                        icon={<BarChart3 className="w-4 h-4" />}
+                                                                                        title="Estoque de Sêmen"
+                                                                                        total={msg.intentData.total}
+                                                                                        items={msg.intentData.itens}
+                                                                                        onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                                        renderItem={(item: any) => (
+                                                                                            <div className="flex items-center justify-between gap-2 py-1.5">
+                                                                                                <span className="font-bold text-[13px] text-foreground truncate">{item.touro}</span>
+                                                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                                                    {item.raca && <span className="text-[11px] text-muted-foreground">({item.raca})</span>}
+                                                                                                    <span className="text-[12px] font-black px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700">
+                                                                                                        {item.doses} doses
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    />
+                                                                                ) :
+                                                                                /* === ESTOQUE_EMBRIOES Card === */
+                                                                                msg.intentData.tipo === 'ESTOQUE_EMBRIOES' && msg.intentData.itens?.length > 0 ? (
+                                                                                    <div className="mt-2 bg-background/50 border border-cyan-500/20 rounded-xl p-4 shadow-sm">
+                                                                                        <div className="flex items-center gap-2 text-cyan-700 font-semibold mb-3 border-b border-cyan-500/10 pb-2">
+                                                                                            <Snowflake className="w-4 h-4" />
+                                                                                            Embriões Congelados
+                                                                                            <div className="flex items-center gap-2 ml-auto">
+                                                                                                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{msg.intentData.total}</span>
+                                                                                                <ExportPdfButton intentData={msg.intentData} />
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                                            {msg.intentData.itens.slice(0, 12).map((item: any, i: number) => (
+                                                                                                <div key={i} className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg bg-muted/30">
+                                                                                                    <span className="text-[12px] font-bold text-foreground truncate">{item.classificacao}</span>
+                                                                                                    <span className="text-[12px] font-black text-cyan-700">{item.quantidade}</span>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ) :
                                                                                 msg.intentData.tipo === 'PROTOCOLOS' ? (
                                                                                     <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
                                                                                         <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
@@ -509,9 +750,12 @@ export default function ConsultorIA() {
                                                                                                 <BarChart3 className="w-4 h-4" />
                                                                                                 Relatório de Protocolos
                                                                                             </div>
-                                                                                            {msg.intentData.periodo && (
-                                                                                                <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
-                                                                                            )}
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                {msg.intentData.periodo && (
+                                                                                                    <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
+                                                                                                )}
+                                                                                                <ExportPdfButton intentData={msg.intentData} />
+                                                                                            </div>
                                                                                         </div>
                                                                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                                                             <div className="flex flex-col">
@@ -641,24 +885,65 @@ export default function ConsultorIA() {
                                                                                                 )}
                                                                                             </div>
                                                                                         </div>
-                                                                                    ) : (
+                                                                                    ) : (() => {
+                                                                                        const tipoLabels: Record<string, string> = {
+                                                                                            LISTA_RECEPTORAS: 'Receptoras', LISTA_DOADORAS: 'Doadoras', ANALISE_REPETIDORAS: 'Repetidoras',
+                                                                                            PROXIMOS_PARTOS: 'Próximos Partos', PROXIMOS_SERVICOS: 'Próximos Serviços',
+                                                                                            DESEMPENHO_VET: 'Desempenho Veterinário', DESEMPENHO_TOURO: 'Desempenho por Touro',
+                                                                                            COMPARACAO_FAZENDAS: 'Comparação de Fazendas', ESTOQUE_SEMEN: 'Estoque de Sêmen',
+                                                                                            ESTOQUE_EMBRIOES: 'Embriões Congelados', NASCIMENTOS: 'Nascimentos',
+                                                                                            RESUMO: 'Resumo Geral', TE: 'Transferência de Embriões', DG: 'Diagnóstico de Gestação',
+                                                                                            ASPIRACAO: 'Aspiração', SEXAGEM: 'Sexagem', RECEPTORAS: 'Receptoras',
+                                                                                            REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', BUSCA_ANIMAL: 'Busca de Animal',
+                                                                                        };
+                                                                                        const tipoLabel = tipoLabels[msg.intentData.tipo] || msg.intentData.tipo;
+                                                                                        const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(msg.intentData.tipo);
+                                                                                        return (
                                                                                         <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
                                                                                             <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
                                                                                                 <div className="flex items-center gap-2 text-primary-dark font-semibold">
                                                                                                     <BarChart3 className="w-4 h-4" />
-                                                                                                    {msg.intentData.tipo === 'BUSCA_ANIMAL' ? 'Busca Falhou' : `Relatório de ${msg.intentData.tipo}`}
+                                                                                                    {msg.intentData.tipo === 'BUSCA_ANIMAL' ? 'Busca Falhou' : tipoLabel}
                                                                                                 </div>
-                                                                                                {msg.intentData.periodo && (
-                                                                                                    <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">
-                                                                                                        {msg.intentData.periodo}
-                                                                                                    </span>
-                                                                                                )}
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    {msg.intentData.periodo && (
+                                                                                                        <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">
+                                                                                                            {msg.intentData.periodo}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {!isEmptyList && <ExportPdfButton intentData={msg.intentData} />}
+                                                                                                </div>
                                                                                             </div>
 
                                                                                             {msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.mensagem ? (
                                                                                                 <div className="text-sm text-muted-foreground flex items-center gap-2 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
                                                                                                     <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
                                                                                                     <span className="text-red-700/90 font-medium">{msg.intentData.mensagem}</span>
+                                                                                                </div>
+                                                                                            ) : isEmptyList ? (
+                                                                                                <div className="flex flex-col gap-2">
+                                                                                                    <div className="text-sm text-muted-foreground flex items-center gap-2 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                                                                                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                                                                                        <span className="font-medium text-amber-800">
+                                                                                                            {msg.intentData.motivo || 'Nenhum resultado encontrado para esta consulta.'}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                    {msg.intentData.totalGeral != null && (
+                                                                                                        <div className="grid grid-cols-3 gap-2 text-center">
+                                                                                                            <div className="bg-muted/30 rounded-lg p-2">
+                                                                                                                <div className="text-lg font-bold text-foreground">{msg.intentData.totalGeral}</div>
+                                                                                                                <div className="text-[10px] text-muted-foreground uppercase font-medium">Total</div>
+                                                                                                            </div>
+                                                                                                            <div className="bg-muted/30 rounded-lg p-2">
+                                                                                                                <div className="text-lg font-bold text-amber-600">{msg.intentData.totalVazias ?? 0}</div>
+                                                                                                                <div className="text-[10px] text-muted-foreground uppercase font-medium">Vazias</div>
+                                                                                                            </div>
+                                                                                                            <div className="bg-muted/30 rounded-lg p-2">
+                                                                                                                <div className="text-lg font-bold text-red-500">{msg.intentData.emProtocolo ?? 0}</div>
+                                                                                                                <div className="text-[10px] text-muted-foreground uppercase font-medium">Em Protocolo</div>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    )}
                                                                                                 </div>
                                                                                             ) : (
                                                                                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -728,10 +1013,28 @@ export default function ConsultorIA() {
                                                                                                             <span className="text-lg font-bold text-pink-600">{msg.intentData.femeas}</span>
                                                                                                         </div>
                                                                                                     )}
+                                                                                                    {msg.intentData.totalSessoes !== undefined && (
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Sessões</span>
+                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.totalSessoes}</span>
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    {msg.intentData.tourosComEstoque !== undefined && (
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Touros c/ Estoque</span>
+                                                                                                            <span className="text-lg font-bold text-blue-600">{msg.intentData.tourosComEstoque}</span>
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    {msg.intentData.partosProximos !== undefined && (
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Partos Próx. 30d</span>
+                                                                                                            <span className="text-lg font-bold text-amber-600">{msg.intentData.partosProximos}</span>
+                                                                                                        </div>
+                                                                                                    )}
                                                                                                 </div>
                                                                                             )}
                                                                                         </div>
-                                                                                    )
+                                                                                    );})()
                                                     )}
                                                 </div>
                                             )}
