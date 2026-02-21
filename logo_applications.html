@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene: O Ícone & Aplicações UI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            background: #fafafa;
+            color: #333;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        header {
+            width: 100%;
+            background: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 800;
+            font-size: 32px;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            color: #777;
+            max-width: 700px;
+            margin: 10px auto 0;
+            line-height: 1.5;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 40px;
+            max-width: 1400px;
+            width: 100%;
+            padding: 0 40px 80px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .card h3 {
+            margin-top: 30px;
+            margin-bottom: 5px;
+            font-size: 18px;
+            color: #111;
+        }
+
+        .card .badge {
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .card p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        /* ESTRUTURA DNA BASICA */
+        .dna-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .dna-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            transform: rotate(-45deg) scale(0.93);
+        }
+
+        .dot-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dot {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        /* --- O ÍCONE ISOLADO (CÍRCULOS PERFEITOS) --- */
+
+        .icon-circle {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            /* Sombra mais difusa pro circulo flutuar */
+        }
+
+        /* Tema Musgo (Aprovado V4/V5) Base */
+        .icon-musgo {
+            background: #064e3b;
+        }
+
+        .icon-verde {
+            background: #09C972;
+        }
+
+        /* --- APLICAÇÕES PRÁTICAS UI --- */
+
+        /* Tela de Loading do Dashboard (Tamanho Medio, Animando sempre) */
+        .ui-loading {
+            width: 100%;
+            height: 200px;
+            background: #f8fafc;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .ui-loading-text {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        /* Perfil de Usuário / Avatar na Navbar */
+        .ui-navbar {
+            width: 100%;
+            height: 60px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+
+        .ui-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ui-avatar-dna {
+            /* Encolhemos a tag do ícone pra caber num avatar de 36px */
+            transform: scale(0.6);
+        }
+
+        /* Card de Serviço / Produto no App */
+        .ui-service-card {
+            width: 100%;
+            height: auto;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: left;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .ui-service-card h4 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .ui-service-card p {
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .ui-service-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            /* Aqui usamos Rounded Square pra diferenciar do logo oficial redondo */
+            background: #ecfdf5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #059669;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>A Essência Isolada: O Símbolo e a UI</h1>
+        <p class="subtitle">Descolamos a tipografia. A marca isolada precisa brilhar no seu instinto mais primitivo: uma
+            forma geométrica pura. Substituí o escudo antigo por um <strong>Círculo Perfeito</strong> flutuante.<br />
+            Além de testar o Círculo com as novas cores "Premiums", montei aplicações reais dentro de fragmentos de
+            interface (Dashboard, Menus e Loaders) para você ver ele funcionando na selva do seu app.</p>
+    </header>
+
+    <div class="grid-container">
+
+        <!-- 1. O ÍCONE PURO (Círculo Verde Base) -->
+        <div class="card">
+            <div style="height: 180px; display: flex; align-items: center; justify-content: center; width: 100%;">
+                <div id="render-circle-v1" class="icon-circle icon-verde interactive" style="cursor: pointer;"></div>
+            </div>
+            <div class="badge">A Marca Global</div>
+            <h3>O Círculo "PassaGene"</h3>
+            <p>O escudo quadrado ficou no passado. O Círculo remete a uma célula vista pelo microscópio. Cores V1: Fundo
+                Verde, Fita Frontal Musgo, Fita Traseira Menta. <strong>(Passe o Mouse pra rodar)</strong></p>
+        </div>
+
+        <!-- 2. O ÍCONE BRUTAL (Círculo Musgo Escuro) -->
+        <div class="card">
+            <div style="height: 180px; display: flex; align-items: center; justify-content: center; width: 100%;">
+                <div id="render-circle-v2" class="icon-circle icon-musgo interactive" style="cursor: pointer;"></div>
+            </div>
+            <div class="badge">Variante Premium</div>
+            <h3>O Círculo "Musgo Premium"</h3>
+            <p>A paleta escura que te agradou (Fundo Musgo, Fita Verde Neon, Fita Branca). Num círculo, vira uma pérola
+                super corporativa. Lembra logotipos de farmacêuticas de alto padrão.</p>
+        </div>
+
+        <!-- 3. APLICAÇÃO: TELA DE LOADING GLOBAL -->
+        <div class="card">
+            <div class="ui-loading">
+                <!-- Ele vai rodar sozinho no JS por padrão neste bloco -->
+                <div id="render-loading-app" class="icon-circle icon-verde auto-play"></div>
+                <div class="ui-loading-text">Analisando Genética...</div>
+            </div>
+            <div class="badge">Aplicação Real 1</div>
+            <h3>O Loading do Dashboard</h3>
+            <p>Seja brutalmente sincero: Quantos apps você vê com um Loading Spinner genérico de rodinha? Substitua
+                todos por esse ícone pulsante nativo. É a "Digital Tech" perfeita pro software.</p>
+        </div>
+
+        <!-- 4. APLICAÇÃO: AVATAR DE USUÁRIO / NAVBAR -->
+        <div class="card">
+            <div
+                style="height: 200px; display: flex; align-items: center; justify-content: center; width: 100%; background: #f8fafc; border-radius: 12px; padding: 20px;">
+                <div class="ui-navbar">
+                    <div style="font-weight: 700; font-size: 14px;">HubClientes</div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <span style="font-size: 13px; color: #64748b;">Ajustes</span>
+                        <div class="ui-avatar">
+                            <!-- Tamanho super reduzido! -->
+                            <div id="render-avatar" class="icon-circle icon-musgo auto-play ui-avatar-dna"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="badge">Aplicação Real 2</div>
+            <h3>O Avatar Superior (Tamanho 36px)</h3>
+            <p>O teste de fogo de qualquer logotipo: Ele sobrevive ao tamanho de uma mosca no canto superior direito da
+                tela do celular? Sim, a bolinha verde sobrevive com clareza na barra de ferramentas.</p>
+        </div>
+
+        <!-- 5. APLICAÇÃO: ICONOGRAPHY E CARDS -->
+        <div class="card">
+            <div
+                style="height: 200px; display: flex; align-items: center; justify-content: center; width: 100%; background: #f8fafc; border-radius: 12px; padding: 20px;">
+                <div class="ui-service-card">
+                    <div class="ui-service-icon">
+                        <div id="render-service" class="icon-circle icon-verde" style="transform: scale(0.65);"></div>
+                    </div>
+                    <div>
+                        <h4>Módulo Secagem</h4>
+                        <p>Acesse o laudo completo das análises de laboratório usando essa métrica.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="badge">Aplicação Real 3</div>
+            <h3>O Card de Serviço Base</h3>
+            <p>Ele também pode ser usado estático em pequenos quadradinhos coloridos do sistema (os chamados 'Rounded
+                Squares' de UI/UX) para referenciar módulos inteiros que lide com dados brutos.</p>
+        </div>
+
+    </div>
+
+    <script>
+        function createDNAComponent(containerId, size, strandColors) {
+            const parent = document.getElementById(containerId);
+
+            const numDots = 7;
+            const targetLength = size * (194 / 200);
+            const wrapperSize = targetLength / numDots;
+            const dotSize = wrapperSize * 0.93;
+
+            const delaySpan = 0.75;
+            const ANIM_DURATION = 1.5;
+
+            const container = document.createElement('div');
+            container.className = 'dna-container';
+            container.style.width = size + 'px';
+            container.style.height = size + 'px';
+
+            const inner = document.createElement('div');
+            inner.className = 'dna-inner';
+
+            const dotsData = [];
+
+            for (let i = 0; i < numDots; i++) {
+                let delaySec = -((i / (numDots - 1)) * delaySpan);
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'dot-wrapper';
+                wrapper.style.width = wrapperSize + 'px';
+
+                const dotBase = document.createElement('div');
+                dotBase.className = 'dot';
+                dotBase.style.width = dotSize + 'px';
+                dotBase.style.height = dotSize + 'px';
+                dotBase.style.background = strandColors.front;
+                dotBase.style.left = `calc(50% - ${dotSize / 2}px)`;
+
+                const dotRev = document.createElement('div');
+                dotRev.className = 'dot';
+                dotRev.style.width = dotSize + 'px';
+                dotRev.style.height = dotSize + 'px';
+                dotRev.style.background = strandColors.back;
+                dotRev.style.left = `calc(50% - ${dotSize / 2}px)`;
+
+                wrapper.appendChild(dotBase);
+                wrapper.appendChild(dotRev);
+                inner.appendChild(wrapper);
+
+                dotsData.push({ dotBase, dotRev, delaySec });
+            }
+
+            container.appendChild(inner);
+            parent.appendChild(container);
+
+
+            function updateDots(timeProgress) {
+                dotsData.forEach(data => {
+                    const absTime = timeProgress - data.delaySec;
+                    const progress = ((absTime % ANIM_DURATION) + ANIM_DURATION) % ANIM_DURATION / ANIM_DURATION;
+                    const cosVal = Math.cos(progress * 2 * Math.PI);
+
+                    const top1Percent = 50 * (1 - cosVal);
+                    const scale1 = 0.75 + 0.25 * cosVal;
+                    const z1 = cosVal >= 0 ? 2 : 1;
+
+                    const bottom2Percent = 50 * (1 - cosVal);
+                    const scale2 = 0.75 - 0.25 * cosVal;
+                    const z2 = -cosVal >= 0 ? 2 : 1;
+
+                    data.dotBase.style.top = `calc(${top1Percent}% - ${(dotSize * top1Percent) / 100}px)`;
+                    data.dotBase.style.transform = `scale(${scale1})`;
+                    data.dotBase.style.zIndex = z1;
+
+                    data.dotRev.style.bottom = `calc(${bottom2Percent}% - ${(dotSize * bottom2Percent) / 100}px)`;
+                    data.dotRev.style.transform = `scale(${scale2})`;
+                    data.dotRev.style.zIndex = z2;
+                });
+            }
+
+            updateDots(0.0);
+            return updateDots;
+        }
+
+
+        // Configurações das Bolinhas Isoladas
+        // TEMA 1: Verde Base (Frente musgo, Tras menta)
+        const C_VERDE = { front: '#064e3b', back: '#dcfce7' };
+
+        // TEMA 2: Musgo Base (Frente Verde Neon, Tras branco)
+        const C_MUSGO = { front: '#09C972', back: '#ffffff' };
+
+
+        const configs = [
+            // Os ícones grandes interativos com mouse
+            { id: 'render-circle-v1', parentId: 'render-circle-v1', size: 120, colors: C_VERDE, autoPlay: false },
+            { id: 'render-circle-v2', parentId: 'render-circle-v2', size: 120, colors: C_MUSGO, autoPlay: false },
+
+            // As Aplicações UI tocando sozinhas sempre
+            { id: 'render-loading-app', parentId: null, size: 64, colors: C_VERDE, autoPlay: true },
+            { id: 'render-avatar', parentId: null, size: 60, colors: C_MUSGO, autoPlay: true }, // Size 60 mas encolhido pelo CSS de Avatar
+            { id: 'render-service', parentId: 'render-service', size: 40, colors: C_VERDE, autoPlay: false }
+        ];
+
+        configs.forEach(conf => {
+            const updateFrame = createDNAComponent(conf.id, conf.size, conf.colors);
+
+            let animationFrameId;
+            let startTime = null;
+            let isHovered = false;
+
+            const animate = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const elapsedSec = (timestamp - startTime) / 1000;
+                updateFrame(elapsedSec);
+
+                if (isHovered || conf.autoPlay) {
+                    animationFrameId = requestAnimationFrame(animate);
+                } else {
+                    updateFrame(0.0);
+                    startTime = null;
+                }
+            };
+
+            // Se for Autoplay, roda infinito pra imitar UI carregando
+            if (conf.autoPlay) {
+                animationFrameId = requestAnimationFrame(animate);
+            }
+            // Senão, hover clássico
+            else if (conf.parentId) {
+                const parentArea = document.getElementById(conf.parentId);
+                parentArea.addEventListener('mouseenter', () => {
+                    isHovered = true;
+                    startTime = null;
+                    animationFrameId = requestAnimationFrame(animate);
+                });
+                parentArea.addEventListener('mouseleave', () => {
+                    isHovered = false;
+                });
+            }
+        });
+
+    </script>
+</body>
+
+</html>

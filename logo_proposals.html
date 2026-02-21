@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene: Paleta Forest Premium - Ajuste Fino</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            background: #fafafa;
+            color: #333;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        header {
+            width: 100%;
+            background: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 800;
+            font-size: 32px;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            color: #777;
+            max-width: 700px;
+            margin: 10px auto 0;
+            line-height: 1.5;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 40px;
+            max-width: 1400px;
+            width: 100%;
+            padding: 0 40px 80px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            margin-top: 30px;
+            margin-bottom: 5px;
+            font-size: 18px;
+            color: #111;
+        }
+
+        .card .badge {
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .card p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .logo-showcase {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        /* ESTRUTURA DNA BASICA */
+        .dna-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .dna-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            transform: rotate(-45deg) scale(0.93);
+        }
+
+        .dot-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dot {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        /* COMPONENTE DA PÍLULA (MAX TIGHTNESS) */
+        .opt-base {
+            display: flex;
+            align-items: center;
+            border-radius: 50px;
+            /* Padding reduzido no topo/baixo para a letra colar mais nas margens (maximiza font-size) */
+            padding: 2px 20px 2px 4px;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            height: 52px;
+            /* Forçado pra altura de navbar real do tailwind */
+            box-sizing: border-box;
+            border: 2px solid transparent;
+            /* Para as opções invertidas Hollow */
+        }
+
+        /* TIPOGRAFIA ESCALADA */
+        .wordmark {
+            /* Tamanho aumentado consideravelmente. Linha de altura travada pra ele não amassar a pílula */
+            font-size: 30px;
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: -1px;
+            display: flex;
+            white-space: nowrap;
+        }
+
+        .wordmark span.light {
+            font-weight: 400;
+        }
+
+
+        /* PALETAS DE CORES FOREST PREMIUM EXPANDIDAS */
+
+        /* Tema V1: O seu escolhido (Base Forte) 
+           Fundo: Verde PassaGene (#09C972)
+           Passa/Frente: Verde Musgo (#064e3b)
+           Gene/Tras: Menta Claro (#dcfce7) */
+        .v1 {
+            background: #09C972;
+            border-color: transparent;
+        }
+
+        .v1 .wordmark {
+            color: #064e3b;
+        }
+
+        .v1 .wordmark span.light {
+            color: #dcfce7;
+        }
+
+        /* Tema V2: Invertendo Textos
+           Fundo: Verde PassaGene
+           Passa/Frente: Menta Claro
+           Gene/Trás: Musgo */
+        .v2 {
+            background: #09C972;
+            border-color: transparent;
+        }
+
+        .v2 .wordmark {
+            color: #ffffff;
+        }
+
+        /* Textos claros são melhores com fundo colorido, Menta ficaria muito sujo no passa */
+        .v2 .wordmark span.light {
+            color: #064e3b;
+        }
+
+        /* Tema V3: Gelo Forest (Pureza)
+           Fundo: Verde PassaGene
+           Passa/Frente: Branco
+           Gene/Tras: Branco 
+           (Um clássico puro pra ver como fica com a tipografia gigantesca nova) */
+        .v3 {
+            background: #09C972;
+            border-color: transparent;
+        }
+
+        .v3 .wordmark {
+            color: #ffffff;
+        }
+
+        .v3 .wordmark span.light {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Tema V4: O Premium Brutal ("Fundo Escuro")
+           Fundo: Musgo (#064e3b) 
+           Passa/Frente: Verde PassaGene (#09C972)
+           Gene/Trás: Branco */
+        .v4 {
+            background: #064e3b;
+            border-color: transparent;
+        }
+
+        .v4 .wordmark {
+            color: #09C972;
+        }
+
+        .v4 .wordmark span.light {
+            color: #ffffff;
+        }
+
+        /* Tema V5: O Premium Brutal (Alternado)
+           Fundo: Musgo (#064e3b) 
+           Passa/Frente: Branco
+           Gene/Trás: Verde PassaGene (#09C972) */
+        .v5 {
+            background: #064e3b;
+            border-color: transparent;
+        }
+
+        .v5 .wordmark {
+            color: #ffffff;
+        }
+
+        .v5 .wordmark span.light {
+            color: #09C972;
+        }
+
+        /* Tema V6: Vazado Clean (Pra fundos brancos)
+           Fundo: Branco (Borda Verde Passagene)
+           Passa/Frente: Musgo (#064e3b)
+           Gene/Trás: Verde Passagene */
+        .v6 {
+            background: #ffffff;
+            border-color: #09C972;
+            box-shadow: none;
+        }
+
+        .v6 .wordmark {
+            color: #064e3b;
+        }
+
+        .v6 .wordmark span.light {
+            color: #09C972;
+            font-weight: 500;
+        }
+
+        /* Aumenta peso pra ler bem no branco */
+
+        /* Tema V7: Menta Soft (Pra não pesar os olhos)
+           Fundo: Menta (#dcfce7)
+           Passa/Frente: Musgo (#064e3b)
+           Gene/Trás: Verde Passagene */
+        .v7 {
+            background: #dcfce7;
+            border-color: transparent;
+        }
+
+        .v7 .wordmark {
+            color: #064e3b;
+        }
+
+        .v7 .wordmark span.light {
+            color: #059669;
+            font-weight: 500;
+        }
+
+        /* Tema V8: Night Mode (Gama inteira invertida)
+           Fundo: Cinza Chumbo Escuro (#0f172a)
+           Passa/Frente: Branco
+           Gene/Trás: Verde Passagene */
+        .v8 {
+            background: #0f172a;
+            border-color: transparent;
+        }
+
+        .v8 .wordmark {
+            color: #ffffff;
+        }
+
+        .v8 .wordmark span.light {
+            color: #09C972;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>A Pílula Definitiva: Proporções & Inversões</h1>
+        <p class="subtitle">Ótimo! A "Pílula Infinita" é o caminho a seguir. A primeira coisa que fiz foi
+            <strong>esmagar o padding vertical</strong> da Pílula, forçando a tipografia crescer de 26px para 30px
+            dentro de uma altura engessada de 52px (O padrão espremido de Navbar web). O preenchimento da caixa ficou
+            perfeito.<br />
+            Aqui estão 8 paletas geradas com permutações dos 3 tons principais (Verde Original, Musgo, Branco e Menta),
+            rodando a Animação Fluida Matemática no mouse.</p>
+    </header>
+
+    <div class="grid-container">
+
+        <!-- V1 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v1" id="hover-target-1">
+                    <div id="render-v1"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">A Aprovada</div>
+            <h3>V1. Original Escolhida</h3>
+            <p>Fundo Verde, Texto Passa Musgo, Texto Gene Menta. O novo tamanho da Letra esticou a pílula preenchendo o
+                vazio perfeitamente.</p>
+        </div>
+
+        <!-- V2 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v2" id="hover-target-2">
+                    <div id="render-v2"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Inversão Fios</div>
+            <h3>V2. Passe Inverso</h3>
+            <p>Fundo Verde. Passa/Frente são Brancos. Gene/Fundo são Verde Musgo Escuro. Cria uma âncora muito pesada no
+                final do nome.</p>
+        </div>
+
+        <!-- V3 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v3" id="hover-target-3">
+                    <div id="render-v3"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Limpeza Total</div>
+            <h3>V3. O Gelo Base</h3>
+            <p>A prova dos nove com a Tipografia aumentada: Fundo Verde com tudo puramente branco sólido translúcido.
+                Uma pegada clínica impecável.</p>
+        </div>
+
+        <!-- V4 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v4" id="hover-target-4">
+                    <div id="render-v4"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Inversão Fundo V.1</div>
+            <h3>V4. O Fundo Musgo</h3>
+            <p>Isso traz muita autoridade. O fundo da pílula vira o Musgo escuro. O "Passa" acende como neon com o Verde
+                Base original, e o "Gene" branco apazigua e moderniza.</p>
+        </div>
+
+        <!-- V5 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v5" id="hover-target-5">
+                    <div id="render-v5"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Inversão Fundo V.2</div>
+            <h3>V5. Passa Branco, Gene Verde</h3>
+            <p>Ainda com o fundo escurão, o fluxo do olho pega primeiro o Branco puro e descansa no Verde brilhante. A
+                fita 3D lá dentro acompanha 100%.</p>
+        </div>
+
+        <!-- V6 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v6" id="hover-target-6">
+                    <div id="render-v6"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Modo Claro V.1</div>
+            <h3>V6. O Vazado Clean</h3>
+            <p>Pill Branca com Borda Colorida. Se as cores do layout do software e dashboard já forem pesadas, ele
+                garante que a marca não vai gritar na tela, vai só assinar digitalmente.</p>
+        </div>
+
+        <!-- V7 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v7" id="hover-target-7">
+                    <div id="render-v7"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Modo Claro V.2</div>
+            <h3>V7. Menta Calmo</h3>
+            <p>Um esverdeado pastel de fundo ao invés do Verde Neon Base. Muito comum em marcas contemporâneas por
+                abraçar logotipos Musgo muito escuros sem fatigar o olho.</p>
+        </div>
+
+        <!-- V8 -->
+        <div class="card">
+            <div class="logo-showcase">
+                <div class="opt-base interactive v8" id="hover-target-8">
+                    <div id="render-v8"></div>
+                    <div class="wordmark">Passa<span class="light">Gene</span></div>
+                </div>
+            </div>
+            <div class="badge">Dark Mode Preview</div>
+            <h3>V8. Preview de Tema Escuro</h3>
+            <p>Só pra exemplificar como qualquer uma dessas paletas verdes se comporta se a Pílula assumir o cinza
+                azulado das abas de navegadores e softwares em modo noturno corporativo.</p>
+        </div>
+
+    </div>
+
+    <script>
+        function createDNAComponent(containerId, size, strandColors) {
+            const parent = document.getElementById(containerId);
+
+            const numDots = 7;
+            const targetLength = size * (194 / 200);
+            const wrapperSize = targetLength / numDots;
+            const dotSize = wrapperSize * 0.93;
+
+            const delaySpan = 0.75;
+            const ANIM_DURATION = 1.5;
+
+            const container = document.createElement('div');
+            container.className = 'dna-container';
+
+            // Força a altura dinâmica do ícone pra ser a mesma altura máxima (48px de inner - padding da border) da pílula, preservando a matemática
+            container.style.width = '48px';
+            container.style.height = '48px';
+
+            const inner = document.createElement('div');
+            inner.className = 'dna-inner';
+
+            const dotsData = [];
+
+            for (let i = 0; i < numDots; i++) {
+                let delaySec = -((i / (numDots - 1)) * delaySpan);
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'dot-wrapper';
+                wrapper.style.width = wrapperSize + 'px';
+
+                const dotBase = document.createElement('div');
+                dotBase.className = 'dot';
+                dotBase.style.width = dotSize + 'px';
+                dotBase.style.height = dotSize + 'px';
+                dotBase.style.background = strandColors.front;
+                dotBase.style.left = `calc(50% - ${dotSize / 2}px)`;
+
+                const dotRev = document.createElement('div');
+                dotRev.className = 'dot';
+                dotRev.style.width = dotSize + 'px';
+                dotRev.style.height = dotSize + 'px';
+                dotRev.style.background = strandColors.back;
+                dotRev.style.left = `calc(50% - ${dotSize / 2}px)`;
+
+                wrapper.appendChild(dotBase);
+                wrapper.appendChild(dotRev);
+                inner.appendChild(wrapper);
+
+                dotsData.push({ dotBase, dotRev, delaySec });
+            }
+
+            container.appendChild(inner);
+            parent.appendChild(container);
+
+
+            function updateDots(timeProgress) {
+                dotsData.forEach(data => {
+                    const absTime = timeProgress - data.delaySec;
+                    const progress = ((absTime % ANIM_DURATION) + ANIM_DURATION) % ANIM_DURATION / ANIM_DURATION;
+                    const cosVal = Math.cos(progress * 2 * Math.PI);
+
+                    const top1Percent = 50 * (1 - cosVal);
+                    const scale1 = 0.75 + 0.25 * cosVal;
+                    const z1 = cosVal >= 0 ? 2 : 1;
+
+                    const bottom2Percent = 50 * (1 - cosVal);
+                    const scale2 = 0.75 - 0.25 * cosVal;
+                    const z2 = -cosVal >= 0 ? 2 : 1;
+
+                    data.dotBase.style.top = `calc(${top1Percent}% - ${(dotSize * top1Percent) / 100}px)`;
+                    data.dotBase.style.transform = `scale(${scale1})`;
+                    data.dotBase.style.zIndex = z1;
+
+                    data.dotRev.style.bottom = `calc(${bottom2Percent}% - ${(dotSize * bottom2Percent) / 100}px)`;
+                    data.dotRev.style.transform = `scale(${scale2})`;
+                    data.dotRev.style.zIndex = z2;
+                });
+            }
+
+            updateDots(0.0);
+            return updateDots;
+        }
+
+
+        // Paletas Coordenadas com as Classes CSS (Frente e Tras/Gene)
+        const configs = [
+            { id: 'render-v1', parentId: 'hover-target-1', colors: { front: '#064e3b', back: '#dcfce7' } },
+            { id: 'render-v2', parentId: 'hover-target-2', colors: { front: '#ffffff', back: '#064e3b' } },
+            { id: 'render-v3', parentId: 'hover-target-3', colors: { front: '#ffffff', back: 'rgba(255,255,255,0.7)' } },
+            { id: 'render-v4', parentId: 'hover-target-4', colors: { front: '#09C972', back: '#ffffff' } },
+            { id: 'render-v5', parentId: 'hover-target-5', colors: { front: '#ffffff', back: '#09C972' } },
+            { id: 'render-v6', parentId: 'hover-target-6', colors: { front: '#064e3b', back: '#09C972' } },
+            { id: 'render-v7', parentId: 'hover-target-7', colors: { front: '#064e3b', back: '#059669' } },
+            { id: 'render-v8', parentId: 'hover-target-8', colors: { front: '#ffffff', back: '#09C972' } }
+        ];
+
+        configs.forEach(conf => {
+            const root = document.getElementById(conf.id);
+
+            // Passamos 48px pois apertamos as margens e engessamos a altura do flex para 52px total. E o quadrado interno (com margens) do icone no padding vai a 48
+            const updateFrame = createDNAComponent(conf.id, 48, conf.colors);
+            const parentArea = document.getElementById(conf.parentId);
+
+            let animationFrameId;
+            let startTime = null;
+            let isHovered = false;
+
+            const animate = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const elapsedSec = (timestamp - startTime) / 1000;
+                updateFrame(elapsedSec);
+
+                if (isHovered) {
+                    animationFrameId = requestAnimationFrame(animate);
+                } else {
+                    updateFrame(0.0);
+                    startTime = null;
+                }
+            };
+
+            parentArea.addEventListener('mouseenter', () => {
+                isHovered = true;
+                startTime = null;
+                animationFrameId = requestAnimationFrame(animate);
+            });
+
+            parentArea.addEventListener('mouseleave', () => {
+                isHovered = false;
+            });
+        });
+
+    </script>
+</body>
+
+</html>

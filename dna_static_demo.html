@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview: Frame Zero (Simetria Torcida Customizada)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+        body {
+            background: #fafafa;
+            color: #333;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .dna-container {
+            background: #09C972;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .dna-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            transform: rotate(-45deg) scale(0.93);
+        }
+
+        .dot-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dot {
+            position: absolute;
+            border-radius: 50%;
+            background: #ffffff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Preview: Estático t=0s (Torcido 3D como na Imagem)</h1>
+    <p>Aqui está o frame exato que você desenhou! Uma fita contínua conectando 3 pontos grandes na esquerda, ao centro,
+        e acabando com mais 3 pontos grandes na direita. (Um twist/inversão de perspectiva perfeita da hélice).</p>
+
+    <div class="grid" id="grid"></div>
+
+    <script>
+        const SIZE = 200;
+        const targetLength = 194;
+
+        const grid = document.getElementById('grid');
+        const numDots = 7;
+        const wrapperSize = targetLength / numDots;
+        const dotSize = wrapperSize * 0.93;
+
+        const delaySpan = 0.75;
+        const ANIM_DURATION = 1.5;
+        const time = 0.0;
+
+        const card = document.createElement('div');
+        card.style.textAlign = 'center';
+
+        const container = document.createElement('div');
+        container.className = 'dna-container';
+        container.style.width = SIZE + 'px';
+        container.style.height = SIZE + 'px';
+        container.style.borderRadius = Math.round(SIZE * 0.2) + 'px';
+
+        const inner = document.createElement('div');
+        inner.className = 'dna-inner';
+
+        for (let i = 0; i < numDots; i++) {
+            let isFlipped = i > 3;
+            let delay = -((i / (numDots - 1)) * delaySpan);
+            if (isFlipped) {
+                delay -= 0.75; // Flipped perspective temporal shift
+            }
+
+            const absTime = time - delay;
+            const progress = ((absTime % ANIM_DURATION) + ANIM_DURATION) % ANIM_DURATION / ANIM_DURATION;
+            const cosVal = Math.cos(progress * 2 * Math.PI);
+
+            let top1Percent, scale1, z1, opacity1 = 1.0;
+            let bottom2Percent, scale2, z2, opacity2 = 1.0;
+
+            if (!isFlipped) {
+                top1Percent = 50 * (1 - cosVal);
+                scale1 = 0.75 + 0.25 * cosVal;
+                z1 = cosVal >= 0 ? 2 : 1;
+
+                bottom2Percent = 50 * (1 - cosVal);
+                scale2 = 0.75 - 0.25 * cosVal;
+                z2 = -cosVal >= 0 ? 2 : 1;
+            } else {
+                // Eixo Y Invertido para o Twist em 3D
+                top1Percent = 50 * (1 + cosVal);
+                scale1 = 0.75 + 0.25 * cosVal;
+                z1 = cosVal >= 0 ? 2 : 1;
+
+                bottom2Percent = 50 * (1 + cosVal);
+                scale2 = 0.75 - 0.25 * cosVal;
+                z2 = -cosVal >= 0 ? 2 : 1;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'dot-wrapper';
+            wrapper.style.width = wrapperSize + 'px';
+
+            const dotBase = document.createElement('div');
+            dotBase.className = 'dot';
+            dotBase.style.width = dotSize + 'px';
+            dotBase.style.height = dotSize + 'px';
+            dotBase.style.left = `calc(50% - ${dotSize / 2}px)`;
+            dotBase.style.top = `calc(${top1Percent}% - ${(dotSize * top1Percent) / 100}px)`;
+            dotBase.style.transform = `scale(${scale1})`;
+            dotBase.style.opacity = opacity1;
+            dotBase.style.zIndex = z1;
+
+            const dotRev = document.createElement('div');
+            dotRev.className = 'dot';
+            dotRev.style.width = dotSize + 'px';
+            dotRev.style.height = dotSize + 'px';
+            dotRev.style.left = `calc(50% - ${dotSize / 2}px)`;
+            dotRev.style.bottom = `calc(${bottom2Percent}% - ${(dotSize * bottom2Percent) / 100}px)`;
+            dotRev.style.transform = `scale(${scale2})`;
+            dotRev.style.opacity = opacity2;
+            dotRev.style.zIndex = z2;
+
+            wrapper.appendChild(dotBase);
+            wrapper.appendChild(dotRev);
+            inner.appendChild(wrapper);
+        }
+
+        container.appendChild(inner);
+
+        const label = document.createElement('div');
+        label.innerHTML = `<strong>Frame Estático 0s</strong><br/>Perspectiva Torcida 3D (Como na Imagem)`;
+
+        card.appendChild(container);
+        card.appendChild(label);
+
+        grid.appendChild(card);
+    </script>
+</body>
+
+</html>
