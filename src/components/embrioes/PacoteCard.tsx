@@ -99,6 +99,7 @@ export function PacoteCard({
               <button
                 onClick={onToggleExpandir}
                 className="flex-shrink-0 p-1 rounded-md hover:bg-muted transition-colors mt-0.5"
+                aria-label={expandido ? 'Colapsar detalhes' : 'Expandir detalhes'}
               >
                 {expandido ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />

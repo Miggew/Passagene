@@ -405,6 +405,7 @@ export default function AdminCatalogoTab() {
                   <button
                     onClick={() => toggleDestaque(item)}
                     className={`p-1.5 rounded-md transition-colors ${item.destaque ? 'bg-amber-500/20 text-amber-500' : 'bg-muted text-muted-foreground hover:text-amber-500'}`}
+                    aria-label="Favoritar"
                   >
                     <Star className={`w-4 h-4 ${item.destaque ? 'fill-current' : ''}`} />
                   </button>
@@ -423,12 +424,14 @@ export default function AdminCatalogoTab() {
                   <button
                     onClick={() => openEditDialog(item)}
                     className="p-1.5 rounded-md bg-transparent hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Editar"
                   >
                     <SquarePen className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(item)}
                     className="p-1.5 rounded-md bg-transparent hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
+                    aria-label="Excluir"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

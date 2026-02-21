@@ -49,6 +49,7 @@ const Header: React.FC<HeaderProps> = ({ showUserInfo = false }) => {
             size="icon-sm"
             onClick={toggleDarkMode}
             className="text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/80 transition-colors"
+            aria-label={isDark ? 'Modo claro' : 'Modo escuro'}
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>

@@ -77,21 +77,21 @@ export default function TopBar() {
                                         <button
                                             onClick={() => setTheme('light')}
                                             className={cn("p-1.5 rounded-full transition-colors", theme === 'light' && "bg-background shadow-sm text-foreground")}
-                                            title="Modo Claro"
+                                            aria-label="Modo Claro"
                                         >
                                             <Sun className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             onClick={() => setTheme('system')}
                                             className={cn("p-1.5 rounded-full transition-colors", theme === 'system' && "bg-background shadow-sm text-foreground")}
-                                            title="Automático (Sistema)"
+                                            aria-label="Automático (Sistema)"
                                         >
                                             <Laptop className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             onClick={() => setTheme('dark')}
                                             className={cn("p-1.5 rounded-full transition-colors", theme === 'dark' && "bg-background shadow-sm text-foreground")}
-                                            title="Modo Escuro"
+                                            aria-label="Modo Escuro"
                                         >
                                             <Moon className="w-3.5 h-3.5" />
                                         </button>

@@ -489,6 +489,7 @@ export default function RelatoriosMaterial() {
                 size="sm"
                 onClick={handleLimparFiltros}
                 className="h-11 md:h-9"
+                aria-label="Limpar filtros"
               >
                 <X className="w-4 h-4" />
               </Button>

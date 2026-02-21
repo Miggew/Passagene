@@ -285,7 +285,7 @@ export function AspiracaoDoadoras({
                                     return (
                                         <Badge key={id} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
                                             <span>{fazenda?.nome || 'Fazenda'}</span>
-                                            <button onClick={() => handleRemoveFazendaDestino(id)} className="hover:bg-muted rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                                            <button onClick={() => handleRemoveFazendaDestino(id)} className="hover:bg-muted rounded-full p-0.5" aria-label="Remover fazenda"><X className="w-3 h-3" /></button>
                                         </Badge>
                                     )
                                 })}

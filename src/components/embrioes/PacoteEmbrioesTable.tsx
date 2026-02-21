@@ -456,6 +456,7 @@ export function PacoteEmbrioesTable({
                 <button
                   onClick={() => onToggleSelecionarEmbriao(embriao.id)}
                   className="flex-shrink-0 p-1 rounded hover:bg-muted"
+                  aria-label="Selecionar embrião"
                 >
                   {selecionado ? (
                     <CheckSquare className="w-5 h-5 text-primary" />
@@ -518,6 +519,7 @@ export function PacoteEmbrioesTable({
                   <button
                     onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}
                     className="flex items-center gap-0.5"
+                    aria-label="Ver detalhes do score"
                   >
                     <EmbryoScoreBadge score={score} compact />
                     {classificacao && getDiscrepancy(classificacao, score.gemini_classification) && (

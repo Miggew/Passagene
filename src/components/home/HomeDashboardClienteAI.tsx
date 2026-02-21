@@ -28,6 +28,9 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
     <motion.div
       layoutId={`widget-${id}`}
       onClick={() => setExpandedWidget(id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedWidget(id); } }}
+      role="button"
+      tabIndex={0}
       className={`relative cursor-pointer group rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ${className}`}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
