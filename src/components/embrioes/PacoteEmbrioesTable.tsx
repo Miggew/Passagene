@@ -237,12 +237,10 @@ export function PacoteEmbrioesTable({
                 errorBody = await ctx.text();
               }
             } catch { /* ignore */ }
-            console.error(`[Redetect] Edge Function error body:`, errorBody || fnData);
             throw fnError;
           }
           invokeOk = true;
         } catch (invokeErr) {
-          console.warn(`[Redetect] invoke tentativa ${attempt + 1}/3 falhou:`, invokeErr);
           if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
         }
       }
