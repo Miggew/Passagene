@@ -70,7 +70,6 @@ const ClienteRelatoriosAI = lazy(() => import('./pages/cliente/ClienteRelatorios
 const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
 const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfiguracoes'));
 
-const EmbryoWorkbench = lazy(() => import('./pages/biologist/EmbryoWorkbench'));
 const Bancada = lazy(() => import('./pages/Bancada'));
 const QuickClassifyPage = lazy(() => import('./pages/QuickClassifyPage'));
 

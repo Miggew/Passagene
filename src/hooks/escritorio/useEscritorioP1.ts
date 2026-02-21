@@ -85,12 +85,12 @@ export function useEscritorioP1({ fazendaId }: UseP1Options) {
         if (error) throw new Error(`Erro ao criar receptora ${row.registro}: ${error.message}`);
         newIds.push(data.id);
 
-        // Criar vínculo com fazenda
-        await supabase.from('receptora_fazenda_historico').insert({
+        const { error: histError } = await supabase.from('receptora_fazenda_historico').insert({
           receptora_id: data.id,
           fazenda_id: fazendaId!,
           data_entrada: dataInicio,
         });
+        if (histError) throw new Error(`Erro ao vincular receptora ${row.registro} à fazenda: ${histError.message}`);
       }
 
       const allIds = [...existingIds, ...newIds];

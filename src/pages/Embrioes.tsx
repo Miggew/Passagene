@@ -260,7 +260,7 @@ export default function Embrioes() {
       });
 
       if (embrioesPendentes.length > 0) {
-        await Promise.all(
+        const results = await Promise.all(
           embrioesPendentes.map((embriao) =>
             supabase
               .from('embrioes')
@@ -271,12 +271,15 @@ export default function Embrioes() {
               .eq('id', embriao.id)
           )
         );
+        const failed = results.find(r => r.error);
+        if (failed?.error) { toast({ title: 'Erro ao classificar embriões', variant: 'destructive' }); throw failed.error; }
       }
 
-      await supabase
+      const { error: loteError } = await supabase
         .from('lotes_fiv')
         .update({ disponivel_para_transferencia: true })
         .eq('id', pacote.lote_fiv_id);
+      if (loteError) { toast({ title: 'Erro ao liberar lote para TE', variant: 'destructive' }); throw loteError; }
 
       toast({
         title: 'Pacote despachado',

@@ -175,7 +175,6 @@ export default function TransferenciaEmbrioes() {
   }, [pacoteSelecionado]);
   const hasD8Limite = embrioesDisponiveis.some((e: any) => e.d8_limite);
 
-  const numerosFixosEffectRuns = useRef(0);
   const numerosFixosMap = useMemo(() => {
     if (!formData.pacote_id || !pacoteSelecionado) {
       return new Map<string, number>();
@@ -460,11 +459,6 @@ export default function TransferenciaEmbrioes() {
       setFormData(prev => ({ ...prev, embriao_id: '' }));
     }
   }, [origemEmbriao, filtroClienteId, filtroRaca]);
-
-  useEffect(() => {
-    if (!formData.pacote_id || !pacoteSelecionado) return;
-    numerosFixosEffectRuns.current += 1;
-  }, [formData.pacote_id, pacoteSelecionado, numerosFixosMap]);
 
   useEffect(() => {
     const totalPaginas = Math.max(1, Math.ceil(embrioesDisponiveis.length / EMBRIOES_PAGE_SIZE));

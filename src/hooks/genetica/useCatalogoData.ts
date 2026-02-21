@@ -121,7 +121,8 @@ export function useCatalogoData() {
       }
 
       if (filters?.busca) {
-        query = query.or(`nome.ilike.%${filters.busca}%,registro.ilike.%${filters.busca}%`);
+        const safeBusca = filters.busca.replace(/[%,.*()]/g, '');
+        query = query.or(`nome.ilike.%${safeBusca}%,registro.ilike.%${safeBusca}%`);
       }
 
       const { data, error } = await query;
@@ -155,7 +156,8 @@ export function useCatalogoData() {
       }
 
       if (filters?.busca) {
-        query = query.or(`nome.ilike.%${filters.busca}%,registro.ilike.%${filters.busca}%`);
+        const safeBusca = filters.busca.replace(/[%,.*()]/g, '');
+        query = query.or(`nome.ilike.%${safeBusca}%,registro.ilike.%${safeBusca}%`);
       }
 
       const { data, error } = await query;

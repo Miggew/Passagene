@@ -409,7 +409,6 @@ export default function LotesFIV() {
             .maybeSingle();
 
           if (!mediaExists) {
-            console.warn(`EmbryoScore: media_id ${mediaId} não encontrado. Pulando.`);
             continue;
           }
 
@@ -419,9 +418,7 @@ export default function LotesFIV() {
               .from('embrioes')
               .update({ acasalamento_media_id: mediaId })
               .in('id', novosEmbrioesIds);
-            if (mediaLinkError) {
-              console.warn('EmbryoScore: falha ao vincular vídeo (não-bloqueante):', mediaLinkError.message);
-            }
+            if (mediaLinkError) { /* non-blocking */ }
           }
 
           // 3. Deduplicação: verificar se já existe job pending/processing para este media+acasalamento
@@ -451,9 +448,7 @@ export default function LotesFIV() {
               .select('id')
               .single();
 
-            if (queueError) {
-              console.warn('EmbryoScore: falha ao criar job de análise:', queueError.message);
-            }
+            if (queueError) { /* non-blocking */ }
             queueId = queueData?.id || null;
           }
 
@@ -463,9 +458,7 @@ export default function LotesFIV() {
               .from('embrioes')
               .update({ queue_id: queueId })
               .eq('lote_fiv_acasalamento_id', ac.acasalamento_id);
-            if (queueLinkError) {
-              console.warn('EmbryoScore: falha ao vincular queue_id:', queueLinkError.message);
-            }
+            if (queueLinkError) { /* non-blocking */ }
           }
 
           // 6. Disparar Edge Function automaticamente (não-bloqueante)
@@ -473,13 +466,9 @@ export default function LotesFIV() {
             queueIds.push(queueId);
             supabase.functions.invoke('embryo-analyze', {
               body: { queue_id: queueId },
-            }).catch(err => {
-              console.warn('EmbryoScore: falha ao invocar análise (não-bloqueante):', err);
-            });
+            }).catch(() => { /* non-blocking */ });
           }
-        } catch (embryoScoreErr) {
-          console.warn('EmbryoScore: erro não-bloqueante no processamento de vídeo:', embryoScoreErr);
-        }
+        } catch { /* non-blocking */ }
       }
 
       // Limpar vídeos após despacho
@@ -493,14 +482,16 @@ export default function LotesFIV() {
 
       setHistoricoDespachos([historicoDespacho, ...historicoDespachos]);
 
-      const updates = acasalamentosComQuantidade.map(ac =>
-        supabase
-          .from('lote_fiv_acasalamentos')
-          .update({ quantidade_embrioes: null })
-          .eq('id', ac.id)
+      const updates = await Promise.all(
+        acasalamentosComQuantidade.map(ac =>
+          supabase
+            .from('lote_fiv_acasalamentos')
+            .update({ quantidade_embrioes: null })
+            .eq('id', ac.id)
+        )
       );
-
-      await Promise.all(updates);
+      const failedUpdate = updates.find(r => r.error);
+      if (failedUpdate?.error) { toast({ title: 'Erro ao limpar quantidades', variant: 'destructive' }); }
 
       setEditQuantidadeEmbrioes({});
 
@@ -656,10 +647,11 @@ export default function LotesFIV() {
           onUpdateOocitos={async (acasalamentoId, quantidade) => {
             setEditOocitos(prev => ({ ...prev, [acasalamentoId]: quantidade }));
             const valorNumerico = parseInt(quantidade) || null;
-            await supabase
+            const { error } = await supabase
               .from('lote_fiv_acasalamentos')
               .update({ quantidade_oocitos: valorNumerico })
               .eq('id', acasalamentoId);
+            if (error) toast({ title: 'Erro ao salvar oócitos', variant: 'destructive' });
           }}
           onBlurOocitos={async () => {
             if (selectedLote) await loadLoteDetail(selectedLote.id);
@@ -669,12 +661,12 @@ export default function LotesFIV() {
               ...editClivados,
               [acasalamentoId]: quantidade,
             });
-            // Salvar no banco em background
             const valorNumerico = parseInt(quantidade) || null;
-            await supabase
+            const { error } = await supabase
               .from('lote_fiv_acasalamentos')
               .update({ embrioes_clivados_d3: valorNumerico })
               .eq('id', acasalamentoId);
+            if (error) toast({ title: 'Erro ao salvar clivados D3', variant: 'destructive' });
           }}
           editClivados={editClivados}
           videoMediaIds={videoMediaIds}

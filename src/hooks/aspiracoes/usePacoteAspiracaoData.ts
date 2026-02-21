@@ -172,10 +172,11 @@ export function usePacoteAspiracaoData({ pacoteId }: UsePacoteAspiracaoDataProps
 
   const updatePacoteTotal = useCallback(async (novoTotal: number) => {
     if (!pacoteId) return;
-    await supabase
+    const { error } = await supabase
       .from('pacotes_aspiracao')
       .update({ total_oocitos: novoTotal })
       .eq('id', pacoteId);
+    if (error) throw error;
   }, [pacoteId]);
 
   return {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users,
@@ -81,8 +82,8 @@ export default function HomeDashboardAdmin() {
         protocolosAbertos: protocolosRes.count || 0,
         lotesAbertos: lotesRes.count || 0,
       });
-    } catch (error) {
-      console.error('[HomeDashboardAdmin] Erro ao carregar dados:', error);
+    } catch {
+      toast.error('Erro ao carregar dados do dashboard');
     } finally {
       setLoading(false);
     }

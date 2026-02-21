@@ -8,7 +8,7 @@
  * Também monitora status da fila de análise.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { EmbryoScore, EmbryoAnalysisQueue } from '@/lib/types';
@@ -84,6 +84,7 @@ export function useAcasalamentoScores(acasalamentoId: string | undefined) {
 export function useEmbryoScoresBatch(embriaoIds: string[]) {
   const queryClient = useQueryClient();
   const realtimeConnected = useRef(false);
+  const sortedKey = useMemo(() => [...embriaoIds].sort().join(','), [embriaoIds]);
 
   // Realtime subscription para novos scores
   useEffect(() => {
@@ -102,7 +103,7 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
           const newScore = payload.new as { embriao_id?: string };
           if (newScore.embriao_id && embriaoIds.includes(newScore.embriao_id)) {
             queryClient.invalidateQueries({
-              queryKey: ['embryo-scores-batch', embriaoIds.sort().join(',')],
+              queryKey: ['embryo-scores-batch', sortedKey],
             });
           }
         }
@@ -115,10 +116,10 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
       supabase.removeChannel(channel);
       realtimeConnected.current = false;
     };
-  }, [embriaoIds.sort().join(','), queryClient]);
+  }, [sortedKey, queryClient, embriaoIds]);
 
   return useQuery<Record<string, EmbryoScore>>({
-    queryKey: ['embryo-scores-batch', embriaoIds.sort().join(',')],
+    queryKey: ['embryo-scores-batch', sortedKey],
     queryFn: async () => {
       if (!embriaoIds.length) return {};
 

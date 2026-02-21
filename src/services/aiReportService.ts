@@ -250,7 +250,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     .from('doadoras')
                     .select('id, nome, registro, prenhe, raca')
                     .in('fazenda_id', farmIds)
-                    .or(`nome.ilike.%${searchTag}%,registro.ilike.%${searchTag}%`)
+                    .or(`nome.ilike.%${searchTag.replace(/[%,.*()]/g, '')}%,registro.ilike.%${searchTag.replace(/[%,.*()]/g, '')}%`)
                     .limit(1);
 
                 if (doas && doas.length > 0) {

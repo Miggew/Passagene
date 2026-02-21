@@ -881,9 +881,9 @@ function RelatorioCard({ atividade, expanded, onToggle, onNavigate }: RelatorioC
 
           {/* Lista de detalhes */}
           <div className="border-l-2 border-primary/30 pl-3 space-y-0.5 max-h-[320px] overflow-y-auto">
-            {atividade.detalhes.map((det, i) => (
+            {atividade.detalhes.map((det) => (
               <div
-                key={i}
+                key={det.id}
                 onClick={() => {
                   if (atividade.tipo === 'aspiracao') {
                     onNavigate(`/doadoras/${det.id}`);
