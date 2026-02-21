@@ -236,6 +236,7 @@ const AppRoutes = () => {
 
             {/* Hub Relatórios */}
             <Route path="/laboratorio" element={<LaboratorioHome />} />
+            <Route path="/lotes-fiv" element={<LotesFIV />} />
             <Route path="/relatorios" element={<RelatoriosHome />} />
             <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
             <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />

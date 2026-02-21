@@ -64,77 +64,113 @@ function BarItem({ route, pathname, onClick }: { route: string; pathname: string
   );
 }
 
-// ─── Hub Button (Mitosis mode CSS-Only) ──────────────────────────────
-function HubButton({ hub, isActive, routes }: { hub: Hub, isActive: boolean, routes: string[] }) {
+// ─── Hub Button (Mitosis mode React State) ──────────────────────────────
+function HubButton({ hub, isActive, routes, side = 'left' }: { hub: Hub, isActive: boolean, routes: string[], side?: 'left' | 'right' }) {
   const { pathname } = useLocation();
   const Icon = hubIcons[hub.code] || Home;
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fechar ao mudar de rota
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   return (
-    <div className="relative group/mitosis flex-[1.2] flex flex-col items-center justify-end h-[60px] mx-0.5 pb-2">
-
-      {/* Células Filhas (Mitose para CIMA no MobileNav) */}
-      <div className="absolute bottom-[60px] left-1/2 -translate-x-1/2 flex flex-col-reverse items-center gap-4 pointer-events-none z-50 mb-2">
-        {routes.map((route, i) => {
-          const RouteIcon = routeIcons[route] || Home;
-          const label = route === '/relatorios' ? 'Relatórios' : (routeLabels[route] || route);
-          const isRouteActivenow = isRouteActive(pathname, route);
-
-          // Cascata CSS: Quanto maior o index (mais alto), maior o delay de saída
-          const delayClass = i === 0 ? "delay-75" : i === 1 ? "delay-100" : i === 2 ? "delay-150" : "delay-200";
-          const translateClass = i === 0 ? "translate-y-[20px]" : i === 1 ? "translate-y-[40px]" : i === 2 ? "translate-y-[60px]" : "translate-y-[80px]";
-
-          return (
-            <Link
-              key={route}
-              to={route}
-              className={cn(
-                "group/btn relative flex items-center justify-center pointer-events-auto transition-all duration-300 ease-in-out opacity-0 scale-50 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 focus-within:opacity-100 focus-within:translate-y-0 focus-within:scale-100",
-                translateClass,
-                delayClass
-              )}
-            >
-              {/* Etiqueta de Texto Neon Externa (Flutuando à direita do ícone) */}
-              <span className="absolute left-14 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md text-primary font-bold text-[11px] tracking-wide whitespace-nowrap shadow-lg opacity-0 -translate-x-4 pointer-events-none transition-all duration-300 group-hover/btn:opacity-100 group-hover/btn:translate-x-0">
-                {label}
-              </span>
-
-              {/* O Círculo Geométrico da Célula Filha */}
-              <div className={cn(
-                "w-12 h-12 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border-2 transition-all duration-300 group-hover/btn:border-primary/60",
-                isRouteActivenow ? "bg-primary border-transparent text-primary-foreground shadow-[0_0_15px_rgba(9,201,114,0.4)]" : "bg-[hsl(var(--logo-bg))] border-transparent text-white"
-              )}>
-                <RouteIcon className={cn("w-5 h-5", isRouteActivenow && "scale-110")} />
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Célula Mãe (O Botão na Barra Inferior) */}
+    <>
+      {/* Backdrop invisível para capturar clicks mais eficientemente e destacar os botões */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
       <div
-        className={cn(
-          "relative z-20 flex flex-col items-center justify-center w-12 h-12 rounded-full shadow-md transition-all duration-300",
-          "bg-[hsl(var(--logo-bg))] border border-white/5",
-          "group-hover/mitosis:scale-110 group-focus/mitosis:scale-110",
-          isActive ? "shadow-[0_0_15px_rgba(9,201,114,0.3)] ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : "hover:border-primary/50"
-        )}
+        ref={menuRef}
+        className="relative flex-[1.2] flex flex-col items-center justify-end h-[60px] mx-0.5 pb-2 z-50"
       >
-        {/* Camada interna de pulso */}
-        <div className="absolute inset-0 rounded-full border border-primary scale-90 opacity-0 group-hover/mitosis:opacity-100 group-hover/mitosis:scale-105 transition-all duration-500 pointer-events-none"></div>
-        <Icon className={cn(
-          'w-5 h-5 transition-transform duration-500',
-          isActive ? 'text-primary' : 'text-white',
-          'group-hover/mitosis:text-primary group-hover/mitosis:-translate-y-0.5'
-        )} />
+
+        {/* Células Filhas (Mitose para CIMA no MobileNav) */}
+        <div className={cn(
+          "absolute bottom-[70px] left-1/2 -translate-x-1/2 flex flex-col-reverse items-center gap-4 transition-all duration-300 ease-in-out",
+          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}>
+          {routes.map((route, i) => {
+            const RouteIcon = routeIcons[route] || Home;
+            const label = route === '/relatorios' ? 'Relatórios' : (routeLabels[route] || route);
+            const isRouteActivenow = isRouteActive(pathname, route);
+
+            const translateClass = isOpen ? "translate-y-0 scale-100" : (i === 0 ? "translate-y-[20px] scale-50" : i === 1 ? "translate-y-[40px] scale-50" : i === 2 ? "translate-y-[60px] scale-50" : "translate-y-[80px] scale-50");
+            const delayClass = isOpen ? (i === 0 ? "delay-[50ms]" : i === 1 ? "delay-[100ms]" : i === 2 ? "delay-[150ms]" : "delay-[200ms]") : "";
+
+            return (
+              <Link
+                key={route}
+                to={route}
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  "relative flex items-center justify-center transition-all duration-300 ease-out",
+                  translateClass,
+                  delayClass
+                )}
+              >
+                {/* Etiqueta de Texto Neon Externa (Flutuando ao lado do ícone) */}
+                <span className={cn(
+                  "absolute px-3 py-1.5 rounded-xl bg-card border border-border text-foreground font-bold text-[12px] whitespace-nowrap shadow-xl",
+                  side === 'left' ? "left-14" : "right-14"
+                )}>
+                  {label}
+                </span>
+
+                {/* O Círculo Geométrico da Célula Filha */}
+                <div className={cn(
+                  "w-12 h-12 rounded-full shadow-lg flex items-center justify-center border-2 transition-all duration-300 active:scale-95",
+                  isRouteActivenow ? "bg-primary border-primary text-primary-foreground shadow-[0_0_15px_rgba(9,201,114,0.4)]" : "bg-card border-border text-foreground hover:border-primary/50"
+                )}>
+                  <RouteIcon className={cn("w-5 h-5", isRouteActivenow && "scale-110")} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Célula Mãe (A Engrenagem de Click) */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "relative flex flex-col items-center justify-center w-12 h-12 rounded-full shadow-md transition-all duration-300 active:scale-95",
+            isOpen ? "bg-primary text-primary-foreground shadow-[0_0_20px_rgba(9,201,114,0.4)] ring-4 ring-primary/20 border-transparent" : "bg-card border border-border border-b-4",
+            isActive && !isOpen ? "text-primary border-primary/50 ring-2 ring-primary/20 ring-offset-2 ring-offset-background" : !isOpen ? "text-muted-foreground" : ""
+          )}
+        >
+          <Icon className={cn(
+            'w-5 h-5 transition-transform duration-300',
+            isOpen ? 'scale-110' : ''
+          )} />
+        </button>
+        <span className={cn(
+          "absolute -bottom-4 text-[10px] font-bold tracking-tight truncate max-w-[100%] transition-opacity duration-300 mt-1",
+          isActive || isOpen ? "text-primary opacity-100" : "text-muted-foreground opacity-80"
+        )}>
+          {hub.name}
+        </span>
       </div>
-      <span className={cn(
-        "absolute -bottom-4 text-[9px] font-extrabold tracking-tight truncate max-w-[90%] transition-opacity duration-300",
-        isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70",
-        "group-hover/mitosis:text-primary group-hover/mitosis:opacity-100"
-      )}>
-        {hub.name}
-      </span>
-    </div>
+    </>
   );
 }
 
@@ -172,13 +208,13 @@ function ClienteBottomBar() {
       <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-20">
         <button
           onClick={() => navigate('/cliente/ai-chat')}
-          className="group relative w-14 h-14 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_8px_20px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)]"
+          className="group relative w-16 h-16 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_8px_20px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)]"
         >
           <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
           </div>
-          <div className="relative z-10 group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none flex items-center justify-center pt-0.5">
-            <LogoPassagene height={28} showText={false} variant="hollow" />
+          <div className="relative z-10 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none flex items-center justify-center pt-0.5">
+            <LogoPassagene height={36} showText={false} variant="white" forceAnimate={true} />
           </div>
         </button>
       </div>
@@ -244,14 +280,14 @@ function StandardBottomBar() {
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50">
             <button
               onClick={() => navigate('/ai-chat')}
-              className="group relative w-12 h-12 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_4px_15px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)] border-[3px] border-card md:w-14 md:h-14 md:-top-7"
+              className="group relative w-14 h-14 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_4px_15px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)] border-[3px] border-card md:w-16 md:h-16 md:-top-8"
               title="Consultor IA Global"
             >
               <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
               </div>
-              <div className="relative z-10 group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none flex items-center justify-center pt-0.5">
-                <LogoPassagene height={24} showText={false} variant="hollow" />
+              <div className="relative z-10 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none flex items-center justify-center pt-0.5">
+                <LogoPassagene height={32} showText={false} variant="white" forceAnimate={true} />
               </div>
             </button>
           </div>
@@ -281,7 +317,7 @@ function StandardBottomBar() {
                   {realHubs.slice(0, Math.ceil(realHubs.length / 2)).map((hub) => {
                     const isActive = hub.routes.some((route) => isRouteActive(location.pathname, route));
                     const routes = hub.routes.filter(r => r !== '/');
-                    return <HubButton key={hub.code} hub={hub} isActive={isActive} routes={routes} />;
+                    return <HubButton key={hub.code} hub={hub} isActive={isActive} routes={routes} side="left" />;
                   })}
                 </div>
 
@@ -291,7 +327,7 @@ function StandardBottomBar() {
                   {realHubs.slice(Math.ceil(realHubs.length / 2)).map((hub) => {
                     const isActive = hub.routes.some((route) => isRouteActive(location.pathname, route));
                     const routes = hub.routes.filter(r => r !== '/');
-                    return <HubButton key={hub.code} hub={hub} isActive={isActive} routes={routes} />;
+                    return <HubButton key={hub.code} hub={hub} isActive={isActive} routes={routes} side="right" />;
                   })}
                 </div>
               </>

@@ -52,7 +52,7 @@ export default function HubTabs() {
                     className={cn(
                       'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap',
                       isActive
-                        ? 'bg-primary/5 text-[hsl(var(--logo-bg))] border-b-[3px] border-[hsl(var(--logo-bg))] font-bold'
+                        ? 'bg-primary/5 text-primary border-b-[3px] border-primary font-bold'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted border-b-2 border-transparent'
                     )}
                   >

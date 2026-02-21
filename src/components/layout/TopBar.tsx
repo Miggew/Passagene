@@ -57,7 +57,7 @@ function TopBarAnalysisBadge() {
                 <LoaderDNA size={16} variant="accent" />
             </div>
             <div className="flex flex-col hidden sm:flex justify-center -space-y-0.5">
-                <span className="text-[9px] font-extrabold text-[hsl(var(--logo-bg))] uppercase tracking-wider leading-tight">
+                <span className="text-[9px] font-extrabold text-primary uppercase tracking-wider leading-tight">
                     IA: {queueData.processing} {queueData.pending > 0 && `+${queueData.pending}`}
                 </span>
                 {queueData.oldestStartedAt && queueData.processing > 0 && (
@@ -86,6 +86,19 @@ export default function TopBar() {
     const { signOut } = useAuth();
     const { profile } = usePermissions();
     const { theme, setTheme } = useTheme();
+
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -121,58 +134,79 @@ export default function TopBar() {
 
                     <TopBarAnalysisBadge />
 
-                    <div className="relative group/mitosis ml-2 flex items-center justify-center">
+                    <div
+                        className="relative ml-2 flex items-center justify-center"
+                        ref={menuRef}
+                    >
 
                         {/* Filhas Mitóticas (Sub-menus) - Estouram p/ BAIXO no Desktop/TopBar */}
-                        <div className="absolute top-10 right-0 flex flex-col items-end gap-3 pointer-events-none z-50 mt-1">
+                        <div className={cn(
+                            "absolute top-10 right-0 flex flex-col items-end gap-3 z-40 mt-1 transition-all duration-300",
+                            isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                        )}>
 
                             {/* Tema */}
                             <button
-                                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                                className="group/btn flex items-center justify-end gap-3 pointer-events-auto transition-all duration-300 ease-in-out opacity-0 translate-y-[-20px] scale-75 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 delay-75"
+                                onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setIsMenuOpen(false); }}
+                                className={cn(
+                                    "group/btn flex items-center justify-end gap-3 transition-all duration-300 ease-out",
+                                    isMenuOpen ? "translate-y-0 scale-100 delay-[50ms]" : "translate-y-[-20px] scale-75"
+                                )}
                                 aria-label="Alternar Tema"
                             >
-                                <span className="px-2.5 py-1 rounded-full bg-black/60 dark:bg-black/80 backdrop-blur-md text-primary font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
+                                <span className="px-2.5 py-1 rounded-full bg-card border border-border text-foreground font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
                                     {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
                                 </span>
-                                <div className="w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-lg flex items-center justify-center border-2 border-transparent group-hover/btn:border-primary/50 transition-colors">
-                                    {theme === 'dark' ? <Sun className="w-4 h-4 text-white" /> : <Moon className="w-4 h-4 text-white" />}
+                                <div className="w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center border-2 border-border group-hover/btn:border-primary/50 transition-colors">
+                                    {theme === 'dark' ? <Sun className="w-4 h-4 text-foreground" /> : <Moon className="w-4 h-4 text-foreground" />}
                                 </div>
                             </button>
 
                             {/* Preferencias */}
                             <button
-                                className="group/btn flex items-center justify-end gap-3 pointer-events-auto transition-all duration-300 ease-in-out opacity-0 translate-y-[-40px] scale-75 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 delay-100"
+                                onClick={() => setIsMenuOpen(false)}
+                                className={cn(
+                                    "group/btn flex items-center justify-end gap-3 transition-all duration-300 ease-out",
+                                    isMenuOpen ? "translate-y-0 scale-100 delay-[100ms]" : "translate-y-[-40px] scale-75"
+                                )}
                             >
-                                <span className="px-2.5 py-1 rounded-full bg-black/60 dark:bg-black/80 backdrop-blur-md text-primary font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
+                                <span className="px-2.5 py-1 rounded-full bg-card border border-border text-foreground font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
                                     Preferências
                                 </span>
-                                <div className="w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-lg flex items-center justify-center border-2 border-transparent group-hover/btn:border-primary/50 transition-colors">
-                                    <User className="w-4 h-4 text-white" />
+                                <div className="w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center border-2 border-border group-hover/btn:border-primary/50 transition-colors">
+                                    <User className="w-4 h-4 text-foreground" />
                                 </div>
                             </button>
 
                             {/* Sair */}
                             <button
                                 onClick={signOut}
-                                className="group/btn flex items-center justify-end gap-3 pointer-events-auto transition-all duration-300 ease-in-out opacity-0 translate-y-[-60px] scale-75 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 delay-150 relative"
+                                className={cn(
+                                    "group/btn flex items-center justify-end gap-3 transition-all duration-300 ease-out relative",
+                                    isMenuOpen ? "translate-y-0 scale-100 delay-[150ms]" : "translate-y-[-60px] scale-75"
+                                )}
                             >
-                                {/* Pingo de alerta vermelho indicando destructive */}
                                 <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500 z-10 animate-pulse border border-background"></div>
-                                <span className="px-2.5 py-1 rounded-full bg-black/60 dark:bg-black/80 backdrop-blur-md text-red-400 font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
+                                <span className="px-2.5 py-1 rounded-full bg-card border border-border text-red-500 font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
                                     Sair do Sistema
                                 </span>
-                                <div className="w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-lg flex items-center justify-center border-2 border-transparent group-hover/btn:border-red-500/50 transition-colors">
-                                    <LogOut className="w-4 h-4 text-white" />
+                                <div className="w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center border-2 border-border group-hover/btn:border-red-500/50 transition-colors">
+                                    <LogOut className="w-4 h-4 text-red-500" />
                                 </div>
                             </button>
                         </div>
 
-                        {/* Célula Mãe (A Engrenagem de Hover) */}
-                        <div className="relative z-20 w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-md flex items-center justify-center cursor-pointer transition-transform duration-300 group-hover/mitosis:scale-110">
-                            <Settings className="w-5 h-5 text-white transition-transform duration-500 group-hover/mitosis:rotate-90 group-hover/mitosis:text-primary" />
-                            {/* Inner membrane ring that pulses on hover */}
-                            <div className="absolute inset-0 rounded-full border-2 border-primary scale-90 opacity-0 group-hover/mitosis:opacity-100 transition-all duration-500 group-hover/mitosis:scale-110"></div>
+                        {/* Célula Mãe (A Engrenagem de Click) */}
+                        <div
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className={cn(
+                                "relative z-50 w-10 h-10 rounded-full shadow-md flex items-center justify-center cursor-pointer transition-transform duration-300 active:scale-95",
+                                isMenuOpen ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(9,201,114,0.4)] ring-2 ring-primary/20" : "bg-card border border-border text-muted-foreground hover:border-primary/50"
+                            )}>
+                            <Settings className={cn(
+                                "w-5 h-5 transition-transform duration-500",
+                                isMenuOpen ? "rotate-90 scale-110 text-primary-foreground" : "text-foreground"
+                            )} />
                         </div>
 
                     </div>

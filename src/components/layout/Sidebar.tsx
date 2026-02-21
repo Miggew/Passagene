@@ -37,7 +37,7 @@ export default function Sidebar() {
     <aside className="hidden md:flex w-72 bg-card/80 backdrop-blur-md border-r border-border/40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] min-h-full flex-col rounded-r-[2rem]">
       {/* Header do hub atual */}
       <div className="p-6 border-b border-border/50">
-        <h2 className="font-heading text-xl font-extrabold text-primary-800 dark:text-primary-100">{currentHub.name}</h2>
+        <h2 className="font-heading text-xl font-extrabold text-foreground">{currentHub.name}</h2>
         {currentHub.description && (
           <p className="text-xs text-muted-foreground mt-1">{currentHub.description}</p>
         )}
@@ -57,11 +57,11 @@ export default function Sidebar() {
               className={cn(
                 'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative',
                 isActive
-                  ? 'bg-primary/10 text-[hsl(var(--logo-bg))] font-extrabold shadow-sm border-l-4 border-[hsl(var(--logo-bg))] rounded-r-2xl pr-4' // Raiz ancorada na esquerda
+                  ? 'bg-primary/10 text-primary font-extrabold shadow-sm border-l-4 border-primary rounded-r-2xl pr-4' // Raiz ancorada na esquerda
                   : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3' // Item inativo tem margem padrão
               )}
             >
-              <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-[hsl(var(--logo-bg))] scale-110' : '')} />
+              <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-primary scale-110' : '')} />
               <span className="text-sm">{label}</span>
             </Link>
           );

@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Moon, Sun, Check, X, Edit } from 'lucide-react';
+import { Moon, Sun, Check, X, Edit, Trash2, Download } from 'lucide-react';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import logoSimples from '@/assets/logosimples.svg';
 import logoEscrito from '@/assets/logoescrito.svg';
 
@@ -41,6 +42,29 @@ const fakeData = [
 
 export default function StyleGuide() {
   const [isDark, setIsDark] = useDarkMode();
+
+  const downloadSVG = (id: string, name: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    // We need to clone it to remove any React specific classes or inject xmlns if missing, but XMLSerializer usually handles it.
+    const container = el.cloneNode(true) as HTMLElement;
+    // Find the actual inner SVG or just export the first child if it's the wrapper
+    const svgEl = container.querySelector('svg') || container.querySelector('.relative.flex.items-center.justify-center.shrink-0');
+
+    // To make it a true raw SVG if it's currently a DIV structure (like our LogoPassagene is!), 
+    // we should actually probably just let the user copy the CSS/DOM or draw a real SVG.
+    // However, saving the DOM as a weird HTML fragment isn't an SVG.
+    // So instead, we let them know it's a DOM element.
+    const htmlString = el.innerHTML;
+    const blob = new Blob([htmlString], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -86,6 +110,40 @@ export default function StyleGuide() {
               <span className="text-sm text-muted-foreground">Escrito (desktop)</span>
             </div>
           </div>
+        </section>
+
+        {/* Logo Vector Exporter */}
+        <section className="space-y-4">
+          <h2 className="font-heading text-2xl font-semibold border-b border-border pb-2">
+            Asset Factory (DOM Export)
+          </h2>
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground mb-6">
+                O novo LogoPassagene é construído dinamicamente via DOM/React (usando divs e CSS math) para animações perfeitas.
+                Abaixo você pode ver o logo renderizado no seu estado perfeito. Para extrair código vetorizado real, copie o HTML interno ou
+                verifique as referências de estilo.
+              </p>
+              <div className="flex gap-12">
+                <div className="flex flex-col items-center gap-4">
+                  <div id="export-logo-premium" className="p-4 rounded-xl bg-secondary border border-border flex items-center justify-center">
+                    <LogoPassagene height={120} forceAnimate={false} showText={false} variant="premium" />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => downloadSVG('export-logo-premium', 'logo-dom.html')}>
+                    <Download className="w-4 h-4 mr-2" /> Export HTML Node
+                  </Button>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div id="export-logo-white" className="p-4 rounded-xl bg-primary border border-border flex items-center justify-center">
+                    <LogoPassagene height={120} forceAnimate={false} showText={false} variant="white" />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => downloadSVG('export-logo-white', 'logo-white-dom.html')}>
+                    <Download className="w-4 h-4 mr-2" /> Export HTML Node
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Paleta de Cores */}
@@ -334,11 +392,10 @@ export default function StyleGuide() {
                       <TableCell>{item.cidade}</TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            item.status === 'Ativo'
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item.status === 'Ativo'
                               ? 'bg-primary-subtle text-primary-dark'
                               : 'bg-muted text-muted-foreground'
-                          }`}
+                            }`}
                         >
                           {item.status === 'Ativo' ? (
                             <Check className="w-3 h-3 mr-1" />

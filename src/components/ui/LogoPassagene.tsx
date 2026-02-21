@@ -9,16 +9,20 @@ interface LogoPassageneProps {
     /** Variante do Logo: 
      * 'premium' = Fundo Musgo, Passa Verde Neon, Gene Branco (V4 Aprovada) 
      * 'hollow' = Fundo Transparente, letreiros Verde Musgo
+     * 'white' = Fundo Transparente, filamentos 100% brancos (ideal para botões coloridos)
      */
-    variant?: 'premium' | 'hollow';
+    variant?: 'premium' | 'hollow' | 'white';
     /** Exibe a tipografia "PassaGene"? Se falso, exibe apenas a pílula encostada. */
     showText?: boolean;
+    /** Força o DNA a ficar se movendo independentemente do hover (Útil para botões de IA) */
+    forceAnimate?: boolean;
 }
 
 export const LogoPassagene: React.FC<LogoPassageneProps> = ({
     height = 52,
     variant = 'premium',
     showText = true,
+    forceAnimate = false,
 } = {}) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +33,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
 
     // Configurações Matemáticas Inquebráveis
     const numDots = 7;
-    const innerSize = height - 4; // Subtraímos o padding mínimo da cápsula
+    const innerSize = height; // Bola perfeita
     const targetLength = innerSize * (194 / 200); // Proporção exata do desenho vetorial original
     const wrapperSize = targetLength / numDots;
     const dotSize = wrapperSize * 0.93;
@@ -40,13 +44,22 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
     // Definição de Cores Baseada na Variante
     const getColors = () => {
         switch (variant) {
+            case 'white':
+                return {
+                    bg: 'transparent',
+                    frontStrand: '#ffffff',
+                    backStrand: 'rgba(255, 255, 255, 0.5)',
+                    textPassa: '#ffffff',
+                    textGene: 'rgba(255, 255, 255, 0.7)'
+                };
             case 'premium':
                 return {
                     bg: 'hsl(var(--logo-bg))',
                     frontStrand: 'hsl(var(--logo-front))',
                     backStrand: 'hsl(var(--logo-back))',
-                    textPassa: 'hsl(var(--logo-passa))',
-                    textGene: 'hsl(var(--logo-gene))'
+                    // Texto fora do badge usa cores que se adaptam ao tema
+                    textPassa: 'hsl(var(--logo-hollow-passa))',
+                    textGene: 'hsl(var(--logo-hollow-gene))'
                 };
             case 'hollow':
             default:
@@ -104,7 +117,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
             const elapsedSec = (timestamp - startTime) / 1000;
             updateDots(elapsedSec);
 
-            if (isHovered) {
+            if (isHovered || forceAnimate) {
                 animFrameRef.current = requestAnimationFrame(animate);
             } else {
                 // Encerra e congela de volta na raiz no próximo frame
@@ -113,7 +126,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
             }
         };
 
-        if (isHovered) {
+        if (isHovered || forceAnimate) {
             animFrameRef.current = requestAnimationFrame(animate);
         }
 
@@ -137,11 +150,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
             className="flex items-center cursor-pointer select-none transition-transform hover:-translate-y-[2px]"
             style={{
                 height: `${height}px`,
-                backgroundColor: colors.bg,
-                borderRadius: '50px',
-                padding: showText ? '2px 20px 2px 4px' : '2px 4px',
-                gap: '10px',
-                boxShadow: variant === 'premium' ? '0 6px 20px rgba(0, 0, 0, 0.08)' : 'none',
+                gap: '8px',
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -149,7 +158,13 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
             {/* SÍMBOLO DNA */}
             <div
                 className="relative flex items-center justify-center shrink-0 overflow-hidden"
-                style={{ width: `${innerSize}px`, height: `${innerSize}px` }}
+                style={{
+                    width: `${innerSize}px`,
+                    height: `${innerSize}px`,
+                    backgroundColor: colors.bg,
+                    borderRadius: '50%',
+                    boxShadow: variant === 'premium' ? '0 4px 14px rgba(0, 0, 0, 0.1)' : 'none'
+                }}
             >
                 <div
                     className="flex items-center justify-center h-[60%]"
