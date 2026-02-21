@@ -34,6 +34,18 @@ Deno.serve(async (req: Request) => {
   let queue_id: string | undefined;
 
   try {
+    // ─── Auth: validate JWT ─────────────────────────
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) return errorResponse('Missing Authorization header', 401);
+
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) return errorResponse('Unauthorized: Invalid token', 401);
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
