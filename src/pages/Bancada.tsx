@@ -308,7 +308,7 @@ function EmbryoExpandedRow({ emb, onReclassify }: {
         {/* Crop */}
         <div className="shrink-0">
           {cropUrl ? (
-            <img src={cropUrl} alt="Embrião" className="w-24 h-24 rounded-lg border border-border object-cover" />
+            <img src={cropUrl} alt="Embrião" className="w-24 h-24 rounded-lg border border-border object-cover" loading="lazy" />
           ) : (
             <div className="w-24 h-24 rounded-lg border border-border bg-muted/30 flex items-center justify-center text-[10px] text-muted-foreground">
               Sem imagem
@@ -318,7 +318,7 @@ function EmbryoExpandedRow({ emb, onReclassify }: {
         {/* Motion map */}
         <div className="shrink-0">
           {motionUrl ? (
-            <img src={motionUrl} alt="Mapa cinético" className="w-24 h-24 rounded-lg border border-border object-cover" />
+            <img src={motionUrl} alt="Mapa cinético" className="w-24 h-24 rounded-lg border border-border object-cover" loading="lazy" />
           ) : (
             <div className="w-24 h-24 rounded-lg border border-border bg-muted/30 flex items-center justify-center text-[10px] text-muted-foreground">
               Sem mapa

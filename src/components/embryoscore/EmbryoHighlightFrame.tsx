@@ -81,6 +81,7 @@ export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightF
             ? `Embrião — ${score.gemini_classification}`
             : `Embrião — ${score.classification} (Score ${Math.round(score.embryo_score)})`}
           className="w-full h-full object-cover"
+          loading="lazy"
         />
       )}
 

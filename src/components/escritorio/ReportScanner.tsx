@@ -84,7 +84,7 @@ export default function ReportScanner({ onResult, onImageUrl, uploadAndProcess, 
     return (
       <div className="space-y-3">
         <div className="relative rounded-lg overflow-hidden border border-border max-h-48">
-          <img src={preview} alt="Preview do relatório" className="w-full h-full object-contain" />
+          <img src={preview} alt="Preview do relatório" className="w-full h-full object-contain" loading="lazy" />
         </div>
         <Button
           variant="outline"
@@ -126,6 +126,7 @@ export default function ReportScanner({ onResult, onImageUrl, uploadAndProcess, 
               src={preview}
               alt="Preview do relatório"
               className="w-full h-full object-contain"
+              loading="lazy"
               onLoad={() => { if (onImageUrl && preview) onImageUrl(preview); }}
             />
           </div>

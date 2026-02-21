@@ -34,7 +34,8 @@ export default function EscritorioP1({ hideHeader }: EscritorioP1Props = {}) {
   const { data: fazendas } = useQuery({
     queryKey: ['fazendas-select'],
     queryFn: async () => {
-      const { data } = await supabase.from('fazendas').select('id, nome').order('nome');
+      const { data, error } = await supabase.from('fazendas').select('id, nome').order('nome');
+      if (error) { toast.error('Erro ao carregar fazendas'); return []; }
       return data || [];
     },
   });

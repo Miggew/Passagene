@@ -544,6 +544,7 @@ export function PacoteEmbrioesTable({
                     onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}
                     className={`h-8 w-8 p-0 ${expandedScoreId === embriao.id ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/5'}`}
                     title="Ver análise detalhada"
+                    aria-label="Ver análise detalhada"
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
@@ -680,7 +681,7 @@ export function PacoteEmbrioesTable({
                 {/* Menu ações - 44x44px touch target */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded hover:bg-muted active:bg-muted/80">
+                    <button className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded hover:bg-muted active:bg-muted/80" aria-label="Mais opções">
                       <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
                     </button>
                   </DropdownMenuTrigger>
@@ -857,6 +858,7 @@ export function PacoteEmbrioesTable({
               onClick={() => onSetPagina(Math.max(1, pagina - 1))}
               disabled={pagina === 1}
               className="h-8 w-8 p-0"
+              aria-label="Anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -895,6 +897,7 @@ export function PacoteEmbrioesTable({
               onClick={() => onSetPagina(Math.min(totalPaginas, pagina + 1))}
               disabled={pagina === totalPaginas}
               className="h-8 w-8 p-0"
+              aria-label="Próximo"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>

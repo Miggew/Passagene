@@ -78,6 +78,7 @@ export default function ZoomableImage({ urls, className }: ZoomableImageProps) {
           src={urls[pageIdx]}
           alt={`Relatório página ${pageIdx + 1}`}
           draggable={false}
+          loading="lazy"
           className="w-full h-full object-contain origin-center pointer-events-none"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
@@ -90,26 +91,26 @@ export default function ZoomableImage({ urls, className }: ZoomableImageProps) {
       <div className="flex items-center justify-center gap-1 flex-wrap">
         {urls.length > 1 && (
           <>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pageIdx === 0} onClick={() => switchPage(pageIdx - 1)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pageIdx === 0} onClick={() => switchPage(pageIdx - 1)} aria-label="Anterior">
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-xs text-muted-foreground px-1">
               Pág. {pageIdx + 1}/{urls.length}
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pageIdx === urls.length - 1} onClick={() => switchPage(pageIdx + 1)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pageIdx === urls.length - 1} onClick={() => switchPage(pageIdx + 1)} aria-label="Próximo">
               <ChevronRight className="w-4 h-4" />
             </Button>
             <div className="w-px h-5 bg-border mx-1" />
           </>
         )}
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomOut}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomOut} aria-label="Diminuir zoom">
           <ZoomOut className="w-4 h-4" />
         </Button>
         <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomIn}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomIn} aria-label="Aumentar zoom">
           <ZoomIn className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetView} title="Resetar zoom">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetView} title="Resetar zoom" aria-label="Resetar zoom">
           <Maximize2 className="w-4 h-4" />
         </Button>
       </div>

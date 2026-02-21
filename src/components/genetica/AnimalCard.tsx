@@ -69,6 +69,7 @@ export function AnimalCard({
             src={foto}
             alt={displayNome}
             className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">

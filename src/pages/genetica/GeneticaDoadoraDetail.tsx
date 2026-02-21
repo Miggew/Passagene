@@ -107,6 +107,7 @@ export default function GeneticaDoadoraDetail() {
                 src={foto}
                 alt={displayNome}
                 className="w-full aspect-[4/3] object-cover"
+                loading="lazy"
               />
             ) : (
               <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center">
@@ -127,6 +128,7 @@ export default function GeneticaDoadoraDetail() {
                     src={fotoUrl}
                     alt={`${displayNome} - Foto ${index + 1}`}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 </div>
               ))}

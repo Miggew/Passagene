@@ -102,6 +102,7 @@ export function VideoUploadButton({
             disabled={disabled}
             className="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="Adicionar arquivo de video"
+            aria-label="Adicionar arquivo de video"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>

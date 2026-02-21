@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Clock, AlertTriangle, Microscope, Save, CheckCircle, Activity, Info, Snowflake } from 'lucide-react';
+import { AlertTriangle, Microscope, CheckCircle, Activity, Info, Snowflake } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useEmbryoAnalysis, EnrichedEmbryoScore } from '@/hooks/useEmbryoAnalysis';
@@ -233,9 +233,10 @@ export default function EmbryoWorkbench() {
                                                 src={`data:image/jpeg;base64,${selectedEmbryo.composite_base64}`}
                                                 className="h-full object-contain"
                                                 alt="Análise Composta"
+                                                loading="lazy"
                                             />
                                         ) : (cropImageUrl ? (
-                                            <img src={cropImageUrl} className="h-full object-contain" alt="Crop" />
+                                            <img src={cropImageUrl} className="h-full object-contain" alt="Crop" loading="lazy" />
                                         ) : (
                                             <div className="text-slate-500 flex flex-col items-center">
                                                 <Microscope className="w-12 h-12 mb-3 opacity-20" />
@@ -250,7 +251,7 @@ export default function EmbryoWorkbench() {
                                     <Card className="bg-slate-100 border-dashed border-2 flex items-center justify-center relative overflow-hidden">
                                         {plateFrameUrl && (
                                             <>
-                                                <img src={plateFrameUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                                                <img src={plateFrameUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="Frame da placa" loading="lazy" />
                                                 {/* Highlight Box */}
                                                 {selectedEmbryo.bbox_x_percent != null && (
                                                     <div

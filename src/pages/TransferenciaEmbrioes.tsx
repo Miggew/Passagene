@@ -11,13 +11,6 @@ import RelatorioTransferenciaDialog from '@/components/transferencia/RelatorioTr
 import { TransferenciaEmbrioesFilters } from '@/components/transferencia/TransferenciaEmbrioesFilters';
 import { TransferenciaSessao } from '@/components/transferencia/TransferenciaSessao';
 import {
-  CalendarDays,
-  CheckCircle,
-  TrendingUp,
-  Eye,
-  AlertTriangle,
-} from 'lucide-react';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,

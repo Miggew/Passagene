@@ -778,6 +778,7 @@ export default function LotesFIV() {
                       setFiltroFazendaAspiracaoBusca('');
                       setShowFazendaBusca(false);
                     }}
+                    aria-label="Limpar filtro"
                   >
                     <X className="h-4 w-4" />
                   </Button>

@@ -121,6 +121,7 @@ export function NewsWidget({ compact = false }: { compact?: boolean }) {
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     onClick={fetchNews}
                     disabled={loading}
+                    aria-label="Atualizar"
                 >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>

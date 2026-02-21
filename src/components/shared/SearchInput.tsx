@@ -45,6 +45,7 @@ export function SearchInput({
             size="sm"
             className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted"
             onClick={() => onChange('')}
+            aria-label="Limpar busca"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </Button>

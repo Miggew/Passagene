@@ -660,7 +660,7 @@ export default function RelatoriosProducao() {
                     <div className="px-3 py-3 flex justify-center">{getTaxaBadge(row.taxa_sucesso)}</div>
                     <div className="px-3 py-3 flex justify-center">{getStatusBadge(row.status)}</div>
                     <div className="px-2 py-3 flex justify-center">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Visualizar">
                         <Eye className="w-4 h-4" />
                       </Button>
                     </div>

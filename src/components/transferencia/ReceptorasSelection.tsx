@@ -123,6 +123,7 @@ export default function ReceptorasSelection({
                 className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                 disabled={submitting}
                 title="Descartar receptora"
+                aria-label="Descartar receptora"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>

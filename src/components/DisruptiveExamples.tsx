@@ -55,6 +55,7 @@ export default function DisruptiveExamples() {
                             {/* Botões Filhos (Células menores) */}
                             <button
                                 title="Atividades"
+                                aria-label="Atividades"
                                 className={`absolute w-14 h-14 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white shadow-xl shadow-emerald-600/30 transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-10 ${mitosisOpen ? 'translate-y-[-85px]' : 'translate-y-0 scale-50 opacity-0'
                                     }`}
                             >
@@ -63,6 +64,7 @@ export default function DisruptiveExamples() {
 
                             <button
                                 title="Amostras"
+                                aria-label="Amostras"
                                 className={`absolute w-14 h-14 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white shadow-xl shadow-emerald-600/30 transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] delay-75 z-10 ${mitosisOpen ? 'translate-x-[80px] translate-y-[35px]' : 'translate-x-0 translate-y-0 scale-50 opacity-0'
                                     }`}
                             >
@@ -71,6 +73,7 @@ export default function DisruptiveExamples() {
 
                             <button
                                 title="Relatórios"
+                                aria-label="Relatórios"
                                 className={`absolute w-14 h-14 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white shadow-xl shadow-emerald-600/30 transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] delay-150 z-10 ${mitosisOpen ? 'translate-x-[-80px] translate-y-[35px]' : 'translate-x-0 translate-y-0 scale-50 opacity-0'
                                     }`}
                             >
@@ -81,6 +84,7 @@ export default function DisruptiveExamples() {
                             <button
                                 onClick={() => setMitosisOpen(!mitosisOpen)}
                                 className="absolute w-16 h-16 bg-[#09C972] hover:bg-emerald-500 rounded-full flex items-center justify-center text-white z-20 transition-transform active:scale-95 shadow-2xl shadow-emerald-600/40"
+                                aria-label={mitosisOpen ? 'Fechar menu' : 'Abrir menu'}
                             >
                                 {mitosisOpen ? <X size={28} /> : <Plus size={28} className="animate-pulse" />}
                             </button>
@@ -187,26 +191,26 @@ export default function DisruptiveExamples() {
                             </svg>
 
                             <div className="relative z-10 w-full flex justify-between px-6 pt-5 items-start h-full pb-4">
-                                <button className="text-slate-400 hover:text-[#09C972] transition-colors flex flex-col items-center gap-1 group">
+                                <button className="text-slate-400 hover:text-[#09C972] transition-colors flex flex-col items-center gap-1 group" aria-label="Menu">
                                     <Menu size={22} className="group-hover:-translate-y-1 transition-transform" />
                                 </button>
-                                <button className="text-slate-400 hover:text-[#09C972] transition-colors flex flex-col items-center gap-1 group">
+                                <button className="text-slate-400 hover:text-[#09C972] transition-colors flex flex-col items-center gap-1 group" aria-label="Pesquisar">
                                     <Search size={22} className="group-hover:-translate-y-1 transition-transform" />
                                 </button>
 
                                 {/* Espaço vazio para o botão central que afundou */}
                                 <div className="w-[60px]"></div>
 
-                                <button className="text-slate-400 hover:text-[#09C972] transition-colors flex flex-col items-center gap-1 group">
+                                <button className="text-slate-400 hover:text-[#09C972] transition-colors flex flex-col items-center gap-1 group" aria-label="Notificações">
                                     <Bell size={22} className="group-hover:-translate-y-1 transition-transform" />
                                 </button>
-                                <button className="text-[#09C972] transition-colors flex flex-col items-center gap-1">
+                                <button className="text-[#09C972] transition-colors flex flex-col items-center gap-1" aria-label="Genética">
                                     <Dna size={22} className="translate-y-[-2px]" />
                                 </button>
                             </div>
 
                             {/* Botão Central (Encaixado perfeitamente na concavidade Biologica) */}
-                            <button className="absolute top-[8px] left-1/2 -translate-x-1/2 w-16 h-16 bg-[#09C972] rounded-full flex items-center justify-center text-white shadow-[0_8px_20px_rgba(9,201,114,0.6)] hover:scale-105 hover:bg-emerald-400 transition-all active:scale-95 z-20">
+                            <button className="absolute top-[8px] left-1/2 -translate-x-1/2 w-16 h-16 bg-[#09C972] rounded-full flex items-center justify-center text-white shadow-[0_8px_20px_rgba(9,201,114,0.6)] hover:scale-105 hover:bg-emerald-400 transition-all active:scale-95 z-20" aria-label="Adicionar">
                                 <Plus size={32} />
                             </button>
                         </div>

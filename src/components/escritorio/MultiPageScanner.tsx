@@ -59,7 +59,7 @@ export default function MultiPageScanner({ files, onFilesChange, disabled }: Mul
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {thumbnails.map((url, i) => (
             <div key={i} className="relative group rounded-lg overflow-hidden border border-border aspect-[3/4]">
-              <img src={url} alt={`Página ${i + 1}`} className="w-full h-full object-cover" />
+              <img src={url} alt={`Página ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="text-white text-sm font-medium">Pág. {i + 1}</span>
               </div>

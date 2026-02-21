@@ -236,7 +236,7 @@ export default function ProtocoloDetail() {
         description={isPasso1Aberto ? 'Gerenciar receptoras do 1º passo' : 'Protocolo finalizado'}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigate('/protocolos')}>
+            <Button variant="outline" size="icon" onClick={() => navigate('/protocolos')} aria-label="Voltar">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             {isPasso1Aberto && (

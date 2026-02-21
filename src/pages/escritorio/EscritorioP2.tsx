@@ -43,7 +43,8 @@ export default function EscritorioP2({ hideHeader }: EscritorioP2Props = {}) {
   const { data: fazendas } = useQuery({
     queryKey: ['fazendas-select'],
     queryFn: async () => {
-      const { data } = await supabase.from('fazendas').select('id, nome').order('nome');
+      const { data, error } = await supabase.from('fazendas').select('id, nome').order('nome');
+      if (error) { toast.error('Erro ao carregar fazendas'); return []; }
       return data || [];
     },
   });
@@ -52,13 +53,14 @@ export default function EscritorioP2({ hideHeader }: EscritorioP2Props = {}) {
     queryKey: ['protocolos-ativos', fazendaId],
     queryFn: async () => {
       if (!fazendaId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('protocolos_sincronizacao')
         .select('id, data_inicio, status')
         .eq('fazenda_id', fazendaId)
         .in('status', ['EM_ANDAMENTO', 'ATIVO'])
         .order('data_inicio', { ascending: false })
         .limit(20);
+      if (error) { toast.error('Erro ao carregar protocolos'); return []; }
       return data || [];
     },
     enabled: !!fazendaId,
@@ -358,7 +360,7 @@ export default function EscritorioP2({ hideHeader }: EscritorioP2Props = {}) {
                         <tbody>
                           {rows.map((row, i) => (
                             <tr
-                              key={i}
+                              key={row.protocolo_receptora_id}
                               className={cn(
                                 'border-b border-border/50 cursor-pointer transition-colors',
                                 row.is_perda ? 'bg-red-500/10 hover:bg-red-500/15' : 'hover:bg-muted/20',

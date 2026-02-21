@@ -312,7 +312,7 @@ export function useRetryAnalysis() {
         throw fnError;
       }
 
-      console.log('EmbryoScore: Retry iniciado:', data);
+      // Retry dispatched successfully
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embryo-analysis-status'] });

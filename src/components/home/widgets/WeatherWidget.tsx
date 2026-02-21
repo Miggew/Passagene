@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CloudRain, Sun, Cloud, Droplets, Wind, MapPin, ArrowRight, Sparkles } from 'lucide-react';
+import { CloudRain, Sun, Cloud, Droplets, Wind, MapPin, Sparkles } from 'lucide-react';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';

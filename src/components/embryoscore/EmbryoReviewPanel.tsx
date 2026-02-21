@@ -472,6 +472,7 @@ function ImageTile({
           src={url}
           alt={label}
           className="w-full aspect-square rounded-lg border border-border object-cover"
+          loading="lazy"
         />
       ) : (
         <div className="w-full aspect-square rounded-lg border border-border bg-muted/30 flex items-center justify-center">

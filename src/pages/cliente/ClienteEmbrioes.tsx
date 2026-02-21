@@ -61,7 +61,7 @@ export default function ClienteEmbrioes() {
                             className="w-full bg-[#131c18] border border-[#1e2e28] rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-[#566b62] focus:outline-none focus:border-[#34d399]/50 transition-colors text-lg"
                         />
                     </div>
-                    <Button variant="outline" size="icon" className="h-12 w-12 border-[#1e2e28] bg-[#131c18]">
+                    <Button variant="outline" size="icon" className="h-12 w-12 border-[#1e2e28] bg-[#131c18]" aria-label="Filtrar">
                         <Filter className="h-6 w-6 text-[#34d399]" />
                     </Button>
                 </div>

@@ -248,12 +248,12 @@ export function useQuickClassify(queueId: string) {
       }
 
       // 3. Dispatch Edge Function
-      console.log('saveAndFinish step 4: dispatching Edge Function for', queueId);
+      // Dispatch Edge Function
       const { error: fnErr } = await supabase.functions.invoke('embryo-analyze', {
         body: { queue_id: queueId },
       });
       if (fnErr) console.error('saveAndFinish step 4 (Edge Function):', fnErr);
-      else console.log('saveAndFinish: Edge Function dispatched OK');
+      // Edge Function dispatched OK
     } catch (e) {
       console.error('saveAndFinish unexpected error:', e);
       throw e;

@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { todayISO as getTodayDateString } from '@/lib/dateUtils';
-import type { EmbriaoComRelacionamentos, DoseSemenComTouro } from '@/lib/types';
+import type { EmbriaoComRelacionamentos } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

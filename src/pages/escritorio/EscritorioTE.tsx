@@ -31,7 +31,8 @@ export default function EscritorioTE() {
   const { data: fazendas } = useQuery({
     queryKey: ['fazendas-select'],
     queryFn: async () => {
-      const { data } = await supabase.from('fazendas').select('id, nome').order('nome');
+      const { data, error } = await supabase.from('fazendas').select('id, nome').order('nome');
+      if (error) { toast.error('Erro ao carregar fazendas'); return []; }
       return data || [];
     },
   });
@@ -40,12 +41,13 @@ export default function EscritorioTE() {
     queryKey: ['protocolos-ativos-te', fazendaId],
     queryFn: async () => {
       if (!fazendaId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('protocolos_sincronizacao')
         .select('id, data_inicio, status')
         .eq('fazenda_id', fazendaId)
         .order('data_inicio', { ascending: false })
         .limit(20);
+      if (error) { toast.error('Erro ao carregar protocolos'); return []; }
       return data || [];
     },
     enabled: !!fazendaId,
@@ -54,12 +56,13 @@ export default function EscritorioTE() {
   const { data: lotesFiv } = useQuery({
     queryKey: ['lotes-fiv-disponiveis'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('lotes_fiv')
         .select('id, codigo, data_abertura')
         .eq('disponivel_para_transferencia', true)
         .order('data_abertura', { ascending: false })
         .limit(20);
+      if (error) { toast.error('Erro ao carregar lotes FIV'); return []; }
       return data || [];
     },
   });

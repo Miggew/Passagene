@@ -34,7 +34,7 @@ export function ProtocoloStepHeader({
       {/* Title and Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={onBack}>
+          <Button variant="outline" size="icon" onClick={onBack} aria-label="Voltar">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>

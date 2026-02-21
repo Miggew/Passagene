@@ -706,6 +706,7 @@ export default function AdminUsuariosTab() {
                     size="sm"
                     onClick={() => handleOpenDialog(user)}
                     className="h-8 w-8 p-0"
+                    aria-label="Editar"
                   >
                     <Edit className="w-4 h-4" />
                   </Button>

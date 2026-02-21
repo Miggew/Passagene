@@ -106,6 +106,7 @@ export default function GeneticaTouroDetail() {
                 src={foto}
                 alt={touro.nome}
                 className="w-full aspect-[4/3] object-cover"
+                loading="lazy"
               />
             ) : (
               <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center">
@@ -126,6 +127,7 @@ export default function GeneticaTouroDetail() {
                     src={fotoUrl}
                     alt={`${touro.nome} - Foto ${index + 1}`}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 </div>
               ))}

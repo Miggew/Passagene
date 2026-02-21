@@ -54,6 +54,7 @@ export default function StyleGuide() {
           size="icon"
           onClick={() => setIsDark(!isDark)}
           className="rounded-full shadow-md"
+          aria-label={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
         >
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
@@ -77,11 +78,11 @@ export default function StyleGuide() {
           </h2>
           <div className="flex items-center gap-8 p-6 bg-card rounded-2xl border border-border shadow-sm">
             <div className="text-center">
-              <img src={logoSimples} alt="Logo Simples" className="h-16 mx-auto mb-2" />
+              <img src={logoSimples} alt="Logo Simples" className="h-16 mx-auto mb-2" loading="lazy" />
               <span className="text-sm text-muted-foreground">Simples (mobile)</span>
             </div>
             <div className="text-center">
-              <img src={logoEscrito} alt="Logo Escrito" className="h-16 mx-auto mb-2" />
+              <img src={logoEscrito} alt="Logo Escrito" className="h-16 mx-auto mb-2" loading="lazy" />
               <span className="text-sm text-muted-foreground">Escrito (desktop)</span>
             </div>
           </div>
@@ -220,9 +221,9 @@ export default function StyleGuide() {
                 <Button size="xl">Extra Large</Button>
               </div>
               <div className="flex flex-wrap gap-4">
-                <Button size="icon-sm"><Check className="h-4 w-4" /></Button>
-                <Button size="icon"><Edit className="h-4 w-4" /></Button>
-                <Button size="icon-lg"><Trash2 className="h-5 w-5" /></Button>
+                <Button size="icon-sm" aria-label="Confirmar"><Check className="h-4 w-4" /></Button>
+                <Button size="icon" aria-label="Editar"><Edit className="h-4 w-4" /></Button>
+                <Button size="icon-lg" aria-label="Remover"><Trash2 className="h-5 w-5" /></Button>
                 <Button disabled>Disabled</Button>
               </div>
             </CardContent>
@@ -348,10 +349,10 @@ export default function StyleGuide() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon-sm">
+                        <Button variant="ghost" size="icon-sm" aria-label="Editar">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-destructive">
+                        <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Remover">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>

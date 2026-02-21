@@ -322,7 +322,7 @@ export default function FazendaDetail() {
         title={fazenda.nome}
         description={`Cliente: ${clienteNome}`}
         actions={
-          <Button variant="outline" size="icon" onClick={() => navigate('/fazendas')}>
+          <Button variant="outline" size="icon" onClick={() => navigate('/fazendas')} aria-label="Voltar">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         }

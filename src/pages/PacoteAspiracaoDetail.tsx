@@ -769,6 +769,7 @@ export default function PacoteAspiracaoDetail() {
                       size="sm"
                       className="h-7 w-7 p-0"
                       onClick={() => editAspiracaoHook.openEdit(row)}
+                      aria-label="Editar"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>

@@ -433,6 +433,7 @@ export function AspiracaoDoadoras({
                                                             size="sm"
                                                             className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                             onClick={() => setDoadoras(prev => prev.filter((_, i) => i !== idx))}
+                                                            aria-label="Remover"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </Button>

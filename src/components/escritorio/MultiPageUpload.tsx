@@ -80,7 +80,7 @@ export default function MultiPageUpload({ onAllProcessed, processPage, disabled 
                 page.status === 'pending' && 'border-border',
               )}
             >
-              <img src={page.preview} alt={`Página ${i + 1}`} className="w-full h-full object-cover" />
+              <img src={page.preview} alt={`Página ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
               <div className="absolute top-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5">
                 Pág {i + 1}
               </div>

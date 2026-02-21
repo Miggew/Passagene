@@ -53,6 +53,7 @@ export function ReceptorasTablePasso1({
                                     size="sm"
                                     className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                                     onClick={() => onRemove(index)}
+                                    aria-label="Remover"
                                 >
                                     <X className="w-4 h-4" />
                                 </Button>
@@ -189,6 +190,7 @@ export function ReceptorasTablePasso1({
                                         size="sm"
                                         className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={() => onRemove(index)}
+                                        aria-label="Remover"
                                     >
                                         <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
                                     </Button>

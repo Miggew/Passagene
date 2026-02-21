@@ -40,7 +40,8 @@ export default function EscritorioSexagem() {
   const { data: fazendas } = useQuery({
     queryKey: ['fazendas-select'],
     queryFn: async () => {
-      const { data } = await supabase.from('fazendas').select('id, nome').order('nome');
+      const { data, error } = await supabase.from('fazendas').select('id, nome').order('nome');
+      if (error) { toast.error('Erro ao carregar fazendas'); return []; }
       return data || [];
     },
   });

@@ -132,6 +132,7 @@ export function PacoteCard({
                         onClick={onEditarFazendasDestino}
                         className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                         title="Editar fazendas destino"
+                        aria-label="Editar fazendas destino"
                       >
                         <Edit2 className="w-3 h-3" />
                       </Button>
