@@ -207,6 +207,7 @@ function ClienteBottomBar() {
 
 function StandardBottomBar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { getAccessibleHubs } = usePermissions();
 
   const accessibleHubs = getAccessibleHubs();
@@ -239,32 +240,60 @@ function StandardBottomBar() {
           className="pointer-events-auto bg-card border-t border-border/40 relative z-10 md:max-w-4xl md:mx-auto md:rounded-2xl md:border md:shadow-2xl transition-all"
           style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}
         >
+          {/* FAB Central Global: Consultor IA */}
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50">
+            <button
+              onClick={() => navigate('/ai-chat')}
+              className="group relative w-12 h-12 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_4px_15px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)] border-[3px] border-card md:w-14 md:h-14 md:-top-7"
+              title="Consultor IA Global"
+            >
+              <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
+              </div>
+              <div className="relative z-10 group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none flex items-center justify-center pt-0.5">
+                <LogoPassagene height={24} showText={false} variant="hollow" />
+              </div>
+            </button>
+          </div>
+
           <div className="flex items-center justify-evenly h-16 px-2 md:px-4">
 
 
             {mode === 'hub-routes' && quickRoutes ? (
               <>
                 {/* Apenas Single Hub: Listamos atalhos úteis dele ao invés de Botões de Mitose */}
-                {quickRoutes.slice(0, 4).map((route) => (
-                  <BarItem key={route} route={route} pathname={location.pathname} />
-                ))}
+                <div className="flex h-full flex-1 justify-evenly">
+                  {quickRoutes.slice(0, 2).map((route) => (
+                    <BarItem key={route} route={route} pathname={location.pathname} />
+                  ))}
+                </div>
+                <div className="w-[60px] md:w-[70px] shrink-0" /> {/* Espaço para o FAB IA Central */}
+                <div className="flex h-full flex-1 justify-evenly">
+                  {quickRoutes.slice(2, 4).map((route) => (
+                    <BarItem key={route} route={route} pathname={location.pathname} />
+                  ))}
+                </div>
               </>
             ) : (
               <>
                 {/* Multi Hubs: Hub Buttons Expansivos (Mitose) */}
-                {realHubs.map((hub) => {
-                  const isActive = hub.routes.some((route) => isRouteActive(location.pathname, route));
-                  const routes = hub.routes.filter(r => r !== '/');
+                <div className="flex h-full flex-1 justify-evenly">
+                  {realHubs.slice(0, Math.ceil(realHubs.length / 2)).map((hub) => {
+                    const isActive = hub.routes.some((route) => isRouteActive(location.pathname, route));
+                    const routes = hub.routes.filter(r => r !== '/');
+                    return <HubButton key={hub.code} hub={hub} isActive={isActive} routes={routes} />;
+                  })}
+                </div>
 
-                  return (
-                    <HubButton
-                      key={hub.code}
-                      hub={hub}
-                      isActive={isActive}
-                      routes={routes}
-                    />
-                  );
-                })}
+                <div className="w-[60px] md:w-[70px] shrink-0" /> {/* Espaço para o FAB IA Central */}
+
+                <div className="flex h-full flex-1 justify-evenly">
+                  {realHubs.slice(Math.ceil(realHubs.length / 2)).map((hub) => {
+                    const isActive = hub.routes.some((route) => isRouteActive(location.pathname, route));
+                    const routes = hub.routes.filter(r => r !== '/');
+                    return <HubButton key={hub.code} hub={hub} isActive={isActive} routes={routes} />;
+                  })}
+                </div>
               </>
             )}
           </div>

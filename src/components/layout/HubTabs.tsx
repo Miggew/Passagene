@@ -1,21 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Dna, FileText, FlaskConical, LogOut } from 'lucide-react';
+import { Building2, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
-import { CowIcon } from '@/components/icons/CowIcon';
 import ThemeToggle from '@/components/shared/ThemeToggle';
-
-// Mapeamento de ícones por código do hub
-const hubIcons: Record<string, React.ElementType> = {
-  administrativo: Building2,
-  genetica: Dna,
-  laboratorio: FlaskConical,
-  escritorio: FileText,
-  campo: CowIcon,
-};
+import { hubIcons } from '@/lib/nav-config';
 
 export default function HubTabs() {
   const navigate = useNavigate();

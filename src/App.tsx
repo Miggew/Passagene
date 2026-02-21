@@ -48,6 +48,7 @@ const RelatoriosServicos = lazy(() => import('./pages/relatorios/RelatoriosServi
 const RelatoriosAnimais = lazy(() => import('./pages/relatorios/RelatoriosAnimais'));
 const RelatoriosMaterial = lazy(() => import('./pages/relatorios/RelatoriosMaterial'));
 const RelatoriosProducao = lazy(() => import('./pages/relatorios/RelatoriosProducao'));
+const ConsultorIA = lazy(() => import('./pages/ConsultorIA'));
 
 // Páginas do Hub Genética (Catálogo de Vendas)
 const GeneticaHome = lazy(() => import('./pages/genetica/GeneticaHome'));
@@ -61,7 +62,6 @@ const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
 
 // Antigo Relatorios 
 const ClienteRelatorios = lazy(() => import('./pages/cliente/ClienteRelatorios'));
-const ClienteRelatoriosAI = lazy(() => import('./pages/cliente/ClienteRelatoriosAI'));
 const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
 const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfiguracoes'));
 
@@ -133,7 +133,7 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
   if (permissions.isAdmin) return <>{children}</>;
 
   // Rotas compartilhadas que todos os usuários autenticados podem acessar
-  const sharedRoutes = ['/', '/sem-acesso'];
+  const sharedRoutes = ['/', '/sem-acesso', '/ai-chat'];
   if (sharedRoutes.some(r => location.pathname === r)) return <>{children}</>;
 
   // Cliente só acessa /cliente/* e /genetica/*
@@ -257,7 +257,12 @@ const AppRoutes = () => {
             {/* Hub Cliente */}
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
-            <Route path="/cliente/ai-chat" element={<ClienteRelatoriosAI />} />
+
+            {/* Consultor IA Global (Acessível a Clientes e Staff) */}
+            <Route path="/ai-chat" element={<ConsultorIA />} />
+            {/* Fallback do atalho antigo do cliente */}
+            <Route path="/cliente/ai-chat" element={<Navigate to="/ai-chat" replace />} />
+
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />
 

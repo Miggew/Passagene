@@ -19,27 +19,6 @@ export default function Home() {
   // Redirecionamentos geridos globalmente após loading, não num effect local isolado
   // O redirect é renderizado na fase final do request.
 
-  // Loading state para operacional e cliente
-  if ((isCliente || isOperacional) && loadingClientes) {
-    return <LoadingSpinner />;
-  }
-
-  // Se vai redirecionar, mostra loading
-  if (!isCliente && realHubs.length === 1) {
-    return <LoadingSpinner />;
-  }
-
-  // Layout compacto para cliente (cabe na tela sem scroll)
-  if (isCliente && clienteId) {
-    const nomeCliente = clientes.find(c => c.id === clienteId)?.nome;
-    return (
-      <HomeCliente
-        clienteId={clienteId}
-        clienteNome={nomeCliente}
-      />
-    );
-  }
-
   // --- GATEWAY DE REDIRECIONAMENTO (Não-Clientes) ---
   // Ordem de prioridade para a página inicial
   const priorityMap: Record<string, number> = useMemo(() => ({
@@ -66,6 +45,27 @@ export default function Home() {
       navigate(targetRoute, { replace: true });
     }
   }, [targetRoute, isCliente, navigate]);
+
+  // Loading state para operacional e cliente
+  if ((isCliente || isOperacional) && loadingClientes) {
+    return <LoadingSpinner />;
+  }
+
+  // Se vai redirecionar, mostra loading
+  if (!isCliente && realHubs.length === 1) {
+    return <LoadingSpinner />;
+  }
+
+  // Layout compacto para cliente (cabe na tela sem scroll)
+  if (isCliente && clienteId) {
+    const nomeCliente = clientes.find(c => c.id === clienteId)?.nome;
+    return (
+      <HomeCliente
+        clienteId={clienteId}
+        clienteNome={nomeCliente}
+      />
+    );
+  }
 
   if (targetRoute) {
     return <LoadingSpinner />;

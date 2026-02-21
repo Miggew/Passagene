@@ -54,6 +54,7 @@ export const routeIcons: Record<string, React.ElementType> = {
   '/embrioes-congelados': Snowflake,
   '/doses-semen': SpermIcon,
   '/protocolos': Syringe,
+  '/ai-chat': Sparkles,
   '/aspiracoes': TestTube,
   '/transferencia': ArrowRightLeft,
   '/dg': ThumbsUp,
@@ -144,6 +145,7 @@ export const routeLabelsLong: Record<string, string> = {
   '/embrioes-congelados': 'Embriões Congelados',
   '/doses-semen': 'Doses de Sêmen',
   '/protocolos': 'Protocolos Sincronização',
+  '/ai-chat': 'Consultor IA (PassaGene)',
   '/aspiracoes': 'Aspiração Folicular',
   '/transferencia': 'Transferência (TE)',
   '/dg': 'Diagnóstico (DG)',
@@ -183,6 +185,7 @@ export const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios
 // ─── Detecção de Hub por URL ──────────────────────────────────────
 export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
   // Rotas operacionais agora pertencem ao mega-hub fundido (operacional/campo)
+  if (pathname === '/ai-chat') return fallbackHub?.code ?? 'operacional'; // IA herda o hub atual
   if (['/protocolos', '/aspiracoes', '/transferencia', '/dg', '/sexagem', '/historico'].some(route => pathname.startsWith(route))) return 'operacional';
   if (pathname.startsWith('/escritorio')) return 'operacional';
   if (pathname.startsWith('/relatorios')) return 'operacional'; // Fusão: Relatórios agora é resolvido como aba 
