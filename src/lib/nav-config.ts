@@ -58,6 +58,8 @@ export const routeIcons: Record<string, React.ElementType> = {
   '/transferencia': ArrowRightLeft,
   '/dg': ThumbsUp,
   '/sexagem': GenderIcon,
+  '/historico': History,
+
   // Hub Relatórios (agora amalgamado no Escritório, mas ainda são as mesmas rotas)
   '/relatorios': FileBarChart,
   '/relatorios/servicos': ClipboardList,
@@ -105,6 +107,8 @@ export const routeLabels: Record<string, string> = {
   '/transferencia': 'TE',
   '/dg': 'DG',
   '/sexagem': 'Sexagem',
+  '/historico': 'Histórico',
+
   '/relatorios': 'Relatórios',
   '/relatorios/servicos': 'Serviços',
   '/relatorios/animais': 'Animais',
@@ -139,11 +143,13 @@ export const routeLabelsLong: Record<string, string> = {
   '/embrioes': 'Embriões',
   '/embrioes-congelados': 'Embriões Congelados',
   '/doses-semen': 'Doses de Sêmen',
-  '/protocolos': 'Protocolos',
-  '/aspiracoes': 'Aspirações',
+  '/protocolos': 'Protocolos Sincronização',
+  '/aspiracoes': 'Aspiração Folicular',
   '/transferencia': 'Transferência (TE)',
-  '/dg': 'Diagnóstico Gestação',
-  '/sexagem': 'Sexagem',
+  '/dg': 'Diagnóstico (DG)',
+  '/sexagem': 'Sexagem Fetal',
+  '/historico': 'Histórico Operacional',
+
   '/relatorios': 'Visão Geral',
   '/relatorios/servicos': 'Serviços de Campo',
   '/relatorios/animais': 'Animais',
@@ -176,8 +182,10 @@ export const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios
 
 // ─── Detecção de Hub por URL ──────────────────────────────────────
 export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
-  if (pathname.startsWith('/escritorio')) return 'escritorio';
-  if (pathname.startsWith('/relatorios')) return 'escritorio'; // Fusão: Relatórios agora é resolvido como aba do Escritório
+  // Rotas operacionais agora pertencem ao mega-hub fundido (operacional/campo)
+  if (['/protocolos', '/aspiracoes', '/transferencia', '/dg', '/sexagem', '/historico'].some(route => pathname.startsWith(route))) return 'operacional';
+  if (pathname.startsWith('/escritorio')) return 'operacional';
+  if (pathname.startsWith('/relatorios')) return 'operacional'; // Fusão: Relatórios agora é resolvido como aba 
   if (pathname.startsWith('/genetica')) return 'genetica';
   if (pathname.startsWith('/cliente')) return 'cliente';
   // Rotas do Lab

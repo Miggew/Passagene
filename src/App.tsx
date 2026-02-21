@@ -22,10 +22,8 @@ const Doadoras = lazy(() => import('./pages/Doadoras'));
 const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
 // Receptoras agora fica dentro de FazendaDetail
 const ReceptoraHistorico = lazy(() => import('./pages/ReceptoraHistorico'));
-const Protocolos = lazy(() => import('./pages/Protocolos'));
 const ProtocoloDetail = lazy(() => import('./pages/ProtocoloDetail'));
 const ProtocoloRelatorioFechado = lazy(() => import('./pages/ProtocoloRelatorioFechado'));
-const Aspiracoes = lazy(() => import('./pages/Aspiracoes'));
 const PacoteAspiracaoDetail = lazy(() => import('./pages/PacoteAspiracaoDetail'));
 const DosesSemen = lazy(() => import('./pages/DosesSemen'));
 const Touros = lazy(() => import('./pages/Touros'));
@@ -33,11 +31,8 @@ const TouroDetail = lazy(() => import('./pages/TouroDetail'));
 const LotesFIV = lazy(() => import('./pages/LotesFIV'));
 const Embrioes = lazy(() => import('./pages/Embrioes'));
 const EmbrioesCongelados = lazy(() => import('./pages/EmbrioesCongelados'));
-const TransferenciaEmbrioes = lazy(() => import('./pages/TransferenciaEmbrioes'));
 const TESessaoDetail = lazy(() => import('./pages/TESessaoDetail'));
-const DiagnosticoGestacao = lazy(() => import('./pages/DiagnosticoGestacao'));
 const DiagnosticoSessaoDetail = lazy(() => import('./pages/DiagnosticoSessaoDetail'));
-const Sexagem = lazy(() => import('./pages/Sexagem'));
 const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Administrativo = lazy(() => import('./pages/Administrativo'));
@@ -126,6 +121,40 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Componente que verifica se o usuário tem acesso ao hub da rota atual
+function RoleGuard({ children }: { children: React.ReactNode }) {
+  const { permissions } = useAuth();
+  const location = useLocation();
+
+  // Enquanto permissions não carregou, deixa renderizar (ProtectedRoute já cuida do loading)
+  if (!permissions) return <>{children}</>;
+
+  // Admin tem acesso a tudo
+  if (permissions.isAdmin) return <>{children}</>;
+
+  // Rotas compartilhadas que todos os usuários autenticados podem acessar
+  const sharedRoutes = ['/', '/sem-acesso'];
+  if (sharedRoutes.some(r => location.pathname === r)) return <>{children}</>;
+
+  // Cliente só acessa /cliente/* e /genetica/*
+  if (permissions.isCliente) {
+    if (location.pathname.startsWith('/cliente/') || location.pathname.startsWith('/genetica')) {
+      return <>{children}</>;
+    }
+    return <Navigate to="/sem-acesso" replace />;
+  }
+
+  // Operacional: acessa tudo exceto /administrativo e /cliente/*
+  if (permissions.profile?.user_type === 'operacional') {
+    if (location.pathname.startsWith('/cliente/')) {
+      return <Navigate to="/sem-acesso" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  return <>{children}</>;
+}
+
 const LaboratorioHome = lazy(() => import('@/pages/laboratorio/LaboratorioHome'));
 
 const AppRoutes = () => {
@@ -146,8 +175,8 @@ const AppRoutes = () => {
           {/* Página de sem acesso (protegida, mas sem layout) */}
           <Route path="/sem-acesso" element={<ProtectedRoute><SemAcesso /></ProtectedRoute>} />
 
-          {/* Rotas protegidas (app principal com MainLayout) */}
-          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+          {/* Rotas protegidas (app principal com MainLayout + role guard) */}
+          <Route element={<ProtectedRoute><RoleGuard><MainLayout /></RoleGuard></ProtectedRoute>}>
 
             {/* Página inicial - Dashboard unificado por tipo de usuário */}
             <Route path="/" element={<Home />} />
@@ -173,42 +202,37 @@ const AppRoutes = () => {
             {/* Receptoras - agora fica dentro de FazendaDetail, só histórico tem rota própria */}
             <Route path="/receptoras/:id/historico" element={<ReceptoraHistorico />} />
 
-            {/* Protocolos */}
-            <Route path="/protocolos" element={<Protocolos />} />
+            {/* =======================================================
+                FUSÃO DE HUBS: CAMPO + ESCRITÓRIO => "OPERACIONAL"
+                Utilizando as URLs base limpas, com os componentes 
+                robustos (DataTables) do antigo Escritório 
+            ======================================================= */}
+
+            {/* Protocolos (Unifica Passo 1 e 2 no padrão Escritorio) */}
+            <Route path="/protocolos" element={<EscritorioProtocolos />} />
+            {/* Mantemos detail legados como fallbacks para relatórios antigos */}
             <Route path="/protocolos/:id" element={<ProtocoloDetail />} />
             <Route path="/protocolos/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
             <Route path="/protocolos/fechados/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
 
-            {/* Aspiracoes */}
-            <Route path="/aspiracoes" element={<Aspiracoes />} />
+            {/* Aspirações */}
+            <Route path="/aspiracoes" element={<EscritorioAspiracao />} />
             <Route path="/aspiracoes/:id" element={<PacoteAspiracaoDetail />} />
 
-            {/* Touros */}
-            <Route path="/touros" element={<Touros />} />
-            <Route path="/touros/:id" element={<TouroDetail />} />
-
-            {/* Doses de Semen */}
-            <Route path="/doses-semen" element={<DosesSemen />} />
-
-            {/* Lotes FIV */}
-            <Route path="/lotes-fiv" element={<LotesFIV />} />
-            <Route path="/lotes-fiv/:id" element={<LotesFIV />} />
-
-            {/* Embrioes */}
-            <Route path="/embrioes" element={<Embrioes />} />
-            <Route path="/embrioes-congelados" element={<EmbrioesCongelados />} />
-
             {/* Transferencia de Embrioes */}
-            <Route path="/transferencia" element={<TransferenciaEmbrioes />} />
+            <Route path="/transferencia" element={<EscritorioTE />} />
             <Route path="/transferencia/sessao" element={<TESessaoDetail />} />
 
             {/* Diagnostico de Gestacao */}
-            <Route path="/dg" element={<DiagnosticoGestacao />} />
+            <Route path="/dg" element={<EscritorioDG />} />
             <Route path="/dg/sessao" element={<DiagnosticoSessaoDetail />} />
 
             {/* Sexagem */}
-            <Route path="/sexagem" element={<Sexagem />} />
+            <Route path="/sexagem" element={<EscritorioSexagem />} />
             <Route path="/sexagem/sessao" element={<SexagemSessaoDetail />} />
+
+            {/* Histórico Geral */}
+            <Route path="/historico" element={<EscritorioHistorico />} />
 
             {/* Hub Relatórios */}
             <Route path="/laboratorio" element={<LaboratorioHome />} />
@@ -232,23 +256,24 @@ const AppRoutes = () => {
 
             {/* Hub Cliente */}
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
-
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
             <Route path="/cliente/ai-chat" element={<ClienteRelatoriosAI />} />
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />
 
-            {/* Hub Escritório */}
-            <Route path="/escritorio" element={<EscritorioHome />} />
-            <Route path="/escritorio/dg" element={<EscritorioDG />} />
-            <Route path="/escritorio/sexagem" element={<EscritorioSexagem />} />
-            <Route path="/escritorio/protocolos" element={<EscritorioProtocolos />} />
-            {/* Fallbacks para rotas antigas caso algum link ainda aponte para elas */}
-            <Route path="/escritorio/protocolo-p1" element={<Navigate to="/escritorio/protocolos?step=1" replace />} />
-            <Route path="/escritorio/protocolo-p2" element={<Navigate to="/escritorio/protocolos?step=2" replace />} />
-            <Route path="/escritorio/te" element={<EscritorioTE />} />
-            <Route path="/escritorio/aspiracao" element={<EscritorioAspiracao />} />
-            <Route path="/escritorio/historico" element={<EscritorioHistorico />} />
+            {/* 
+                Redirecionamentos Legacy de /escritorio/* para as URLs limpas acima 
+                Isso garante que links salvos ou hardcoded não quebrem
+            */}
+            <Route path="/escritorio" element={<Navigate to="/" replace />} />
+            <Route path="/escritorio/dg" element={<Navigate to="/dg" replace />} />
+            <Route path="/escritorio/sexagem" element={<Navigate to="/sexagem" replace />} />
+            <Route path="/escritorio/protocolos" element={<Navigate to="/protocolos" replace />} />
+            <Route path="/escritorio/protocolo-p1" element={<Navigate to="/protocolos?step=1" replace />} />
+            <Route path="/escritorio/protocolo-p2" element={<Navigate to="/protocolos?step=2" replace />} />
+            <Route path="/escritorio/te" element={<Navigate to="/transferencia" replace />} />
+            <Route path="/escritorio/aspiracao" element={<Navigate to="/aspiracoes" replace />} />
+            <Route path="/escritorio/historico" element={<Navigate to="/historico" replace />} />
           </Route>
 
           {/* Rota 404 */}

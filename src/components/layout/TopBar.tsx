@@ -1,19 +1,85 @@
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTheme } from '@/hooks/useTheme';
-import { Settings, LogOut, Sun, Moon, Laptop, User } from 'lucide-react';
+import { useGlobalAnalysisQueue, useCancelAllAnalysis } from '@/hooks/useEmbryoScores';
+import type { GlobalAnalysisQueueData } from '@/hooks/useEmbryoScores';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
+import { Settings, LogOut, Sun, Moon, Laptop, User, X } from 'lucide-react';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { cn } from '@/lib/utils';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuSeparator,
-    DropdownMenuLabel,
-    DropdownMenuGroup,
-} from '@/components/ui/dropdown-menu';
+
+function TopBarAnalysisBadge() {
+    const { data: queue } = useGlobalAnalysisQueue();
+    const queueData: GlobalAnalysisQueueData = queue ?? { pending: 0, processing: 0, total: 0, oldestStartedAt: null, newestExpectedCount: null };
+    const cancelAll = useCancelAllAnalysis();
+    const [confirming, setConfirming] = useState(false);
+    const [, setTick] = useState(0);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        if (queueData.processing > 0 && queueData.oldestStartedAt) {
+            intervalRef.current = setInterval(() => setTick(t => t + 1), 1000);
+        } else if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [queueData.processing > 0, queueData.oldestStartedAt]);
+
+    if (queueData.total === 0) return null;
+
+    const handleCancel = () => {
+        if (!confirming) {
+            setConfirming(true);
+            return;
+        }
+        cancelAll.mutate(undefined, {
+            onSuccess: () => setConfirming(false),
+            onError: () => setConfirming(false),
+        });
+    };
+
+    const formatElapsed = (startedAt: string) => {
+        const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+        if (elapsed < 0) return '0s';
+        const m = Math.floor(elapsed / 60);
+        const s = elapsed % 60;
+        return m > 0 ? `${m}m${String(s).padStart(2, '0')}s` : `${s}s`;
+    };
+
+    return (
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-[hsl(var(--logo-bg))]/20 bg-[hsl(var(--logo-bg))]/5 shadow-sm transition-all animate-in fade-in zoom-in duration-300">
+            <div className="shrink-0 flex items-center justify-center w-[22px] h-[22px] bg-[hsl(var(--logo-bg))]/10 rounded-full">
+                <LoaderDNA size={16} variant="accent" />
+            </div>
+            <div className="flex flex-col hidden sm:flex justify-center -space-y-0.5">
+                <span className="text-[9px] font-extrabold text-[hsl(var(--logo-bg))] uppercase tracking-wider leading-tight">
+                    IA: {queueData.processing} {queueData.pending > 0 && `+${queueData.pending}`}
+                </span>
+                {queueData.oldestStartedAt && queueData.processing > 0 && (
+                    <span className="text-[9px] font-mono text-muted-foreground font-bold tracking-tight">
+                        {formatElapsed(queueData.oldestStartedAt)}
+                    </span>
+                )}
+            </div>
+            <button
+                onClick={handleCancel}
+                disabled={cancelAll.isPending}
+                className={`ml-1 flex items-center justify-center w-5 h-5 rounded-full transition-colors ${confirming
+                    ? 'bg-red-500 text-white shadow-sm scale-110'
+                    : 'bg-black/5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500'
+                    } disabled:opacity-50`}
+                title={confirming ? 'Confirmar aborto?' : 'Abortar IA'}
+            >
+                <X className="w-3 h-3" />
+            </button>
+        </div>
+    );
+}
 
 export default function TopBar() {
     const navigate = useNavigate();
@@ -53,69 +119,63 @@ export default function TopBar() {
                         )}
                     </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="flex items-center justify-center w-8 h-8 rounded-full bg-muted hover:bg-muted/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background" aria-label="Configurações">
-                                <Settings className="w-4 h-4 text-foreground" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56" sideOffset={8}>
-                            <DropdownMenuLabel className="font-normal">
-                                <div className="flex flex-col space-y-1">
-                                    <p className="text-sm font-medium leading-none">{profile?.nome || 'Usuário'}</p>
-                                    <p className="text-xs leading-none text-muted-foreground">
-                                        {profile?.email}
-                                    </p>
-                                </div>
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                    <TopBarAnalysisBadge />
 
-                            <DropdownMenuGroup>
-                                <div className="px-2 py-1.5 flex items-center justify-between">
-                                    <span className="text-sm font-medium">Tema Visual</span>
-                                    <div className="flex items-center border rounded-full overflow-hidden bg-muted/50 p-0.5">
-                                        <button
-                                            onClick={() => setTheme('light')}
-                                            className={cn("p-1.5 rounded-full transition-colors", theme === 'light' && "bg-background shadow-sm text-foreground")}
-                                            aria-label="Modo Claro"
-                                        >
-                                            <Sun className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                            onClick={() => setTheme('system')}
-                                            className={cn("p-1.5 rounded-full transition-colors", theme === 'system' && "bg-background shadow-sm text-foreground")}
-                                            aria-label="Automático (Sistema)"
-                                        >
-                                            <Laptop className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                            onClick={() => setTheme('dark')}
-                                            className={cn("p-1.5 rounded-full transition-colors", theme === 'dark' && "bg-background shadow-sm text-foreground")}
-                                            aria-label="Modo Escuro"
-                                        >
-                                            <Moon className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
+                    <div className="relative group/mitosis ml-2 flex items-center justify-center">
 
-                                {/* Espaço para futuras funcionalidades */}
-                                <DropdownMenuItem className="cursor-pointer text-muted-foreground" disabled>
-                                    <User className="w-4 h-4 mr-2" />
-                                    Preferências (Em breve)
-                                </DropdownMenuItem>
-                            </DropdownMenuGroup>
+                        {/* Filhas Mitóticas (Sub-menus) - Estouram p/ BAIXO no Desktop/TopBar */}
+                        <div className="absolute top-10 right-0 flex flex-col items-end gap-3 pointer-events-none z-50 mt-1">
 
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem
-                                onClick={signOut}
-                                className="text-red-500 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50 cursor-pointer font-medium"
+                            {/* Tema */}
+                            <button
+                                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                                className="group/btn flex items-center justify-end gap-3 pointer-events-auto transition-all duration-300 ease-in-out opacity-0 translate-y-[-20px] scale-75 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 delay-75"
+                                aria-label="Alternar Tema"
                             >
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Sair do sistema
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                <span className="px-2.5 py-1 rounded-full bg-black/60 dark:bg-black/80 backdrop-blur-md text-primary font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
+                                    {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+                                </span>
+                                <div className="w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-lg flex items-center justify-center border-2 border-transparent group-hover/btn:border-primary/50 transition-colors">
+                                    {theme === 'dark' ? <Sun className="w-4 h-4 text-white" /> : <Moon className="w-4 h-4 text-white" />}
+                                </div>
+                            </button>
+
+                            {/* Preferencias */}
+                            <button
+                                className="group/btn flex items-center justify-end gap-3 pointer-events-auto transition-all duration-300 ease-in-out opacity-0 translate-y-[-40px] scale-75 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 delay-100"
+                            >
+                                <span className="px-2.5 py-1 rounded-full bg-black/60 dark:bg-black/80 backdrop-blur-md text-primary font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
+                                    Preferências
+                                </span>
+                                <div className="w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-lg flex items-center justify-center border-2 border-transparent group-hover/btn:border-primary/50 transition-colors">
+                                    <User className="w-4 h-4 text-white" />
+                                </div>
+                            </button>
+
+                            {/* Sair */}
+                            <button
+                                onClick={signOut}
+                                className="group/btn flex items-center justify-end gap-3 pointer-events-auto transition-all duration-300 ease-in-out opacity-0 translate-y-[-60px] scale-75 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 delay-150 relative"
+                            >
+                                {/* Pingo de alerta vermelho indicando destructive */}
+                                <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500 z-10 animate-pulse border border-background"></div>
+                                <span className="px-2.5 py-1 rounded-full bg-black/60 dark:bg-black/80 backdrop-blur-md text-red-400 font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
+                                    Sair do Sistema
+                                </span>
+                                <div className="w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-lg flex items-center justify-center border-2 border-transparent group-hover/btn:border-red-500/50 transition-colors">
+                                    <LogOut className="w-4 h-4 text-white" />
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Célula Mãe (A Engrenagem de Hover) */}
+                        <div className="relative z-20 w-10 h-10 rounded-full bg-[hsl(var(--logo-bg))] shadow-md flex items-center justify-center cursor-pointer transition-transform duration-300 group-hover/mitosis:scale-110">
+                            <Settings className="w-5 h-5 text-white transition-transform duration-500 group-hover/mitosis:rotate-90 group-hover/mitosis:text-primary" />
+                            {/* Inner membrane ring that pulses on hover */}
+                            <div className="absolute inset-0 rounded-full border-2 border-primary scale-90 opacity-0 group-hover/mitosis:opacity-100 transition-all duration-500 group-hover/mitosis:scale-110"></div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </header>

@@ -64,84 +64,76 @@ function BarItem({ route, pathname, onClick }: { route: string; pathname: string
   );
 }
 
-// ─── Hub Button (Mitosis mode) ─────────────────────────────────────
-
-function HubButton({ hub, isActive, isOpen, routes, onToggle }: { hub: Hub, isActive: boolean, isOpen: boolean, routes: string[], onToggle: () => void }) {
+// ─── Hub Button (Mitosis mode CSS-Only) ──────────────────────────────
+function HubButton({ hub, isActive, routes }: { hub: Hub, isActive: boolean, routes: string[] }) {
   const { pathname } = useLocation();
   const Icon = hubIcons[hub.code] || Home;
 
   return (
-    <div className="relative flex-[1.2] flex flex-col items-center justify-center h-full mx-0.5 mitosis-container">
-      {/* Full-Screen Glassmorphic Dashboard Overlay */}
-      <div
-        className={cn(
-          "fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 bg-background/50 dark:bg-black/60 backdrop-blur-md transition-all duration-500",
-          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            onToggle();
-          }
-        }}
-      >
-        <span className={cn(
-          "text-2xl font-black mb-10 tracking-tight transition-all duration-500 ease-out text-foreground drop-shadow-sm",
-          isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"
-        )}>
-          {hub.name}
-        </span>
+    <div className="relative group/mitosis flex-[1.2] flex flex-col items-center justify-end h-[60px] mx-0.5 pb-2">
 
-        <div className="grid grid-cols-3 gap-x-4 gap-y-6 w-full max-w-[340px] place-items-center">
-          {routes.map((route, i) => {
-            const RouteIcon = routeIcons[route] || Home;
-            const label = route === '/relatorios' ? 'Relatórios' : (routeLabels[route] || route);
-            const isRouteActivenow = isRouteActive(pathname, route);
+      {/* Células Filhas (Mitose para CIMA no MobileNav) */}
+      <div className="absolute bottom-[60px] left-1/2 -translate-x-1/2 flex flex-col-reverse items-center gap-4 pointer-events-none z-50 mb-2">
+        {routes.map((route, i) => {
+          const RouteIcon = routeIcons[route] || Home;
+          const label = route === '/relatorios' ? 'Relatórios' : (routeLabels[route] || route);
+          const isRouteActivenow = isRouteActive(pathname, route);
 
-            // Explosão em cascata vindo do centro da tela para fora
-            const delay = isOpen ? (i * 60) : 0;
+          // Cascata CSS: Quanto maior o index (mais alto), maior o delay de saída
+          const delayClass = i === 0 ? "delay-75" : i === 1 ? "delay-100" : i === 2 ? "delay-150" : "delay-200";
+          const translateClass = i === 0 ? "translate-y-[20px]" : i === 1 ? "translate-y-[40px]" : i === 2 ? "translate-y-[60px]" : "translate-y-[80px]";
 
-            return (
-              <Link
-                key={route}
-                to={route}
-                onClick={(e) => { e.stopPropagation(); onToggle(); }}
-                style={{ transitionDelay: `${delay}ms` }}
-                className={cn(
-                  "relative flex flex-col items-center justify-center gap-3 w-[100px] h-[100px] rounded-3xl transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                  isOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-75 translate-y-8",
-                  isRouteActivenow
-                    ? "bg-primary text-primary-foreground shadow-[0_8px_32px_rgba(9,201,114,0.4)]"
-                    : "bg-background/90 shadow-xl hover:bg-muted text-foreground"
-                )}
-              >
-                <RouteIcon className={cn("w-8 h-8 transition-transform duration-300", isRouteActivenow ? "scale-110" : "opacity-80")} />
-                <span className="text-[12px] font-bold tracking-tight text-center leading-tight px-1">
-                  {label}
-                </span>
+          return (
+            <Link
+              key={route}
+              to={route}
+              className={cn(
+                "group/btn relative flex items-center justify-center pointer-events-auto transition-all duration-300 ease-in-out opacity-0 scale-50 group-hover/mitosis:opacity-100 group-hover/mitosis:translate-y-0 group-hover/mitosis:scale-100 focus-within:opacity-100 focus-within:translate-y-0 focus-within:scale-100",
+                translateClass,
+                delayClass
+              )}
+            >
+              {/* Etiqueta de Texto Neon Externa (Flutuando à direita do ícone) */}
+              <span className="absolute left-14 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-md text-primary font-bold text-[11px] tracking-wide whitespace-nowrap shadow-lg opacity-0 -translate-x-4 pointer-events-none transition-all duration-300 group-hover/btn:opacity-100 group-hover/btn:translate-x-0">
+                {label}
+              </span>
 
-                {isRouteActivenow && (
-                  <div className="absolute inset-0 border-2 border-white/20 dark:border-black/20 rounded-3xl pointer-events-none" />
-                )}
-              </Link>
-            );
-          })}
-        </div>
+              {/* O Círculo Geométrico da Célula Filha */}
+              <div className={cn(
+                "w-12 h-12 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border-2 transition-all duration-300 group-hover/btn:border-primary/60",
+                isRouteActivenow ? "bg-primary border-transparent text-primary-foreground shadow-[0_0_15px_rgba(9,201,114,0.4)]" : "bg-[hsl(var(--logo-bg))] border-transparent text-white"
+              )}>
+                <RouteIcon className={cn("w-5 h-5", isRouteActivenow && "scale-110")} />
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
-      <button
-        onClick={onToggle}
+      {/* Célula Mãe (O Botão na Barra Inferior) */}
+      <div
         className={cn(
-          "flex flex-col items-center justify-center w-full h-full py-2 rounded-2xl transition-colors relative z-10",
-          isOpen ? "text-primary" : "text-muted-foreground"
+          "relative z-20 flex flex-col items-center justify-center w-12 h-12 rounded-full shadow-md transition-all duration-300",
+          "bg-[hsl(var(--logo-bg))] border border-white/5",
+          "group-hover/mitosis:scale-110 group-focus/mitosis:scale-110",
+          isActive ? "shadow-[0_0_15px_rgba(9,201,114,0.3)] ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : "hover:border-primary/50"
         )}
       >
-        <div className={cn(
-          "absolute inset-0 rounded-2xl transition-all duration-300 pointer-events-none",
-          isOpen ? "bg-primary/10 scale-100 opacity-100" : "scale-90 opacity-0"
+        {/* Camada interna de pulso */}
+        <div className="absolute inset-0 rounded-full border border-primary scale-90 opacity-0 group-hover/mitosis:opacity-100 group-hover/mitosis:scale-105 transition-all duration-500 pointer-events-none"></div>
+        <Icon className={cn(
+          'w-5 h-5 transition-transform duration-500',
+          isActive ? 'text-primary' : 'text-white',
+          'group-hover/mitosis:text-primary group-hover/mitosis:-translate-y-0.5'
         )} />
-        <Icon className={cn('w-5 h-5 mb-1 transition-transform duration-300', isOpen && 'scale-110')} />
-        <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{hub.name}</span>
-      </button>
+      </div>
+      <span className={cn(
+        "absolute -bottom-4 text-[9px] font-extrabold tracking-tight truncate max-w-[90%] transition-opacity duration-300",
+        isActive ? "text-primary opacity-100" : "text-muted-foreground opacity-70",
+        "group-hover/mitosis:text-primary group-hover/mitosis:opacity-100"
+      )}>
+        {hub.name}
+      </span>
     </div>
   );
 }
@@ -216,24 +208,6 @@ function ClienteBottomBar() {
 function StandardBottomBar() {
   const location = useLocation();
   const { getAccessibleHubs } = usePermissions();
-  const [mitosisHubCode, setMitosisHubCode] = useState<string | null>(null);
-
-  // Ref para detectar clique fora e fechar a mitose
-  const navRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setMitosisHubCode(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside); // para mobile tap
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, []);
 
   const accessibleHubs = getAccessibleHubs();
 
@@ -258,15 +232,7 @@ function StandardBottomBar() {
 
   return (
     <>
-      <nav ref={navRef} className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom pointer-events-none md:bottom-4 md:px-4">
-
-        {/* Tint overlay do fundo para focar nas bolhas da mitose (aparece apenas quando a mitose abrir) */}
-        <div
-          className={cn(
-            "fixed inset-0 bg-background/60 backdrop-blur-sm transition-opacity duration-300 z-0 pointer-events-none",
-            mitosisHubCode ? "opacity-100" : "opacity-0"
-          )}
-        />
+      <nav className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom pointer-events-none md:bottom-4 md:px-4">
 
         {/* Barra flat principal */}
         <div
@@ -295,11 +261,7 @@ function StandardBottomBar() {
                       key={hub.code}
                       hub={hub}
                       isActive={isActive}
-                      isOpen={mitosisHubCode === hub.code}
                       routes={routes}
-                      onToggle={() =>
-                        setMitosisHubCode((prev) => (prev === hub.code ? null : hub.code))
-                      }
                     />
                   );
                 })}

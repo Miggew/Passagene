@@ -13,22 +13,46 @@ export function usePermissions() {
     hasAccessToRoute,
   } = useAuth();
 
-  // Retorna os hubs que o usuário tem acesso (filtrando rotas obsoletas que viraram abas)
+  // Retorna os hubs que o usuário tem acesso (filtrando rotas obsoletas e fundindo Campo/Escritório num mega hub Operacional)
   const getAccessibleHubs = (): Hub[] => {
     if (!permissions) return [];
 
-    return hubs
-      .filter(hub => hasAccessToHub(hub.code))
-      .map(hub => {
-        const newRoutes = hub.routes
-          .filter(r => r !== '/escritorio/historico' && !r.startsWith('/relatorios') && r !== '/escritorio')
-          .map(r => (r === '/escritorio/protocolo-p1' || r === '/escritorio/protocolo-p2') ? '/escritorio/protocolos' : r);
+    const hasOperacionalAccess = hasAccessToHub('campo') || hasAccessToHub('escritorio');
 
-        return {
-          ...hub,
-          routes: [...new Set(newRoutes)]
-        };
-      });
+    // Removemos os dois hubs redundantes originais do banco de dados na hora de listar
+    const filteredHubs = hubs.filter(hub =>
+      hasAccessToHub(hub.code) &&
+      hub.code !== 'campo' &&
+      hub.code !== 'escritorio'
+    );
+
+    const processedHubs = filteredHubs.map(hub => {
+      const newRoutes = hub.routes
+        .filter(r => !r.startsWith('/relatorios')); // Relatórios foi movido para dentro, se mantido na raiz apagamos
+
+      return {
+        ...hub,
+        routes: [...new Set(newRoutes)]
+      };
+    });
+
+    // Se possui acesso a pelo menos um dos irmãos, nós o premiamos com o Hub Unificado
+    if (hasOperacionalAccess) {
+      const parentHubs = hubs.filter(h => h.code === 'campo' || h.code === 'escritorio');
+      if (parentHubs.length > 0) {
+        const lowestOrder = Math.min(...parentHubs.map(h => h.display_order));
+        processedHubs.push({
+          id: parentHubs[0].id,
+          code: 'operacional',
+          name: 'Operacional',
+          routes: ['/protocolos', '/aspiracoes', '/transferencia', '/dg', '/sexagem', '/historico'],
+          display_order: lowestOrder,
+        });
+      }
+    }
+
+    // Reordenar tudo pelo display_order após nossa injeção cirúrgica
+    return processedHubs.sort((a, b) => a.display_order - b.display_order);
   };
 
   // Verifica se o usuário é admin

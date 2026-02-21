@@ -106,25 +106,30 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
 
   // Carregar fazendas
   useEffect(() => {
-    loadFazendas();
+    let stale = false;
+    loadFazendas(() => stale);
+    return () => { stale = true; };
   }, [clienteIdFilter]);
 
   // Carregar dados quando filtros mudam
   useEffect(() => {
-    loadData();
+    let stale = false;
+    loadData(() => stale);
     setPaginaAtual(1);
+    return () => { stale = true; };
   }, [tipoServico, filtroFazenda, filtroStatus, filtroDataInicio, filtroDataFim, filtroDataTipo, clienteIdFilter]);
 
-  const loadFazendas = async () => {
+  const loadFazendas = async (isStale?: () => boolean) => {
     let query = supabase.from('fazendas').select('*').order('nome');
     if (clienteIdFilter) {
       query = query.eq('cliente_id', clienteIdFilter);
     }
     const { data } = await query;
+    if (isStale?.()) return;
     setFazendas(data ?? []);
   };
 
-  const loadData = async () => {
+  const loadData = async (isStale?: () => boolean) => {
     setLoading(true);
     try {
       // Obter IDs das fazendas filtradas
@@ -134,34 +139,37 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
           .from('fazendas')
           .select('id')
           .eq('cliente_id', clienteIdFilter);
+        if (isStale?.()) return;
         fazendaIds = clienteFazendas?.map(f => f.id) ?? [];
       }
 
       switch (tipoServico) {
         case 'protocolos':
-          await loadProtocolos(fazendaIds);
+          await loadProtocolos(fazendaIds, isStale);
           break;
         case 'aspiracoes':
-          await loadAspiracoes(fazendaIds);
+          await loadAspiracoes(fazendaIds, isStale);
           break;
         case 'te':
-          await loadSessoesTe(fazendaIds);
+          await loadSessoesTe(fazendaIds, isStale);
           break;
         case 'dg':
-          await loadSessoesDg(fazendaIds);
+          await loadSessoesDg(fazendaIds, isStale);
           break;
         case 'sexagem':
-          await loadSessoesSexagem(fazendaIds);
+          await loadSessoesSexagem(fazendaIds, isStale);
           break;
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
-      setLoading(false);
+      if (!isStale?.()) {
+        setLoading(false);
+      }
     }
   };
 
-  const loadProtocolos = async (fazendaIds: string[]) => {
+  const loadProtocolos = async (fazendaIds: string[], isStale?: () => boolean) => {
     let query = supabase
       .from('protocolos_sincronizacao')
       .select('id, fazenda_id, data_inicio, responsavel_inicio, status')
@@ -187,6 +195,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     }
 
     const { data } = await query;
+    if (isStale?.()) return;
     if (!data || data.length === 0) {
       setProtocolos([]);
       return;
@@ -199,6 +208,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .select('id, nome')
       .in('id', fazendaIdsUnicos);
 
+    if (isStale?.()) return;
+
     const fazendaNomeMap = new Map(
       (fazendasData || []).map(f => [f.id, f.nome])
     );
@@ -209,6 +220,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .from('protocolo_receptoras')
       .select('protocolo_id')
       .in('protocolo_id', protocoloIds);
+
+    if (isStale?.()) return;
 
     const countsMap = new Map<string, number>();
     receptorasCounts?.forEach(r => {
@@ -228,7 +241,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     );
   };
 
-  const loadAspiracoes = async (fazendaIds: string[]) => {
+  const loadAspiracoes = async (fazendaIds: string[], isStale?: () => boolean) => {
     let query = supabase
       .from('pacotes_aspiracao')
       .select('id, fazenda_id, data_aspiracao, veterinario_responsavel, status')
@@ -251,6 +264,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     }
 
     const { data } = await query;
+    if (isStale?.()) return;
     if (!data || data.length === 0) {
       setAspiracoes([]);
       return;
@@ -263,6 +277,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .select('id, nome')
       .in('id', fazendaIdsUnicos);
 
+    if (isStale?.()) return;
+
     const fazendaNomeMap = new Map(
       (fazendasData || []).map(f => [f.id, f.nome])
     );
@@ -273,6 +289,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .from('aspiracoes_doadoras')
       .select('pacote_aspiracao_id')
       .in('pacote_aspiracao_id', pacoteIds);
+
+    if (isStale?.()) return;
 
     const countsMap = new Map<string, number>();
     doadorasCounts?.forEach(d => {
@@ -292,7 +310,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     );
   };
 
-  const loadSessoesTe = async (fazendaIds: string[]) => {
+  const loadSessoesTe = async (fazendaIds: string[], isStale?: () => boolean) => {
     // Buscar transferências realizadas
     let query = supabase
       .from('transferencias_embrioes')
@@ -313,6 +331,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     }
 
     const { data: transferencias } = await query;
+    if (isStale?.()) return;
     if (!transferencias || transferencias.length === 0) {
       setSessoesTe([]);
       return;
@@ -324,6 +343,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .from('receptoras')
       .select('id, fazendas!fazenda_atual_id(id, nome)')
       .in('id', receptoraIds);
+
+    if (isStale?.()) return;
 
     const fazendaMap = new Map(
       (receptorasData || []).map(r => [
@@ -381,7 +402,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     setSessoesTe(sessoesArray);
   };
 
-  const loadSessoesDg = async (fazendaIds: string[]) => {
+  const loadSessoesDg = async (fazendaIds: string[], isStale?: () => boolean) => {
     // Buscar diagnósticos de gestação (tipo DG)
     let query = supabase
       .from('diagnosticos_gestacao')
@@ -403,6 +424,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     }
 
     const { data: diagnosticos } = await query;
+    if (isStale?.()) return;
     if (!diagnosticos || diagnosticos.length === 0) {
       setSessoesDg([]);
       return;
@@ -414,6 +436,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .from('receptoras')
       .select('id, fazendas!fazenda_atual_id(id, nome)')
       .in('id', receptoraIds);
+
+    if (isStale?.()) return;
 
     const fazendaMap = new Map(
       (receptorasData || []).map(r => [
@@ -473,7 +497,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     setSessoesDg(sessoesArray);
   };
 
-  const loadSessoesSexagem = async (fazendaIds: string[]) => {
+  const loadSessoesSexagem = async (fazendaIds: string[], isStale?: () => boolean) => {
     // Buscar diagnósticos de sexagem (tipo SEXAGEM)
     let query = supabase
       .from('diagnosticos_gestacao')
@@ -495,6 +519,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
     }
 
     const { data: diagnosticos } = await query;
+    if (isStale?.()) return;
     if (!diagnosticos || diagnosticos.length === 0) {
       setSessoesSexagem([]);
       return;
@@ -506,6 +531,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       .from('receptoras')
       .select('id, fazendas!fazenda_atual_id(id, nome)')
       .in('id', receptoraIds);
+
+    if (isStale?.()) return;
 
     const fazendaMap = new Map(
       (receptorasData || []).map(r => [
