@@ -14,14 +14,6 @@ interface Props {
 
 export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props) {
   const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
-  const primeiroNome = clienteNome?.split(' ')[0] || 'Cliente';
-
-  const getSaudacao = () => {
-    const hora = new Date().getHours();
-    if (hora < 12) return 'Bom dia';
-    if (hora < 18) return 'Boa tarde';
-    return 'Boa noite';
-  };
 
   // Wrapper para tornar qualquer widget clicável/expansível (2x2 grid style)
   const WidgetWrapper = ({ id, children, className = '' }: { id: string, children: React.ReactNode, className?: string }) => (
@@ -43,20 +35,6 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
 
   return (
     <div className="flex flex-col h-full w-full px-1 py-1 overflow-hidden">
-      {/* Header Saudação */}
-      <div className="flex items-center justify-between mb-4 shrink-0 px-2 mt-1">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-white font-heading leading-tight drop-shadow-sm">
-              {getSaudacao()}, {primeiroNome}!
-            </h1>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-              Cockpit Cliente
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Mini Banner Genética (Compacto para não gerar scroll) */}
       <div className="mb-3 shrink-0 px-1">
         <div className="relative w-full rounded-xl overflow-hidden min-h-[50px] bg-gradient-to-r from-card to-card/50 border border-border flex items-center px-4 py-2 justify-between cursor-pointer hover:border-primary/30 transition-colors">
@@ -79,19 +57,19 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
       <div className="flex flex-col gap-4 md:gap-5 flex-1 min-h-0 px-2 pb-4">
 
         {/* Topo (Largura Total): Teaser Geno AI com Premium Glassmorphism */}
-        <WidgetWrapper id="farm" className="w-full h-auto border-none bg-transparent shrink-0">
+        <WidgetWrapper id="farm" className="w-full flex-shrink-0 h-[100px] border-none bg-transparent">
           <AITeaserWidget clienteId={clienteId} compact={true} />
         </WidgetWrapper>
 
         {/* Base: Lado a Lado forçado em TODAS as telas (CSS Grid 2 colunas) */}
-        <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 mt-2">
+        <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 mt-1">
           {/* Base Esquerda: Fusão Mercado + Notícias */}
-          <WidgetWrapper id="market_news" className="w-full min-w-0 border-none bg-transparent">
+          <WidgetWrapper id="market_news" className="w-full h-full min-h-0 flex flex-col border-none bg-transparent">
             <MarketNewsWidget compact={true} />
           </WidgetWrapper>
 
           {/* Base Direita: Clima Expandido */}
-          <WidgetWrapper id="weather" className="w-full min-w-0 border-none bg-transparent">
+          <WidgetWrapper id="weather" className="w-full h-full min-h-0 flex flex-col border-none bg-transparent">
             <WeatherWidget compact={true} />
           </WidgetWrapper>
         </div>

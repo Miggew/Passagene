@@ -71,7 +71,7 @@ export function MarketNewsWidget({ compact = false }: { compact?: boolean }) {
     const loading = loadingMarket || loadingNews;
 
     return (
-        <Card className="h-full min-h-[160px] bg-card border-border/50 p-4 flex flex-col justify-between shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+        <Card className="h-full min-h-0 bg-card border-border/50 p-3 flex flex-col justify-between shadow-sm overflow-hidden hover:shadow-md transition-shadow">
             {/* Topo: Cotações Essenciais */}
             <div className="flex-1 flex flex-col justify-center mb-3">
                 <div className="flex items-center gap-2 mb-3">

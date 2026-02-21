@@ -12,7 +12,7 @@ export default function HomeCliente({ clienteId, clienteNome }: HomeClienteProps
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col w-full overflow-hidden h-[calc(100dvh-112px)]">
+        <div className="flex flex-col w-full h-[calc(100dvh-200px)] overflow-hidden">
             {/* Dashboard Cliente - flex-1 preenche tudo */}
             <HomeDashboardClienteAI
                 clienteId={clienteId}

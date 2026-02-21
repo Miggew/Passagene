@@ -11,21 +11,21 @@ html.font-grande {
 
 @layer base {
   :root {
-    /* Background: Gelo-Musgo Clarinho (Alma clínica atada ao brand) */
-    --background: 164 20% 98%;
+    /* Background: Alabaster Puro (Minimalista, extremamente limpo) */
+    --background: 0 0% 98%;
 
-    /* Foreground: Musgo Quase Preto (Extrema sofisticação invés de chumbo gnérico) */
-    --foreground: 164 40% 15%;
+    /* Foreground: Preto Rico e Profundo (Máximo contraste e elegância) */
+    --foreground: 224 71.4% 4.1%;
 
-    /* Cards: Branco Puro. Flutuarão de forma absurdamente elegante e descolada do fundo gelo-musgo */
+    /* Cards: Branco Puro flutuando sobre alabaster */
     --card: 0 0% 100%;
-    --card-foreground: 164 40% 15%;
+    --card-foreground: 224 71.4% 4.1%;
 
     /* Popovers */
     --popover: 0 0% 100%;
-    --popover-foreground: 164 40% 15%;
+    --popover-foreground: 224 71.4% 4.1%;
 
-    /* Primary: Verde Musgo Profundo volta (Agora apoiado pelo ambiente, não solitário) */
+    /* Primary: Verde Musgo Profundo da Logo (Ancoragem da marca) */
     --primary: 164 86% 16%;
     --primary-foreground: 0 0% 100%;
 
@@ -33,33 +33,33 @@ html.font-grande {
     --primary-dark: 166 91% 9%;
     --primary-dark-foreground: 0 0% 100%;
 
-    /* Primary Light: Teal Premium */
-    --primary-light: 174 77% 26%;
+    /* Primary Light: Neon Moderado */
+    --primary-light: 153 60% 45%;
     --primary-light-foreground: 0 0% 100%;
 
-    /* Primary Subtle: Verde Menta Claro */
-    --primary-subtle: 141 79% 93%;
+    /* Primary Subtle: Fundo verde exttremamente sutil */
+    --primary-subtle: 153 50% 96%;
     --primary-subtle-foreground: 164 86% 16%;
 
-    /* Secondary: Cinza-Musgo um pouco mais marcado para painéis secundários */
-    --secondary: 164 20% 94%;
-    --secondary-foreground: 164 40% 15%;
+    /* Secondary: Cinza ultra clean */
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220 39.3% 11%;
 
-    /* Muted: Bases e disabled states na Hue da marca */
-    --muted: 164 15% 92%;
-    --muted-foreground: 164 15% 45%;
+    /* Muted: Bases minimalistas sem intervenção de cor */
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
 
-    /* Accent: Laser Neon (Continua como Ponto de Interação Vivo) */
+    /* Accent: Verde Neon (Disrupção interativa) */
     --accent: 153 91% 41%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
 
-    /* Borders & Inputs: Bordas sutilmente tingidas para abraçar os cards brancos */
-    --border: 164 15% 90%;
-    --input: 164 15% 90%;
+    /* Borders & Inputs: Bordas invisíveis quase */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 153 91% 41%;
 
     /* Cores Globais da Marca para Componentes React (Sincronia Logo <-> UI) */
@@ -74,7 +74,7 @@ html.font-grande {
     --logo-back: 0 0% 100%;
     /* Branco */
 
-    /* Variante Hollow (Logo vazada para fundos muito claros) */
+    /* Variante Hollow (Logo vazada para fundos claros) */
     --logo-hollow-bg: 0 0% 0% / 0;
     /* Transparente */
     --logo-hollow-passa: 164 86% 16%;
@@ -86,90 +86,88 @@ html.font-grande {
     --logo-hollow-back: 153 91% 41%;
     /* Neon */
 
-    /* Radius base - Aumentado para 1.5rem (24px) para abraçar a identidade "Pílula" (Curvatura suave) */
-    --radius: 1.5rem;
+    /* Radius base - Elementos arredondados na medida certa para ser chic e atual */
+    --radius: 1.2rem;
 
-    /* Sidebar Light Mode - Base Branca Pura (Flutua elegante) e Menus em Deep Moss */
+    /* Sidebar Light Mode - Base Off-White Brilhante, texturas clean */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 164 40% 15%;
+    --sidebar-foreground: 224 71.4% 4.1%;
     --sidebar-primary: 164 86% 16%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 164 20% 94%;
+    --sidebar-accent: 220 14.3% 95.9%;
     --sidebar-accent-foreground: 164 86% 16%;
-    --sidebar-border: 164 15% 90%;
+    --sidebar-border: 220 13% 91%;
     --sidebar-ring: 153 91% 41%;
   }
 
   .dark {
-    /* Design Tokens PassaGene - Dark Mode (Forest Premium Sci-Fi) */
+    /* Design Tokens PassaGene - Dark Mode (Obsidian / AMOLED Pure Black) */
 
-    /* Background: Cinza Verdinho Ultra-Escuro (Conecta com a marca em vez de cinza puro) */
-    --background: 164 30% 5%;
-    --foreground: 0 0% 95%;
+    /* Background: Preto Verdadeiramente Profundo (Efeito espelhado escuro) */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
 
-    /* Cards: Verdinho sutil para destacar do fundo */
-    --card: 164 25% 9%;
-    --card-foreground: 0 0% 95%;
+    /* Cards: Um tom marginalmente acima do preto pra criar profundidade */
+    --card: 240 6% 6%;
+    --card-foreground: 0 0% 98%;
 
     /* Popovers */
-    --popover: 164 25% 9%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 240 6% 6%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Primary: Verde Neon Laser (O modo dark inverte as prioridades de atenção para alto contraste) */
+    /* Primary: Verde Neon Laser Assumindo o Protagonismo Absoluto (Disruptivo) */
     --primary: 153 91% 41%;
-    /* O texto dentro dos botões neons no modo dark deve ser Musgo super escuro para excelente legibilidade */
-    --primary-foreground: 164 86% 10%;
+    --primary-foreground: 240 10% 4%;
 
+    /* Primary Dark: Musgo */
     --primary-dark: 164 86% 16%;
     --primary-dark-foreground: 0 0% 100%;
 
+    /* Primary Light: Teal Premium */
     --primary-light: 174 77% 26%;
-    --primary-light-foreground: 160 15% 8%;
+    --primary-light-foreground: 0 0% 98%;
 
-    --primary-subtle: 164 86% 12%;
-    --primary-subtle-foreground: 141 79% 93%;
+    /* Primary Subtle: Reflexão sutil Neon no fundo Escuro */
+    --primary-subtle: 153 91% 10%;
+    --primary-subtle-foreground: 153 91% 41%;
 
-    /* Secondary */
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 95%;
+    /* Secondary: Painéis limpos sem hue verde suja */
+    --secondary: 240 4% 12%;
+    --secondary-foreground: 0 0% 98%;
 
-    /* Muted */
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 70%;
+    /* Muted: Neutro de verdade */
+    --muted: 240 4% 12%;
+    --muted-foreground: 240 5% 65%;
 
-    /* Accent: Laser Neon (Dark Mode) */
+    /* Accent: Neon Puro */
     --accent: 153 91% 41%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 0 0% 10%;
 
     /* Destructive */
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    /* Borders & Inputs */
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
+    /* Borders & Inputs: Bordas invisíveis, apenas separação de tons */
+    --border: 240 4% 14%;
+    --input: 240 4% 14%;
     --ring: 153 91% 41%;
 
-    /* Variante Hollow (Logo vazada para fundos muito escuros) */
+    /* Variante Hollow (Logo vazada dark) */
     --logo-hollow-bg: 0 0% 0% / 0;
-    /* Transparente */
     --logo-hollow-passa: 0 0% 100%;
-    /* Branco para ler em fundo preto */
     --logo-hollow-gene: 153 91% 41%;
-    /* Neon */
     --logo-hollow-front: 0 0% 100%;
-    /* Branco */
     --logo-hollow-back: 153 91% 41%;
-    /* Neon */
 
     /* Sidebar - Dark */
-    --sidebar-background: 164 30% 4%;
-    --sidebar-foreground: 0 0% 95%;
+    --sidebar-background: 240 10% 3%;
+    --sidebar-foreground: 0 0% 98%;
+    /* Primary Neon chamando atenção */
     --sidebar-primary: 153 91% 41%;
-    --sidebar-primary-foreground: 164 86% 10%;
-    --sidebar-accent: 164 25% 12%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 164 25% 15%;
+    --sidebar-primary-foreground: 240 10% 4%;
+    --sidebar-accent: 240 4% 10%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 4% 12%;
     --sidebar-ring: 153 91% 41%;
   }
 }
@@ -362,4 +360,39 @@ html.font-grande {
 
 .animate-organic-float {
   animation: organic-float 3s ease-in-out infinite;
+}
+
+/* Fecho Ecler (DNA Timeline Animada) */
+@layer utilities {
+  .animate-dna-left {
+    animation: slideInLeftDNA 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  .animate-dna-right {
+    animation: slideInRightDNA 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+}
+
+@keyframes slideInLeftDNA {
+  from {
+    opacity: 0;
+    transform: translateX(-50px) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes slideInRightDNA {
+  from {
+    opacity: 0;
+    transform: translateX(50px) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
 }

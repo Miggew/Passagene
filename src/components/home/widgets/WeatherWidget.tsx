@@ -60,10 +60,10 @@ export function WeatherWidget({ compact = false }: { compact?: boolean }) {
             : 'Previsão indisponível no momento.';
 
         return (
-            <Card className="h-full min-h-[160px] bg-card border-border/50 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
+            <Card className="h-full min-h-0 bg-card border-border/50 p-3 flex flex-col justify-between shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
 
                 {/* Top: Location & Current Temp in a structured row */}
-                <div className="flex items-start justify-between z-10 shrink-0 mb-4">
+                <div className="flex items-start justify-between z-10 shrink-0 mb-2">
                     <div>
                         <span className="text-sm font-semibold text-foreground tracking-wide block mb-1">{current.location}</span>
                         <div className="flex items-baseline gap-2">

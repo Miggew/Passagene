@@ -109,9 +109,9 @@ export function AITeaserWidget({ clienteId, compact = true }: Props) {
             {/* Very subtle elegant neutral shimmer on hover */}
             <div className="absolute inset-0 bg-gradient-to-tr from-foreground/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-            <div className="p-6 md:p-8 flex flex-col h-full z-10 relative">
+            <div className="p-4 md:p-5 flex flex-col h-full z-10 relative">
                 {/* Insight Text (Foco Total na Leitura - Editorial) */}
-                <div className="flex-1 flex flex-col justify-center min-h-0 mb-4 py-2">
+                <div className="flex-1 flex flex-col justify-center min-h-0 mb-1 py-0">
                     {loadingData || loadingAI ? (
                         <div className="flex flex-col gap-5 w-full">
                             <div className="h-6 w-full bg-muted/60 rounded animate-pulse" />
@@ -119,7 +119,7 @@ export function AITeaserWidget({ clienteId, compact = true }: Props) {
                             <div className="h-6 w-3/4 bg-muted/60 rounded animate-pulse" />
                         </div>
                     ) : (
-                        <p className="text-xl md:text-2xl font-semibold text-foreground leading-relaxed drop-shadow-sm group-hover:text-foreground/90 transition-colors">
+                        <p className="text-lg md:text-xl font-semibold text-foreground leading-snug drop-shadow-sm group-hover:text-foreground/90 transition-colors">
                             {analysis}
                         </p>
                     )}
