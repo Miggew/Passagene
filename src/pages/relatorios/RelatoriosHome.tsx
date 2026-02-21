@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import { todayISO as getTodayDateString, addDays } from '@/lib/dateUtils';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Users,
   Dna,
   Calendar,
   Activity,

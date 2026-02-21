@@ -39,7 +39,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Check, Plus, Search, Trash2, Save, UserPlus, CircleDot, Syringe, Clock, Loader2, X } from 'lucide-react';
+import { Check, Plus, Trash2, Save, UserPlus, CircleDot, Syringe, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Fazenda, Doadora } from '@/lib/types';
 import { DoadoraLocal, FazendaSelect } from '@/lib/types/aspiracoes';

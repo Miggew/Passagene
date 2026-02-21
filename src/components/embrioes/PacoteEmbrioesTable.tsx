@@ -33,8 +33,6 @@ import {
   Brain,
   AlertTriangle,
   RefreshCw,
-  ScanSearch,
-  Eye,
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
 

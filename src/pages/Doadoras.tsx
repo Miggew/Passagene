@@ -32,7 +32,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import FazendaSelector from '@/components/shared/FazendaSelector';
 import { TableSkeleton } from '@/components/shared/TableSkeleton';
-import { Plus, Pencil, History, Star, Gem, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { Plus, Pencil, History, Star, Gem, Filter, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
 import SearchInput from '@/components/shared/SearchInput';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
 import { formatDateBR } from '@/lib/dateUtils';
@@ -44,7 +44,6 @@ import {
   useDoadorasForm,
   racasPredefinidas,
   type DoadoraComAspiracao,
-  type SortOrder,
 } from '@/hooks/doadoras';
 
 export default function Doadoras() {

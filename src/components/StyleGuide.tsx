@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Moon, Sun, Check, X, Edit, Trash2 } from 'lucide-react';
+import { Moon, Sun, Check, X, Edit } from 'lucide-react';
 import logoSimples from '@/assets/logosimples.svg';
 import logoEscrito from '@/assets/logoescrito.svg';
 

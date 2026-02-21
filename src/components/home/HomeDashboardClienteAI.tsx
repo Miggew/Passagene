@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Maximize2, X, Dna } from 'lucide-react';
+import { Maximize2, X, Dna } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WeatherWidget } from './widgets/WeatherWidget';
 import { MarketWidget } from './widgets/MarketWidget';

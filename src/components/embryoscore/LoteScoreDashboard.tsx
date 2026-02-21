@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { EmbryoScore } from '@/lib/types';
 import { useAtlasStats } from '@/hooks/useEmbryoReview';
-import { Brain, BarChart3, Users, Activity } from 'lucide-react';
+import { Brain, BarChart3, Users } from 'lucide-react';
 
 interface LoteScoreDashboardProps {
   loteFivId: string;

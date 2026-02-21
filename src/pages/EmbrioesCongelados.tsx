@@ -31,7 +31,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Eye, Snowflake, Download, Filter, Users, Dna, X } from 'lucide-react';
+import { Search, Eye, Snowflake, Download, Filter, X } from 'lucide-react';
 
 interface Cliente {
   id: string;

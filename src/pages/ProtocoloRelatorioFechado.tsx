@@ -12,7 +12,7 @@ import { ArrowLeft } from 'lucide-react';
 import CiclandoBadge from '@/components/shared/CiclandoBadge';
 import QualidadeSemaforo from '@/components/shared/QualidadeSemaforo';
 import CountBadge, { getTaxaVariant } from '@/components/shared/CountBadge';
-import { DataTable, Column } from '@/components/shared/DataTable';
+import { DataTable } from '@/components/shared/DataTable';
 
 interface ReceptoraComStatusFinal extends Receptora {
   pr_id: string;

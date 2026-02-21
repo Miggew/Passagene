@@ -32,7 +32,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Search, Filter, Users, Dna, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Users, Dna, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,

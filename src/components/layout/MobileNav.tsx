@@ -8,7 +8,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Home, Building2, TestTube, FileBarChart, Dna } from 'lucide-react';
+import { Home } from 'lucide-react';
 import LogoSimples from '@/assets/logosimples.svg';
 import {
   routeIcons,
@@ -16,7 +16,6 @@ import {
   hubIcons,
   HUB_QUICK_ROUTES,
   CLIENTE_NAV_ROUTES,
-  getBottomBarHubCode,
 } from '@/lib/nav-config';
 import type { Hub } from '@/lib/types';
 

@@ -5,7 +5,6 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import { DoseSemen, Doadora, Cliente } from '@/lib/types';
 import {
   LoteFIVComNomes,
@@ -42,7 +41,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Lock, X, Users, FileText, Package, Plus, ChevronDown, Video } from 'lucide-react';
+import { ArrowLeft, X, Users, FileText, Package, Plus, ChevronDown, Video } from 'lucide-react';
 import { VideoUploadButton, LoteScoreDashboard } from '@/components/embryoscore';
 import { cn, formatDate, extractDateOnly, addDays, diffDays, formatDateString, getDayOfWeekName, getTodayDateString } from '@/lib/utils';
 import { getDiaCultivo } from '@/lib/lotesFivUtils';

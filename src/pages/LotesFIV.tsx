@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import type { DoseSemen } from '@/lib/types';
-import { AcasalamentoComNomes, LoteFIVComNomes, PacoteComNomes } from '@/lib/types/lotesFiv';
+import { LoteFIVComNomes, PacoteComNomes } from '@/lib/types/lotesFiv';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

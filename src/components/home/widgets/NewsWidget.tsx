@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Newspaper, ExternalLink, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import { ExternalLink, Sparkles, RefreshCw } from 'lucide-react';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

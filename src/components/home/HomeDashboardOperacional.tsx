@@ -6,7 +6,6 @@ import {
   Home,
   Baby,
   Activity,
-  UserCheck,
   Calendar,
   ArrowRight,
   Syringe,

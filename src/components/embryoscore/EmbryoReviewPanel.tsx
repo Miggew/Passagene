@@ -20,7 +20,7 @@ import { PlatePanorama } from './PlatePanorama';
 import { EmbryoMinimap } from './EmbryoMinimap';
 import { BiologistClassButtons, CLASSES } from './BiologistClassButtons';
 import { DispatchSummary } from './DispatchSummary';
-import { Eye, EyeOff, Activity, Map, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
 
 const SOURCE_LABELS: Record<string, { icon: string; text: string; color: string }> = {
