@@ -4,7 +4,9 @@ import MobileNav from './MobileNav';
 import TopBar from './TopBar';
 import { useGlobalAnalysisQueue, useCancelAllAnalysis } from '@/hooks/useEmbryoScores';
 import type { GlobalAnalysisQueueData } from '@/hooks/useEmbryoScores';
-import { Brain, X, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Brain, X, Loader2, AlertCircle } from 'lucide-react';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 
 function formatElapsed(startedAt: string): string {
   const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
@@ -62,35 +64,62 @@ function AnalysisQueueBar() {
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border-b border-violet-500/20">
-      {queueData.processing > 0 ? (
-        <Loader2 className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 animate-spin shrink-0" />
-      ) : (
-        <Brain className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 shrink-0" />
+    <div className="flex items-center justify-between px-4 py-3 bg-[hsl(var(--logo-bg))] border-b border-[hsl(var(--logo-bg))]/80 text-primary-foreground shadow-sm relative overflow-hidden">
+
+      {/* Glow Effect / Pulse background for processing */}
+      {queueData.processing > 0 && (
+        <div className="absolute left-0 top-0 bottom-0 w-64 bg-[radial-gradient(ellipse_at_left,_var(--tw-gradient-stops))] from-primary/20 to-transparent opacity-40 animate-pulse pointer-events-none"></div>
       )}
 
-      <span className="text-xs font-medium text-violet-600 dark:text-violet-400 truncate">
-        <span className="hidden sm:inline">EmbryoScore — </span>
-        {parts.join(' | ')}
-        {queueData.oldestStartedAt && (
-          <span className="ml-1.5 tabular-nums opacity-75">
-            {formatElapsed(queueData.oldestStartedAt)}
-          </span>
-        )}
-      </span>
+      {/* Main Content Area */}
+      <div className="flex items-center gap-4 relative z-10 w-full">
+        {/* DNA Loader */}
+        <div className="shrink-0 flex items-center justify-center bg-black/10 rounded-xl p-1 shadow-inner">
+          <LoaderDNA size={40} variant="premium" />
+        </div>
 
-      <button
-        onClick={handleCancel}
-        disabled={cancelAll.isPending}
-        className={`ml-auto shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${confirming
-          ? 'bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/30'
-          : 'bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400'
-          } disabled:opacity-50`}
-        title={confirming ? 'Clique de novo para confirmar' : 'Cancelar todas as análises'}
-      >
-        <X className="w-3 h-3" />
-        {cancelAll.isPending ? '...' : confirming ? 'Confirmar?' : 'Parar'}
-      </button>
+        {/* Text and Stats */}
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-extrabold tracking-wider uppercase text-white shadow-sm">
+              Analisando IA
+            </span>
+            {queueData.processing > 0 && (
+              <span className="flex items-center h-5 px-2 text-[10px] font-bold tracking-widest uppercase rounded-full bg-primary/20 text-primary-100 border border-primary/30">
+                Processando
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 mt-1.5 text-xs font-mono font-medium text-white/70">
+            <span className="flex items-center gap-1.5 bg-black/20 px-2 py-0.5 rounded-md">
+              <Brain className="w-3.5 h-3.5 text-primary-light" />
+              {parts.join(' | ')}
+            </span>
+            {queueData.oldestStartedAt && queueData.processing > 0 && (
+              <span className="flex items-center gap-1.5 bg-black/20 px-2 py-0.5 rounded-md text-primary-200">
+                Tempo Real: {formatElapsed(queueData.oldestStartedAt)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="shrink-0 flex items-center">
+          <button
+            onClick={handleCancel}
+            disabled={cancelAll.isPending}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all focus:outline-none focus:ring-2 focus:ring-red-500/50 ${confirming
+              ? 'bg-red-500 text-white shadow-lg shadow-red-500/20 scale-105'
+              : 'bg-white/5 text-white/60 hover:bg-red-500/20 hover:text-red-400 border border-white/10 hover:border-red-500/30'
+              } disabled:opacity-50`}
+            title={confirming ? 'Clique de novo para confirmar cancelamento' : 'Abortar Análises Globais'}
+          >
+            <X className={cn("w-4 h-4", confirming && "animate-pulse")} />
+            {cancelAll.isPending ? 'Abortando...' : confirming ? 'Confirmar Aborto' : 'Abortar'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { ShieldX, ArrowLeft, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/usePermissions';
-import logoEscrito from '@/assets/logoescrito.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 
 export default function SemAcesso() {
   const navigate = useNavigate();
@@ -21,7 +21,9 @@ export default function SemAcesso() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-secondary px-4">
       <div className="text-center max-w-md">
         {/* Logo */}
-        <img src={logoEscrito} alt="PassaGene" className="h-12 w-auto mx-auto mb-6" />
+        <div className="flex justify-center mb-6">
+          <LogoPassagene height={48} variant="premium" />
+        </div>
 
         <div className="flex justify-center mb-6">
           <div className="p-4 bg-destructive/10 rounded-full">

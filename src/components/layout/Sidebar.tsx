@@ -151,13 +151,13 @@ export default function Sidebar() {
               key={route}
               to={route}
               className={cn(
-                'flex items-center gap-4 px-4 py-3 mx-4 my-1.5 rounded-2xl transition-all duration-300',
+                'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative',
                 isActive
-                  ? 'bg-primary/10 text-primary font-bold shadow-sm'
-                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium'
+                  ? 'bg-primary/10 text-[hsl(var(--logo-bg))] font-extrabold shadow-sm border-l-4 border-[hsl(var(--logo-bg))] rounded-r-2xl pr-4' // Raiz ancorada na esquerda
+                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3' // Item inativo tem margem padrão
               )}
             >
-              <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-primary scale-110' : '')} />
+              <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-[hsl(var(--logo-bg))] scale-110' : '')} />
               <span className="text-sm">{label}</span>
             </Link>
           );

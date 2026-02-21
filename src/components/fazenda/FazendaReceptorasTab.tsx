@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ReceptoraComStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -153,7 +154,7 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
       <Card>
         <CardContent className="py-8">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <LoaderDNA size={48} variant="premium" />
           </div>
         </CardContent>
       </Card>
@@ -229,58 +230,58 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
 
           {/* Botão Nova Receptora */}
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Receptora
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Receptora</DialogTitle>
-              <DialogDescription>
-                Adicionar receptora em {fazendaNome}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="identificacao">Brinco/Identificação *</Label>
-                <Input
-                  id="identificacao"
-                  value={formData.identificacao}
-                  onChange={(e) => setFormData({ ...formData, identificacao: e.target.value })}
-                  placeholder="Ex: 001, A123"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome (opcional)</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  placeholder="Nome da receptora"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Salvando...' : 'Cadastrar'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDialog(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Receptora
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cadastrar Receptora</DialogTitle>
+                <DialogDescription>
+                  Adicionar receptora em {fazendaNome}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="identificacao">Brinco/Identificação *</Label>
+                  <Input
+                    id="identificacao"
+                    value={formData.identificacao}
+                    onChange={(e) => setFormData({ ...formData, identificacao: e.target.value })}
+                    placeholder="Ex: 001, A123"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome (opcional)</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    placeholder="Nome da receptora"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Salvando...' : 'Cadastrar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDialog(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

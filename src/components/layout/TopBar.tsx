@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { Settings, LogOut, Sun, Moon, Laptop, User } from 'lucide-react';
-import logoEscrito from '@/assets/logoescrito.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -27,10 +27,10 @@ export default function TopBar() {
 
                 {/* Left: Logo */}
                 <div
-                    className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+                    className="flex items-center cursor-pointer transition-transform hover:-translate-y-0.5"
                     onClick={() => navigate('/')}
                 >
-                    <img src={logoEscrito} alt="PassaGene" className="h-8 w-auto" />
+                    <LogoPassagene height={32} variant="premium" />
                 </div>
 
                 {/* Center: Greeting (Visible on larger screens) */}

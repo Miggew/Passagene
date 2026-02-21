@@ -4,8 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LogOut, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import logoSimples from '@/assets/logosimples.svg';
-import logoEscrito from '@/assets/logoescrito.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 
 interface HeaderProps {
   showUserInfo?: boolean;
@@ -28,17 +27,8 @@ const Header: React.FC<HeaderProps> = ({ showUserInfo = false }) => {
       <div className="flex h-[72px] items-center justify-between px-6 lg:px-8">
         {/* Logo - Link para home */}
         <Link to="/" className="flex items-center gap-2">
-          {/* Logo responsiva: simples em mobile, escrito em desktop */}
-          <img
-            src={logoSimples}
-            alt="PassaGene"
-            className="h-10 w-auto block md:hidden"
-          />
-          <img
-            src={logoEscrito}
-            alt="PassaGene"
-            className="h-12 w-auto hidden md:block"
-          />
+          {/* Logo animada Responsiva e Inquebrável */}
+          <LogoPassagene height={44} variant="premium" />
         </Link>
 
         {/* Área direita: dark mode toggle + user info */}

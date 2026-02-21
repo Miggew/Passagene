@@ -1,5 +1,5 @@
 import { usePermissions } from '@/hooks/usePermissions';
-import logoEscrito from '@/assets/logoescrito.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import HomeDashboardOperacional from './HomeDashboardOperacional';
 import HomeDashboardAdmin from './HomeDashboardAdmin';
 
@@ -28,11 +28,7 @@ export default function HomeDefault({ clienteIds }: HomeDefaultProps) {
         <div className="space-y-4">
             {/* Header: Logo */}
             <div className="flex items-center">
-                <img
-                    src={logoEscrito}
-                    alt="PassaGene"
-                    className="h-8 w-auto"
-                />
+                <LogoPassagene height={44} variant="premium" />
             </div>
 
             {/* Card de Saudação */}

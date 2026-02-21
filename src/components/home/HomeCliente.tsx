@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import ThemeToggle from '@/components/shared/ThemeToggle';
-import logoEscrito from '@/assets/logoescrito.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import HomeDashboardClienteAI from './HomeDashboardClienteAI';
 interface HomeClienteProps {
     clienteId: string;
@@ -26,7 +26,7 @@ export default function HomeCliente({ clienteId, clienteNome }: HomeClienteProps
                 </div>
 
                 {/* Logo centralizada */}
-                <img src={logoEscrito} alt="PassaGene" className="h-9 w-auto" />
+                <LogoPassagene height={36} variant="premium" />
 
                 {/* ThemeToggle - canto superior direito */}
                 <div className="absolute right-0 top-0">

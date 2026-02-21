@@ -6,7 +6,7 @@
  */
 
 import { cn } from '@/lib/utils';
-import DnaHelixIcon from './DnaHelixIcon';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 
 interface LoadingScreenProps {
   /** Texto opcional abaixo da logo */
@@ -37,9 +37,9 @@ export default function LoadingScreen({
         className
       )}
     >
-      <DnaHelixIcon
+      <LoaderDNA
         size={sizeMap[size]}
-        className="shadow-[0_10px_40px_rgba(9,201,114,0.3)]"
+        variant="premium"
       />
 
       {/* Texto opcional */}
@@ -60,7 +60,7 @@ export default function LoadingScreen({
 export function LoadingInline({ text = 'Carregando...' }: { text?: string }) {
   return (
     <div className="flex items-center justify-center gap-4 py-8">
-      <DnaHelixIcon size={32} className="shadow-sm" />
+      <LoaderDNA size={32} variant="premium" />
       <span className="text-sm font-medium text-muted-foreground">{text}</span>
     </div>
   );

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { Doadora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -219,7 +220,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
       <Card>
         <CardContent className="py-8">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <LoaderDNA size={48} variant="premium" />
           </div>
         </CardContent>
       </Card>
@@ -260,80 +261,80 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
 
           {/* Botão Nova Doadora */}
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Doadora
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Cadastrar Doadora</DialogTitle>
-              <DialogDescription>
-                Adicionar doadora em {fazendaNome}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="registro">Registro *</Label>
-                <Input
-                  id="registro"
-                  value={formData.registro}
-                  onChange={(e) => setFormData({ ...formData, registro: e.target.value })}
-                  placeholder="Registro da doadora"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="raca">Raca *</Label>
-                <Select value={racaSelecionada} onValueChange={handleRacaChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a raca" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {racasPredefinidas.map((raca) => (
-                      <SelectItem key={raca} value={raca}>
-                        {raca}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="Outra">Outra</SelectItem>
-                  </SelectContent>
-                </Select>
-                {racaSelecionada === 'Outra' && (
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Doadora
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Cadastrar Doadora</DialogTitle>
+                <DialogDescription>
+                  Adicionar doadora em {fazendaNome}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="registro">Registro *</Label>
                   <Input
-                    id="raca_custom"
-                    value={formData.racaCustom}
-                    onChange={(e) =>
-                      setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })
-                    }
-                    placeholder="Digite a raca"
-                    className="mt-2"
+                    id="registro"
+                    value={formData.registro}
+                    onChange={(e) => setFormData({ ...formData, registro: e.target.value })}
+                    placeholder="Registro da doadora"
                     required
                   />
-                )}
-              </div>
+                </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Salvando...' : 'Criar Doadora'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDialog(false)}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label htmlFor="raca">Raca *</Label>
+                  <Select value={racaSelecionada} onValueChange={handleRacaChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a raca" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {racasPredefinidas.map((raca) => (
+                        <SelectItem key={raca} value={raca}>
+                          {raca}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="Outra">Outra</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {racaSelecionada === 'Outra' && (
+                    <Input
+                      id="raca_custom"
+                      value={formData.racaCustom}
+                      onChange={(e) =>
+                        setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })
+                      }
+                      placeholder="Digite a raca"
+                      className="mt-2"
+                      required
+                    />
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Salvando...' : 'Criar Doadora'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDialog(false)}
+                    disabled={submitting}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

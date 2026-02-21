@@ -13,8 +13,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@hugeicons/core-free-icons": "^3.1.1",
-    "@iconify/json": "^2.2.438",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",

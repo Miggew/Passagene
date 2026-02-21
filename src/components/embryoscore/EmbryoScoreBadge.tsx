@@ -13,7 +13,8 @@
 
 import { useState, useEffect } from 'react';
 import type { EmbryoScore } from '@/lib/types';
-import { Brain, Clock, RefreshCw, X } from 'lucide-react';
+import { Brain, Clock, RefreshCw, X, AlertCircle } from 'lucide-react';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 
 interface EmbryoScoreBadgeProps {
   score: EmbryoScore;
@@ -170,11 +171,10 @@ export function EmbryoScoreProcessing({
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ring-1 ${
-        isPending
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ring-1 ${isPending
           ? 'bg-amber-500/10 ring-amber-500/20'
           : 'bg-blue-500/10 ring-blue-500/20 animate-pulse'
-      }`}
+        }`}
       title={`Status: ${isPending ? 'Aguardando na fila' : 'Processando com Gemini IA'}${retryLabel}${elapsed ? ` — ${elapsed}` : ''}`}
     >
       {isPending ? (
@@ -182,9 +182,8 @@ export function EmbryoScoreProcessing({
       ) : (
         <Brain className="w-3 h-3 text-blue-500" />
       )}
-      <span className={`text-[10px] font-medium ${
-        isPending ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'
-      }`}>
+      <span className={`text-[10px] font-medium ${isPending ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'
+        }`}>
         {label}
       </span>
       {elapsed && (
@@ -263,27 +262,32 @@ export function EmbryoAnalysisBar({
 
   if (status === 'failed') {
     return (
-      <div className="mt-2 -mx-3 -mb-3 px-3 py-1.5 rounded-b-lg bg-red-500/5 border-t border-red-500/20">
-        <div className="h-1 rounded-full bg-red-500/15 mb-1">
-          <div className="h-full w-full bg-red-500/40 rounded-full" />
+      <div className="mt-3 -mx-3 -mb-3 px-4 py-5 rounded-b-2xl bg-destructive/5 border-t border-destructive/20 flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center relative">
+          <div className="absolute inset-0 border-2 border-destructive/20 rounded-full animate-ping opacity-20"></div>
+          <AlertCircle className="w-5 h-5 text-destructive" />
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Brain className="w-3 h-3 text-red-500" />
-            <span className="text-[10px] text-red-600 dark:text-red-400 font-medium">
-              Falha IA{retryLabel}
+
+        <div className="flex flex-col items-center text-center gap-1">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-destructive">
+            Falha na Análise
+          </span>
+          {retryCount && retryCount > 1 && (
+            <span className="text-[10px] text-destructive/70 font-medium">
+              (Tentativa {retryCount})
             </span>
-          </div>
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Reanalisar
-            </button>
           )}
         </div>
+
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="mt-1 flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider text-destructive bg-destructive/10 hover:bg-destructive/20 active:bg-destructive/30 transition-all focus:outline-none focus:ring-2 focus:ring-destructive/40"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Tentar Novamente
+          </button>
+        )}
       </div>
     );
   }
@@ -291,53 +295,62 @@ export function EmbryoAnalysisBar({
   const isPending = status === 'pending';
 
   return (
-    <div className={`mt-2 -mx-3 -mb-3 px-3 py-1.5 rounded-b-lg border-t ${
-      isPending
-        ? 'bg-amber-500/5 border-amber-500/20'
-        : 'bg-blue-500/5 border-blue-500/20'
-    }`}>
-      {/* Barra de progresso indeterminado */}
-      <div className={`h-1 rounded-full overflow-hidden mb-1 ${
-        isPending ? 'bg-amber-500/10' : 'bg-blue-500/10'
+    <div className={`mt-3 -mx-3 -mb-3 px-4 py-6 rounded-b-2xl border-t flex flex-col items-center justify-center gap-4 transition-colors duration-500 overflow-hidden relative ${isPending
+        ? 'bg-muted/30 border-border/50'
+        : 'bg-primary/5 border-[hsl(var(--logo-bg))] shadow-inner'
       }`}>
-        <div
-          className={`h-full w-1/3 rounded-full ${
-            isPending ? 'bg-amber-500/50' : 'bg-blue-500/60'
-          }`}
-          style={{ animation: `embryo-shimmer ${isPending ? '2s' : '1.5s'} ease-in-out infinite` }}
-        />
+      {/* Background Decorativo no estado de processamento */}
+      {!isPending && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 flex items-center justify-center">
+          <div className="w-[150%] h-[150%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-primary/5 to-transparent blur-2xl animate-spin-slow"></div>
+        </div>
+      )}
+
+      {/* O Escultor Magnético de Espera */}
+      <div className="relative z-10 flex flex-col items-center">
+        <LoaderDNA size={isPending ? 32 : 48} variant={isPending ? 'premium' : 'accent'} />
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          {isPending ? (
-            <Clock className="w-3 h-3 text-amber-500" />
-          ) : (
-            <Brain className="w-3 h-3 text-blue-500 animate-pulse" />
-          )}
-          <span className={`text-[10px] font-medium ${
-            isPending
-              ? 'text-amber-600 dark:text-amber-400'
-              : 'text-blue-600 dark:text-blue-400'
-          }`}>
-            {isPending ? 'Aguardando IA...' : 'Analisando...'}
+
+      <div className="relative z-10 flex flex-col items-center gap-1.5 text-center">
+        {/* Título de Autoridade */}
+        <div className="flex items-center gap-2">
+          {!isPending && <Brain className="w-3.5 h-3.5 text-primary animate-pulse" />}
+          <span className={`text-[11px] font-extrabold tracking-widest uppercase ${isPending
+              ? 'text-muted-foreground'
+              : 'text-[hsl(var(--logo-bg))]'
+            }`}>
+            {isPending ? 'Na fila de IA' : 'Analisando Embrião'}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {elapsed && (
-            <span className="text-[10px] text-blue-500/70">{elapsed}</span>
-          )}
-          {onCancel && (
-            <button
-              onClick={onCancel}
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 bg-muted/50 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
-              title="Cancelar análise"
-            >
-              <X className="w-3 h-3" />
-              Parar
-            </button>
+
+        {/* Temporizador Orbitando o DNA */}
+        <div className="flex items-center gap-2 min-h-[16px]">
+          {isPending ? (
+            <div className="flex items-center gap-1.5 text-muted-foreground/70">
+              <Clock className="w-3 h-3" />
+              <span className="text-[10px] font-medium">Aguardando servidor...</span>
+            </div>
+          ) : (
+            elapsed && (
+              <span className="text-xs font-mono font-medium text-[hsl(var(--logo-bg))]/80 bg-[hsl(var(--logo-bg))]/5 px-2 py-0.5 rounded-full border border-[hsl(var(--logo-bg))]/10">
+                Tempo: {elapsed}
+              </span>
+            )
           )}
         </div>
       </div>
+
+      {/* Botão de Cancelamento Ancorado Inferior */}
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          className="relative z-10 mt-1 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-red-500 hover:bg-red-500/10 active:bg-red-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-red-500/30"
+          title="Cancelar análise em andamento"
+        >
+          <X className="w-3.5 h-3.5" />
+          Abortar Analise
+        </button>
+      )}
     </div>
   );
 }

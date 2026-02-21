@@ -9,7 +9,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Home } from 'lucide-react';
-import LogoSimples from '@/assets/logosimples.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import {
   routeIcons,
   routeLabels,
@@ -185,11 +185,9 @@ function ClienteBottomBar() {
           <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
           </div>
-          <img
-            src={LogoSimples}
-            alt="Geno A.I."
-            className="w-7 h-7 relative z-10 animate-pulse group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] brightness-0 invert"
-          />
+          <div className="relative z-10 group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none flex items-center justify-center pt-0.5">
+            <LogoPassagene height={28} showText={false} variant="hollow" />
+          </div>
         </button>
       </div>
 

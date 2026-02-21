@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
-import LogoSimples from '@/assets/logosimples.svg';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { differenceInDays } from 'date-fns';
