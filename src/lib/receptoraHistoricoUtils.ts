@@ -105,6 +105,7 @@ export const getCioLivreBadgeConfig = (status?: string | null) => {
 };
 
 import { supabase } from '@/lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseError } from '@/lib/types';
 import { extractDateOnly } from '@/lib/dateUtils';
 
@@ -124,7 +125,7 @@ export interface CruzamentoAtual {
   touro: string;
 }
 
-export const carregarHistoricoReceptora = async (targetReceptoraId: string, customSupabaseClient?: any) => {
+export const carregarHistoricoReceptora = async (targetReceptoraId: string, customSupabaseClient?: SupabaseClient) => {
   const client = customSupabaseClient || supabase;
   const items: HistoricoItem[] = [];
   const itemsAdmin: HistoricoAdmin[] = [];
@@ -179,7 +180,7 @@ export const carregarHistoricoReceptora = async (targetReceptoraId: string, cust
         .select('id, nome')
         .in('id', [historicoAnterior.fazenda_id, historicoAtual.fazenda_id].filter(Boolean));
 
-      const fazendasMap = new Map((fazendasData || []).map((f: any) => [f.id, f.nome]));
+      const fazendasMap = new Map((fazendasData || []).map((f: { id: string; nome: string }) => [f.id, f.nome]));
       const origemNome = fazendasMap.get(historicoAnterior.fazenda_id) || '?';
       const destinoNome = fazendasMap.get(historicoAtual.fazenda_id) || '?';
 
@@ -223,7 +224,7 @@ export const carregarHistoricoReceptora = async (targetReceptoraId: string, cust
     .eq('receptora_id', targetReceptoraId);
 
   if (animaisData && animaisData.length > 0) {
-    animaisData.forEach((animal: any) => {
+    animaisData.forEach((animal: { id: string; data_nascimento: string | null; sexo: string | null }) => {
       if (!animal.data_nascimento) return;
       items.push({
         data: extractDateOnly(animal.data_nascimento),

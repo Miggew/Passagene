@@ -49,6 +49,8 @@ import {
   useCreateDoadoraForm,
   useEditAspiracaoForm,
 } from '@/hooks/aspiracoes';
+import type { AddDoadoraFormData } from '@/hooks/aspiracoes/useAddDoadoraForm';
+import type { EditAspiracaoFormData } from '@/hooks/aspiracoes/useEditAspiracaoForm';
 
 export default function PacoteAspiracaoDetail() {
   const { id } = useParams();
@@ -524,7 +526,7 @@ export default function PacoteAspiracaoDetail() {
 
                       <OocitosCountingForm
                         data={addDoadoraHook.formData}
-                        onChange={(field, value) => addDoadoraHook.updateField(field as any, value)}
+                        onChange={(field, value) => addDoadoraHook.updateField(field as keyof AddDoadoraFormData, value)}
                       />
 
                       <div className="space-y-2">
@@ -603,7 +605,7 @@ export default function PacoteAspiracaoDetail() {
 
                       <OocitosCountingForm
                         data={addDoadoraHook.formData}
-                        onChange={(field, value) => addDoadoraHook.updateField(field as any, value)}
+                        onChange={(field, value) => addDoadoraHook.updateField(field as keyof AddDoadoraFormData, value)}
                       />
 
                       <div className="space-y-2">
@@ -813,7 +815,7 @@ export default function PacoteAspiracaoDetail() {
 
             <OocitosCountingForm
               data={editAspiracaoHook.formData}
-              onChange={(field, value) => editAspiracaoHook.updateField(field as any, value)}
+              onChange={(field, value) => editAspiracaoHook.updateField(field as keyof EditAspiracaoFormData, value)}
             />
 
             <div className="space-y-2">

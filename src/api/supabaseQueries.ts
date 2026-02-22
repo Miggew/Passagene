@@ -100,10 +100,10 @@ export async function fetchDoadorasByFazendaId(fazendaId: string): Promise<Doado
   if (error) throw error;
 
   // Processar para pegar última aspiração
-  return (data || []).map((doadora: any) => {
-    const aspiracoes = doadora.aspiracoes_doadoras || [];
+  return (data || []).map((doadora) => {
+    const aspiracoes = (doadora as Record<string, unknown>).aspiracoes_doadoras as { total_oocitos: number; data_aspiracao: string }[] || [];
     const ultimaAspiracao = aspiracoes.length > 0
-      ? aspiracoes.sort((a: any, b: any) =>
+      ? aspiracoes.sort((a, b) =>
         new Date(b.data_aspiracao).getTime() - new Date(a.data_aspiracao).getTime()
       )[0]
       : null;
@@ -167,7 +167,7 @@ export async function fetchReceptorasViewByFazenda(fazendaId: string): Promise<R
       fazenda_atual_id: fazenda?.id,
       fazenda_nome_atual: fazenda?.nome
     };
-  }) as any;
+  }) as ReceptoraView[];
 }
 
 export async function fetchReceptorasByIds(ids: string[]) {

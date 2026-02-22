@@ -13,22 +13,24 @@ export function usePermissions() {
     hasAccessToRoute,
   } = useAuth();
 
-  // Retorna os hubs que o usuário tem acesso (filtrando rotas obsoletas e fundindo Campo/Escritório num mega hub Operacional)
+  // Retorna os hubs que o usuário tem acesso (fundindo escritório → campo)
   const getAccessibleHubs = (): Hub[] => {
     if (!permissions) return [];
 
-    const hasOperacionalAccess = hasAccessToHub('campo') || hasAccessToHub('escritorio');
+    // Usuário com acesso ao antigo "escritorio" ganha acesso ao "campo" automaticamente
+    const hasEscritorioAccess = hasAccessToHub('escritorio');
 
-    // Removemos os dois hubs redundantes originais do banco de dados na hora de listar
-    const filteredHubs = hubs.filter(hub =>
-      hasAccessToHub(hub.code) &&
-      hub.code !== 'campo' &&
-      hub.code !== 'escritorio'
-    );
+    const filteredHubs = hubs.filter(hub => {
+      // Esconde o hub "escritorio" — foi absorvido pelo "campo"
+      if (hub.code === 'escritorio') return false;
+      // Se tem acesso ao escritorio, garante acesso ao campo
+      if (hub.code === 'campo' && hasEscritorioAccess) return true;
+      return hasAccessToHub(hub.code);
+    });
 
     const processedHubs = filteredHubs.map(hub => {
       const newRoutes = hub.routes
-        .filter(r => !r.startsWith('/relatorios')); // Relatórios foi movido para dentro, se mantido na raiz apagamos
+        .filter(r => !r.startsWith('/relatorios')); // Relatórios é hub separado
 
       return {
         ...hub,
@@ -36,22 +38,6 @@ export function usePermissions() {
       };
     });
 
-    // Se possui acesso a pelo menos um dos irmãos, nós o premiamos com o Hub Unificado
-    if (hasOperacionalAccess) {
-      const parentHubs = hubs.filter(h => h.code === 'campo' || h.code === 'escritorio');
-      if (parentHubs.length > 0) {
-        const lowestOrder = Math.min(...parentHubs.map(h => h.display_order));
-        processedHubs.push({
-          id: parentHubs[0].id,
-          code: 'operacional',
-          name: 'Operacional',
-          routes: ['/protocolos', '/aspiracoes', '/transferencia', '/dg', '/sexagem', '/historico'],
-          display_order: lowestOrder,
-        });
-      }
-    }
-
-    // Reordenar tudo pelo display_order após nossa injeção cirúrgica
     return processedHubs.sort((a, b) => a.display_order - b.display_order);
   };
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,12 +39,16 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Check, Plus, Trash2, Save, UserPlus, CircleDot, Syringe, Loader2, X } from 'lucide-react';
+import { Check, Plus, Trash2, Save, UserPlus, CircleDot, Syringe, Loader2, X, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Fazenda, Doadora } from '@/lib/types';
 import { DoadoraLocal, FazendaSelect } from '@/lib/types/aspiracoes';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
+import ReportScanner from '@/components/escritorio/ReportScanner';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
+import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import type { OcrAspiracaoResult } from '@/lib/types/escritorio';
 
 interface AspiracaoDoadorasProps {
     formData: {
@@ -80,9 +84,28 @@ export function AspiracaoDoadoras({
     // Estados locais para busca de fazenda destino
     const [buscaFazendaDestino, setBuscaFazendaDestino] = useState('');
     const [fazendasDestinoResultados, setFazendasDestinoResultados] = useState<FazendaSelect[]>([]);
+    const [fazendasDestinoNomes, setFazendasDestinoNomes] = useState<Record<string, string>>({});
     const [loadingDestino, setLoadingDestino] = useState(false);
     const [destinoPopoverOpen, setDestinoPopoverOpen] = useState(false);
     const destinoRequestId = useRef(0);
+
+    // Busca nomes de fazendas destino que estão nos IDs mas não no cache (ex: restore de rascunho)
+    useEffect(() => {
+        const idsNaoResolvidos = fazendasDestinoIds.filter(id => !fazendasDestinoNomes[id]);
+        if (idsNaoResolvidos.length === 0) return;
+        supabase
+            .from('fazendas')
+            .select('id, nome')
+            .in('id', idsNaoResolvidos)
+            .then(({ data }) => {
+                if (!data) return;
+                setFazendasDestinoNomes(prev => {
+                    const next = { ...prev };
+                    data.forEach(f => { next[f.id] = f.nome; });
+                    return next;
+                });
+            });
+    }, [fazendasDestinoIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Estados dialogs
     const [showAddDoadoraDialog, setShowAddDoadoraDialog] = useState(false);
@@ -99,6 +122,81 @@ export function AspiracaoDoadoras({
     });
 
     const racasPredefinidas = ['Nelore', 'Gir', 'Girolando', 'Holandesa', 'Jersey', 'Senepol', 'Angus', 'Brahman'];
+
+    // ── OCR state ──
+    const [showOcrScanner, setShowOcrScanner] = useState(false);
+    const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
+        reportType: 'aspiracao',
+        fazendaId: formData.fazenda_id,
+    });
+    const { createImport } = useReportImports(formData.fazenda_id);
+
+    const handleOcrResult = useCallback((result: unknown) => {
+        const ocrData = result as OcrAspiracaoResult;
+        if (!ocrData?.rows?.length) {
+            toast({ title: 'OCR não encontrou dados', description: 'Tente com outra foto ou insira manualmente.', variant: 'destructive' });
+            return;
+        }
+
+        let matched = 0;
+        ocrData.rows.forEach(row => {
+            const registro = (row.registro.matched_value || row.registro.value || '').trim();
+            if (!registro) return;
+
+            // Try to find existing doadora in list or available
+            const existingIdx = doadoras.findIndex(d => d.registro.toUpperCase() === registro.toUpperCase());
+            if (existingIdx >= 0) {
+                // Update existing doadora's oocyte counts
+                const fields = ['atresicos', 'degenerados', 'expandidos', 'desnudos', 'viaveis'] as const;
+                fields.forEach(field => {
+                    const val = row[field]?.value;
+                    if (typeof val === 'number' && val >= 0) {
+                        handleUpdateDoadora(existingIdx, field, val);
+                    }
+                });
+                matched++;
+            } else {
+                // Add as new doadora from available list or create new
+                const disponivel = doadorasDisponiveis.find(d => d.registro.toUpperCase() === registro.toUpperCase());
+                const novaDoadora: DoadoraLocal = {
+                    doadora_id: disponivel?.id || `new_${Date.now()}_${row.numero}`,
+                    registro: disponivel?.registro || registro,
+                    nome: disponivel?.nome || undefined,
+                    raca: (disponivel?.raca || row.raca?.value || undefined) as string | undefined,
+                    isNew: !disponivel,
+                    horario_aspiracao: '',
+                    hora_final: '',
+                    atresicos: typeof row.atresicos?.value === 'number' ? row.atresicos.value : 0,
+                    degenerados: typeof row.degenerados?.value === 'number' ? row.degenerados.value : 0,
+                    expandidos: typeof row.expandidos?.value === 'number' ? row.expandidos.value : 0,
+                    desnudos: typeof row.desnudos?.value === 'number' ? row.desnudos.value : 0,
+                    viaveis: typeof row.viaveis?.value === 'number' ? row.viaveis.value : 0,
+                    total_oocitos: typeof row.total?.value === 'number' ? row.total.value : 0,
+                    recomendacao_touro: '',
+                    observacoes: '',
+                };
+                setDoadoras(prev => [...prev, novaDoadora]);
+                matched++;
+            }
+        });
+
+        toast({
+            title: 'Dados OCR aplicados',
+            description: `${matched} doadora(s) processada(s) de ${ocrData.rows.length} linha(s).`,
+        });
+
+        // Record import for audit trail
+        createImport({
+            report_type: 'aspiracao',
+            fazenda_id: formData.fazenda_id,
+            extracted_data: ocrData as unknown as Record<string, unknown>,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+        }).catch(() => { /* non-critical */ });
+
+        setShowOcrScanner(false);
+        resetOcr();
+    }, [doadoras, doadorasDisponiveis, handleUpdateDoadora, setDoadoras, resetOcr, createImport, formData.fazenda_id]);
 
     // Busca fazendas destino
     useEffect(() => {
@@ -130,6 +228,7 @@ export function AspiracaoDoadoras({
     const handleAddFazendaDestino = (fazenda: FazendaSelect) => {
         if (!fazendasDestinoIds.includes(fazenda.id)) {
             setFazendasDestinoIds(prev => [...prev, fazenda.id]);
+            setFazendasDestinoNomes(prev => ({ ...prev, [fazenda.id]: fazenda.nome }));
         }
         setDestinoPopoverOpen(false);
         setBuscaFazendaDestino('');
@@ -137,6 +236,11 @@ export function AspiracaoDoadoras({
 
     const handleRemoveFazendaDestino = (id: string) => {
         setFazendasDestinoIds(prev => prev.filter(fid => fid !== id));
+        setFazendasDestinoNomes(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
     };
 
     // Calcula horário de início para nova doadora
@@ -252,6 +356,15 @@ export function AspiracaoDoadoras({
                 </div>
 
                 <div className="flex gap-2 w-full md:w-auto">
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowOcrScanner(!showOcrScanner)}
+                        disabled={submitting}
+                    >
+                        <Camera className="w-4 h-4 mr-1" />
+                        Escanear
+                        <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">Beta</Badge>
+                    </Button>
                     <Button variant="outline" onClick={onVoltar} disabled={submitting}>
                         Voltar
                     </Button>
@@ -266,6 +379,29 @@ export function AspiracaoDoadoras({
                 </div>
             </div>
 
+            {/* ── OCR Scanner Panel ── */}
+            {showOcrScanner && (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Camera className="w-4 h-4" />
+                            Escanear Relatório de Aspiração
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0">Beta</Badge>
+                        </CardTitle>
+                        <CardDescription>
+                            Tire uma foto do relatório para preencher automaticamente as contagens de oócitos
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ReportScanner
+                            uploadAndProcess={processFile}
+                            onResult={handleOcrResult}
+                            disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
+                        />
+                    </CardContent>
+                </Card>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Left Column: Destinations & Add Donor */}
                 <div className="space-y-4">
@@ -278,13 +414,10 @@ export function AspiracaoDoadoras({
                         <CardContent className="space-y-3">
                             <div className="flex flex-wrap gap-2">
                                 {fazendasDestinoIds.map(id => {
-                                    const fazenda = fazendasDestinoResultados.find(f => f.id === id) // This logic is slightly flawed as results change. Ideally we need full list or store names.
-                                    // Simplification: In a real refactor we should store objects or fetch names.
-                                    // For now, we will rely on results OR if not found, show ID (or fix upstream).
-                                    // Actually, let's just show "Fazenda Selecionada" or keep it simple.
+                                    const nome = fazendasDestinoNomes[id];
                                     return (
                                         <Badge key={id} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
-                                            <span>{fazenda?.nome || 'Fazenda'}</span>
+                                            <span>{nome || 'Carregando...'}</span>
                                             <button onClick={() => handleRemoveFazendaDestino(id)} className="hover:bg-muted rounded-full p-0.5" aria-label="Remover fazenda"><X className="w-3 h-3" /></button>
                                         </Badge>
                                     )

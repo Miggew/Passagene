@@ -1,3 +1,4 @@
+﻿import { useState, useCallback, useRef } from 'react';
 import {
     Card,
     CardContent,
@@ -40,9 +41,17 @@ import {
     MapPin,
     Save,
     AlertTriangle,
+    Camera,
 } from 'lucide-react';
 import { DIAS_MINIMOS } from '@/lib/gestacao';
 import { useDiagnosticoGestacao } from '@/hooks/useDiagnosticoGestacao';
+import { useToast } from '@/hooks/use-toast';
+import EntryModeSwitch from '@/components/escritorio/EntryModeSwitch';
+import ReportScanner from '@/components/escritorio/ReportScanner';
+import OcrReviewGrid from '@/components/escritorio/OcrReviewGrid';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
+import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import type { EntryMode, OcrResult, OcrRow } from '@/lib/types/escritorio';
 
 export function DiagnosticoSessao() {
     const {
@@ -68,6 +77,114 @@ export function DiagnosticoSessao() {
         descartarRascunho,
         hoje
     } = useDiagnosticoGestacao();
+    const { toast } = useToast();
+
+    // ── OCR state ──
+    const [entryMode, setEntryMode] = useState<EntryMode>('manual');
+    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+    const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
+
+    const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
+        reportType: 'dg',
+        fazendaId: fazendaSelecionada,
+    });
+    const { createImport } = useReportImports(fazendaSelecionada);
+
+    const handleOcrResult = useCallback((result: unknown) => {
+        setOcrResult(result as OcrResult);
+    }, []);
+
+    const handleOcrImageUrl = useCallback((url: string) => {
+        setOcrImageUrl(url);
+    }, []);
+
+    /** Map confirmed OCR rows into formData by matching registro/brinco */
+    const handleOcrConfirm = useCallback((rows: OcrRow[]) => {
+        if (!receptoras.length) {
+            toast({ title: 'Nenhuma receptora carregada', description: 'Selecione um lote antes de aplicar os dados do OCR.', variant: 'destructive' });
+            return;
+        }
+
+        let matched = 0;
+        rows.forEach(row => {
+            const registro = (row.registro.matched_value || row.registro.value || '').trim().toUpperCase();
+            if (!registro) return;
+
+            const receptora = receptoras.find(r =>
+                r.brinco.toUpperCase().trim() === registro ||
+                (r.nome && r.nome.toUpperCase().trim() === registro)
+            );
+            if (!receptora) return;
+
+            const resultado = (row.resultado?.value || '').toUpperCase().trim();
+            let mappedResultado: 'PRENHE' | 'VAZIA' | 'RETOQUE' | '' = '';
+            if (['PRENHE', 'P', 'PR'].includes(resultado)) mappedResultado = 'PRENHE';
+            else if (['VAZIA', 'V', 'VA'].includes(resultado)) mappedResultado = 'VAZIA';
+            else if (['RETOQUE', 'R', 'RET'].includes(resultado)) mappedResultado = 'RETOQUE';
+
+            if (mappedResultado) {
+                handleResultadoChange(receptora.receptora_id, mappedResultado);
+                matched++;
+            }
+
+            const obs = row.obs?.value?.trim();
+            if (obs) {
+                handleFieldChange(receptora.receptora_id, 'observacoes', obs);
+            }
+        });
+
+        toast({
+            title: 'Dados OCR aplicados',
+            description: `${matched} de ${rows.length} linha(s) mapeada(s) para receptoras do lote.`,
+        });
+
+        // Record import for audit trail
+        createImport({
+            report_type: 'dg',
+            fazenda_id: fazendaSelecionada,
+            extracted_data: ocrResult as unknown as Record<string, unknown>,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+        }).catch(() => { /* non-critical */ });
+
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+        setEntryMode('manual');
+    }, [receptoras, handleResultadoChange, handleFieldChange, toast, resetOcr, createImport, fazendaSelecionada, ocrResult]);
+
+    const handleOcrCancel = useCallback(() => {
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+    }, [resetOcr]);
+
+    // ── Keyboard shortcuts (desktop only) ──
+    const dgTableRef = useRef<HTMLDivElement>(null);
+    const handleDgKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (loteSelecionado?.status === 'FECHADO') return;
+        const key = e.key.toUpperCase();
+        const shortcutMap: Record<string, 'PRENHE' | 'VAZIA' | 'RETOQUE'> = { P: 'PRENHE', V: 'VAZIA', R: 'RETOQUE' };
+        const resultado = shortcutMap[key];
+        if (!resultado) return;
+
+        // Find which row is focused by checking the closest [data-row-idx]
+        const active = document.activeElement as HTMLElement;
+        const row = active?.closest('[data-row-idx]');
+        if (!row || !dgTableRef.current?.contains(row)) return;
+
+        const idx = parseInt(row.getAttribute('data-row-idx') || '-1');
+        if (idx < 0 || idx >= receptoras.length) return;
+
+        e.preventDefault();
+        handleResultadoChange(receptoras[idx].receptora_id, resultado);
+
+        // Focus next row's select trigger
+        const nextRow = dgTableRef.current?.querySelector(`[data-row-idx="${idx + 1}"] [data-resultado-trigger]`) as HTMLElement;
+        if (nextRow) {
+            setTimeout(() => nextRow.focus(), 50);
+        }
+    }, [receptoras, loteSelecionado, handleResultadoChange]);
 
     const todasReceptorasComResultado = receptoras.every(r => {
         const dados = formData[r.receptora_id];
@@ -85,19 +202,19 @@ export function DiagnosticoSessao() {
             {/* Barra de controles premium */}
             <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
                 <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6">
-                    {/* Grupo: Responsáveis */}
+                    {/* Grupo: ResponsÃ¡veis */}
                     <div className="flex flex-wrap items-end gap-3">
                         <div className="w-1 h-6 rounded-full bg-primary/40 self-center" />
                         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
                             <User className="w-3.5 h-3.5" />
-                            <span>Responsáveis</span>
+                            <span>ResponsÃ¡veis</span>
                         </div>
                         <div className="w-[calc(50%-0.75rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                             <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                                Veterinário *
+                                VeterinÃ¡rio *
                             </label>
                             <Input
-                                placeholder="Nome do veterinário"
+                                placeholder="Nome do veterinÃ¡rio"
                                 value={loteFormData.veterinario_responsavel}
                                 onChange={(e) => setLoteFormData(prev => ({ ...prev, veterinario_responsavel: e.target.value }))}
                                 className="h-11 md:h-9"
@@ -105,10 +222,10 @@ export function DiagnosticoSessao() {
                         </div>
                         <div className="w-[calc(50%-0.75rem)] md:w-auto md:flex-1 md:min-w-[160px]">
                             <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
-                                Técnico
+                                TÃ©cnico
                             </label>
                             <Input
-                                placeholder="Nome do técnico"
+                                placeholder="Nome do tÃ©cnico"
                                 value={loteFormData.tecnico_responsavel}
                                 onChange={(e) => setLoteFormData(prev => ({ ...prev, tecnico_responsavel: e.target.value }))}
                                 className="h-11 md:h-9"
@@ -168,8 +285,8 @@ export function DiagnosticoSessao() {
                                         return (
                                             <SelectItem key={lote.id} value={lote.id}>
                                                 <span className={diasInsuficientes ? 'text-amber-600' : ''}>
-                                                    {formatarData(lote.data_te)} • {lote.dias_gestacao ?? '?'}d • {lote.quantidade_receptoras} rec.
-                                                    {diasInsuficientes && ' ⚠️'}
+                                                    {formatarData(lote.data_te)} â€¢ {lote.dias_gestacao ?? '?'}d â€¢ {lote.quantidade_receptoras} rec.
+                                                    {diasInsuficientes && ' âš ï¸'}
                                                 </span>
                                             </SelectItem>
                                         );
@@ -182,8 +299,28 @@ export function DiagnosticoSessao() {
                     {/* Separador */}
                     <div className="h-10 w-px bg-border hidden md:block" />
 
-                    {/* Grupo: Ação */}
+                    {/* Grupo: AÃ§Ã£o */}
                     <div className="flex items-end gap-3 w-full md:w-auto md:ml-auto">
+                        {/* OCR toggle — desktop */}
+                        <div className="hidden md:block">
+                            <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                                Entrada
+                            </label>
+                            <EntryModeSwitch mode={entryMode} onChange={setEntryMode} />
+                        </div>
+
+                        {/* OCR button — mobile */}
+                        <Button
+                            variant="outline"
+                            onClick={() => setEntryMode(entryMode === 'ocr' ? 'manual' : 'ocr')}
+                            className="md:hidden h-11"
+                            disabled={!loteSelecionado}
+                        >
+                            <Camera className="w-4 h-4 mr-1" />
+                            Escanear
+                            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">Beta</Badge>
+                        </Button>
+
                         <Button
                             onClick={handleSalvarLote}
                             disabled={
@@ -206,11 +343,57 @@ export function DiagnosticoSessao() {
                     <div className="flex items-center gap-2 mt-3 p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg">
                         <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         <p className="text-xs text-amber-700 dark:text-amber-300">
-                            Este lote está com {loteSelecionado.dias_gestacao} dias. DG requer mínimo de {DIAS_MINIMOS.DG} dias (faltam {DIAS_MINIMOS.DG - loteSelecionado.dias_gestacao}).
+                            Este lote estÃ¡ com {loteSelecionado.dias_gestacao} dias. DG requer mÃ­nimo de {DIAS_MINIMOS.DG} dias (faltam {DIAS_MINIMOS.DG - loteSelecionado.dias_gestacao}).
                         </p>
                     </div>
                 )}
             </div>
+
+            {/* ── OCR Scanner Panel ── */}
+            {entryMode === 'ocr' && loteSelecionado && !ocrResult && (
+                <Card className="mb-4">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Camera className="w-4 h-4" />
+                            Escanear Relatório DG
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0">Beta</Badge>
+                        </CardTitle>
+                        <CardDescription>
+                            Tire uma foto do relatório de campo para preencher automaticamente os resultados
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ReportScanner
+                            uploadAndProcess={processFile}
+                            onResult={handleOcrResult}
+                            onImageUrl={handleOcrImageUrl}
+                            disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
+                        />
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* ── OCR Review Grid ── */}
+            {ocrResult && ocrResult.rows.length > 0 && (
+                <Card className="mb-4">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Revisar Dados Extraídos</CardTitle>
+                        <CardDescription>
+                            Confira e corrija os dados antes de aplicar ao lote
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <OcrReviewGrid
+                            rows={ocrResult.rows}
+                            imageUrl={ocrImageUrl}
+                            onSave={handleOcrConfirm}
+                            onCancel={handleOcrCancel}
+                            columns={['registro', 'resultado', 'obs']}
+                            resultadoLabel="Resultado DG"
+                        />
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Tabela de Receptoras */}
             {loading ? (
@@ -229,7 +412,7 @@ export function DiagnosticoSessao() {
                                         Receptoras do Lote
                                     </CardTitle>
                                     <CardDescription>
-                                        {receptoras.length} receptora(s) • TE em {formatarData(loteSelecionado.data_te)}
+                                        {receptoras.length} receptora(s) â€¢ TE em {formatarData(loteSelecionado.data_te)}
                                     </CardDescription>
                                 </div>
                                 {loteSelecionado.status === 'FECHADO' && (
@@ -268,7 +451,7 @@ export function DiagnosticoSessao() {
                                             {receptora.embrioes.map((embriao) => (
                                                 <div key={embriao.te_id}>
                                                     {embriao.doadora_registro || '-'}
-                                                    {embriao.touro_nome && ` × ${embriao.touro_nome}`}
+                                                    {embriao.touro_nome && ` Ã— ${embriao.touro_nome}`}
                                                     {embriao.embriao_classificacao && (
                                                         <span className="text-xs ml-1">({embriao.embriao_classificacao})</span>
                                                     )}
@@ -304,7 +487,7 @@ export function DiagnosticoSessao() {
                                             </div>
                                             {(dados.resultado === 'PRENHE' || dados.resultado === 'RETOQUE') && (
                                                 <div>
-                                                    <label className="text-[10px] text-muted-foreground uppercase mb-1 block">Nº Gest.</label>
+                                                    <label className="text-[10px] text-muted-foreground uppercase mb-1 block">NÂº Gest.</label>
                                                     <Input
                                                         type="number"
                                                         min="1"
@@ -333,22 +516,24 @@ export function DiagnosticoSessao() {
                         </div>
 
                         {/* Desktop table */}
-                        <div className="hidden md:block overflow-x-auto">
+                        <div className="hidden md:block overflow-x-auto" ref={dgTableRef} onKeyDown={handleDgKeyDown}>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Receptora</TableHead>
                                         <TableHead>Dias Gest.</TableHead>
-                                        <TableHead>Embrião</TableHead>
-                                        <TableHead>Doadora × Touro</TableHead>
+                                        <TableHead>EmbriÃ£o</TableHead>
+                                        <TableHead>Doadora Ã— Touro</TableHead>
                                         <TableHead>Data DG</TableHead>
-                                        <TableHead>Resultado</TableHead>
-                                        <TableHead>Nº Gest.</TableHead>
+                                        <TableHead>
+                                            <span title="Atalhos: P=Prenhe, V=Vazia, R=Retoque">Resultado ⌨</span>
+                                        </TableHead>
+                                        <TableHead>NÂº Gest.</TableHead>
                                         <TableHead>Obs.</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {receptoras.map((receptora) => {
+                                    {receptoras.map((receptora, rowIndex) => {
                                         const dados = formData[receptora.receptora_id] || {
                                             resultado: '',
                                             numero_gestacoes: '',
@@ -358,7 +543,7 @@ export function DiagnosticoSessao() {
                                         const isDisabled = loteSelecionado.status === 'FECHADO';
 
                                         return (
-                                            <TableRow key={receptora.receptora_id}>
+                                            <TableRow key={receptora.receptora_id} data-row-idx={rowIndex}>
                                                 <TableCell className="font-medium">
                                                     <div className="flex items-center gap-2">
                                                         {receptora.brinco}
@@ -391,7 +576,7 @@ export function DiagnosticoSessao() {
                                                         {receptora.embrioes.map((embriao) => (
                                                             <div key={embriao.te_id}>
                                                                 {embriao.doadora_registro || '-'}
-                                                                {embriao.touro_nome && ` × ${embriao.touro_nome}`}
+                                                                {embriao.touro_nome && ` Ã— ${embriao.touro_nome}`}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -410,7 +595,7 @@ export function DiagnosticoSessao() {
                                                         onValueChange={(value) => handleResultadoChange(receptora.receptora_id, value as 'PRENHE' | 'VAZIA' | 'RETOQUE' | '')}
                                                         disabled={isDisabled}
                                                     >
-                                                        <SelectTrigger className="w-28 h-9">
+                                                        <SelectTrigger className="w-28 h-9" data-resultado-trigger>
                                                             <SelectValue placeholder="--" />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -460,16 +645,16 @@ export function DiagnosticoSessao() {
                 </Card>
             ) : null}
 
-            {/* Dialog Restaurar Sessão em Andamento */}
+            {/* Dialog Restaurar SessÃ£o em Andamento */}
             <AlertDialog open={showRestaurarDialog} onOpenChange={setShowRestaurarDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-primary" />
-                            Diagnóstico de gestação não finalizado
+                            DiagnÃ³stico de gestaÃ§Ã£o nÃ£o finalizado
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            Você tem um diagnóstico de gestação em andamento que não foi finalizado. Deseja continuar de onde parou?
+                            VocÃª tem um diagnÃ³stico de gestaÃ§Ã£o em andamento que nÃ£o foi finalizado. Deseja continuar de onde parou?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -481,3 +666,4 @@ export function DiagnosticoSessao() {
         </div>
     );
 }
+

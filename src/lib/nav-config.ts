@@ -36,7 +36,6 @@ import type { Hub } from '@/lib/types';
 export const hubIcons: Record<string, React.ElementType> = {
   administrativo: Building2,
   laboratorio: FlaskConical,
-  escritorio: FileText,
   relatorios: FileBarChart,
   genetica: Dna,
   campo: CowIcon,
@@ -54,6 +53,7 @@ export const routeIcons: Record<string, React.ElementType> = {
   '/embrioes-congelados': Snowflake,
   '/doses-semen': SpermIcon,
   '/protocolos': Syringe,
+  '/genia': Sparkles,
   '/ai-chat': Sparkles,
   '/aspiracoes': TestTube,
   '/transferencia': ArrowRightLeft,
@@ -61,7 +61,7 @@ export const routeIcons: Record<string, React.ElementType> = {
   '/sexagem': GenderIcon,
   '/historico': History,
 
-  // Hub Relatórios (agora amalgamado no Escritório, mas ainda são as mesmas rotas)
+  // Hub Relatórios
   '/relatorios': FileBarChart,
   '/relatorios/servicos': ClipboardList,
   '/relatorios/animais': DonorCowIcon,
@@ -74,19 +74,8 @@ export const routeIcons: Record<string, React.ElementType> = {
   '/genetica': Dna,
   '/genetica/doadoras': DonorCowIcon,
   '/genetica/touros': Sparkles,
-  // Hub Escritório
+  // Escritório (legacy — redirects only, kept for backward compat)
   '/escritorio': FileText,
-  '/escritorio/dg': ThumbsUp,
-  '/escritorio/sexagem': GenderIcon,
-  '/escritorio/protocolos': Syringe,
-  '/escritorio/te': ArrowRightLeft,
-  '/escritorio/aspiracao': TestTube,
-  '/escritorio/historico': History,
-  '/escritorio/relatorios': FileBarChart,
-  '/escritorio/relatorios/servicos': ClipboardList,
-  '/escritorio/relatorios/animais': DonorCowIcon,
-  '/escritorio/relatorios/material': EmbryoIcon,
-  '/escritorio/relatorios/producao': TrendingUp,
   // Rotas do cliente
   '/cliente/rebanho': Beef,
   '/cliente/relatorios': FileBarChart,
@@ -122,12 +111,6 @@ export const routeLabels: Record<string, string> = {
   '/genetica/doadoras': 'Doadoras',
   '/genetica/touros': 'Touros',
   '/escritorio': 'Escritório',
-  '/escritorio/dg': 'DG',
-  '/escritorio/sexagem': 'Sexagem',
-  '/escritorio/protocolos': 'Protocolos',
-  '/escritorio/te': 'TE',
-  '/escritorio/aspiracao': 'Aspiração',
-  '/escritorio/historico': 'Histórico',
   '/cliente/rebanho': 'Rebanho',
   '/cliente/relatorios': 'Relatórios',
   '/cliente/botijao': 'Botijão',
@@ -145,7 +128,8 @@ export const routeLabelsLong: Record<string, string> = {
   '/embrioes-congelados': 'Embriões Congelados',
   '/doses-semen': 'Doses de Sêmen',
   '/protocolos': 'Protocolos Sincronização',
-  '/ai-chat': 'Consultor IA (PassaGene)',
+  '/genia': 'Gen.IA',
+  '/ai-chat': 'Gen.IA',
   '/aspiracoes': 'Aspiração Folicular',
   '/transferencia': 'Transferência (TE)',
   '/dg': 'Diagnóstico (DG)',
@@ -162,19 +146,13 @@ export const routeLabelsLong: Record<string, string> = {
   '/genetica/doadoras': 'Doadoras',
   '/genetica/touros': 'Catálogo de Touros',
   '/escritorio': 'Visão Geral',
-  '/escritorio/dg': 'Diagnóstico (DG)',
-  '/escritorio/sexagem': 'Sexagem',
-  '/escritorio/protocolos': 'Protocolos',
-  '/escritorio/te': 'Transferência (TE)',
-  '/escritorio/aspiracao': 'Aspiração',
-  '/escritorio/historico': 'Histórico',
 };
 
 // ─── Rotas Rápidas por Hub (bottom bar mobile) ────────────────────
 export const HUB_QUICK_ROUTES: Record<string, string[]> = {
   administrativo: ['/protocolos', '/transferencia', '/dg'],
   laboratorio: ['/bancada', '/lotes-fiv', '/embryoscore'],
-  escritorio: ['/escritorio/dg', '/escritorio/te', '/escritorio/aspiracao'],
+  campo: ['/dg', '/transferencia', '/protocolos'],
   relatorios: ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
   genetica: ['/genetica/doadoras', '/genetica/touros'],
 };
@@ -184,11 +162,11 @@ export const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios
 
 // ─── Detecção de Hub por URL ──────────────────────────────────────
 export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
-  // Rotas operacionais agora pertencem ao mega-hub fundido (operacional/campo)
-  if (pathname === '/ai-chat') return fallbackHub?.code ?? 'operacional'; // IA herda o hub atual
-  if (['/protocolos', '/aspiracoes', '/transferencia', '/dg', '/sexagem', '/historico'].some(route => pathname.startsWith(route))) return 'operacional';
-  if (pathname.startsWith('/escritorio')) return 'operacional';
-  if (pathname.startsWith('/relatorios')) return 'operacional'; // Fusão: Relatórios agora é resolvido como aba 
+  if (pathname === '/genia' || pathname === '/ai-chat') return fallbackHub?.code ?? 'campo'; // IA herda o hub atual
+  if (['/transferencia', '/dg', '/sexagem', '/protocolos', '/aspiracoes'].some(route => pathname.startsWith(route))) return 'campo';
+  if (pathname.startsWith('/historico')) return 'campo';
+  if (pathname.startsWith('/escritorio')) return 'campo'; // legacy redirects
+  if (pathname.startsWith('/relatorios')) return 'relatorios';
   if (pathname.startsWith('/genetica')) return 'genetica';
   if (pathname.startsWith('/cliente')) return 'cliente';
   // Rotas do Lab

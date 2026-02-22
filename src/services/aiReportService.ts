@@ -10,6 +10,8 @@ export interface AIIntent {
         | 'resumo_geral' | 'desempenho_veterinario'
         | 'proximos_partos' | 'proximos_servicos' | 'relatorio_protocolos'
         | 'lista_receptoras' | 'lista_doadoras' | 'analise_repetidoras'
+        | 'nascimentos' | 'estoque_semen' | 'estoque_embrioes'
+        | 'desempenho_touro' | 'comparacao_fazendas'
         | 'desconhecido';
     meses_retroativos: number;
     nome_veterinario: string | null;
@@ -30,7 +32,7 @@ export interface AIIntent {
     };
 }
 
-export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: string[], receptoraIds: string[]) {
+export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: string[], receptoraIds: string[], clienteId?: string | null) {
     if (!intent.precisa_buscar_dados || farmIds.length === 0) return null;
 
     const meses = intent.meses_retroativos || 3;
@@ -418,15 +420,42 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                 // 4. Filtro: apta para protocolo
                 if (filtros.apta_para_protocolo) {
-                    resultado = resultado.filter(r => r.status === 'VAZIA');
+                    const totalAntes = resultado.length;
+                    const vazias = resultado.filter(r => r.status === 'VAZIA');
+                    const totalVazias = vazias.length;
+
+                    resultado = vazias;
+                    let emProtocoloCount = 0;
+
                     const vaziaIds = resultado.map(r => r.id);
                     if (vaziaIds.length > 0) {
                         const { data: ativas } = await supabase
                             .from('vw_receptoras_protocolo_ativo')
                             .select('receptora_id')
                             .in('receptora_id', vaziaIds);
+                        emProtocoloCount = ativas?.length || 0;
                         const emProtocoloSet = new Set((ativas || []).map(a => a.receptora_id));
                         resultado = resultado.filter(r => !emProtocoloSet.has(r.id));
+                    }
+
+                    // Se 0 aptas, retornar explicação detalhada
+                    if (resultado.length === 0) {
+                        const motivos: string[] = [];
+                        if (totalVazias === 0) {
+                            motivos.push(`Nenhuma das ${totalAntes} receptoras está com status VAZIA`);
+                        } else {
+                            motivos.push(`${totalVazias} receptora(s) VAZIA encontrada(s), mas ${emProtocoloCount === totalVazias ? 'todas' : emProtocoloCount.toString()} já estão em protocolo ativo`);
+                        }
+                        return {
+                            tipo: 'LISTA_RECEPTORAS',
+                            total: 0,
+                            mostrando: 0,
+                            totalGeral: totalAntes,
+                            totalVazias,
+                            emProtocolo: emProtocoloCount,
+                            motivo: motivos.join('. ') + '.',
+                            animais: [],
+                        };
                     }
                 }
 
@@ -584,20 +613,22 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
             case 'proximos_partos': {
                 const filtros = intent.filtros || {};
-                const horizonte = filtros.horizonte_dias ?? 60;
+                // Partos: sem horizonte — mostra todos os previstos, ordenados pelo mais próximo
                 const today = todayISO();
 
-                const { data: recs, error: partosErr } = await supabase
+                // Buscar TODAS as prenhes primeiro (com e sem data de parto)
+                const { data: todasPrenhes, error: partosErr } = await supabase
                     .from('receptoras')
                     .select('id, identificacao, status_reprodutivo, data_provavel_parto')
                     .in('fazenda_atual_id', farmIds)
-                    .like('status_reprodutivo', 'PRENHE%')
-                    .not('data_provavel_parto', 'is', null)
-                    .order('data_provavel_parto', { ascending: true });
+                    .like('status_reprodutivo', 'PRENHE%');
 
                 if (partosErr) throw partosErr;
 
-                let animais = (recs || []).map(r => {
+                const totalPrenhes = (todasPrenhes || []).length;
+                const comDataParto = (todasPrenhes || []).filter(r => r.data_provavel_parto);
+                const semDataParto = totalPrenhes - comDataParto.length;
+                let animais = comDataParto.map(r => {
                     const diasRestantes = diffDays(today, r.data_provavel_parto!);
                     return {
                         identificacao: r.identificacao || r.id.substring(0, 8),
@@ -608,9 +639,21 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     };
                 });
 
-                animais = animais.filter(a => a.diasRestantes <= horizonte);
+                // Ordenar por data
+                animais.sort((a, b) => a.diasRestantes - b.diasRestantes);
 
                 const urgentes = animais.filter(a => a.urgencia === 'urgente' || a.urgencia === 'atrasado').length;
+
+                // Se 0 com data de parto, explicar
+                if (animais.length === 0 && totalPrenhes > 0) {
+                    return {
+                        tipo: 'PROXIMOS_PARTOS',
+                        total: 0,
+                        totalGeral: totalPrenhes,
+                        motivo: `${totalPrenhes} receptora(s) prenhe(s) encontrada(s), mas nenhuma tem data de parto prevista cadastrada.`,
+                        animais: [],
+                    };
+                }
 
                 return {
                     tipo: 'PROXIMOS_PARTOS',
@@ -788,12 +831,317 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 };
             }
 
+            case 'nascimentos': {
+                if (farmIds.length === 0) return { error: 'Nenhuma fazenda vinculada.' };
+
+                const { data: animaisNasc, error: nascErr } = await supabase
+                    .from('animais')
+                    .select('id, sexo, created_at')
+                    .in('fazenda_id', farmIds)
+                    .gte('created_at', dataInicio);
+                if (nascErr) throw nascErr;
+
+                const machos = (animaisNasc || []).filter(a => a.sexo === 'MACHO').length;
+                const femeas = (animaisNasc || []).filter(a => a.sexo === 'FÊMEA' || a.sexo === 'FEMEA').length;
+
+                return {
+                    tipo: 'NASCIMENTOS',
+                    periodo: `${limitMeses} meses`,
+                    total: (animaisNasc || []).length,
+                    machos,
+                    femeas,
+                };
+            }
+
+            case 'estoque_semen': {
+                if (farmIds.length === 0) return { error: 'Nenhuma fazenda vinculada.' };
+
+                const { data: doses, error: dosesErr } = await supabase
+                    .from('doses_semen')
+                    .select('id, touro_id, quantidade')
+                    .in('fazenda_id', farmIds)
+                    .gt('quantidade', 0);
+                if (dosesErr) throw dosesErr;
+
+                if (!doses || doses.length === 0) return { tipo: 'ESTOQUE_SEMEN', total: 0, itens: [] };
+
+                // Buscar nomes dos touros
+                const touroIds = [...new Set(doses.map(d => d.touro_id))];
+                const { data: touros } = await supabase
+                    .from('touros')
+                    .select('id, nome, raca')
+                    .in('id', touroIds);
+                const touroMap = new Map((touros || []).map(t => [t.id, { nome: t.nome, raca: t.raca }]));
+
+                // Agrupar por touro
+                const estoqueMap = new Map<string, { touro: string; raca: string | null; doses: number }>();
+                doses.forEach(d => {
+                    const info = touroMap.get(d.touro_id) || { nome: d.touro_id.substring(0, 8), raca: null };
+                    const key = d.touro_id;
+                    const entry = estoqueMap.get(key) || { touro: info.nome, raca: info.raca, doses: 0 };
+                    entry.doses += d.quantidade || 0;
+                    estoqueMap.set(key, entry);
+                });
+
+                const itens = Array.from(estoqueMap.values()).sort((a, b) => b.doses - a.doses);
+                const totalDoses = itens.reduce((sum, i) => sum + i.doses, 0);
+
+                return {
+                    tipo: 'ESTOQUE_SEMEN',
+                    total: totalDoses,
+                    tourosComEstoque: itens.length,
+                    itens: itens.slice(0, 30),
+                };
+            }
+
+            case 'estoque_embrioes': {
+                if (farmIds.length === 0) return { error: 'Nenhuma fazenda vinculada.' };
+
+                const { data: embrioes, error: embErr } = await supabase
+                    .from('embrioes')
+                    .select('id, classificacao, status_embriao')
+                    .in('fazenda_id', farmIds)
+                    .eq('status_embriao', 'CONGELADO');
+                if (embErr) throw embErr;
+
+                if (!embrioes || embrioes.length === 0) return { tipo: 'ESTOQUE_EMBRIOES', total: 0, itens: [] };
+
+                // Agrupar por classificação
+                const classMap = new Map<string, number>();
+                embrioes.forEach(e => {
+                    const cls = e.classificacao || 'N/C';
+                    classMap.set(cls, (classMap.get(cls) || 0) + 1);
+                });
+
+                const itens = Array.from(classMap.entries())
+                    .map(([classificacao, quantidade]) => ({ classificacao, quantidade }))
+                    .sort((a, b) => b.quantidade - a.quantidade);
+
+                return {
+                    tipo: 'ESTOQUE_EMBRIOES',
+                    total: embrioes.length,
+                    itens,
+                };
+            }
+
+            case 'desempenho_touro': {
+                if (receptoraIds.length === 0) return { error: 'Nenhuma receptora vinculada.' };
+
+                // Buscar DGs com resultado
+                const { data: dgs, error: dgErr } = await supabase
+                    .from('diagnosticos_gestacao')
+                    .select('id, receptora_id, resultado')
+                    .in('receptora_id', receptoraIds)
+                    .eq('tipo_diagnostico', 'DG')
+                    .gte('data_diagnostico', dataInicio);
+                if (dgErr) throw dgErr;
+                if (!dgs || dgs.length === 0) return { tipo: 'DESEMPENHO_TOURO', veterinarios: [] };
+
+                // Buscar TEs para ligar receptora → embrião → dose → touro
+                const dgRecIds = [...new Set(dgs.map(d => d.receptora_id))];
+                const { data: tes } = await supabase
+                    .from('transferencias_embrioes')
+                    .select('receptora_id, embriao_id')
+                    .in('receptora_id', dgRecIds)
+                    .eq('status_te', 'REALIZADA');
+
+                if (!tes || tes.length === 0) return { tipo: 'DESEMPENHO_TOURO', veterinarios: [] };
+
+                const embriaoIds = [...new Set(tes.map(t => t.embriao_id).filter(Boolean))];
+                const recEmbriaoMap = new Map<string, string>();
+                tes.forEach(t => { if (t.embriao_id) recEmbriaoMap.set(t.receptora_id, t.embriao_id); });
+
+                // Buscar embriões → aspiracao_doadora_id → doadora → dose → touro
+                const { data: embrioesData } = await supabase
+                    .from('embrioes')
+                    .select('id, aspiracao_doadora_id')
+                    .in('id', embriaoIds);
+
+                const aspIds = [...new Set((embrioesData || []).map(e => e.aspiracao_doadora_id).filter(Boolean))];
+                const embriaoAspMap = new Map((embrioesData || []).map(e => [e.id, e.aspiracao_doadora_id]));
+
+                let aspDoseMap = new Map<string, string>();
+                if (aspIds.length > 0) {
+                    const { data: asps } = await supabase
+                        .from('aspiracoes_doadoras')
+                        .select('id, dose_semen_id')
+                        .in('id', aspIds);
+                    asps?.forEach(a => { if (a.dose_semen_id) aspDoseMap.set(a.id, a.dose_semen_id); });
+                }
+
+                const doseIds = [...new Set(Array.from(aspDoseMap.values()))];
+                let doseTouroMap = new Map<string, string>();
+                if (doseIds.length > 0) {
+                    const { data: dosesData } = await supabase
+                        .from('doses_semen')
+                        .select('id, touro_id')
+                        .in('id', doseIds);
+                    dosesData?.forEach(d => doseTouroMap.set(d.id, d.touro_id));
+                }
+
+                const touroIds = [...new Set(Array.from(doseTouroMap.values()))];
+                let touroNomeMap = new Map<string, string>();
+                if (touroIds.length > 0) {
+                    const { data: tourosData } = await supabase
+                        .from('touros')
+                        .select('id, nome')
+                        .in('id', touroIds);
+                    tourosData?.forEach(t => touroNomeMap.set(t.id, t.nome));
+                }
+
+                // Mapear receptora → touro
+                const recTouroMap = new Map<string, string>();
+                dgRecIds.forEach(recId => {
+                    const embId = recEmbriaoMap.get(recId);
+                    if (!embId) return;
+                    const aspId = embriaoAspMap.get(embId);
+                    if (!aspId) return;
+                    const doseId = aspDoseMap.get(aspId);
+                    if (!doseId) return;
+                    const touroId = doseTouroMap.get(doseId);
+                    if (touroId) recTouroMap.set(recId, touroId);
+                });
+
+                // Agrupar DGs por touro
+                const touroStatsMap = new Map<string, { total: number; prenhes: number }>();
+                dgs.forEach(dg => {
+                    const touroId = recTouroMap.get(dg.receptora_id);
+                    if (!touroId) return;
+                    const entry = touroStatsMap.get(touroId) || { total: 0, prenhes: 0 };
+                    entry.total++;
+                    if (dg.resultado?.startsWith('PRENHE')) entry.prenhes++;
+                    touroStatsMap.set(touroId, entry);
+                });
+
+                const veterinarios = Array.from(touroStatsMap.entries())
+                    .map(([touroId, stats]) => ({
+                        nome: touroNomeMap.get(touroId) || touroId.substring(0, 8),
+                        total: stats.total,
+                        prenhes: stats.prenhes,
+                        taxa: stats.total > 0 ? `${((stats.prenhes / stats.total) * 100).toFixed(1)}%` : '0.0%',
+                    }))
+                    .sort((a, b) => parseFloat(b.taxa) - parseFloat(a.taxa));
+
+                return {
+                    tipo: 'DESEMPENHO_TOURO',
+                    periodo: `${limitMeses} meses`,
+                    veterinarios,
+                };
+            }
+
+            case 'comparacao_fazendas': {
+                if (farmIds.length === 0) return { error: 'Nenhuma fazenda vinculada.' };
+
+                // Buscar fazendas
+                const { data: fazendas } = await supabase
+                    .from('fazendas')
+                    .select('id, nome')
+                    .in('id', farmIds);
+                const fazNomeMap = new Map((fazendas || []).map(f => [f.id, f.nome]));
+
+                // Buscar receptoras por fazenda
+                const { data: recs, error: recErr } = await supabase
+                    .from('receptoras')
+                    .select('id, fazenda_atual_id, status_reprodutivo')
+                    .in('fazenda_atual_id', farmIds);
+                if (recErr) throw recErr;
+
+                // Buscar DGs no período
+                const recIds = (recs || []).map(r => r.id);
+                let dgData: { receptora_id: string; resultado: string }[] = [];
+                if (recIds.length > 0) {
+                    const { data: dgs } = await supabase
+                        .from('diagnosticos_gestacao')
+                        .select('receptora_id, resultado')
+                        .in('receptora_id', recIds)
+                        .eq('tipo_diagnostico', 'DG')
+                        .gte('data_diagnostico', dataInicio);
+                    dgData = dgs || [];
+                }
+
+                // Mapear receptora → fazenda
+                const recFazMap = new Map((recs || []).map(r => [r.id, r.fazenda_atual_id]));
+
+                // Agrupar por fazenda
+                const fazStatsMap = new Map<string, { total: number; prenhes: number }>();
+                dgData.forEach(dg => {
+                    const fazId = recFazMap.get(dg.receptora_id);
+                    if (!fazId) return;
+                    const entry = fazStatsMap.get(fazId) || { total: 0, prenhes: 0 };
+                    entry.total++;
+                    if (dg.resultado?.startsWith('PRENHE')) entry.prenhes++;
+                    fazStatsMap.set(fazId, entry);
+                });
+
+                const veterinarios = Array.from(fazStatsMap.entries())
+                    .map(([fazId, stats]) => ({
+                        nome: fazNomeMap.get(fazId) || fazId.substring(0, 8),
+                        total: stats.total,
+                        prenhes: stats.prenhes,
+                        taxa: stats.total > 0 ? `${((stats.prenhes / stats.total) * 100).toFixed(1)}%` : '0.0%',
+                    }))
+                    .sort((a, b) => parseFloat(b.taxa) - parseFloat(a.taxa));
+
+                return {
+                    tipo: 'COMPARACAO_FAZENDAS',
+                    periodo: `${limitMeses} meses`,
+                    veterinarios,
+                };
+            }
+
             case 'resumo_geral':
-            default:
+            default: {
+                if (farmIds.length === 0) return { tipo: 'RESUMO', mensagem: 'Nenhuma fazenda vinculada.' };
+
+                const today = todayISO();
+
+                // 4 queries em paralelo
+                const [recResult, doaResult, aniResult, dgResult] = await Promise.all([
+                    supabase.from('receptoras')
+                        .select('id, status_reprodutivo, data_provavel_parto')
+                        .in('fazenda_atual_id', farmIds),
+                    supabase.from('doadoras')
+                        .select('id')
+                        .in('fazenda_id', farmIds),
+                    supabase.from('animais')
+                        .select('id')
+                        .in('fazenda_id', farmIds),
+                    supabase.from('diagnosticos_gestacao')
+                        .select('id, resultado')
+                        .in('receptora_id', receptoraIds.length > 0 ? receptoraIds : ['__none__'])
+                        .eq('tipo_diagnostico', 'DG')
+                        .gte('data_diagnostico', dataInicio),
+                ]);
+
+                const recs = recResult.data || [];
+                const totalReceptoras = recs.length;
+                const prenhes = recs.filter(r => r.status_reprodutivo?.includes('PRENHE')).length;
+                const vazias = recs.filter(r => r.status_reprodutivo === 'VAZIA').length;
+                const partosProximos = recs.filter(r => {
+                    if (!r.data_provavel_parto) return false;
+                    return diffDays(today, r.data_provavel_parto) >= 0 && diffDays(today, r.data_provavel_parto) <= 30;
+                }).length;
+
+                const totalDoadoras = (doaResult.data || []).length;
+                const totalAnimais = (aniResult.data || []).length;
+
+                const dgs = dgResult.data || [];
+                const totalDGs = dgs.length;
+                const dgPositivos = dgs.filter(d => d.resultado?.startsWith('PRENHE')).length;
+                const taxaPrenhez = totalDGs > 0 ? `${((dgPositivos / totalDGs) * 100).toFixed(1)}%` : 'N/A';
+
                 return {
                     tipo: 'RESUMO',
-                    mensagem: 'Para resumos complexos, recomendo buscar um tipo de relatório por vez (ex: "Mostre meus DGs" ou "Mostre TEs").'
+                    periodo: `${limitMeses} meses`,
+                    total: totalReceptoras,
+                    prenhes,
+                    vazias,
+                    totalDoadoras,
+                    totalAnimais,
+                    taxaPrenhez,
+                    partosProximos,
                 };
+            }
         }
     } catch (err) {
         console.error("Erro ao buscar dados do relatório:", err);

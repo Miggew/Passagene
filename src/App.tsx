@@ -22,8 +22,10 @@ const Doadoras = lazy(() => import('./pages/Doadoras'));
 const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
 // Receptoras agora fica dentro de FazendaDetail
 const ReceptoraHistorico = lazy(() => import('./pages/ReceptoraHistorico'));
+const Protocolos = lazy(() => import('./pages/Protocolos'));
 const ProtocoloDetail = lazy(() => import('./pages/ProtocoloDetail'));
 const ProtocoloRelatorioFechado = lazy(() => import('./pages/ProtocoloRelatorioFechado'));
+const Aspiracoes = lazy(() => import('./pages/Aspiracoes'));
 const PacoteAspiracaoDetail = lazy(() => import('./pages/PacoteAspiracaoDetail'));
 const DosesSemen = lazy(() => import('./pages/DosesSemen'));
 const Touros = lazy(() => import('./pages/Touros'));
@@ -31,8 +33,11 @@ const TouroDetail = lazy(() => import('./pages/TouroDetail'));
 const LotesFIV = lazy(() => import('./pages/LotesFIV'));
 const Embrioes = lazy(() => import('./pages/Embrioes'));
 const EmbrioesCongelados = lazy(() => import('./pages/EmbrioesCongelados'));
+const TransferenciaEmbrioes = lazy(() => import('./pages/TransferenciaEmbrioes'));
 const TESessaoDetail = lazy(() => import('./pages/TESessaoDetail'));
+const DiagnosticoGestacao = lazy(() => import('./pages/DiagnosticoGestacao'));
 const DiagnosticoSessaoDetail = lazy(() => import('./pages/DiagnosticoSessaoDetail'));
+const Sexagem = lazy(() => import('./pages/Sexagem'));
 const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Administrativo = lazy(() => import('./pages/Administrativo'));
@@ -68,13 +73,7 @@ const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfigura
 const Bancada = lazy(() => import('./pages/Bancada'));
 const QuickClassifyPage = lazy(() => import('./pages/QuickClassifyPage'));
 
-// Páginas do Hub Escritório
-const EscritorioHome = lazy(() => import('./pages/escritorio/EscritorioHome'));
-const EscritorioDG = lazy(() => import('./pages/escritorio/EscritorioDG'));
-const EscritorioSexagem = lazy(() => import('./pages/escritorio/EscritorioSexagem'));
-const EscritorioProtocolos = lazy(() => import('./pages/escritorio/EscritorioProtocolos'));
-const EscritorioTE = lazy(() => import('./pages/escritorio/EscritorioTE'));
-const EscritorioAspiracao = lazy(() => import('./pages/escritorio/EscritorioAspiracao'));
+// Histórico Operacional (mantido do antigo Hub Escritório)
 const EscritorioHistorico = lazy(() => import('./pages/escritorio/EscritorioHistorico'));
 
 const queryClient = new QueryClient({
@@ -133,7 +132,7 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
   if (permissions.isAdmin) return <>{children}</>;
 
   // Rotas compartilhadas que todos os usuários autenticados podem acessar
-  const sharedRoutes = ['/', '/sem-acesso', '/ai-chat'];
+  const sharedRoutes = ['/', '/sem-acesso', '/genia', '/ai-chat'];
   if (sharedRoutes.some(r => location.pathname === r)) return <>{children}</>;
 
   // Cliente só acessa /cliente/* e /genetica/*
@@ -208,27 +207,27 @@ const AppRoutes = () => {
                 robustos (DataTables) do antigo Escritório 
             ======================================================= */}
 
-            {/* Protocolos (Unifica Passo 1 e 2 no padrão Escritorio) */}
-            <Route path="/protocolos" element={<EscritorioProtocolos />} />
+            {/* Protocolos (Original Hub Campo) */}
+            <Route path="/protocolos" element={<Protocolos />} />
             {/* Mantemos detail legados como fallbacks para relatórios antigos */}
             <Route path="/protocolos/:id" element={<ProtocoloDetail />} />
             <Route path="/protocolos/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
             <Route path="/protocolos/fechados/:id/relatorio" element={<ProtocoloRelatorioFechado />} />
 
             {/* Aspirações */}
-            <Route path="/aspiracoes" element={<EscritorioAspiracao />} />
+            <Route path="/aspiracoes" element={<Aspiracoes />} />
             <Route path="/aspiracoes/:id" element={<PacoteAspiracaoDetail />} />
 
             {/* Transferencia de Embrioes */}
-            <Route path="/transferencia" element={<EscritorioTE />} />
+            <Route path="/transferencia" element={<TransferenciaEmbrioes />} />
             <Route path="/transferencia/sessao" element={<TESessaoDetail />} />
 
             {/* Diagnostico de Gestacao */}
-            <Route path="/dg" element={<EscritorioDG />} />
+            <Route path="/dg" element={<DiagnosticoGestacao />} />
             <Route path="/dg/sessao" element={<DiagnosticoSessaoDetail />} />
 
             {/* Sexagem */}
-            <Route path="/sexagem" element={<EscritorioSexagem />} />
+            <Route path="/sexagem" element={<Sexagem />} />
             <Route path="/sexagem/sessao" element={<SexagemSessaoDetail />} />
 
             {/* Histórico Geral */}
@@ -237,6 +236,7 @@ const AppRoutes = () => {
             {/* Hub Relatórios */}
             <Route path="/laboratorio" element={<LaboratorioHome />} />
             <Route path="/lotes-fiv" element={<LotesFIV />} />
+            <Route path="/lotes-fiv/:id" element={<LotesFIV />} />
             <Route path="/relatorios" element={<RelatoriosHome />} />
             <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
             <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />
@@ -259,10 +259,11 @@ const AppRoutes = () => {
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
 
-            {/* Consultor IA Global (Acessível a Clientes e Staff) */}
-            <Route path="/ai-chat" element={<ConsultorIA />} />
-            {/* Fallback do atalho antigo do cliente */}
-            <Route path="/cliente/ai-chat" element={<Navigate to="/ai-chat" replace />} />
+            {/* Gen.IA — Inteligência reprodutiva (Acessível a Clientes e Staff) */}
+            <Route path="/genia" element={<ConsultorIA />} />
+            {/* Redirects legados */}
+            <Route path="/ai-chat" element={<Navigate to="/genia" replace />} />
+            <Route path="/cliente/ai-chat" element={<Navigate to="/genia" replace />} />
 
             <Route path="/cliente/botijao" element={<ClienteBotijao />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />

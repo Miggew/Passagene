@@ -182,7 +182,9 @@ export interface P1EntryRow {
   receptora_id?: string;
   registro: string;
   nome?: string;
-  raca: string;
+  raca?: string;
+  cl?: 'N' | 'CL' | '';
+  avaliacao?: 'Ruim' | 'Média' | 'Boa' | '';
   isNew?: boolean;
   observacoes?: string;
 }
@@ -206,6 +208,9 @@ export interface AnimalRecord {
   registro: string;
   nome?: string;
   raca?: string;
+  status_reprodutivo?: string;
+  numero_gestacoes?: number;
+  is_blocked?: boolean; // Se o status atual impede sua selecao (ex: PRENHE)
 }
 
 // ============================================================

@@ -15,7 +15,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ReceptorasSelection from "@/components/transferencia/ReceptorasSelection";
 import EmbrioesTablePacote from "@/components/transferencia/EmbrioesTablePacote";
 import EmbrioesTableCongelados from "@/components/transferencia/EmbrioesTableCongelados";
-import { TransferenciaFormData, CamposPacote } from "@/lib/types/transferenciaEmbrioes";
+import { TransferenciaFormData, CamposPacote, PacoteEmbrioes, EmbrioCompleto, ReceptoraSincronizada } from "@/lib/types/transferenciaEmbrioes";
 
 interface TransferenciaSessaoProps {
     formData: TransferenciaFormData;
@@ -23,13 +23,13 @@ interface TransferenciaSessaoProps {
     camposPacote: CamposPacote;
     setCamposPacote: (data: CamposPacote | ((prev: CamposPacote) => CamposPacote)) => void;
     fazendas: { id: string; nome: string; cliente: { nome: string } }[];
-    pacotesFiltrados: any[]; // Tipar melhor se possivel
-    embrioesCongelados: any[];
+    pacotesFiltrados: PacoteEmbrioes[];
+    embrioesCongelados: EmbrioCompleto[];
     origemEmbriao: string;
     loadingCongelados: boolean;
-    pacoteSelecionado: any;
+    pacoteSelecionado: PacoteEmbrioes | null;
     hasD8Limite: boolean;
-    embrioesDisponiveis: any[];
+    embrioesDisponiveis: EmbrioCompleto[];
     permitirSegundoEmbriao: boolean;
     setPermitirSegundoEmbriao: (val: boolean) => void;
     clienteIds: string[];
@@ -41,9 +41,9 @@ interface TransferenciaSessaoProps {
     filtroClienteId: string;
     filtroRaca: string;
     // Props para ReceptorasSelection e Tables (pass-through)
-    receptoras: any[];
+    receptoras: ReceptoraSincronizada[];
     contagemSessaoPorReceptora: Record<string, number>;
-    receptorasSessaoInfo: Record<string, any>;
+    receptorasSessaoInfo: Record<string, ReceptoraSincronizada>;
     transferenciasIdsSessao: string[];
     handleDescartarReceptora: (id: string) => void;
     // Props para tabelas de embrioes
@@ -154,7 +154,7 @@ export function TransferenciaSessao({
                                                         <span className="font-medium">{pacote.nome}</span>
                                                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                                                             <Badge variant="secondary" className="text-[10px] h-4 px-1 rounded-sm">
-                                                                {pacote.embrioes.filter((e: any) => e.status_atual === 'FRESCO').length} embriões
+                                                                {pacote.embrioes.filter(e => e.status_atual === 'FRESCO').length} embriões
                                                             </Badge>
                                                             <span>• {pacote.raca || 'Raça mista'}</span>
                                                         </div>

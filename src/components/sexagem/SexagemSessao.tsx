@@ -1,3 +1,4 @@
+import { useState, useCallback, useRef } from 'react';
 import {
     Card,
     CardContent,
@@ -40,10 +41,18 @@ import {
     MapPin,
     Save,
     AlertTriangle,
+    Camera,
 } from 'lucide-react';
 import { DIAS_MINIMOS } from '@/lib/gestacao';
 import { useSexagem } from '@/hooks/useSexagem';
+import { useToast } from '@/hooks/use-toast';
 import type { ResultadoSexagem } from '@/lib/types/sexagem';
+import EntryModeSwitch from '@/components/escritorio/EntryModeSwitch';
+import ReportScanner from '@/components/escritorio/ReportScanner';
+import OcrReviewGrid from '@/components/escritorio/OcrReviewGrid';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
+import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import type { EntryMode, OcrResult, OcrRow } from '@/lib/types/escritorio';
 
 export function SexagemSessao() {
     const {
@@ -69,6 +78,119 @@ export function SexagemSessao() {
         descartarRascunho,
         hoje
     } = useSexagem();
+    const { toast } = useToast();
+
+    // ── OCR state ──
+    const [entryMode, setEntryMode] = useState<EntryMode>('manual');
+    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+    const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
+
+    const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
+        reportType: 'sexagem',
+        fazendaId: fazendaSelecionada,
+    });
+    const { createImport } = useReportImports(fazendaSelecionada);
+
+    const handleOcrResult = useCallback((result: unknown) => {
+        setOcrResult(result as OcrResult);
+    }, []);
+
+    const handleOcrImageUrl = useCallback((url: string) => {
+        setOcrImageUrl(url);
+    }, []);
+
+    /** Map confirmed OCR rows into formData by matching registro/brinco */
+    const handleOcrConfirm = useCallback((rows: OcrRow[]) => {
+        if (!receptoras.length) {
+            toast({ title: 'Nenhuma receptora carregada', description: 'Selecione um lote antes de aplicar os dados do OCR.', variant: 'destructive' });
+            return;
+        }
+
+        const sexagemMap: Record<string, ResultadoSexagem> = {
+            F: 'FEMEA', FEMEA: 'FEMEA', FÊMEA: 'FEMEA',
+            M: 'MACHO', MACHO: 'MACHO',
+            S: 'SEM_SEXO', SEM_SEXO: 'SEM_SEXO', 'SEM SEXO': 'SEM_SEXO',
+            V: 'VAZIA', VAZIA: 'VAZIA',
+            D: 'SEM_SEXO', '2_SEXOS': 'SEM_SEXO',
+        };
+
+        let matched = 0;
+        rows.forEach(row => {
+            const registro = (row.registro.matched_value || row.registro.value || '').trim().toUpperCase();
+            if (!registro) return;
+
+            const receptora = receptoras.find(r =>
+                r.brinco.toUpperCase().trim() === registro ||
+                (r.nome && r.nome.toUpperCase().trim() === registro)
+            );
+            if (!receptora) return;
+
+            const resultado = (row.resultado?.value || '').toUpperCase().trim();
+            const mappedSexagem = sexagemMap[resultado];
+
+            if (mappedSexagem) {
+                handleSexagemChange(receptora.receptora_id, 0, mappedSexagem);
+                matched++;
+            }
+
+            const obs = row.obs?.value?.trim();
+            if (obs) {
+                handleFieldChange(receptora.receptora_id, 'observacoes', obs);
+            }
+        });
+
+        toast({
+            title: 'Dados OCR aplicados',
+            description: `${matched} de ${rows.length} linha(s) mapeada(s) para receptoras do lote.`,
+        });
+
+        // Record import for audit trail
+        createImport({
+            report_type: 'sexagem',
+            fazenda_id: fazendaSelecionada,
+            extracted_data: ocrResult as unknown as Record<string, unknown>,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+        }).catch(() => { /* non-critical */ });
+
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+        setEntryMode('manual');
+    }, [receptoras, handleSexagemChange, handleFieldChange, toast, resetOcr, createImport, fazendaSelecionada, ocrResult]);
+
+    const handleOcrCancel = useCallback(() => {
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+    }, [resetOcr]);
+
+    // ── Keyboard shortcuts (desktop only) ──
+    const sexTableRef = useRef<HTMLDivElement>(null);
+    const handleSexKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (loteSelecionado?.status === 'FECHADO') return;
+        const key = e.key.toUpperCase();
+        const shortcutMap: Record<string, ResultadoSexagem> = {
+            F: 'FEMEA', M: 'MACHO', S: 'SEM_SEXO', V: 'VAZIA',
+        };
+        const resultado = shortcutMap[key];
+        if (!resultado) return;
+
+        const active = document.activeElement as HTMLElement;
+        const row = active?.closest('[data-row-idx]');
+        if (!row || !sexTableRef.current?.contains(row)) return;
+
+        const idx = parseInt(row.getAttribute('data-row-idx') || '-1');
+        if (idx < 0 || idx >= receptoras.length) return;
+
+        e.preventDefault();
+        handleSexagemChange(receptoras[idx].receptora_id, 0, resultado);
+
+        const nextRow = sexTableRef.current?.querySelector(`[data-row-idx="${idx + 1}"] [data-resultado-trigger]`) as HTMLElement;
+        if (nextRow) {
+            setTimeout(() => nextRow.focus(), 50);
+        }
+    }, [receptoras, loteSelecionado, handleSexagemChange]);
 
     const todasReceptorasComSexagem = receptoras.every(r => {
         const dados = formData[r.receptora_id];
@@ -185,6 +307,26 @@ export function SexagemSessao() {
 
                     {/* Grupo: Ação */}
                     <div className="flex items-end gap-3 w-full md:w-auto md:ml-auto">
+                        {/* OCR toggle — desktop */}
+                        <div className="hidden md:block">
+                            <label className="text-[10px] font-medium text-muted-foreground mb-1 block uppercase tracking-wide">
+                                Entrada
+                            </label>
+                            <EntryModeSwitch mode={entryMode} onChange={setEntryMode} />
+                        </div>
+
+                        {/* OCR button — mobile */}
+                        <Button
+                            variant="outline"
+                            onClick={() => setEntryMode(entryMode === 'ocr' ? 'manual' : 'ocr')}
+                            className="md:hidden h-11"
+                            disabled={!loteSelecionado}
+                        >
+                            <Camera className="w-4 h-4 mr-1" />
+                            Escanear
+                            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">Beta</Badge>
+                        </Button>
+
                         <Button
                             onClick={handleSalvarLote}
                             disabled={
@@ -212,6 +354,52 @@ export function SexagemSessao() {
                     </div>
                 )}
             </div>
+
+            {/* ── OCR Scanner Panel ── */}
+            {entryMode === 'ocr' && loteSelecionado && !ocrResult && (
+                <Card className="mb-4">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Camera className="w-4 h-4" />
+                            Escanear Relatório Sexagem
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0">Beta</Badge>
+                        </CardTitle>
+                        <CardDescription>
+                            Tire uma foto do relatório de campo para preencher automaticamente os resultados
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ReportScanner
+                            uploadAndProcess={processFile}
+                            onResult={handleOcrResult}
+                            onImageUrl={handleOcrImageUrl}
+                            disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
+                        />
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* ── OCR Review Grid ── */}
+            {ocrResult && ocrResult.rows.length > 0 && (
+                <Card className="mb-4">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Revisar Dados Extraídos</CardTitle>
+                        <CardDescription>
+                            Confira e corrija os dados antes de aplicar ao lote
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <OcrReviewGrid
+                            rows={ocrResult.rows}
+                            imageUrl={ocrImageUrl}
+                            onSave={handleOcrConfirm}
+                            onCancel={handleOcrCancel}
+                            columns={['registro', 'resultado', 'obs']}
+                            resultadoLabel="Sexagem"
+                        />
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Tabela de Receptoras */}
             {loading ? (
@@ -323,7 +511,7 @@ export function SexagemSessao() {
                         </div>
 
                         {/* Desktop table */}
-                        <div className="hidden md:block overflow-x-auto">
+                        <div className="hidden md:block overflow-x-auto" ref={sexTableRef} onKeyDown={handleSexKeyDown}>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -333,12 +521,14 @@ export function SexagemSessao() {
                                         <TableHead>Doadora × Touro</TableHead>
                                         <TableHead>Nº Gest.</TableHead>
                                         <TableHead>Data Sexagem</TableHead>
-                                        <TableHead>Sexagem(ns)</TableHead>
+                                        <TableHead>
+                                            <span title="Atalhos: F=Fêmea, M=Macho, S=Sem sexo, V=Vazia">Sexagem(ns) ⌨</span>
+                                        </TableHead>
                                         <TableHead>Obs.</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {receptoras.map((receptora) => {
+                                    {receptoras.map((receptora, rowIndex) => {
                                         const dados = formData[receptora.receptora_id] || {
                                             data_sexagem: hoje,
                                             sexagens: new Array(receptora.numero_gestacoes).fill('').map(() => ''),
@@ -347,7 +537,7 @@ export function SexagemSessao() {
                                         const isDisabled = loteSelecionado.status === 'FECHADO';
 
                                         return (
-                                            <TableRow key={receptora.receptora_id}>
+                                            <TableRow key={receptora.receptora_id} data-row-idx={rowIndex}>
                                                 <TableCell className="font-medium">
                                                     <div className="flex items-center gap-2">
                                                         {receptora.brinco}
@@ -409,7 +599,7 @@ export function SexagemSessao() {
                                                                     onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
                                                                     disabled={isDisabled}
                                                                 >
-                                                                    <SelectTrigger className="w-24 h-9">
+                                                                    <SelectTrigger className="w-24 h-9" data-resultado-trigger>
                                                                         <SelectValue placeholder={placeholder} />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
