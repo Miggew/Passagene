@@ -113,7 +113,7 @@ export function TransferenciaSessao({
                                 )}
                             </Label>
                             <Select value={formData.fazenda_id} onValueChange={handleFazendaChange}>
-                                <SelectTrigger className={`h-10 ${formData.fazenda_id ? 'border-primary/50 bg-primary/5' : ''}`}>
+                                <SelectTrigger className={`h-11 md:h-10 ${formData.fazenda_id ? 'border-primary/50 bg-primary/5' : ''}`}>
                                     <SelectValue placeholder="Selecione a fazenda..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -144,7 +144,7 @@ export function TransferenciaSessao({
                                         onValueChange={handlePacoteChange}
                                         disabled={!formData.fazenda_id || pacotesFiltrados.length === 0}
                                     >
-                                        <SelectTrigger className={`h-10 ${formData.pacote_id ? 'border-primary/50 bg-primary/5' : ''}`}>
+                                        <SelectTrigger className={`h-11 md:h-10 ${formData.pacote_id ? 'border-primary/50 bg-primary/5' : ''}`}>
                                             <SelectValue placeholder={pacotesFiltrados.length === 0 ? "Nenhum pacote disponível" : "Selecione o pacote..."} />
                                         </SelectTrigger>
                                         <SelectContent className="max-h-[300px]">

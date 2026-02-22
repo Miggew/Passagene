@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalFarmData } from '@/hooks/useGlobalFarmData';
-import { Send, Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download } from 'lucide-react';
+import { Send, Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
+import { GeniaLogo } from '@/components/ui/GeniaLogo';
 import { fetchReportDataFromIntent, type AIIntent } from '@/services/aiReportService';
 import { tipoIconConfig, tipoBadgeConfig } from '@/lib/receptoraHistoricoUtils';
 import { formatDateBR } from '@/lib/dateUtils';
@@ -284,13 +286,107 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
     );
 }
 
-// === Persist messages across navigation (resets on page reload) ===
+// === Follow-Up Suggestions Helper ===
+function getFollowUpSuggestions(intentData: any): string[] {
+    if (!intentData || !intentData.tipo) return ["Resumo geral da fazenda", "Quais os próximos partos?"];
+
+    switch (intentData.tipo) {
+        case 'RESUMO':
+            return ["Quais touros têm melhor desempenho?", "Ver estoque de sêmen", "Ver repetidoras"];
+        case 'PROXIMOS_PARTOS':
+            return ["Ver desempenho veterinário", "Resumo da fazenda"];
+        case 'LISTA_RECEPTORAS':
+        case 'RECEPTORAS':
+            return ["Mostrar apenas as vazias", "Quais estão aptas para protocolo?", "Mostrar repetidoras"];
+        case 'LISTA_DOADORAS':
+            return ["Qual o estoque de embriões?", "Compare o desempenho das fazendas"];
+        case 'ANALISE_REPETIDORAS':
+            return ["Quais touros têm melhor desempenho?", "Resumo geral da fazenda"];
+        case 'ESTOQUE_SEMEN':
+            return ["E o estoque de embriões?", "Quais touros têm melhor taxa de prenhez?"];
+        case 'ESTOQUE_EMBRIOES':
+            return ["Qual o estoque de sêmen?", "Quais receptoras posso protocolar?"];
+        case 'BUSCA_ANIMAL':
+            return ["Buscar outro animal pelo brinco", "Resumo da fazenda"];
+        case 'DESEMPENHO_TOURO':
+            return ["Desempenho veterinário", "Estoque de sêmen"];
+        case 'DESEMPENHO_VET':
+            return ["Ranking de touros", "Resumo geral"];
+        case 'COMPARACAO_FAZENDAS':
+            return ["Resumo geral", "Lista de Doadoras"];
+        default:
+            return ["O que precisa ser feito essa semana?", "Compare o desempenho das fazendas"];
+    }
+}
+
 const WELCOME_MESSAGE: Message = {
     id: 'welcome',
     role: 'assistant',
-    content: 'Olá! Eu sou a Gen.IA — sua inteligência reprodutiva.\n\nPosso te ajudar com:\n• Receptoras, doadoras e repetidoras\n• DGs, TEs, aspirações e protocolos\n• Partos previstos e agenda da semana\n• Desempenho de veterinários e touros\n• Estoque de sêmen e embriões congelados\n• Comparação entre fazendas\n• Buscar qualquer animal pelo nome ou brinco\n\nO que você gostaria de saber hoje?'
+    content: '' // Vazio, pois renderizamos componente customizado
 };
 let persistedMessages: Message[] = [];
+
+// === Zero-State Onboarding Component ===
+
+function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
+    return (
+        <div className="flex flex-col items-center justify-center w-full max-w-2xl px-4 py-8 mx-auto text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="mb-6 flex items-center justify-center">
+                <GeniaLogo size={80} showText={false} variant="premium" />
+            </div>
+            <h2 className="text-2xl font-black text-foreground mb-3 tracking-tight">Eu sou a sua Gênia da Pecuária.</h2>
+            <p className="text-muted-foreground mb-8 text-[15px] leading-relaxed max-w-md">
+                Esqueça menus complicados. Peça-me relatórios sobre seu rebanho, estoques ou métricas em formato de chat.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                <button onClick={() => onSuggestionClick("Resumo geral da fazenda")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                    <div className="p-2.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
+                        <Activity className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-bold text-foreground text-[14px]">Resumo da Fazenda</span>
+                        <span className="text-[12px] text-muted-foreground line-clamp-1">Status atual do rebanho</span>
+                    </div>
+                </button>
+
+                <button onClick={() => onSuggestionClick("Quais touros têm melhor desempenho nas DGs?")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                    <div className="p-2.5 bg-amber-500/10 rounded-lg group-hover:bg-amber-500/20 transition-colors">
+                        <Award className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-bold text-foreground text-[14px]">Ranking de Touros</span>
+                        <span className="text-[12px] text-muted-foreground line-clamp-1">Maior taxa de prenhez</span>
+                    </div>
+                </button>
+
+                <button onClick={() => onSuggestionClick("Existem receptoras repetidoras com mais de 3 protocolos?")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                    <div className="p-2.5 bg-red-500/10 rounded-lg group-hover:bg-red-500/20 transition-colors">
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-bold text-foreground text-[14px]">Alerta Repetidoras</span>
+                        <span className="text-[12px] text-muted-foreground line-clamp-1">Receptoras problemáticas</span>
+                    </div>
+                </button>
+
+                <button onClick={() => onSuggestionClick("Qual é o meu estoque atual de sêmen?")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                    <div className="p-2.5 bg-cyan-500/10 rounded-lg group-hover:bg-cyan-500/20 transition-colors">
+                        <Snowflake className="w-5 h-5 text-cyan-600" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-bold text-foreground text-[14px]">Estoque de Sêmen</span>
+                        <span className="text-[12px] text-muted-foreground line-clamp-1">Doses por touro e raça</span>
+                    </div>
+                </button>
+            </div>
+
+            <div className="mt-8 text-[12px] text-muted-foreground/80 flex items-center gap-2">
+                <Mic className="w-3.5 h-3.5" /> Experimente apertar o microfone e falar comigo!
+            </div>
+        </div>
+    );
+}
 
 // === Main Component ===
 
@@ -298,6 +394,7 @@ export default function ConsultorIA() {
     const { toast } = useToast();
     const { clienteId } = usePermissions();
     const { data: hubData, isLoading: hubLoading } = useGlobalFarmData();
+    const location = useLocation();
 
     const humanizeStatus = (statusStr?: string | null) => {
         if (!statusStr) return 'Desconhecido';
@@ -314,7 +411,9 @@ export default function ConsultorIA() {
         persistedMessages.length > 0 ? persistedMessages : [WELCOME_MESSAGE]
     );
     const [isLoading, setIsLoading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const recognitionRef = useRef<any>(null);
 
     useEffect(() => { persistedMessages = messages; }, [messages]);
 
@@ -326,7 +425,97 @@ export default function ConsultorIA() {
         scrollToBottom();
     }, [messages, isLoading]);
 
-    const handleSend = async (text: string = input) => {
+    const startListening = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            toast({
+                title: "Microfone não suportado",
+                description: "Seu navegador atual não suporta reconhecimento de voz nativo (ex: Safari iOS muito antigo).",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current?.stop();
+            return;
+        }
+
+        try {
+            const recognition = new SpeechRecognition();
+            recognitionRef.current = recognition;
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => setIsListening(true);
+
+            recognition.onend = () => {
+                setIsListening(false);
+            };
+
+            recognition.onerror = (e: any) => {
+                console.error("Speech error", e.error);
+                setIsListening(false);
+                if (e.error !== 'no-speech' && e.error !== 'aborted') {
+                    toast({
+                        title: "Erro no Microfone",
+                        description: "Não foi possível captar sua voz.",
+                        variant: "destructive"
+                    });
+                }
+            };
+
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setInput(transcript);
+                // Send automatically and request voice return
+                setTimeout(() => handleSend(transcript, true), 300);
+            };
+
+            recognition.start();
+        } catch (e) {
+            console.error("Failed to start speech recognition", e);
+            setIsListening(false);
+        }
+    };
+
+    // Global Action Handlers para o FAB de Voz
+    useEffect(() => {
+        const handleStartVoice = () => {
+            if (!isListening) startListening();
+        };
+
+        const handleStopVoice = () => {
+            if (recognitionRef.current && isListening) {
+                // Ao parar pelo gatilho nativo, o reconhecimento emite onresult naturalmente e processa.
+                recognitionRef.current.stop();
+            }
+        };
+
+        window.addEventListener('genia:start-voice', handleStartVoice);
+        window.addEventListener('genia:stop-voice', handleStopVoice);
+
+        // Se fomos navegados via FAB com Hold, inicia imediatamente
+        if ((location.state as any)?.autoStartVoice) {
+            // timeout ultra rápido pra dar tempo da tela montar antes de pedir o mic
+            setTimeout(() => {
+                if (!isListening && !recognitionRef.current) {
+                    startListening();
+                }
+            }, 100);
+
+            // Limpa o state para não trigar recarregando
+            window.history.replaceState({}, document.title);
+        }
+
+        return () => {
+            window.removeEventListener('genia:start-voice', handleStartVoice);
+            window.removeEventListener('genia:stop-voice', handleStopVoice);
+        }
+    }, [isListening, location.state]);
+
+    const handleSend = async (text: string = input, wantsVoice: boolean = false) => {
         if (!text.trim() || isLoading) return;
 
         const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
@@ -339,17 +528,25 @@ export default function ConsultorIA() {
         setMessages(prev => [...prev, { id: aiMessageId, role: 'assistant', content: '', isSearching: true }]);
 
         try {
-            const { data: session } = await supabase.auth.getSession();
-            const token = session.session?.access_token;
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+            if (sessionError || !session?.access_token) {
+                console.error("Auth Error:", sessionError, "Session:", session);
+                throw new Error("Não autenticado. Recarregue a página.");
+            }
+
+            const token = session.access_token;
 
             // Prepare history (last 6 messages, only user and reliable model messages)
             const historyToSend = messages
-                .filter(m => !m.isSearching && m.role !== 'assistant' || (m.role === 'assistant' && !m.content.startsWith('*Aviso:*') && m.content))
+                .filter(m => !m.isSearching && m.role !== 'assistant' || (m.role === 'assistant' && !m.content.startsWith('*Aviso:*') && m.content.trim() !== ''))
                 .slice(-6)
                 .map(m => ({
                     role: m.role,
                     content: m.content
                 }));
+
+            console.log("Sending query:", text, "with history:", historyToSend);
 
             // 1. Call Gemini Edge Function to get intent
             const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-report-intent`, {
@@ -358,15 +555,20 @@ export default function ConsultorIA() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ query: text, history: historyToSend })
+                body: JSON.stringify({ query: text, history: historyToSend, wantsVoice })
             });
 
             if (!res.ok) {
                 let errorMsg = 'Falha ao interpretar pedido.';
                 try {
-                    const errorBody = await res.json();
-                    if (errorBody.error) errorMsg = errorBody.error;
-                    if (errorBody.details) errorMsg += `\nDetalhes: ${errorBody.details}`;
+                    const errorText = await res.text();
+                    try {
+                        const errorBody = JSON.parse(errorText);
+                        if (errorBody.error) errorMsg = errorBody.error;
+                        if (errorBody.details) errorMsg += `\nDetalhes: ${errorBody.details}`;
+                    } catch (parseErr) {
+                        errorMsg += `\nRaw: ${errorText}`; // Fallback to raw text if not JSON
+                    }
                 } catch (e) {
                     errorMsg += ` (Status: ${res.status})`;
                 }
@@ -381,6 +583,16 @@ export default function ConsultorIA() {
                     ? { ...m, content: jsonIntent.resposta_amigavel, isSearching: false, intentData: jsonIntent }
                     : m
             ));
+
+            // Se recebemos a voz da OpenAI, tocar imediatamente
+            if (jsonIntent.audioBase64) {
+                try {
+                    const audio = new Audio("data:audio/mp3;base64," + jsonIntent.audioBase64);
+                    audio.play().catch(e => console.error("Audio playback prevented by browser policy", e));
+                } catch (e) {
+                    console.error("Error creating audio instance", e);
+                }
+            }
 
             // 3. If it needs data, fetch it
             if (jsonIntent.precisa_buscar_dados) {
@@ -445,9 +657,6 @@ export default function ConsultorIA() {
         "Quais os próximos partos?",
         "Quais receptoras posso protocolar?",
         "O que precisa ser feito essa semana?",
-        "Qual o estoque de sêmen?",
-        "Quais touros têm melhor desempenho?",
-        "Resumo geral da fazenda",
         "Quais embriões estão congelados?",
         "Compare o desempenho das fazendas",
         "Mostre as doadoras com baixa produção",
@@ -464,24 +673,25 @@ export default function ConsultorIA() {
         <div className="flex flex-col h-[calc(100dvh-180px)] md:h-[calc(100dvh-140px)] w-full max-w-4xl mx-auto overflow-hidden bg-background rounded-2xl border border-border/50 shadow-sm relative">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 shrink-0 bg-background/95 backdrop-blur-md z-20 shadow-sm">
-                <div className="flex items-center justify-center -ml-2 drop-shadow-sm">
-                    <LogoPassagene height={38} showText={false} variant="premium" />
-                </div>
-                <div>
-                    <h1 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-                        Gen.IA
-                        <span className="text-[10px] bg-primary/10 text-primary-dark px-1.5 py-0.5 rounded-md uppercase tracking-widest font-bold">Beta</span>
-                    </h1>
-                    <p className="text-sm text-muted-foreground leading-tight mt-0.5">Inteligência reprodutiva do seu rebanho</p>
+                <GeniaLogo size={42} showText={true} variant="default" />
+                <div className="flex flex-col justify-center translate-y-0.5">
+                    <span className="text-[10px] bg-primary/10 text-primary-dark px-1.5 py-0.5 rounded-md uppercase tracking-widest font-bold w-fit mb-0.5">Beta</span>
+                    <p className="text-[13px] text-muted-foreground leading-tight font-medium">Inteligência reprodutiva do rebanho</p>
                 </div>
             </div>
 
             {/* Messages Area (Fecho Ecler Dinâmico DNA) */}
             <div className="flex-1 overflow-y-auto px-2 md:px-0 py-6 space-y-6 relative z-0">
                 {/* Espinha Dorsal do DNA (Timeline Central) */}
-                <div className="absolute left-1/2 top-8 bottom-8 w-[2px] -translate-x-1/2 bg-gradient-to-b from-transparent via-primary/30 to-transparent -z-10 hidden md:block" />
+                {messages.length > 1 && (
+                    <div className="absolute left-1/2 top-8 bottom-8 w-[2px] -translate-x-1/2 bg-gradient-to-b from-transparent via-primary/30 to-transparent -z-10 hidden md:block" />
+                )}
 
                 {messages.map((msg, i) => {
+                    if (msg.id === 'welcome') {
+                        return <ZeroStateHero key={msg.id} onSuggestionClick={(text) => handleSend(text, false)} />;
+                    }
+
                     const isUser = msg.role === 'user';
                     return (
                         <div
@@ -722,324 +932,344 @@ export default function ConsultorIA() {
                                                                                         )}
                                                                                     />
                                                                                 ) :
-                                                                                /* === ESTOQUE_EMBRIOES Card === */
-                                                                                msg.intentData.tipo === 'ESTOQUE_EMBRIOES' && msg.intentData.itens?.length > 0 ? (
-                                                                                    <div className="mt-2 bg-background/50 border border-cyan-500/20 rounded-xl p-4 shadow-sm">
-                                                                                        <div className="flex items-center gap-2 text-cyan-700 font-semibold mb-3 border-b border-cyan-500/10 pb-2">
-                                                                                            <Snowflake className="w-4 h-4" />
-                                                                                            Embriões Congelados
-                                                                                            <div className="flex items-center gap-2 ml-auto">
-                                                                                                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{msg.intentData.total}</span>
-                                                                                                <ExportPdfButton intentData={msg.intentData} />
-                                                                                            </div>
-                                                                                        </div>
-                                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                                                                            {msg.intentData.itens.slice(0, 12).map((item: any, i: number) => (
-                                                                                                <div key={i} className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg bg-muted/30">
-                                                                                                    <span className="text-[12px] font-bold text-foreground truncate">{item.classificacao}</span>
-                                                                                                    <span className="text-[12px] font-black text-cyan-700">{item.quantidade}</span>
+                                                                                    /* === ESTOQUE_EMBRIOES Card === */
+                                                                                    msg.intentData.tipo === 'ESTOQUE_EMBRIOES' && msg.intentData.itens?.length > 0 ? (
+                                                                                        <div className="mt-2 bg-background/50 border border-cyan-500/20 rounded-xl p-4 shadow-sm">
+                                                                                            <div className="flex items-center gap-2 text-cyan-700 font-semibold mb-3 border-b border-cyan-500/10 pb-2">
+                                                                                                <Snowflake className="w-4 h-4" />
+                                                                                                Embriões Congelados
+                                                                                                <div className="flex items-center gap-2 ml-auto">
+                                                                                                    <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{msg.intentData.total}</span>
+                                                                                                    <ExportPdfButton intentData={msg.intentData} />
                                                                                                 </div>
-                                                                                            ))}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                ) :
-                                                                                msg.intentData.tipo === 'PROTOCOLOS' ? (
-                                                                                    <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
-                                                                                        <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
-                                                                                            <div className="flex items-center gap-2 text-primary-dark font-semibold">
-                                                                                                <BarChart3 className="w-4 h-4" />
-                                                                                                Relatório de Protocolos
                                                                                             </div>
-                                                                                            <div className="flex items-center gap-2">
-                                                                                                {msg.intentData.periodo && (
-                                                                                                    <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
-                                                                                                )}
-                                                                                                <ExportPdfButton intentData={msg.intentData} />
+                                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                                                {msg.intentData.itens.slice(0, 12).map((item: any, i: number) => (
+                                                                                                    <div key={i} className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg bg-muted/30">
+                                                                                                        <span className="text-[12px] font-bold text-foreground truncate">{item.classificacao}</span>
+                                                                                                        <span className="text-[12px] font-black text-cyan-700">{item.quantidade}</span>
+                                                                                                    </div>
+                                                                                                ))}
                                                                                             </div>
                                                                                         </div>
-                                                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-xs text-muted-foreground uppercase font-medium">Protocolos</span>
-                                                                                                <span className="text-lg font-bold text-foreground">{msg.intentData.totalProtocolos}</span>
-                                                                                            </div>
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-xs text-muted-foreground uppercase font-medium">Receptoras</span>
-                                                                                                <span className="text-lg font-bold text-foreground">{msg.intentData.totalReceptoras}</span>
-                                                                                            </div>
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-xs text-muted-foreground uppercase font-medium">Aptas</span>
-                                                                                                <span className="text-lg font-bold text-emerald-600">{msg.intentData.aptas}</span>
-                                                                                            </div>
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-xs text-muted-foreground uppercase font-medium">Inaptas</span>
-                                                                                                <span className="text-lg font-bold text-red-500">{msg.intentData.inaptas}</span>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                ) :
-                                                                                    msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.categoria !== 'Não Encontrado na Base Principal' ? (
-                                                                                        <div className="mt-3 bg-card border border-primary/20 rounded-xl overflow-hidden shadow-md">
-                                                                                            <div className="bg-primary/10 px-4 py-3 flex justify-between items-center border-b border-primary/20">
-                                                                                                <div className="flex items-center gap-3">
-                                                                                                    <div className="w-10 h-10 rounded-full bg-primary/20 flex flex-col items-center justify-center border border-primary/30 shadow-inner">
-                                                                                                        <span className="text-primary-dark font-black text-sm">
-                                                                                                            {msg.intentData.categoria?.[0] || 'A'}
-                                                                                                        </span>
+                                                                                    ) :
+                                                                                        msg.intentData.tipo === 'PROTOCOLOS' ? (
+                                                                                            <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
+                                                                                                <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
+                                                                                                    <div className="flex items-center gap-2 text-primary-dark font-semibold">
+                                                                                                        <BarChart3 className="w-4 h-4" />
+                                                                                                        Relatório de Protocolos
+                                                                                                    </div>
+                                                                                                    <div className="flex items-center gap-2">
+                                                                                                        {msg.intentData.periodo && (
+                                                                                                            <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
+                                                                                                        )}
+                                                                                                        <ExportPdfButton intentData={msg.intentData} />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Protocolos</span>
+                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.totalProtocolos}</span>
                                                                                                     </div>
                                                                                                     <div className="flex flex-col">
-                                                                                                        <span className="text-[10px] uppercase tracking-wider text-primary font-bold leading-tight mb-0.5 opacity-80">{msg.intentData.categoria}</span>
-                                                                                                        <span className="text-lg font-black text-foreground leading-none tracking-tight">{msg.intentData.nomeEncontrado}</span>
+                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Receptoras</span>
+                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.totalReceptoras}</span>
+                                                                                                    </div>
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Aptas</span>
+                                                                                                        <span className="text-lg font-bold text-emerald-600">{msg.intentData.aptas}</span>
+                                                                                                    </div>
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Inaptas</span>
+                                                                                                        <span className="text-lg font-bold text-red-500">{msg.intentData.inaptas}</span>
                                                                                                     </div>
                                                                                                 </div>
-                                                                                                <span className={cn(
-                                                                                                    "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm",
-                                                                                                    msg.intentData.status?.toUpperCase()?.includes('PRENHE') ? "bg-emerald-500/15 text-emerald-700 border border-emerald-500/20" :
-                                                                                                        msg.intentData.status?.toUpperCase()?.includes('VAZIA') ? "bg-red-500/15 text-red-700 border border-red-500/20" :
-                                                                                                            msg.intentData.status?.toUpperCase()?.includes('PARIDA') ? "bg-teal-500/15 text-teal-700 border border-teal-500/20" :
-                                                                                                                "bg-muted text-muted-foreground border border-border"
-                                                                                                )}>
-                                                                                                    {humanizeStatus(msg.intentData.status)}
-                                                                                                </span>
                                                                                             </div>
+                                                                                        ) :
+                                                                                            msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.categoria !== 'Não Encontrado na Base Principal' ? (
+                                                                                                <div className="mt-3 bg-card border border-primary/20 rounded-xl overflow-hidden shadow-md">
+                                                                                                    <div className="bg-primary/10 px-4 py-3 flex justify-between items-center border-b border-primary/20">
+                                                                                                        <div className="flex items-center gap-3">
+                                                                                                            <div className="w-10 h-10 rounded-full bg-primary/20 flex flex-col items-center justify-center border border-primary/30 shadow-inner">
+                                                                                                                <span className="text-primary-dark font-black text-sm">
+                                                                                                                    {msg.intentData.categoria?.[0] || 'A'}
+                                                                                                                </span>
+                                                                                                            </div>
+                                                                                                            <div className="flex flex-col">
+                                                                                                                <span className="text-[10px] uppercase tracking-wider text-primary font-bold leading-tight mb-0.5 opacity-80">{msg.intentData.categoria}</span>
+                                                                                                                <span className="text-lg font-black text-foreground leading-none tracking-tight">{msg.intentData.nomeEncontrado}</span>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                        <span className={cn(
+                                                                                                            "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm",
+                                                                                                            msg.intentData.status?.toUpperCase()?.includes('PRENHE') ? "bg-emerald-500/15 text-emerald-700 border border-emerald-500/20" :
+                                                                                                                msg.intentData.status?.toUpperCase()?.includes('VAZIA') ? "bg-red-500/15 text-red-700 border border-red-500/20" :
+                                                                                                                    msg.intentData.status?.toUpperCase()?.includes('PARIDA') ? "bg-teal-500/15 text-teal-700 border border-teal-500/20" :
+                                                                                                                        "bg-muted text-muted-foreground border border-border"
+                                                                                                        )}>
+                                                                                                            {humanizeStatus(msg.intentData.status)}
+                                                                                                        </span>
+                                                                                                    </div>
 
-                                                                                            <div className="p-4 flex flex-col gap-5">
-                                                                                                {/* Info Grid */}
-                                                                                                <div className="flex flex-wrap gap-6 bg-background/50 rounded-lg p-3 border border-border/40">
-                                                                                                    {msg.intentData.raca && msg.intentData.raca !== 'N/A' && (
-                                                                                                        <div className="flex flex-col gap-1">
-                                                                                                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Raça</span>
-                                                                                                            <div className="text-[15px] font-bold text-foreground bg-primary/5 px-2.5 py-1 rounded-md border border-primary/10">{msg.intentData.raca}</div>
+                                                                                                    <div className="p-4 flex flex-col gap-5">
+                                                                                                        {/* Info Grid */}
+                                                                                                        <div className="flex flex-wrap gap-6 bg-background/50 rounded-lg p-3 border border-border/40">
+                                                                                                            {msg.intentData.raca && msg.intentData.raca !== 'N/A' && (
+                                                                                                                <div className="flex flex-col gap-1">
+                                                                                                                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Raça</span>
+                                                                                                                    <div className="text-[15px] font-bold text-foreground bg-primary/5 px-2.5 py-1 rounded-md border border-primary/10">{msg.intentData.raca}</div>
+                                                                                                                </div>
+                                                                                                            )}
+                                                                                                            {msg.intentData.cioLivre && msg.intentData.cioLivre === 'Sim' && (
+                                                                                                                <div className="flex flex-col gap-1">
+                                                                                                                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Cio Livre</span>
+                                                                                                                    <div className="text-[15px] font-bold text-blue-600 flex items-center gap-1.5 bg-blue-500/5 px-2.5 py-1 rounded-md border border-blue-500/10">
+                                                                                                                        <CheckCircle2 className="w-4 h-4" /> Sim, Ativa
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                            )}
+                                                                                                            {msg.intentData.dataPartoPrevista && (
+                                                                                                                <div className="flex flex-col gap-1">
+                                                                                                                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Previsão de Parto</span>
+                                                                                                                    <div className="text-[15px] font-bold text-foreground bg-primary/5 px-2.5 py-1 rounded-md border border-primary/10 flex items-center gap-1.5">
+                                                                                                                        <Calendar className="w-4 h-4 text-primary" />
+                                                                                                                        {new Date(msg.intentData.dataPartoPrevista + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                            )}
+                                                                                                            {msg.intentData.cruzamento && (
+                                                                                                                <div className="flex flex-col gap-1 w-full mt-1">
+                                                                                                                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Cruzamento Atual</span>
+                                                                                                                    <div className="text-[14px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 px-3 py-1.5 rounded-md border border-emerald-500/20 flex flex-wrap gap-1.5 items-center">
+                                                                                                                        <span>{msg.intentData.cruzamento.doadora}</span>
+                                                                                                                        <span className="text-muted-foreground font-normal text-xs mx-1">×</span>
+                                                                                                                        <span>{msg.intentData.cruzamento.touro}</span>
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                            )}
                                                                                                         </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.cioLivre && msg.intentData.cioLivre === 'Sim' && (
-                                                                                                        <div className="flex flex-col gap-1">
-                                                                                                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Cio Livre</span>
-                                                                                                            <div className="text-[15px] font-bold text-blue-600 flex items-center gap-1.5 bg-blue-500/5 px-2.5 py-1 rounded-md border border-blue-500/10">
-                                                                                                                <CheckCircle2 className="w-4 h-4" /> Sim, Ativa
+
+                                                                                                        {/* History */}
+                                                                                                        {msg.intentData.historico && Array.isArray(msg.intentData.historico) && msg.intentData.historico.length > 0 && (
+                                                                                                            <div className="pt-4 border-t border-border/40 relative">
+                                                                                                                <div className="absolute -top-3 left-4 bg-card px-2">
+                                                                                                                    <span className="text-[10px] text-primary-dark uppercase font-black tracking-widest flex items-center gap-1.5">
+                                                                                                                        <Activity className="w-3.5 h-3.5" /> Últimos Eventos
+                                                                                                                    </span>
+                                                                                                                </div>
+                                                                                                                <div className="flex flex-col gap-3 mt-2">
+                                                                                                                    {msg.intentData.historico.map((hx: any, i: number) => {
+                                                                                                                        const conf = tipoIconConfig[hx.tipo] || { icon: Activity, className: 'text-primary' };
+                                                                                                                        const badgeConf = tipoBadgeConfig[hx.tipo];
+                                                                                                                        const Icon = conf.icon;
+
+                                                                                                                        return (
+                                                                                                                            <div key={i} className="flex items-center justify-between group relative pl-5">
+                                                                                                                                {/* Timeline line */}
+                                                                                                                                {i !== msg.intentData.historico.length - 1 && (
+                                                                                                                                    <div className="absolute top-4 left-[0.22rem] w-[2px] h-full bg-primary/10 rounded-full" />
+                                                                                                                                )}
+                                                                                                                                {/* Timeline dot */}
+                                                                                                                                <div className="absolute top-1.5 left-0 w-2 h-2 rounded-full bg-primary/40 ring-4 ring-card group-hover:bg-primary transition-colors z-10 shadow-sm" />
+
+                                                                                                                                <div className="flex flex-col flex-1 pl-2">
+                                                                                                                                    <span className="text-[13px] font-bold text-foreground flex items-center gap-1.5">
+                                                                                                                                        <Icon className={cn("w-3.5 h-3.5", conf.className)} />
+                                                                                                                                        {badgeConf ? badgeConf.label : hx.tipo}
+                                                                                                                                    </span>
+                                                                                                                                    <span className="text-[11px] font-medium text-muted-foreground mt-0.5">{hx.resumo}</span>
+                                                                                                                                    {hx.detalhes && (
+                                                                                                                                        <span className="text-[10px] text-muted-foreground mt-0.5 max-w-[90%] truncate opacity-80">{hx.detalhes}</span>
+                                                                                                                                    )}
+                                                                                                                                </div>
+
+                                                                                                                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                                                                                                                    <span className="text-[11px] font-bold text-muted-foreground bg-muted/50 px-2 rounded-sm">{hx.data ? new Date(hx.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                                                                                                                                </div>
+                                                                                                                            </div>
+                                                                                                                        )
+                                                                                                                    })}
+                                                                                                                </div>
                                                                                                             </div>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.dataPartoPrevista && (
-                                                                                                        <div className="flex flex-col gap-1">
-                                                                                                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Previsão de Parto</span>
-                                                                                                            <div className="text-[15px] font-bold text-foreground bg-primary/5 px-2.5 py-1 rounded-md border border-primary/10 flex items-center gap-1.5">
-                                                                                                                <Calendar className="w-4 h-4 text-primary" />
-                                                                                                                {new Date(msg.intentData.dataPartoPrevista + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                                                                                            </div>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.cruzamento && (
-                                                                                                        <div className="flex flex-col gap-1 w-full mt-1">
-                                                                                                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Cruzamento Atual</span>
-                                                                                                            <div className="text-[14px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 px-3 py-1.5 rounded-md border border-emerald-500/20 flex flex-wrap gap-1.5 items-center">
-                                                                                                                <span>{msg.intentData.cruzamento.doadora}</span>
-                                                                                                                <span className="text-muted-foreground font-normal text-xs mx-1">×</span>
-                                                                                                                <span>{msg.intentData.cruzamento.touro}</span>
-                                                                                                            </div>
-                                                                                                        </div>
-                                                                                                    )}
+                                                                                                        )}
+                                                                                                    </div>
                                                                                                 </div>
-
-                                                                                                {/* History */}
-                                                                                                {msg.intentData.historico && Array.isArray(msg.intentData.historico) && msg.intentData.historico.length > 0 && (
-                                                                                                    <div className="pt-4 border-t border-border/40 relative">
-                                                                                                        <div className="absolute -top-3 left-4 bg-card px-2">
-                                                                                                            <span className="text-[10px] text-primary-dark uppercase font-black tracking-widest flex items-center gap-1.5">
-                                                                                                                <Activity className="w-3.5 h-3.5" /> Últimos Eventos
-                                                                                                            </span>
+                                                                                            ) : (() => {
+                                                                                                const tipoLabels: Record<string, string> = {
+                                                                                                    LISTA_RECEPTORAS: 'Receptoras', LISTA_DOADORAS: 'Doadoras', ANALISE_REPETIDORAS: 'Repetidoras',
+                                                                                                    PROXIMOS_PARTOS: 'Próximos Partos', PROXIMOS_SERVICOS: 'Próximos Serviços',
+                                                                                                    DESEMPENHO_VET: 'Desempenho Veterinário', DESEMPENHO_TOURO: 'Desempenho por Touro',
+                                                                                                    COMPARACAO_FAZENDAS: 'Comparação de Fazendas', ESTOQUE_SEMEN: 'Estoque de Sêmen',
+                                                                                                    ESTOQUE_EMBRIOES: 'Embriões Congelados', NASCIMENTOS: 'Nascimentos',
+                                                                                                    RESUMO: 'Resumo Geral', TE: 'Transferência de Embriões', DG: 'Diagnóstico de Gestação',
+                                                                                                    ASPIRACAO: 'Aspiração', SEXAGEM: 'Sexagem', RECEPTORAS: 'Receptoras',
+                                                                                                    REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', BUSCA_ANIMAL: 'Busca de Animal',
+                                                                                                };
+                                                                                                const tipoLabel = tipoLabels[msg.intentData.tipo] || msg.intentData.tipo;
+                                                                                                const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(msg.intentData.tipo);
+                                                                                                return (
+                                                                                                    <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
+                                                                                                        <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
+                                                                                                            <div className="flex items-center gap-2 text-primary-dark font-semibold">
+                                                                                                                <BarChart3 className="w-4 h-4" />
+                                                                                                                {msg.intentData.tipo === 'BUSCA_ANIMAL' ? 'Busca Falhou' : tipoLabel}
+                                                                                                            </div>
+                                                                                                            <div className="flex items-center gap-2">
+                                                                                                                {msg.intentData.periodo && (
+                                                                                                                    <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">
+                                                                                                                        {msg.intentData.periodo}
+                                                                                                                    </span>
+                                                                                                                )}
+                                                                                                                {!isEmptyList && <ExportPdfButton intentData={msg.intentData} />}
+                                                                                                            </div>
                                                                                                         </div>
-                                                                                                        <div className="flex flex-col gap-3 mt-2">
-                                                                                                            {msg.intentData.historico.map((hx: any, i: number) => {
-                                                                                                                const conf = tipoIconConfig[hx.tipo] || { icon: Activity, className: 'text-primary' };
-                                                                                                                const badgeConf = tipoBadgeConfig[hx.tipo];
-                                                                                                                const Icon = conf.icon;
 
-                                                                                                                return (
-                                                                                                                    <div key={i} className="flex items-center justify-between group relative pl-5">
-                                                                                                                        {/* Timeline line */}
-                                                                                                                        {i !== msg.intentData.historico.length - 1 && (
-                                                                                                                            <div className="absolute top-4 left-[0.22rem] w-[2px] h-full bg-primary/10 rounded-full" />
-                                                                                                                        )}
-                                                                                                                        {/* Timeline dot */}
-                                                                                                                        <div className="absolute top-1.5 left-0 w-2 h-2 rounded-full bg-primary/40 ring-4 ring-card group-hover:bg-primary transition-colors z-10 shadow-sm" />
-
-                                                                                                                        <div className="flex flex-col flex-1 pl-2">
-                                                                                                                            <span className="text-[13px] font-bold text-foreground flex items-center gap-1.5">
-                                                                                                                                <Icon className={cn("w-3.5 h-3.5", conf.className)} />
-                                                                                                                                {badgeConf ? badgeConf.label : hx.tipo}
-                                                                                                                            </span>
-                                                                                                                            <span className="text-[11px] font-medium text-muted-foreground mt-0.5">{hx.resumo}</span>
-                                                                                                                            {hx.detalhes && (
-                                                                                                                                <span className="text-[10px] text-muted-foreground mt-0.5 max-w-[90%] truncate opacity-80">{hx.detalhes}</span>
-                                                                                                                            )}
+                                                                                                        {msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.mensagem ? (
+                                                                                                            <div className="text-sm text-muted-foreground flex items-center gap-2 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                                                                                                                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                                                                                                                <span className="text-red-700/90 font-medium">{msg.intentData.mensagem}</span>
+                                                                                                            </div>
+                                                                                                        ) : isEmptyList ? (
+                                                                                                            <div className="flex flex-col gap-2">
+                                                                                                                <div className="text-sm text-muted-foreground flex items-center gap-2 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                                                                                                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                                                                                                    <span className="font-medium text-amber-800">
+                                                                                                                        {msg.intentData.motivo || 'Nenhum resultado encontrado para esta consulta.'}
+                                                                                                                    </span>
+                                                                                                                </div>
+                                                                                                                {msg.intentData.totalGeral != null && (
+                                                                                                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                                                                                                        <div className="bg-muted/30 rounded-lg p-2">
+                                                                                                                            <div className="text-lg font-bold text-foreground">{msg.intentData.totalGeral}</div>
+                                                                                                                            <div className="text-[10px] text-muted-foreground uppercase font-medium">Total</div>
                                                                                                                         </div>
-
-                                                                                                                        <div className="flex flex-col items-end gap-1 shrink-0">
-                                                                                                                            <span className="text-[11px] font-bold text-muted-foreground bg-muted/50 px-2 rounded-sm">{hx.data ? new Date(hx.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                                                                                                                        <div className="bg-muted/30 rounded-lg p-2">
+                                                                                                                            <div className="text-lg font-bold text-amber-600">{msg.intentData.totalVazias ?? 0}</div>
+                                                                                                                            <div className="text-[10px] text-muted-foreground uppercase font-medium">Vazias</div>
+                                                                                                                        </div>
+                                                                                                                        <div className="bg-muted/30 rounded-lg p-2">
+                                                                                                                            <div className="text-lg font-bold text-red-500">{msg.intentData.emProtocolo ?? 0}</div>
+                                                                                                                            <div className="text-[10px] text-muted-foreground uppercase font-medium">Em Protocolo</div>
                                                                                                                         </div>
                                                                                                                     </div>
-                                                                                                                )
-                                                                                                            })}
-                                                                                                        </div>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        ) : (
+                                                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                                                                                {msg.intentData.total !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Total</span>
+                                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.total}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.totalAnimais !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Bezerros/Animais</span>
+                                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.totalAnimais}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.totalDoadoras !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Doadoras</span>
+                                                                                                                        <span className="text-lg font-bold text-emerald-600">{msg.intentData.totalDoadoras}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.realizadas !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Realizadas</span>
+                                                                                                                        <span className="text-lg font-bold text-emerald-600">{msg.intentData.realizadas}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.taxaPrenhez && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Tx. Prenhez</span>
+                                                                                                                        <span className="text-lg font-bold text-emerald-600">{msg.intentData.taxaPrenhez}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.positivos !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Positivos</span>
+                                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.positivos}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.vazias !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Vazias</span>
+                                                                                                                        <span className="text-lg font-bold text-red-500">{msg.intentData.vazias}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.prenhes !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Prenhes</span>
+                                                                                                                        <span className="text-lg font-bold text-emerald-600">{msg.intentData.prenhes}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.cioLivre !== undefined && msg.intentData.tipo !== 'BUSCA_ANIMAL' && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Cio Livre</span>
+                                                                                                                        <span className="text-lg font-bold text-blue-500">{msg.intentData.cioLivre}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.machos !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Machos</span>
+                                                                                                                        <span className="text-lg font-bold text-blue-600">{msg.intentData.machos}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.femeas !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Fêmeas</span>
+                                                                                                                        <span className="text-lg font-bold text-pink-600">{msg.intentData.femeas}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.totalSessoes !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Sessões</span>
+                                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.totalSessoes}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.tourosComEstoque !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Touros c/ Estoque</span>
+                                                                                                                        <span className="text-lg font-bold text-blue-600">{msg.intentData.tourosComEstoque}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.partosProximos !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Partos Próx. 30d</span>
+                                                                                                                        <span className="text-lg font-bold text-amber-600">{msg.intentData.partosProximos}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        )}
                                                                                                     </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ) : (() => {
-                                                                                        const tipoLabels: Record<string, string> = {
-                                                                                            LISTA_RECEPTORAS: 'Receptoras', LISTA_DOADORAS: 'Doadoras', ANALISE_REPETIDORAS: 'Repetidoras',
-                                                                                            PROXIMOS_PARTOS: 'Próximos Partos', PROXIMOS_SERVICOS: 'Próximos Serviços',
-                                                                                            DESEMPENHO_VET: 'Desempenho Veterinário', DESEMPENHO_TOURO: 'Desempenho por Touro',
-                                                                                            COMPARACAO_FAZENDAS: 'Comparação de Fazendas', ESTOQUE_SEMEN: 'Estoque de Sêmen',
-                                                                                            ESTOQUE_EMBRIOES: 'Embriões Congelados', NASCIMENTOS: 'Nascimentos',
-                                                                                            RESUMO: 'Resumo Geral', TE: 'Transferência de Embriões', DG: 'Diagnóstico de Gestação',
-                                                                                            ASPIRACAO: 'Aspiração', SEXAGEM: 'Sexagem', RECEPTORAS: 'Receptoras',
-                                                                                            REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', BUSCA_ANIMAL: 'Busca de Animal',
-                                                                                        };
-                                                                                        const tipoLabel = tipoLabels[msg.intentData.tipo] || msg.intentData.tipo;
-                                                                                        const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(msg.intentData.tipo);
-                                                                                        return (
-                                                                                        <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
-                                                                                            <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
-                                                                                                <div className="flex items-center gap-2 text-primary-dark font-semibold">
-                                                                                                    <BarChart3 className="w-4 h-4" />
-                                                                                                    {msg.intentData.tipo === 'BUSCA_ANIMAL' ? 'Busca Falhou' : tipoLabel}
-                                                                                                </div>
-                                                                                                <div className="flex items-center gap-2">
-                                                                                                    {msg.intentData.periodo && (
-                                                                                                        <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">
-                                                                                                            {msg.intentData.periodo}
-                                                                                                        </span>
-                                                                                                    )}
-                                                                                                    {!isEmptyList && <ExportPdfButton intentData={msg.intentData} />}
-                                                                                                </div>
-                                                                                            </div>
-
-                                                                                            {msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.mensagem ? (
-                                                                                                <div className="text-sm text-muted-foreground flex items-center gap-2 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
-                                                                                                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                                                                                                    <span className="text-red-700/90 font-medium">{msg.intentData.mensagem}</span>
-                                                                                                </div>
-                                                                                            ) : isEmptyList ? (
-                                                                                                <div className="flex flex-col gap-2">
-                                                                                                    <div className="text-sm text-muted-foreground flex items-center gap-2 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                                                                                                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                                                                                                        <span className="font-medium text-amber-800">
-                                                                                                            {msg.intentData.motivo || 'Nenhum resultado encontrado para esta consulta.'}
-                                                                                                        </span>
-                                                                                                    </div>
-                                                                                                    {msg.intentData.totalGeral != null && (
-                                                                                                        <div className="grid grid-cols-3 gap-2 text-center">
-                                                                                                            <div className="bg-muted/30 rounded-lg p-2">
-                                                                                                                <div className="text-lg font-bold text-foreground">{msg.intentData.totalGeral}</div>
-                                                                                                                <div className="text-[10px] text-muted-foreground uppercase font-medium">Total</div>
-                                                                                                            </div>
-                                                                                                            <div className="bg-muted/30 rounded-lg p-2">
-                                                                                                                <div className="text-lg font-bold text-amber-600">{msg.intentData.totalVazias ?? 0}</div>
-                                                                                                                <div className="text-[10px] text-muted-foreground uppercase font-medium">Vazias</div>
-                                                                                                            </div>
-                                                                                                            <div className="bg-muted/30 rounded-lg p-2">
-                                                                                                                <div className="text-lg font-bold text-red-500">{msg.intentData.emProtocolo ?? 0}</div>
-                                                                                                                <div className="text-[10px] text-muted-foreground uppercase font-medium">Em Protocolo</div>
-                                                                                                            </div>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                </div>
-                                                                                            ) : (
-                                                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                                                                                    {msg.intentData.total !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Total</span>
-                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.total}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.totalAnimais !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Bezerros/Animais</span>
-                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.totalAnimais}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.totalDoadoras !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Doadoras</span>
-                                                                                                            <span className="text-lg font-bold text-emerald-600">{msg.intentData.totalDoadoras}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.realizadas !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Realizadas</span>
-                                                                                                            <span className="text-lg font-bold text-emerald-600">{msg.intentData.realizadas}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.taxaPrenhez && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Tx. Prenhez</span>
-                                                                                                            <span className="text-lg font-bold text-emerald-600">{msg.intentData.taxaPrenhez}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.positivos !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Positivos</span>
-                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.positivos}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.vazias !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Vazias</span>
-                                                                                                            <span className="text-lg font-bold text-red-500">{msg.intentData.vazias}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.prenhes !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Prenhes</span>
-                                                                                                            <span className="text-lg font-bold text-emerald-600">{msg.intentData.prenhes}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.cioLivre !== undefined && msg.intentData.tipo !== 'BUSCA_ANIMAL' && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Cio Livre</span>
-                                                                                                            <span className="text-lg font-bold text-blue-500">{msg.intentData.cioLivre}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.machos !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Machos</span>
-                                                                                                            <span className="text-lg font-bold text-blue-600">{msg.intentData.machos}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.femeas !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Fêmeas</span>
-                                                                                                            <span className="text-lg font-bold text-pink-600">{msg.intentData.femeas}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.totalSessoes !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Sessões</span>
-                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.totalSessoes}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.tourosComEstoque !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Touros c/ Estoque</span>
-                                                                                                            <span className="text-lg font-bold text-blue-600">{msg.intentData.tourosComEstoque}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {msg.intentData.partosProximos !== undefined && (
-                                                                                                        <div className="flex flex-col">
-                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Partos Próx. 30d</span>
-                                                                                                            <span className="text-lg font-bold text-amber-600">{msg.intentData.partosProximos}</span>
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                </div>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    );})()
+                                                                                                );
+                                                                                            })()
                                                     )}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Follow Up Suggestion Chips */}
+                                    {i === messages.length - 1 && !msg.isSearching && msg.intentData && (
+                                        <div className="flex flex-col gap-2 mt-3 animate-in fade-in slide-in-from-top-2 duration-500 ml-10">
+                                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Sugestões para continuar:</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {getFollowUpSuggestions(msg.intentData).map((sug, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => handleSend(sug, false)}
+                                                        className="text-[12px] font-medium px-3.5 py-2 rounded-xl border border-primary/20 bg-card text-foreground hover:bg-primary/5 hover:text-primary-dark hover:border-primary/40 transition-all flex items-center gap-2 shadow-sm group"
+                                                    >
+                                                        <Sparkles className="w-3.5 h-3.5 text-primary/40 group-hover:text-primary transition-colors" />
+                                                        {sug}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Lado Direito (Conector MD+) */}
                                     <div className="hidden md:flex items-center justify-start w-full pl-[15px] pt-5 opacity-70">
@@ -1056,22 +1286,6 @@ export default function ConsultorIA() {
 
             {/* Input Area */}
             <div className="mt-auto px-4 shrink-0 bg-background/95 backdrop-blur-md py-4 z-20 border-t border-border/30">
-                {/* Suggestion Chips */}
-                {messages.length <= 2 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {suggestions.map((sug, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handleSend(sug)}
-                                className="text-xs px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary-dark hover:bg-primary/15 hover:border-primary/40 transition-all flex items-center gap-1.5"
-                            >
-                                {sug}
-                                <ArrowRight className="w-3 h-3" />
-                            </button>
-                        ))}
-                    </div>
-                )}
-
                 <div className="relative group">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-[2rem] blur-md transition-all group-focus-within:bg-primary/20" />
                     <div className="relative flex items-end gap-2 bg-card border border-border/80 rounded-[2rem] p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all">
@@ -1089,7 +1303,20 @@ export default function ConsultorIA() {
                             rows={1}
                         />
                         <button
-                            onClick={() => handleSend()}
+                            onClick={startListening}
+                            disabled={isLoading}
+                            className={cn(
+                                "w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-all disabled:opacity-50 mb-0.5",
+                                isListening
+                                    ? "bg-red-500 hover:bg-red-600 text-white shadow-lg animate-pulse ring-4 ring-red-500/20"
+                                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                            )}
+                            title="Falar com a Gen.IA"
+                        >
+                            {isListening ? <Mic className="w-4 h-4 ml-0.5" /> : <Mic className="w-4 h-4 ml-0.5" />}
+                        </button>
+                        <button
+                            onClick={() => handleSend(input, false)}
                             disabled={!input.trim() || isLoading}
                             className="w-11 h-11 shrink-0 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground rounded-full flex items-center justify-center transition-all shadow-md mb-0.5 mr-0.5"
                         >

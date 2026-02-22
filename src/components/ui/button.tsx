@@ -12,16 +12,16 @@ const buttonVariants = cva(
       variant: {
         // Primary verde PassaGene
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md active:scale-[0.98]",
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
         // Destructive (vermelho)
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 hover:shadow-md active:scale-[0.98]",
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
         // Outline com borda
         outline:
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent",
         // Secondary (neutro)
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
         // Ghost (transparente)
         ghost:
           "hover:bg-primary-subtle hover:text-primary-subtle-foreground",
@@ -30,10 +30,10 @@ const buttonVariants = cva(
           "text-primary underline-offset-4 hover:underline hover:text-primary-dark",
         // Accent - verde escuro (#27AE60)
         accent:
-          "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 hover:shadow-md active:scale-[0.98]",
+          "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
         // Success - alias para primary (verde)
         success:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary-dark hover:shadow-md active:scale-[0.98]",
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary-dark hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -54,7 +54,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 

@@ -47,7 +47,7 @@ export default function GeneticaHome() {
   return (
     <div className="space-y-8">
       {/* Header Premium */}
-      <div className="relative rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-8 overflow-hidden">
+      <div className="relative rounded-xl bg-gradient-to-br from-card via-card to-primary/5 p-8 overflow-hidden">
         {/* Decoração */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full translate-y-1/2 -translate-x-1/2" />
@@ -71,7 +71,7 @@ export default function GeneticaHome() {
             <Button
               variant="outline"
               onClick={() => navigate('/genetica/doadoras')}
-              className="border-pink-500/30 text-pink-600 hover:bg-pink-500/10"
+              className="text-pink-600 hover:bg-pink-500/10"
             >
               <CowIcon className="w-4 h-4 mr-2" />
               Ver Doadoras
@@ -79,7 +79,7 @@ export default function GeneticaHome() {
             <Button
               variant="outline"
               onClick={() => navigate('/genetica/touros')}
-              className="border-blue-500/30 text-blue-600 hover:bg-blue-500/10"
+              className="text-blue-600 hover:bg-blue-500/10"
             >
               <CowIcon className="w-4 h-4 mr-2" />
               Ver Touros
@@ -101,7 +101,7 @@ export default function GeneticaHome() {
                 <p className="text-sm text-muted-foreground">Seleção especial da semana</p>
               </div>
             </div>
-            <Badge variant="outline" className="text-amber-600 border-amber-500/30">
+            <Badge variant="outline" className="text-amber-600">
               <Sparkles className="w-3 h-3 mr-1" />
               {destaques.length} em destaque
             </Badge>
@@ -175,7 +175,7 @@ export default function GeneticaHome() {
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-border p-8">
+            <div className="rounded-xl p-8">
               <EmptyState
                 title="Nenhuma doadora"
                 description="Ainda não há doadoras no catálogo"
@@ -227,7 +227,7 @@ export default function GeneticaHome() {
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-border p-8">
+            <div className="rounded-xl p-8">
               <EmptyState
                 title="Nenhum touro"
                 description="Ainda não há touros no catálogo"

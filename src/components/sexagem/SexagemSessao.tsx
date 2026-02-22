@@ -42,6 +42,8 @@ import {
     Save,
     AlertTriangle,
     Camera,
+    X,
+    ChevronDown,
 } from 'lucide-react';
 import { DIAS_MINIMOS } from '@/lib/gestacao';
 import { useSexagem } from '@/hooks/useSexagem';
@@ -84,6 +86,10 @@ export function SexagemSessao() {
     const [entryMode, setEntryMode] = useState<EntryMode>('manual');
     const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
     const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
+    const [shortcutsDismissed, setShortcutsDismissed] = useState(() =>
+        typeof window !== 'undefined' && localStorage.getItem('sexagem-shortcuts-dismissed') === 'true'
+    );
+    const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
     const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
         reportType: 'sexagem',
@@ -169,6 +175,43 @@ export function SexagemSessao() {
     const sexTableRef = useRef<HTMLDivElement>(null);
     const handleSexKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (loteSelecionado?.status === 'FECHADO') return;
+
+        // Tab navigation between sexagem cells (G1 → G2 → G3 → next row G1)
+        if (e.key === 'Tab') {
+            const active = document.activeElement as HTMLElement;
+            if (!active?.hasAttribute('data-resultado-trigger')) return;
+            const row = active.closest('[data-row-idx]');
+            if (!row || !sexTableRef.current?.contains(row)) return;
+            const rowIdx = parseInt(row.getAttribute('data-row-idx') || '-1');
+            if (rowIdx < 0 || rowIdx >= receptoras.length) return;
+
+            const triggers = Array.from(row.querySelectorAll('[data-resultado-trigger]')) as HTMLElement[];
+            const currentTriggerIdx = triggers.indexOf(active);
+
+            let nextTrigger: HTMLElement | null = null;
+            if (!e.shiftKey) {
+                // Forward: next trigger in same row, or first trigger in next row
+                if (currentTriggerIdx < triggers.length - 1) {
+                    nextTrigger = triggers[currentTriggerIdx + 1];
+                } else if (rowIdx + 1 < receptoras.length) {
+                    nextTrigger = sexTableRef.current?.querySelector(`[data-row-idx="${rowIdx + 1}"] [data-resultado-trigger]`) as HTMLElement;
+                }
+            } else {
+                // Backward: previous trigger in same row, or last trigger in previous row
+                if (currentTriggerIdx > 0) {
+                    nextTrigger = triggers[currentTriggerIdx - 1];
+                } else if (rowIdx > 0) {
+                    const prevTriggers = sexTableRef.current?.querySelectorAll(`[data-row-idx="${rowIdx - 1}"] [data-resultado-trigger]`);
+                    if (prevTriggers?.length) nextTrigger = prevTriggers[prevTriggers.length - 1] as HTMLElement;
+                }
+            }
+            if (nextTrigger) {
+                e.preventDefault();
+                nextTrigger.focus();
+            }
+            return;
+        }
+
         const key = e.key.toUpperCase();
         const shortcutMap: Record<string, ResultadoSexagem> = {
             F: 'FEMEA', M: 'MACHO', S: 'SEM_SEXO', V: 'VAZIA',
@@ -183,12 +226,22 @@ export function SexagemSessao() {
         const idx = parseInt(row.getAttribute('data-row-idx') || '-1');
         if (idx < 0 || idx >= receptoras.length) return;
 
-        e.preventDefault();
-        handleSexagemChange(receptoras[idx].receptora_id, 0, resultado);
+        // Determine which gestacao index this trigger belongs to
+        const triggers = Array.from(row.querySelectorAll('[data-resultado-trigger]')) as HTMLElement[];
+        const gestacaoIdx = triggers.indexOf(active);
 
-        const nextRow = sexTableRef.current?.querySelector(`[data-row-idx="${idx + 1}"] [data-resultado-trigger]`) as HTMLElement;
-        if (nextRow) {
-            setTimeout(() => nextRow.focus(), 50);
+        e.preventDefault();
+        handleSexagemChange(receptoras[idx].receptora_id, gestacaoIdx >= 0 ? gestacaoIdx : 0, resultado);
+
+        // Focus next trigger (same row next gestacao, or next row first)
+        let nextTrigger: HTMLElement | null = null;
+        if (gestacaoIdx < triggers.length - 1) {
+            nextTrigger = triggers[gestacaoIdx + 1];
+        } else {
+            nextTrigger = sexTableRef.current?.querySelector(`[data-row-idx="${idx + 1}"] [data-resultado-trigger]`) as HTMLElement;
+        }
+        if (nextTrigger) {
+            setTimeout(() => nextTrigger!.focus(), 50);
         }
     }, [receptoras, loteSelecionado, handleSexagemChange]);
 
@@ -196,6 +249,12 @@ export function SexagemSessao() {
         const dados = formData[r.receptora_id];
         return dados && dados.data_sexagem && dados.sexagens && dados.sexagens.some(s => s);
     });
+
+    const preenchidas = receptoras.filter(r => {
+        const dados = formData[r.receptora_id];
+        return dados?.sexagens?.some(s => s);
+    }).length;
+    const progressoPct = receptoras.length > 0 ? Math.round((preenchidas / receptoras.length) * 100) : 0;
 
     const formatarData = (data: string) => {
         if (!data) return '-';
@@ -425,7 +484,22 @@ export function SexagemSessao() {
                                     <Badge variant="secondary">Lote Fechado</Badge>
                                 )}
                             </div>
+                            {receptoras.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <Badge variant={progressoPct === 100 ? 'default' : 'outline'} className="font-mono text-xs">
+                                        {preenchidas}/{receptoras.length}
+                                    </Badge>
+                                </div>
+                            )}
                         </div>
+                        {receptoras.length > 0 && (
+                            <div className="h-1.5 bg-primary/20 rounded-full mt-2">
+                                <div
+                                    className="h-full bg-primary rounded-full transition-all duration-300"
+                                    style={{ width: `${progressoPct}%` }}
+                                />
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="pt-0">
                         {/* Mobile cards */}
@@ -470,30 +544,59 @@ export function SexagemSessao() {
                                                     disabled={isDisabled}
                                                 />
                                             </div>
-                                            <div className={`grid ${receptora.numero_gestacoes > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-                                                {Array.from({ length: receptora.numero_gestacoes }, (_, index) => {
-                                                    const valorAtual = dados.sexagens[index] || '';
-                                                    const label = receptora.numero_gestacoes > 1 ? `Gesta\u00E7\u00E3o ${index + 1}` : 'Sexagem';
-                                                    return (
-                                                        <div key={index}>
-                                                            <label className="text-[10px] text-muted-foreground uppercase mb-1 block">{label}</label>
-                                                            <Select
-                                                                value={valorAtual}
-                                                                onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
-                                                                disabled={isDisabled}
+                                            {(() => {
+                                                const isMulti = receptora.numero_gestacoes > 1;
+                                                const cardKey = receptora.receptora_id;
+                                                const isExpanded = expandedCards.has(cardKey);
+                                                // Auto-expand when G1 is filled
+                                                const g1Filled = !!dados.sexagens[0];
+                                                const showExtra = isMulti && (isExpanded || g1Filled);
+
+                                                const renderSelect = (index: number, label: string) => (
+                                                    <div key={index}>
+                                                        <label className="text-[10px] text-muted-foreground uppercase mb-1 block">{label}</label>
+                                                        <Select
+                                                            value={dados.sexagens[index] || ''}
+                                                            onValueChange={(value) => handleSexagemChange(receptora.receptora_id, index, value as ResultadoSexagem | '')}
+                                                            disabled={isDisabled}
+                                                        >
+                                                            <SelectTrigger className="h-11"><SelectValue placeholder="--" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="FEMEA">Fêmea</SelectItem>
+                                                                <SelectItem value="MACHO">Macho</SelectItem>
+                                                                <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
+                                                                <SelectItem value="VAZIA">Vazia</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                );
+
+                                                if (!isMulti) {
+                                                    return <div>{renderSelect(0, 'Sexagem')}</div>;
+                                                }
+
+                                                return (
+                                                    <div className="space-y-2">
+                                                        {renderSelect(0, 'Gestação 1')}
+                                                        {showExtra ? (
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                {Array.from({ length: receptora.numero_gestacoes - 1 }, (_, i) =>
+                                                                    renderSelect(i + 1, `Gestação ${i + 2}`)
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setExpandedCards(prev => new Set([...prev, cardKey]))}
+                                                                className="flex items-center gap-1 text-xs text-primary hover:underline"
                                                             >
-                                                                <SelectTrigger className="h-11"><SelectValue placeholder="--" /></SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="FEMEA">Fêmea</SelectItem>
-                                                                    <SelectItem value="MACHO">Macho</SelectItem>
-                                                                    <SelectItem value="SEM_SEXO">Sem sexo</SelectItem>
-                                                                    <SelectItem value="VAZIA">Vazia</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
+                                                                <ChevronDown className="w-3.5 h-3.5" />
+                                                                Mostrar G2{receptora.numero_gestacoes > 2 ? '/G3' : ''}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                             <div>
                                                 <label className="text-[10px] text-muted-foreground uppercase mb-1 block">Obs.</label>
                                                 <Input
@@ -509,6 +612,25 @@ export function SexagemSessao() {
                                 );
                             })}
                         </div>
+
+                        {/* Shortcut banner — desktop */}
+                        {!shortcutsDismissed && (
+                            <div className="hidden md:flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                                <span>
+                                    Atalhos de teclado: <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">F</kbd> = Fêmea | <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">M</kbd> = Macho | <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">S</kbd> = Sem Sexo | <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">V</kbd> = Vazia
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        setShortcutsDismissed(true);
+                                        localStorage.setItem('sexagem-shortcuts-dismissed', 'true');
+                                    }}
+                                    className="p-0.5 rounded hover:bg-background"
+                                    aria-label="Fechar"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Desktop table */}
                         <div className="hidden md:block overflow-x-auto" ref={sexTableRef} onKeyDown={handleSexKeyDown}>

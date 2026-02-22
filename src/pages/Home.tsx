@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useUserClientes } from '@/hooks/useUserClientes';
+import { HUB_HOME_ROUTES } from '@/lib/nav-config';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { HomeCliente, HomeDefault } from '@/components/home';
 
@@ -35,7 +36,7 @@ export default function Home() {
         const pB = priorityMap[b.code] || 99;
         return pA - pB;
       })[0];
-      return bestHub.routes.find(r => r !== '/') || bestHub.routes[0];
+      return HUB_HOME_ROUTES[bestHub.code] || bestHub.routes.find(r => r !== '/') || '/';
     }
     return null;
   }, [realHubs, priorityMap]);

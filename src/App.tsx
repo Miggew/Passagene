@@ -155,6 +155,7 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
 }
 
 const LaboratorioHome = lazy(() => import('@/pages/laboratorio/LaboratorioHome'));
+const CampoHome = lazy(() => import('@/pages/campo/CampoHome'));
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -233,11 +234,14 @@ const AppRoutes = () => {
             {/* Histórico Geral */}
             <Route path="/historico" element={<EscritorioHistorico />} />
 
-            {/* Hub Relatórios */}
+            {/* Hub Campo */}
+            <Route path="/campo" element={<CampoHome />} />
+
+            {/* Hub Laboratório */}
             <Route path="/laboratorio" element={<LaboratorioHome />} />
             <Route path="/lotes-fiv" element={<LotesFIV />} />
             <Route path="/lotes-fiv/:id" element={<LotesFIV />} />
-            <Route path="/relatorios" element={<RelatoriosHome />} />
+            <Route path="/relatorios" element={<Navigate to="/genia" replace />} />
             <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
             <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />
             <Route path="/relatorios/material" element={<RelatoriosMaterial />} />

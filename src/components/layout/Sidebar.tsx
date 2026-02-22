@@ -2,8 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
+import { VoiceFAB } from '@/components/ui/VoiceFAB';
 import { Home } from 'lucide-react';
-import { routeIcons, routeLabelsLong as routeLabels } from '@/lib/nav-config';
+import { routeIcons, routeLabelsLong as routeLabels, HUB_HOME_ROUTES } from '@/lib/nav-config';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -18,8 +19,6 @@ export default function Sidebar() {
   }
 
   const isRouteActive = (path: string) => {
-    // Verifica match exato ou se é uma sub-rota (ex: /embrioes/123)
-    // Evita que /embrioes-congelados ative /embrioes
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
@@ -34,51 +33,120 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex w-72 bg-card/80 backdrop-blur-md border-r border-border/40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] min-h-full flex-col rounded-r-[2rem]">
-      {/* Header do hub atual */}
-      <div className="p-6 border-b border-border/50">
-        <h2 className="font-heading text-xl font-extrabold text-foreground">{currentHub.name}</h2>
-        {currentHub.description && (
-          <p className="text-xs text-muted-foreground mt-1">{currentHub.description}</p>
-        )}
+    <aside className="hidden md:flex w-72 min-h-screen relative bg-transparent z-40 pointer-events-none">
+
+      {/* Composited Background with Vertical Curve - Perfect Hug */}
+      <div className="absolute inset-0 pointer-events-auto flex flex-col w-[326px]" style={{ filter: 'drop-shadow(3px 0px 12px rgba(0,0,0,0.04))' }}>
+
+        {/* Top Flexible Segment */}
+        <div className="w-72 flex-1 bg-card/90 backdrop-blur-md rounded-tr-[2rem]" />
+
+        {/* Fixed Curve Segment (200px height). Aligns perfectly with the FAB. */}
+        <div className="w-[326px] h-[200px] shrink-0 relative overflow-visible -mt-[1px] -mb-[1px]">
+          <svg
+            className="w-full h-full absolute"
+            preserveAspectRatio="none"
+            viewBox="0 0 326 200"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* 
+              Mathematically perfect bezier bump: 
+              Centers exactly at y=100. Pushes out to x=326.
+              Leaves exactly a ~6px gap hugging a 64px circle centered at x=288.
+            */}
+            <path
+              d="M0 0 H288 V30 C288 60, 326 60, 326 100 C326 140, 288 140, 288 170 V200 H0 Z"
+              className="fill-card opacity-90 backdrop-blur-md"
+            />
+          </svg>
+
+          {/* FAB: Consultor IA (Aligned inside the curve exactly) */}
+          <div className="absolute inset-0 flex items-center justify-end z-50">
+            <div className="relative group mr-[6px]">
+              <VoiceFAB size="lg" isSidebar />
+              {/* Tooltip on hover */}
+              <span className="absolute right-[80px] top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-card border border-border text-foreground font-bold text-[12px] whitespace-nowrap shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 origin-right">
+                Gen.IA Relatórios
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Fixed Segment */}
+        <div className="w-72 h-[40px] shrink-0 bg-card/90 backdrop-blur-md rounded-br-[2rem]" />
       </div>
 
-      {/* Menu de navegação do hub */}
-      <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
-        {currentHub.routes.map((route) => {
-          const Icon = routeIcons[route] || Home;
-          const label = routeLabels[route] || route;
-          const isActive = isRouteActive(route);
+      {/* Main Content Area */}
+      <div className="relative z-10 flex flex-col w-72 h-full pointer-events-auto">
+        {/* Header do hub atual */}
+        <div className="p-6 border-b border-border/50">
+          <h2 className="font-heading text-xl font-extrabold text-foreground">{currentHub.name}</h2>
+          {currentHub.description && (
+            <p className="text-xs text-muted-foreground mt-1">{currentHub.description}</p>
+          )}
+        </div>
 
-          return (
-            <Link
-              key={route}
-              to={route}
-              className={cn(
-                'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative',
-                isActive
-                  ? 'bg-primary/10 text-primary font-extrabold shadow-sm border-l-4 border-primary rounded-r-2xl pr-4' // Raiz ancorada na esquerda
-                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3' // Item inativo tem margem padrão
-              )}
-            >
-              <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-primary scale-110' : '')} />
-              <span className="text-sm">{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+        {/* Menu de navegação do hub */}
+        <nav className="flex-1 py-4 space-y-1 overflow-y-auto w-full">
+          {/* Link "Visão Geral" para hub home */}
+          {HUB_HOME_ROUTES[currentHub.code] && (() => {
+            const hubHomeRoute = HUB_HOME_ROUTES[currentHub.code];
+            const HubHomeIcon = routeIcons[hubHomeRoute] || Home;
+            const isHubHomeActive = isRouteActive(hubHomeRoute);
+            return (
+              <>
+                <Link
+                  to={hubHomeRoute}
+                  className={cn(
+                    'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative overflow-hidden group',
+                    isHubHomeActive
+                      ? 'bg-primary/10 text-primary font-extrabold shadow-sm border-l-4 border-primary rounded-r-2xl pr-4'
+                      : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3'
+                  )}
+                >
+                  {!isHubHomeActive && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40 rounded-r-md scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300 ease-out" />
+                  )}
+                  <HubHomeIcon className={cn('w-5 h-5 transition-transform duration-300', isHubHomeActive ? 'text-primary scale-110' : 'group-hover:scale-110')} />
+                  <span className="text-sm relative z-10">Visão Geral</span>
+                </Link>
+                <div className="mx-6 border-b border-border/40 my-2" />
+              </>
+            );
+          })()}
+          {currentHub.routes.filter(route => route !== HUB_HOME_ROUTES[currentHub.code]).map((route) => {
+            const Icon = routeIcons[route] || Home;
+            const label = routeLabels[route] || route;
+            const isActive = isRouteActive(route);
 
-      {/* Global AI Consultant Drop-In no rodapé do Sidebar */}
-      <div className="p-4 border-t border-border/50">
-        <Link
-          to="/genia"
-          className="group relative w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white py-3 rounded-2xl font-bold tracking-wide shadow-[0_4px_15px_rgba(9,201,114,0.3)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.5)] transition-all overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
-          <LogoPassagene height={20} showText={false} variant="hollow" />
-          <span className="relative z-10 group-hover:scale-105 transition-transform duration-300">Gen.IA</span>
-        </Link>
+            return (
+              <Link
+                key={route}
+                to={route}
+                className={cn(
+                  'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative overflow-hidden group',
+                  isActive
+                    ? 'bg-primary/10 text-primary font-extrabold shadow-sm border-l-4 border-primary rounded-r-2xl pr-4'
+                    : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3'
+                )}
+              >
+                {/* Efeito Seiva Lateral (Sliding bar on hover) */}
+                {!isActive && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40 rounded-r-md scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300 ease-out" />
+                )}
+
+                <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-primary scale-110' : 'group-hover:scale-110')} />
+                <span className="text-sm relative z-10">{label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Transparent bottom spacer to align with curve */}
+        <div className="h-[200px] w-full shrink-0" />
       </div>
+
     </aside>
   );
 }

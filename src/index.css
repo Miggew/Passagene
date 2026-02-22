@@ -57,9 +57,9 @@ html.font-grande {
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
 
-    /* Borders & Inputs: Bordas invisíveis quase */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    /* Borders & Inputs: Totalmente invisíveis */
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
     --ring: 153 91% 41%;
 
     /* Cores Globais da Marca para Componentes React (Sincronia Logo <-> UI) */
@@ -96,7 +96,7 @@ html.font-grande {
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14.3% 95.9%;
     --sidebar-accent-foreground: 164 86% 16%;
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 0 0% 100%;
     --sidebar-ring: 153 91% 41%;
   }
 
@@ -147,9 +147,9 @@ html.font-grande {
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Borders & Inputs: Bordas invisíveis, apenas separação de tons */
-    --border: 240 4% 14%;
-    --input: 240 4% 14%;
+    /* Borders & Inputs: Totalmente invisíveis */
+    --border: 240 6% 6%;
+    --input: 240 6% 6%;
     --ring: 153 91% 41%;
 
     /* Variante Hollow (Logo vazada dark) */
@@ -167,16 +167,17 @@ html.font-grande {
     --sidebar-primary-foreground: 240 10% 4%;
     --sidebar-accent: 240 4% 10%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 4% 12%;
+    --sidebar-border: 240 10% 3%;
     --sidebar-ring: 153 91% 41%;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+/* Zero borders: regra unlayered sobrescreve TODAS as utilities do Tailwind */
+* {
+  border-color: transparent;
+}
 
+@layer base {
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -394,5 +395,16 @@ html.font-grande {
   to {
     opacity: 1;
     transform: translateX(0) translateY(0);
+  }
+}
+
+/* Phosphorescent Skeleton Shimmer */
+@keyframes shimmer-phosphor {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
   }
 }

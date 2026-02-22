@@ -500,7 +500,82 @@ export function AspiracaoDoadoras({
                                     </p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
+                                <>
+                                {/* Mobile cards */}
+                                <div className="md:hidden space-y-3 p-3">
+                                    {doadoras.map((d, idx) => (
+                                        <div key={d.doadora_id || idx} className="rounded-xl border border-border/60 bg-card shadow-sm p-4">
+                                            {/* Header */}
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-base">{d.registro}</span>
+                                                    {d.nome && <span className="text-muted-foreground text-xs">({d.nome})</span>}
+                                                    {d.isNew && <Badge variant="secondary" className="text-[9px] h-4 px-1">Nova</Badge>}
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-11 w-11 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => setDoadoras(prev => prev.filter((_, i) => i !== idx))}
+                                                    aria-label="Remover"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                            </div>
+                                            {/* Horários */}
+                                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                                <div>
+                                                    <label className="text-[10px] text-muted-foreground uppercase mb-1 block">Horário início</label>
+                                                    <Input
+                                                        type="time"
+                                                        className="h-11 text-sm"
+                                                        value={d.horario_aspiracao}
+                                                        onChange={(e) => handleUpdateDoadora(idx, 'horario_aspiracao', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-muted-foreground uppercase mb-1 block">Horário final</label>
+                                                    <Input
+                                                        type="time"
+                                                        className="h-11 text-sm"
+                                                        value={d.hora_final}
+                                                        onChange={(e) => handleUpdateDoadora(idx, 'hora_final', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            {/* Oócitos */}
+                                            <div className="grid grid-cols-3 gap-3 mb-3">
+                                                {([
+                                                    ['atresicos', 'Atrésicos', 'text-red-700 bg-red-50/30 focus-visible:ring-red-500/30'],
+                                                    ['degenerados', 'Degenerados', 'text-orange-700 bg-orange-50/30 focus-visible:ring-orange-500/30'],
+                                                    ['expandidos', 'Expandidos', 'text-blue-700 bg-blue-50/30 focus-visible:ring-blue-500/30'],
+                                                    ['desnudos', 'Desnudos', 'text-purple-700 bg-purple-50/30 focus-visible:ring-purple-500/30'],
+                                                    ['viaveis', 'Viáveis', 'text-emerald-700 bg-emerald-50/30 focus-visible:ring-emerald-500/30'],
+                                                ] as const).map(([field, label, colorClass]) => (
+                                                    <div key={field}>
+                                                        <label className="text-[10px] text-muted-foreground uppercase mb-1 block">{label}</label>
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            className={cn("h-11 text-sm text-center font-medium", colorClass)}
+                                                            value={d[field]}
+                                                            onChange={(e) => handleUpdateDoadora(idx, field, e.target.value)}
+                                                            onFocus={(e) => e.target.select()}
+                                                        />
+                                                    </div>
+                                                ))}
+                                                <div className="flex items-end">
+                                                    <Badge variant="outline" className="h-11 w-full flex items-center justify-center text-sm font-bold">
+                                                        Total: {d.total_oocitos}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Desktop table */}
+                                <div className="hidden md:block overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -576,6 +651,7 @@ export function AspiracaoDoadoras({
                                         </TableBody>
                                     </Table>
                                 </div>
+                                </>
                             )}
                         </CardContent>
                     </Card>

@@ -26,3 +26,7 @@ scripts/deploy_with_key.bat
 scripts/get_gemini_key.js
 scripts/test_cloud_run_direct.js
 scripts/verify_key.js
+scripts/insert_gcp_key.ts
+scripts/insert_openai_key.ts
+scripts/test_chat_intent.ts
+scripts/test_gcp_tts.ts

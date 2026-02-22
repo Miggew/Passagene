@@ -68,8 +68,10 @@ export function KPICard({
   };
 
   return (
-    <Card className={cn('relative overflow-hidden', className)}>
-      <CardContent className="pt-4 pb-4">
+    <Card className={cn('relative overflow-hidden group', className)}>
+      {/* Biological Slow Background Pulse - Custo Zero */}
+      <div className="absolute inset-0 bg-primary/5 animate-[pulse_4s_ease-in-out_infinite] pointer-events-none mix-blend-overlay" />
+      <CardContent className="pt-4 pb-4 relative z-10">
         <div className="flex items-start gap-3">
           {icon && (
             <div className={cn('p-2 rounded-lg shrink-0', iconBgColor)}>

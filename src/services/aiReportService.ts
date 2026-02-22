@@ -4,20 +4,40 @@ import { carregarHistoricoReceptora } from '@/lib/receptoraHistoricoUtils';
 import { PASSO2, TE, DG, SEXAGEM } from '@/lib/fivFlowRules';
 import { todayISO, addDays as addDaysISO, diffDays } from '@/lib/dateUtils';
 
+const chunkArray = <T>(array: T[], size: number): T[][] => {
+    return Array.from({ length: Math.ceil(array.length / size) }, (v, i) =>
+        array.slice(i * size, i * size + size)
+    );
+};
+
+async function fetchInChunks(table: string, selectFields: string, inColumn: string, inValues: string[], buildQuery?: (q: any) => any) {
+    if (!inValues || inValues.length === 0) return [];
+    const chunks = chunkArray(inValues, 40);
+    const allData: any[] = [];
+    for (const c of chunks) {
+        let q = supabase.from(table).select(selectFields).in(inColumn, c);
+        if (buildQuery) q = buildQuery(q);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (data) allData.push(...data);
+    }
+    return allData;
+}
 export interface AIIntent {
     intent: 'relatorio_te' | 'relatorio_dg' | 'relatorio_aspiracao' | 'relatorio_sexagem'
-        | 'relatorio_receptoras' | 'relatorio_rebanho' | 'relatorio_animal_especifico'
-        | 'resumo_geral' | 'desempenho_veterinario'
-        | 'proximos_partos' | 'proximos_servicos' | 'relatorio_protocolos'
-        | 'lista_receptoras' | 'lista_doadoras' | 'analise_repetidoras'
-        | 'nascimentos' | 'estoque_semen' | 'estoque_embrioes'
-        | 'desempenho_touro' | 'comparacao_fazendas'
-        | 'desconhecido';
+    | 'relatorio_receptoras' | 'relatorio_rebanho' | 'relatorio_animal_especifico'
+    | 'resumo_geral' | 'desempenho_veterinario'
+    | 'proximos_partos' | 'proximos_servicos' | 'relatorio_protocolos'
+    | 'lista_receptoras' | 'lista_doadoras' | 'analise_repetidoras'
+    | 'nascimentos' | 'estoque_semen' | 'estoque_embrioes'
+    | 'desempenho_touro' | 'comparacao_fazendas'
+    | 'desconhecido';
     meses_retroativos: number;
     nome_veterinario: string | null;
     nome_fazenda: string | null;
     termo_busca: string | null;
     resposta_amigavel: string;
+    audioBase64?: string;
     precisa_buscar_dados: boolean;
     filtros?: {
         status_reprodutivo?: string[];
@@ -429,12 +449,9 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                     const vaziaIds = resultado.map(r => r.id);
                     if (vaziaIds.length > 0) {
-                        const { data: ativas } = await supabase
-                            .from('vw_receptoras_protocolo_ativo')
-                            .select('receptora_id')
-                            .in('receptora_id', vaziaIds);
+                        const ativas = await fetchInChunks('vw_receptoras_protocolo_ativo', 'receptora_id', 'receptora_id', vaziaIds);
                         emProtocoloCount = ativas?.length || 0;
-                        const emProtocoloSet = new Set((ativas || []).map(a => a.receptora_id));
+                        const emProtocoloSet = new Set((ativas || []).map((a: any) => a.receptora_id));
                         resultado = resultado.filter(r => !emProtocoloSet.has(r.id));
                     }
 
@@ -494,13 +511,10 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                 const doadoraIds = doadoras.map(d => d.id);
 
-                const { data: aspiracoes } = await supabase
-                    .from('aspiracoes_doadoras')
-                    .select('doadora_id, viaveis')
-                    .in('doadora_id', doadoraIds);
+                const aspiracoes = await fetchInChunks('aspiracoes_doadoras', 'doadora_id, viaveis', 'doadora_id', doadoraIds);
 
                 const statsMap = new Map<string, { total: number; soma: number }>();
-                aspiracoes?.forEach(a => {
+                aspiracoes?.forEach((a: any) => {
                     const s = statsMap.get(a.doadora_id) || { total: 0, soma: 0 };
                     s.total++;
                     s.soma += a.viaveis || 0;
@@ -541,22 +555,20 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 if (receptoraIds.length === 0) return { error: 'Nenhuma receptora vinculada.' };
 
                 // Buscar todos os protocolos de receptoras
-                const { data: protocoloRecs } = await supabase
-                    .from('protocolo_receptoras')
-                    .select('receptora_id, created_at')
-                    .in('receptora_id', receptoraIds);
+                const protocoloRecs = await fetchInChunks('protocolo_receptoras', 'receptora_id, created_at', 'receptora_id', receptoraIds);
 
                 // Buscar última gestação de cada receptora
-                const { data: gestacoes } = await supabase
-                    .from('diagnosticos_gestacao')
-                    .select('receptora_id, data_diagnostico')
-                    .in('receptora_id', receptoraIds)
-                    .in('resultado', ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO'])
-                    .order('data_diagnostico', { ascending: false });
+                const gestacoes = await fetchInChunks(
+                    'diagnosticos_gestacao',
+                    'receptora_id, data_diagnostico',
+                    'receptora_id',
+                    receptoraIds,
+                    q => q.in('resultado', ['PRENHE', 'PRENHE_RETOQUE', 'PRENHE_FEMEA', 'PRENHE_MACHO']).order('data_diagnostico', { ascending: false })
+                );
 
                 // Última gestação por receptora
                 const ultimaGestacaoMap = new Map<string, string>();
-                gestacoes?.forEach(g => {
+                gestacoes?.forEach((g: any) => {
                     if (!ultimaGestacaoMap.has(g.receptora_id)) {
                         ultimaGestacaoMap.set(g.receptora_id, g.data_diagnostico);
                     }
@@ -566,7 +578,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 const protocoloCountMap = new Map<string, number>();
                 const protocoloDesdeUltimaMap = new Map<string, number>();
 
-                protocoloRecs?.forEach(p => {
+                protocoloRecs?.forEach((p: any) => {
                     const count = protocoloCountMap.get(p.receptora_id) || 0;
                     protocoloCountMap.set(p.receptora_id, count + 1);
 
@@ -587,12 +599,9 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 }
 
                 // Buscar identificação
-                const { data: recsInfo } = await supabase
-                    .from('receptoras')
-                    .select('id, identificacao')
-                    .in('id', repetidoraIds);
+                const recsInfo = await fetchInChunks('receptoras', 'id, identificacao', 'id', repetidoraIds);
 
-                const nomeMap = new Map((recsInfo || []).map(r => [r.id, r.identificacao || r.id.substring(0, 8)]));
+                const nomeMap = new Map((recsInfo || []).map((r: any) => [r.id, r.identificacao || r.id.substring(0, 8)]));
 
                 const animais = repetidoraIds
                     .map(id => ({
@@ -928,65 +937,56 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 if (receptoraIds.length === 0) return { error: 'Nenhuma receptora vinculada.' };
 
                 // Buscar DGs com resultado
-                const { data: dgs, error: dgErr } = await supabase
-                    .from('diagnosticos_gestacao')
-                    .select('id, receptora_id, resultado')
-                    .in('receptora_id', receptoraIds)
-                    .eq('tipo_diagnostico', 'DG')
-                    .gte('data_diagnostico', dataInicio);
-                if (dgErr) throw dgErr;
+                const dgs = await fetchInChunks(
+                    'diagnosticos_gestacao',
+                    'id, receptora_id, resultado',
+                    'receptora_id',
+                    receptoraIds,
+                    q => q.eq('tipo_diagnostico', 'DG').gte('data_diagnostico', dataInicio)
+                );
+
                 if (!dgs || dgs.length === 0) return { tipo: 'DESEMPENHO_TOURO', veterinarios: [] };
 
                 // Buscar TEs para ligar receptora → embrião → dose → touro
-                const dgRecIds = [...new Set(dgs.map(d => d.receptora_id))];
-                const { data: tes } = await supabase
-                    .from('transferencias_embrioes')
-                    .select('receptora_id, embriao_id')
-                    .in('receptora_id', dgRecIds)
-                    .eq('status_te', 'REALIZADA');
+                const dgRecIds = [...new Set(dgs.map((d: any) => d.receptora_id))];
+                const tes = await fetchInChunks(
+                    'transferencias_embrioes',
+                    'receptora_id, embriao_id',
+                    'receptora_id',
+                    dgRecIds,
+                    q => q.eq('status_te', 'REALIZADA')
+                );
 
                 if (!tes || tes.length === 0) return { tipo: 'DESEMPENHO_TOURO', veterinarios: [] };
 
-                const embriaoIds = [...new Set(tes.map(t => t.embriao_id).filter(Boolean))];
+                const embriaoIds = [...new Set(tes.map((t: any) => t.embriao_id).filter(Boolean))];
                 const recEmbriaoMap = new Map<string, string>();
-                tes.forEach(t => { if (t.embriao_id) recEmbriaoMap.set(t.receptora_id, t.embriao_id); });
+                tes.forEach((t: any) => { if (t.embriao_id) recEmbriaoMap.set(t.receptora_id, t.embriao_id); });
 
-                // Buscar embriões → aspiracao_doadora_id → doadora → dose → touro
-                const { data: embrioesData } = await supabase
-                    .from('embrioes')
-                    .select('id, aspiracao_doadora_id')
-                    .in('id', embriaoIds);
+                // Buscar embriões → acasalamento → dose → touro
+                const embrioesData = await fetchInChunks('embrioes', 'id, lote_fiv_acasalamento_id', 'id', embriaoIds);
 
-                const aspIds = [...new Set((embrioesData || []).map(e => e.aspiracao_doadora_id).filter(Boolean))];
-                const embriaoAspMap = new Map((embrioesData || []).map(e => [e.id, e.aspiracao_doadora_id]));
+                const acasalamentoIds = [...new Set((embrioesData || []).map((e: any) => e.lote_fiv_acasalamento_id).filter(Boolean))];
+                const embriaoAcMap = new Map((embrioesData || []).map((e: any) => [e.id, e.lote_fiv_acasalamento_id]));
 
-                let aspDoseMap = new Map<string, string>();
-                if (aspIds.length > 0) {
-                    const { data: asps } = await supabase
-                        .from('aspiracoes_doadoras')
-                        .select('id, dose_semen_id')
-                        .in('id', aspIds);
-                    asps?.forEach(a => { if (a.dose_semen_id) aspDoseMap.set(a.id, a.dose_semen_id); });
+                let acDoseMap = new Map<string, string>();
+                if (acasalamentoIds.length > 0) {
+                    const acasData = await fetchInChunks('lote_fiv_acasalamentos', 'id, dose_semen_id', 'id', acasalamentoIds);
+                    acasData?.forEach((a: any) => { if (a.dose_semen_id) acDoseMap.set(a.id, a.dose_semen_id); });
                 }
 
-                const doseIds = [...new Set(Array.from(aspDoseMap.values()))];
+                const doseIds = [...new Set(Array.from(acDoseMap.values()))];
                 let doseTouroMap = new Map<string, string>();
                 if (doseIds.length > 0) {
-                    const { data: dosesData } = await supabase
-                        .from('doses_semen')
-                        .select('id, touro_id')
-                        .in('id', doseIds);
-                    dosesData?.forEach(d => doseTouroMap.set(d.id, d.touro_id));
+                    const dosesData = await fetchInChunks('doses_semen', 'id, touro_id', 'id', doseIds);
+                    dosesData?.forEach((d: any) => doseTouroMap.set(d.id, d.touro_id));
                 }
 
                 const touroIds = [...new Set(Array.from(doseTouroMap.values()))];
                 let touroNomeMap = new Map<string, string>();
                 if (touroIds.length > 0) {
-                    const { data: tourosData } = await supabase
-                        .from('touros')
-                        .select('id, nome')
-                        .in('id', touroIds);
-                    tourosData?.forEach(t => touroNomeMap.set(t.id, t.nome));
+                    const tourosData = await fetchInChunks('touros', 'id, nome', 'id', touroIds);
+                    tourosData?.forEach((t: any) => touroNomeMap.set(t.id, t.nome));
                 }
 
                 // Mapear receptora → touro
@@ -994,9 +994,9 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 dgRecIds.forEach(recId => {
                     const embId = recEmbriaoMap.get(recId);
                     if (!embId) return;
-                    const aspId = embriaoAspMap.get(embId);
-                    if (!aspId) return;
-                    const doseId = aspDoseMap.get(aspId);
+                    const acId = embriaoAcMap.get(embId);
+                    if (!acId) return;
+                    const doseId = acDoseMap.get(acId);
                     if (!doseId) return;
                     const touroId = doseTouroMap.get(doseId);
                     if (touroId) recTouroMap.set(recId, touroId);
@@ -1047,15 +1047,16 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 if (recErr) throw recErr;
 
                 // Buscar DGs no período
-                const recIds = (recs || []).map(r => r.id);
+                const recIds = (recs || []).map((r: any) => r.id);
                 let dgData: { receptora_id: string; resultado: string }[] = [];
                 if (recIds.length > 0) {
-                    const { data: dgs } = await supabase
-                        .from('diagnosticos_gestacao')
-                        .select('receptora_id, resultado')
-                        .in('receptora_id', recIds)
-                        .eq('tipo_diagnostico', 'DG')
-                        .gte('data_diagnostico', dataInicio);
+                    const dgs = await fetchInChunks(
+                        'diagnosticos_gestacao',
+                        'receptora_id, resultado',
+                        'receptora_id',
+                        recIds,
+                        q => q.eq('tipo_diagnostico', 'DG').gte('data_diagnostico', dataInicio)
+                    );
                     dgData = dgs || [];
                 }
 
@@ -1095,8 +1096,8 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                 const today = todayISO();
 
-                // 4 queries em paralelo
-                const [recResult, doaResult, aniResult, dgResult] = await Promise.all([
+                // 3 queries em paralelo com farmIds (seguro pra url)
+                const [recResult, doaResult, aniResult] = await Promise.all([
                     supabase.from('receptoras')
                         .select('id, status_reprodutivo, data_provavel_parto')
                         .in('fazenda_atual_id', farmIds),
@@ -1106,18 +1107,22 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     supabase.from('animais')
                         .select('id')
                         .in('fazenda_id', farmIds),
-                    supabase.from('diagnosticos_gestacao')
-                        .select('id, resultado')
-                        .in('receptora_id', receptoraIds.length > 0 ? receptoraIds : ['__none__'])
-                        .eq('tipo_diagnostico', 'DG')
-                        .gte('data_diagnostico', dataInicio),
                 ]);
+
+                // Query perigosa pra limite de URL extraída para chunk
+                const dgs = await fetchInChunks(
+                    'diagnosticos_gestacao',
+                    'id, resultado',
+                    'receptora_id',
+                    receptoraIds.length > 0 ? receptoraIds : ['__none__'],
+                    q => q.eq('tipo_diagnostico', 'DG').gte('data_diagnostico', dataInicio)
+                );
 
                 const recs = recResult.data || [];
                 const totalReceptoras = recs.length;
-                const prenhes = recs.filter(r => r.status_reprodutivo?.includes('PRENHE')).length;
-                const vazias = recs.filter(r => r.status_reprodutivo === 'VAZIA').length;
-                const partosProximos = recs.filter(r => {
+                const prenhes = recs.filter((r: any) => r.status_reprodutivo?.includes('PRENHE')).length;
+                const vazias = recs.filter((r: any) => r.status_reprodutivo === 'VAZIA').length;
+                const partosProximos = recs.filter((r: any) => {
                     if (!r.data_provavel_parto) return false;
                     return diffDays(today, r.data_provavel_parto) >= 0 && diffDays(today, r.data_provavel_parto) <= 30;
                 }).length;
@@ -1125,9 +1130,8 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 const totalDoadoras = (doaResult.data || []).length;
                 const totalAnimais = (aniResult.data || []).length;
 
-                const dgs = dgResult.data || [];
                 const totalDGs = dgs.length;
-                const dgPositivos = dgs.filter(d => d.resultado?.startsWith('PRENHE')).length;
+                const dgPositivos = dgs.filter((d: any) => d.resultado?.startsWith('PRENHE')).length;
                 const taxaPrenhez = totalDGs > 0 ? `${((dgPositivos / totalDGs) * 100).toFixed(1)}%` : 'N/A';
 
                 return {

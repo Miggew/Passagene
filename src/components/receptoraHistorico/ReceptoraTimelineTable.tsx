@@ -66,19 +66,22 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
       </div>
 
       {/* Cards expansíveis */}
-      <div className="divide-y divide-border/50 max-h-[350px] overflow-y-auto">
+      <div className="divide-y divide-border/50 max-h-[350px] overflow-y-auto overflow-x-hidden">
         {historico.map((item, index) => {
           const isExpanded = expandedIndex === index;
+          // Zíper Dupla Hélice: Pares vêm da esquerda, Ímpares vêm da direita
+          const slideClass = index % 2 === 0 ? 'animate-dna-left' : 'animate-dna-right';
 
           return (
             <div
               key={index}
               onClick={() => toggleExpand(index)}
               className={cn(
-                'px-4 py-3 transition-all duration-300 cursor-pointer hover:bg-muted/30 hover:translate-x-1 relative group animate-in fade-in slide-in-from-left-4',
-                isExpanded && 'bg-primary/5 border-l-2 border-primary'
+                'px-4 py-3 transition-colors duration-300 cursor-pointer hover:bg-muted/30 hover:translate-x-1 relative group opacity-0',
+                isExpanded && 'bg-primary/5 border-l-2 border-primary',
+                slideClass
               )}
-              style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'both' }}
+              style={{ animationDelay: `${index * 150}ms` }}
             >
               {/* Conector de DNA dinâmico (visível no hover/ativo) */}
               <div className={cn(

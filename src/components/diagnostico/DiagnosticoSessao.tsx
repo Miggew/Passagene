@@ -42,6 +42,7 @@ import {
     Save,
     AlertTriangle,
     Camera,
+    X,
 } from 'lucide-react';
 import { DIAS_MINIMOS } from '@/lib/gestacao';
 import { useDiagnosticoGestacao } from '@/hooks/useDiagnosticoGestacao';
@@ -83,6 +84,9 @@ export function DiagnosticoSessao() {
     const [entryMode, setEntryMode] = useState<EntryMode>('manual');
     const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
     const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
+    const [shortcutsDismissed, setShortcutsDismissed] = useState(() =>
+        typeof window !== 'undefined' && localStorage.getItem('dg-shortcuts-dismissed') === 'true'
+    );
 
     const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
         reportType: 'dg',
@@ -163,6 +167,22 @@ export function DiagnosticoSessao() {
     const dgTableRef = useRef<HTMLDivElement>(null);
     const handleDgKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (loteSelecionado?.status === 'FECHADO') return;
+
+        // Tab navigation between resultado cells
+        if (e.key === 'Tab') {
+            const active = document.activeElement as HTMLElement;
+            if (!active?.hasAttribute('data-resultado-trigger')) return;
+            const row = active.closest('[data-row-idx]');
+            if (!row || !dgTableRef.current?.contains(row)) return;
+            const idx = parseInt(row.getAttribute('data-row-idx') || '-1');
+            const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+            if (nextIdx < 0 || nextIdx >= receptoras.length) return;
+            e.preventDefault();
+            const nextTrigger = dgTableRef.current?.querySelector(`[data-row-idx="${nextIdx}"] [data-resultado-trigger]`) as HTMLElement;
+            if (nextTrigger) nextTrigger.focus();
+            return;
+        }
+
         const key = e.key.toUpperCase();
         const shortcutMap: Record<string, 'PRENHE' | 'VAZIA' | 'RETOQUE'> = { P: 'PRENHE', V: 'VAZIA', R: 'RETOQUE' };
         const resultado = shortcutMap[key];
@@ -190,6 +210,9 @@ export function DiagnosticoSessao() {
         const dados = formData[r.receptora_id];
         return dados && dados.resultado && dados.data_diagnostico;
     });
+
+    const preenchidas = receptoras.filter(r => formData[r.receptora_id]?.resultado).length;
+    const progressoPct = receptoras.length > 0 ? Math.round((preenchidas / receptoras.length) * 100) : 0;
 
     const formatarData = (data: string) => {
         if (!data) return '-';
@@ -309,18 +332,6 @@ export function DiagnosticoSessao() {
                             <EntryModeSwitch mode={entryMode} onChange={setEntryMode} />
                         </div>
 
-                        {/* OCR button — mobile */}
-                        <Button
-                            variant="outline"
-                            onClick={() => setEntryMode(entryMode === 'ocr' ? 'manual' : 'ocr')}
-                            className="md:hidden h-11"
-                            disabled={!loteSelecionado}
-                        >
-                            <Camera className="w-4 h-4 mr-1" />
-                            Escanear
-                            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">Beta</Badge>
-                        </Button>
-
                         <Button
                             onClick={handleSalvarLote}
                             disabled={
@@ -419,7 +430,22 @@ export function DiagnosticoSessao() {
                                     <Badge variant="secondary">Lote Fechado</Badge>
                                 )}
                             </div>
+                            {receptoras.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <Badge variant={progressoPct === 100 ? 'default' : 'outline'} className="font-mono text-xs">
+                                        {preenchidas}/{receptoras.length}
+                                    </Badge>
+                                </div>
+                            )}
                         </div>
+                        {receptoras.length > 0 && (
+                            <div className="h-1.5 bg-primary/20 rounded-full mt-2">
+                                <div
+                                    className="h-full bg-primary rounded-full transition-all duration-300"
+                                    style={{ width: `${progressoPct}%` }}
+                                />
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="pt-0">
                         {/* Mobile cards */}
@@ -514,6 +540,25 @@ export function DiagnosticoSessao() {
                                 );
                             })}
                         </div>
+
+                        {/* Shortcut banner — desktop */}
+                        {!shortcutsDismissed && (
+                            <div className="hidden md:flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                                <span>
+                                    Atalhos de teclado: <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">P</kbd> = Prenhe | <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">V</kbd> = Vazia | <kbd className="px-1.5 py-0.5 rounded bg-background border text-[11px] font-mono">R</kbd> = Retoque — Foque uma célula de Resultado e pressione a tecla
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        setShortcutsDismissed(true);
+                                        localStorage.setItem('dg-shortcuts-dismissed', 'true');
+                                    }}
+                                    className="p-0.5 rounded hover:bg-background"
+                                    aria-label="Fechar"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Desktop table */}
                         <div className="hidden md:block overflow-x-auto" ref={dgTableRef} onKeyDown={handleDgKeyDown}>
@@ -644,6 +689,17 @@ export function DiagnosticoSessao() {
                     </CardContent>
                 </Card>
             ) : null}
+
+            {/* OCR FAB — mobile */}
+            {loteSelecionado && loteSelecionado.status !== 'FECHADO' && (
+                <button
+                    onClick={() => setEntryMode(entryMode === 'ocr' ? 'manual' : 'ocr')}
+                    className="md:hidden fixed bottom-28 right-4 z-40 h-14 w-14 rounded-full shadow-lg bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"
+                    aria-label="Escanear Relatório"
+                >
+                    <Camera className="w-6 h-6" />
+                </button>
+            )}
 
             {/* Dialog Restaurar SessÃ£o em Andamento */}
             <AlertDialog open={showRestaurarDialog} onOpenChange={setShowRestaurarDialog}>

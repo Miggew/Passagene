@@ -1,6 +1,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
+import { QuickActionCard } from '@/components/shared/QuickActionCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -162,38 +163,3 @@ export default function LaboratorioHome() {
     );
 }
 
-interface QuickActionCardProps {
-    title: string;
-    icon: React.ElementType;
-    description: string;
-    onClick: () => void;
-    color: 'blue' | 'green' | 'violet' | 'cyan' | 'amber';
-}
-
-function QuickActionCard({ title, icon: Icon, description, onClick, color }: QuickActionCardProps) {
-    const colorStyles = {
-        blue: 'bg-blue-500/10 text-blue-600 border-blue-200 hover:border-blue-300',
-        green: 'bg-green-500/10 text-green-600 border-green-200 hover:border-green-300',
-        violet: 'bg-violet-500/10 text-violet-600 border-violet-200 hover:border-violet-300',
-        cyan: 'bg-cyan-500/10 text-cyan-600 border-cyan-200 hover:border-cyan-300',
-        amber: 'bg-amber-500/10 text-amber-600 border-amber-200 hover:border-amber-300',
-    };
-
-    return (
-        <div
-            onClick={onClick}
-            className={`group relative flex flex-col justify-between p-6 rounded-xl border transition-all duration-200 hover:shadow-md cursor-pointer ${colorStyles[color]} hover:bg-opacity-20`}
-        >
-            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ChevronRight className="w-5 h-5" />
-            </div>
-            <div className="space-y-2">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-white/70 dark:bg-black/20 backdrop-blur-sm`}>
-                    <Icon className="w-6 h-6" />
-                </div>
-                <h3 className="font-semibold text-lg">{title}</h3>
-            </div>
-            <p className="text-sm opacity-80 mt-2">{description}</p>
-        </div>
-    );
-}

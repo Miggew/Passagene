@@ -44,6 +44,7 @@ export const hubIcons: Record<string, React.ElementType> = {
 // ─── Ícones por Rota ───────────────────────────────────────────────
 export const routeIcons: Record<string, React.ElementType> = {
   '/': Home,
+  '/campo': CowIcon,
   '/administrativo': Shield,
   '/embryoscore': Brain,
   '/doadoras': DonorCowIcon,
@@ -85,6 +86,7 @@ export const routeIcons: Record<string, React.ElementType> = {
 // ─── Labels Curtos (mobile bottom bar / menu) ──────────────────────
 export const routeLabels: Record<string, string> = {
   '/': 'Início',
+  '/campo': 'Campo',
   '/administrativo': 'Admin',
   '/doadoras': 'Doadoras',
   '/touros': 'Touros',
@@ -118,6 +120,7 @@ export const routeLabels: Record<string, string> = {
 
 // ─── Labels Longos (sidebar desktop) ───────────────────────────────
 export const routeLabelsLong: Record<string, string> = {
+  '/campo': 'Visão Geral',
   '/administrativo': 'Painel Admin',
   '/embryoscore': 'EmbryoScore IA',
   '/bancada': 'Bancada',
@@ -136,7 +139,7 @@ export const routeLabelsLong: Record<string, string> = {
   '/sexagem': 'Sexagem Fetal',
   '/historico': 'Histórico Operacional',
 
-  '/relatorios': 'Visão Geral',
+  '/relatorios': 'Gen.IA Relatórios',
   '/relatorios/servicos': 'Serviços de Campo',
   '/relatorios/animais': 'Animais',
   '/relatorios/material': 'Material Genético',
@@ -148,11 +151,20 @@ export const routeLabelsLong: Record<string, string> = {
   '/escritorio': 'Visão Geral',
 };
 
+// ─── Rotas Home por Hub ───────────────────────────────────────────
+export const HUB_HOME_ROUTES: Record<string, string> = {
+  campo: '/campo',
+  laboratorio: '/laboratorio',
+  relatorios: '/relatorios',
+  genetica: '/genetica',
+  administrativo: '/administrativo',
+};
+
 // ─── Rotas Rápidas por Hub (bottom bar mobile) ────────────────────
 export const HUB_QUICK_ROUTES: Record<string, string[]> = {
   administrativo: ['/protocolos', '/transferencia', '/dg'],
   laboratorio: ['/bancada', '/lotes-fiv', '/embryoscore'],
-  campo: ['/dg', '/transferencia', '/protocolos'],
+  campo: ['/dg', '/sexagem', '/transferencia', '/protocolos', '/aspiracoes'],
   relatorios: ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
   genetica: ['/genetica/doadoras', '/genetica/touros'],
 };
@@ -163,6 +175,7 @@ export const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios
 // ─── Detecção de Hub por URL ──────────────────────────────────────
 export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
   if (pathname === '/genia' || pathname === '/ai-chat') return fallbackHub?.code ?? 'campo'; // IA herda o hub atual
+  if (pathname === '/campo') return 'campo';
   if (['/transferencia', '/dg', '/sexagem', '/protocolos', '/aspiracoes'].some(route => pathname.startsWith(route))) return 'campo';
   if (pathname.startsWith('/historico')) return 'campo';
   if (pathname.startsWith('/escritorio')) return 'campo'; // legacy redirects
