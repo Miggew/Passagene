@@ -207,7 +207,7 @@ function ClienteBottomBar() {
       {/* FAB Central: AI Chat */}
       <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-20">
         <button
-          onClick={() => navigate('/cliente/ai-chat')}
+          onClick={() => navigate('/genia')}
           className="group relative w-16 h-16 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_8px_20px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)]"
         >
           <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
@@ -279,9 +279,9 @@ function StandardBottomBar() {
           {/* FAB Central Global: Consultor IA */}
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50">
             <button
-              onClick={() => navigate('/ai-chat')}
+              onClick={() => navigate('/genia')}
               className="group relative w-14 h-14 bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 shadow-[0_4px_15px_rgba(9,201,114,0.4)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.6)] border-[3px] border-card md:w-16 md:h-16 md:-top-8"
-              title="Consultor IA Global"
+              title="Gen.IA"
             >
               <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />

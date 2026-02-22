@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <defs>
     <filter id="s"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.1"/></filter>
-    <clipPath id="c"><circle cx="60.0" cy="60.0" r="60.0"/></clipPath>
+    <clipPath id="c"><circle cx="60.0" cy="60.0" r="59.0"/></clipPath>
   </defs>
-  <circle cx="60.0" cy="60.0" r="60.0" fill="#064e3b"/>
+  <circle cx="60.0" cy="60.0" r="59.0" fill="#064e3b" filter="url(#s)"/>
   <g clip-path="url(#c)">
-    <g transform="translate(60.0,60.0) rotate(-45) scale(1.25) translate(-43.6,-27.0)">
+    <g transform="translate(60.0,60.0) rotate(-45) scale(0.93) translate(-43.6,-27.0)">
     <circle cx="6.24" cy="51.10" r="2.90" fill="#ffffff"/>
     <circle cx="18.71" cy="48.07" r="3.09" fill="#ffffff"/>
     <circle cx="31.18" cy="39.78" r="3.62" fill="#ffffff"/>

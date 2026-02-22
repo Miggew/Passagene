@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="s"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.1"/></filter>
+    <clipPath id="c"><circle cx="32.0" cy="32.0" r="31.0"/></clipPath>
+  </defs>
+  <circle cx="32.0" cy="32.0" r="31.0" fill="#09C972" filter="url(#s)"/>
+  <g clip-path="url(#c)">
+    <g transform="translate(32.0,32.0) rotate(-45) scale(0.93) translate(-23.3,-14.4)">
+    <circle cx="3.33" cy="27.25" r="1.55" fill="#dcfce7"/>
+    <circle cx="9.98" cy="25.64" r="1.65" fill="#dcfce7"/>
+    <circle cx="16.63" cy="21.21" r="1.93" fill="#dcfce7"/>
+    <circle cx="23.28" cy="15.17" r="2.32" fill="#dcfce7"/>
+    <circle cx="29.93" cy="18.89" r="1.93" fill="#064e3b"/>
+    <circle cx="36.58" cy="22.75" r="1.65" fill="#064e3b"/>
+    <circle cx="43.23" cy="24.16" r="1.55" fill="#064e3b"/>
+    <circle cx="3.33" cy="3.09" r="3.09" fill="#064e3b"/>
+    <circle cx="9.98" cy="4.50" r="2.99" fill="#064e3b"/>
+    <circle cx="16.63" cy="8.36" r="2.71" fill="#064e3b"/>
+    <circle cx="23.28" cy="13.63" r="2.32" fill="#064e3b"/>
+    <circle cx="29.93" cy="9.13" r="2.71" fill="#dcfce7"/>
+    <circle cx="36.58" cy="4.71" r="2.99" fill="#dcfce7"/>
+    <circle cx="43.23" cy="3.09" r="3.09" fill="#dcfce7"/>
+    </g>
+  </g>
+</svg>

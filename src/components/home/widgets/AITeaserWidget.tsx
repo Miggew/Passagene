@@ -103,7 +103,7 @@ export function AITeaserWidget({ clienteId, compact = true }: Props) {
 
     return (
         <Card
-            onClick={() => navigate('/cliente/ai-chat')}
+            onClick={() => navigate('/genia')}
             className="group flex flex-col h-full w-full overflow-hidden border-2 border-primary/20 bg-card shadow-md hover:shadow-lg hover:border-primary/40 transition-all duration-500 relative cursor-pointer"
         >
             {/* Very subtle elegant neutral shimmer on hover */}
@@ -128,7 +128,7 @@ export function AITeaserWidget({ clienteId, compact = true }: Props) {
                 {/* Ação Elegante e Discreta (Restaurada para o verde agradável original) */}
                 <div className="shrink-0 flex items-center justify-start mt-auto">
                     <span className="text-sm font-semibold text-primary group-hover:text-primary-light transition-colors flex items-center gap-2">
-                        Ver relatório de I.A. detalhado <span className="group-hover:translate-x-1 transition-transform">➔</span>
+                        Conversar com a Gen.IA <span className="group-hover:translate-x-1 transition-transform">➔</span>
                     </span>
                 </div>
             </div>

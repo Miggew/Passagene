@@ -12,8 +12,8 @@ type PageHeaderProps = {
 
 export default function PageHeader({ title, description, actions, className, icon: Icon }: PageHeaderProps) {
   return (
-    <div className={cn('flex items-start justify-between gap-4', className)}>
-      <div className="flex gap-3">
+    <div className={cn('flex flex-col sm:flex-row sm:items-center justify-between gap-4', className)}>
+      <div className="flex items-center gap-3">
         {Icon && (
           <div className="mt-1 p-2 bg-primary/10 rounded-lg">
             <Icon className="w-6 h-6 text-primary" />
@@ -24,7 +24,7 @@ export default function PageHeader({ title, description, actions, className, ico
           {description ? <p className="text-muted-foreground mt-1">{description}</p> : null}
         </div>
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">{actions}</div> : null}
     </div>
   );
 }

@@ -71,12 +71,12 @@ export default function Sidebar() {
       {/* Global AI Consultant Drop-In no rodapé do Sidebar */}
       <div className="p-4 border-t border-border/50">
         <Link
-          to="/ai-chat"
+          to="/genia"
           className="group relative w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white py-3 rounded-2xl font-bold tracking-wide shadow-[0_4px_15px_rgba(9,201,114,0.3)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.5)] transition-all overflow-hidden"
         >
           <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out" />
           <LogoPassagene height={20} showText={false} variant="hollow" />
-          <span className="relative z-10 group-hover:scale-105 transition-transform duration-300">Consultor IA</span>
+          <span className="relative z-10 group-hover:scale-105 transition-transform duration-300">Gen.IA</span>
         </Link>
       </div>
     </aside>
