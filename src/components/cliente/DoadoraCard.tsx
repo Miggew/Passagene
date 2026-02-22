@@ -17,6 +17,8 @@ interface DoadoraCardProps {
     raca?: string;
     media_oocitos?: number;
     total_aspiracoes?: number;
+    fotoUrl?: string;
+    preco?: number;
   };
   onClick?: () => void;
 }
@@ -28,58 +30,67 @@ export function DoadoraCard({ data, onClick }: DoadoraCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        'group rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-200 active:scale-[0.98] shadow-sm',
-        onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30'
+        'group rounded-xl border border-border glass-panel overflow-hidden transition-all duration-300',
+        onClick && 'cursor-pointer hover:border-foreground/30 hover:shadow-md'
       )}
     >
-      <div className="flex items-center gap-3">
-        {/* Ícone */}
-        <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/15 flex items-center justify-center shrink-0">
-          <DonorCowIcon className="w-5 h-5 text-amber-500" />
-        </div>
+      {/* Área da Imagem */}
+      <div className="relative aspect-[4/3] bg-muted overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#0F1412] to-[#151C1A]">
+        {data.fotoUrl ? (
+          <img src={data.fotoUrl} alt={data.nome} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <DonorCowIcon className="w-24 h-24 opacity-20 text-amber-500" />
+        )}
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-base truncate">
-            {data.nome || data.registro || 'Sem nome'}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            {data.registro && data.nome && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Hash className="w-3 h-3 opacity-60" />
-                {data.registro}
-              </span>
-            )}
-            {data.raca && (
-              <span className="text-xs text-muted-foreground/70 truncate">
-                {data.raca}
-              </span>
-            )}
+        {/* Badge Superior Esquerdo */}
+        <div className="absolute top-2 left-2 flex gap-2">
+          <div className="px-2 py-1 rounded-full bg-[#0F1412]/80 backdrop-blur-sm text-white text-xs font-bold border border-border">
+            Doadora
           </div>
-        </div>
-
-        {/* Stats inline com CountBadge - Premium */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          {hasStats && (
-            <div className="flex items-center gap-2.5">
-              {/* Aspirações */}
-              <div className="flex flex-col items-center px-2 py-1 rounded-lg bg-muted/40">
-                <span className="text-lg font-bold text-foreground">{data.total_aspiracoes}</span>
-                <span className="text-xs text-muted-foreground font-medium">aspirações</span>
-              </div>
-              {/* Média de oócitos */}
-              {data.media_oocitos !== undefined && (
-                <div className="flex flex-col items-center px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/15">
-                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400">{Math.round(data.media_oocitos)}</span>
-                  <span className="text-xs text-amber-600/70 dark:text-amber-400/70 font-medium">média</span>
-                </div>
-              )}
+          {data.raca && (
+            <div className="px-2 py-1 rounded-full bg-[#0F1412]/80 backdrop-blur-sm text-white/80 text-xs font-medium border border-border">
+              {data.raca}
             </div>
           )}
-          {onClick && (
-            <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+        </div>
+
+        {/* Overlay Inferior */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#080B0A]/90 via-[#080B0A]/50 to-transparent p-3 pt-8">
+          <p className="text-white font-bold text-base truncate">{data.nome || data.registro || 'Sem nome'}</p>
+          {data.registro && (
+            <p className="text-muted-foreground font-mono text-xs mt-0.5 truncate flex items-center gap-1">
+              <Hash className="w-3 h-3" />
+              {data.registro}
+            </p>
           )}
         </div>
+      </div>
+
+      {/* Info Inferior */}
+      <div className="p-3">
+        {hasStats && (
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Aspirações</span>
+              <span className="text-foreground font-bold">{data.total_aspiracoes}</span>
+            </div>
+            {data.media_oocitos !== undefined && (
+              <div className="flex flex-col items-end">
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">Média oócitos</span>
+                <span className="text-amber-500 font-bold">{Math.round(data.media_oocitos)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {data.preco && (
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Embrião a partir de</span>
+            <span className="text-lg font-mono text-gradient-logo font-bold">
+              {data.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

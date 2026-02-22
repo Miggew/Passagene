@@ -569,7 +569,7 @@ export default function FazendaDetail() {
                   {/* Mobile: Cards */}
                   <div className="md:hidden space-y-3">
                     {animaisNascidos.map(animal => (
-                      <div key={animal.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                      <div key={animal.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-foreground">{formatDate(animal.data_nascimento)}</span>
                           <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>

@@ -609,7 +609,7 @@ export default function ClienteRelatorios() {
 
       {/* ========== FILTROS (3 Selects) ========== */}
       <div className={cn(
-        "rounded-xl border border-border bg-card p-3 space-y-3",
+        "rounded-xl border border-border glass-panel p-3 space-y-3",
         mostrarApenasUltimo && "hidden"
       )}>
 
@@ -686,7 +686,7 @@ export default function ClienteRelatorios() {
         </div>
 
         {atividadesFiltradas.length === 0 ? (
-          <div className="rounded-xl border border-border/60 bg-card p-8 text-center">
+          <div className="rounded-xl border border-border/60 glass-panel p-8 text-center">
             <p className="text-sm text-muted-foreground">Nenhum relatório encontrado.</p>
           </div>
         ) : (
@@ -768,7 +768,7 @@ function RelatorioCard({ atividade, expanded, onToggle, onNavigate }: RelatorioC
 
   return (
     <div className={cn(
-      'rounded-xl border border-border/60 bg-card overflow-hidden transition-all duration-200 shadow-sm',
+      'rounded-xl border border-border/60 glass-panel overflow-hidden transition-all duration-200 shadow-sm',
       expanded && 'shadow-md border-primary/30'
     )}>
       {/* Header do card */}

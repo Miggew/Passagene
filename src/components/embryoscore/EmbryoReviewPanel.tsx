@@ -162,7 +162,7 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 animate-pulse">
+      <div className="rounded-xl border border-border glass-panel p-6 animate-pulse">
         <div className="h-6 bg-muted rounded w-48 mb-4" />
         <div className="h-40 bg-muted rounded-lg mb-4" />
         <div className="h-32 bg-muted rounded-lg" />
@@ -172,7 +172,7 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
 
   if (!reviewData || embrioes.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground">
+      <div className="rounded-xl border border-border glass-panel p-6 text-center text-muted-foreground">
         Nenhum embrião para revisar.
       </div>
     );
@@ -296,7 +296,7 @@ function EmbryoDetailCard({
   const sortedVotes = Object.entries(votes).sort((a, b) => b[1] - a[1]);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border glass-panel overflow-hidden">
       {/* Card header — navigation */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
         <button

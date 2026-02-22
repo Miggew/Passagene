@@ -23,7 +23,7 @@ export function CardView<T>({
       {data.map((row, index) => (
         <div
           key={String(row[rowKey]) || index}
-          className={`rounded-lg border border-border bg-card p-4 ${
+          className={`rounded-lg border border-border glass-panel p-4 ${
             onRowClick ? 'cursor-pointer hover:bg-muted/50 transition-colors' : ''
           }`}
           onClick={() => onRowClick?.(row)}

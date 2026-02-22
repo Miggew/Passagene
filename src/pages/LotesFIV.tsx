@@ -731,7 +731,7 @@ export default function LotesFIV() {
       />
 
       {/* Barra de Filtros Premium */}
-      <div className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/30 p-4 mb-4">
+      <div className="rounded-2xl border-2 border-border glass-panel shadow-brutal p-4 mb-6">
         <div className="flex flex-wrap items-end gap-6">
           {/* Grupo: Filtros */}
           <div className="flex items-end gap-3">
@@ -775,7 +775,7 @@ export default function LotesFIV() {
                   </Button>
                 )}
                 {showFazendaBusca && fazendasFiltradas.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                  <div className="absolute z-50 w-full mt-1 glass-panel border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
                     {fazendasFiltradas.map((fazenda) => (
                       <div
                         key={fazenda.id}
@@ -792,7 +792,7 @@ export default function LotesFIV() {
                   </div>
                 )}
                 {showFazendaBusca && filtroFazendaAspiracaoBusca && fazendasFiltradas.length === 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg p-4 text-sm text-muted-foreground">
+                  <div className="absolute z-50 w-full mt-1 glass-panel border border-border rounded-lg shadow-lg p-4 text-sm text-muted-foreground">
                     Nenhuma fazenda encontrada
                   </div>
                 )}
@@ -851,9 +851,9 @@ export default function LotesFIV() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Lotes FIV</CardTitle>
+      <Card className="border-2 border-border shadow-brutal rounded-2xl overflow-hidden mt-6">
+        <CardHeader className="bg-muted/30 border-b-2 border-border pb-4">
+          <CardTitle className="text-xl font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Lista de Lotes FIV</CardTitle>
         </CardHeader>
         <CardContent>
 
@@ -876,7 +876,7 @@ export default function LotesFIV() {
                     <div
                       key={lote.id}
                       onClick={() => navigate(`/lotes-fiv/${lote.id}`)}
-                      className="rounded-lg border border-border bg-card p-3 cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all"
+                      className="rounded-xl border-[2px] border-border glass-panel p-4 cursor-pointer hover:border-primary/50 hover:shadow-brutal transition-all active:translate-y-1 active:shadow-none"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -912,8 +912,8 @@ export default function LotesFIV() {
                           </div>
 
                           {/* Status badge */}
-                          <div className="mt-2">
-                            <Badge variant="outline" className="text-[10px]">
+                          <div className="mt-3">
+                            <Badge variant="outline" className="text-[10px] font-bold border-2 shadow-sm rounded-lg bg-emerald-500/10 text-primary border-primary/20">
                               ABERTO
                             </Badge>
                           </div>
@@ -931,25 +931,25 @@ export default function LotesFIV() {
               <div className="hidden md:block">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Aspiração</TableHead>
-                      <TableHead>Fazendas Destino</TableHead>
-                      <TableHead>Dia do Cultivo</TableHead>
-                      <TableHead>Acasalamentos</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                    <TableRow className="border-b-2 border-border hover:bg-transparent">
+                      <TableHead className="font-bold text-foreground">Aspiração</TableHead>
+                      <TableHead className="font-bold text-foreground">Fazendas Destino</TableHead>
+                      <TableHead className="font-bold text-foreground">Dia do Cultivo</TableHead>
+                      <TableHead className="font-bold text-foreground">Acasalamentos</TableHead>
+                      <TableHead className="text-right font-bold text-foreground">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {lotesFiltrados.map((lote) => (
                       <TableRow key={lote.id}>
-                        <TableCell>
+                        <TableCell className="font-medium">
                           {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {lote.fazendas_destino_nomes && lote.fazendas_destino_nomes.length > 0 ? (
                               lote.fazendas_destino_nomes.map((nome, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
+                                <Badge key={index} variant="outline" className="text-[10px] border-2 font-bold px-2 py-0.5">
                                   {nome}
                                 </Badge>
                               ))
@@ -962,7 +962,7 @@ export default function LotesFIV() {
                           {lote.dia_atual !== undefined ? (
                             <Badge
                               variant="outline"
-                              className={`font-semibold ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
+                              className={`font-black text-[10px] border-2 px-2 py-0.5 shadow-sm ${getCorDia(lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1))}`}
                             >
                               {(() => {
                                 const diaCultivo = lote.dia_atual === 0 ? -1 : (lote.dia_atual > 9 ? 8 : lote.dia_atual - 1);

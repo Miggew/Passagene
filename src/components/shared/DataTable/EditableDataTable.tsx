@@ -252,7 +252,7 @@ export function EditableDataTable<T>({
         return (
           <div
             key={id}
-            className="p-3 rounded-lg border border-border bg-card"
+            className="p-3 rounded-lg border border-border glass-panel"
           >
             {/* Header do card */}
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">

@@ -23,7 +23,7 @@ const Header: React.FC<HeaderProps> = ({ showUserInfo = false }) => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-md border-b border-border/50 shadow-sm">
+    <header className="sticky top-0 z-50 w-full glass-panel/80 backdrop-blur-md border-b border-border/50 shadow-sm">
       <div className="flex h-[72px] items-center justify-between px-6 lg:px-8">
         {/* Logo - Link para home */}
         <Link to="/" className="flex items-center gap-2">

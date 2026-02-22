@@ -286,6 +286,60 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
     );
 }
 
+// === Time-Based Contextual Suggestions ===
+function getTimeSuggestions(): { greeting: string; pills: string[] } {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 9) {
+        return {
+            greeting: 'Bom dia! O que vamos resolver hoje?',
+            pills: [
+                'Quais serviços temos hoje?',
+                'Resumo geral da fazenda',
+                'Algum parto previsto essa semana?',
+            ],
+        };
+    }
+    if (hour >= 9 && hour < 12) {
+        return {
+            greeting: 'Como posso te ajudar nessa manhã?',
+            pills: [
+                'Quais DGs estão pendentes?',
+                'Receptoras aptas para protocolar',
+                'Agenda da semana',
+            ],
+        };
+    }
+    if (hour >= 12 && hour < 17) {
+        return {
+            greeting: 'Boa tarde! No que posso ajudar?',
+            pills: [
+                'Relatório de DGs feitas hoje',
+                'Algum parto previsto essa semana?',
+                'Ver estoque de sêmen',
+            ],
+        };
+    }
+    if (hour >= 17 && hour < 22) {
+        return {
+            greeting: 'Boa noite! Vamos fechar o dia?',
+            pills: [
+                'Resumo do dia na fazenda',
+                'O que temos agendado para amanhã?',
+                'Ranking dos touros',
+            ],
+        };
+    }
+    // 22-5
+    return {
+        greeting: 'Boa noite! Em que posso ajudar?',
+        pills: [
+            'Resumo geral da fazenda',
+            'Verificar estoque de sêmen',
+            'Quais receptoras estão prenhas?',
+        ],
+    };
+}
+
 // === Follow-Up Suggestions Helper ===
 function getFollowUpSuggestions(intentData: any): string[] {
     if (!intentData || !intentData.tipo) return ["Resumo geral da fazenda", "Quais os próximos partos?"];
@@ -334,13 +388,13 @@ function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string
             <div className="mb-6 flex items-center justify-center">
                 <GeniaLogo size={80} showText={false} variant="premium" />
             </div>
-            <h2 className="text-2xl font-black text-foreground mb-3 tracking-tight">Eu sou a sua Gênia da Pecuária.</h2>
+            <h2 className="text-2xl font-black text-foreground mb-3 tracking-tight">{getTimeSuggestions().greeting}</h2>
             <p className="text-muted-foreground mb-8 text-[15px] leading-relaxed max-w-md">
-                Esqueça menus complicados. Peça-me relatórios sobre seu rebanho, estoques ou métricas em formato de chat.
+                Sou sua consultora de reprodução. Me pergunte sobre o rebanho, estoques ou métricas — falo a sua língua.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-                <button onClick={() => onSuggestionClick("Resumo geral da fazenda")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                <button onClick={() => onSuggestionClick("Resumo geral da fazenda")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
                     <div className="p-2.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
                         <Activity className="w-5 h-5 text-blue-600" />
                     </div>
@@ -350,7 +404,7 @@ function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string
                     </div>
                 </button>
 
-                <button onClick={() => onSuggestionClick("Quais touros têm melhor desempenho nas DGs?")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                <button onClick={() => onSuggestionClick("Quais touros têm melhor desempenho nas DGs?")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
                     <div className="p-2.5 bg-amber-500/10 rounded-lg group-hover:bg-amber-500/20 transition-colors">
                         <Award className="w-5 h-5 text-amber-600" />
                     </div>
@@ -360,7 +414,7 @@ function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string
                     </div>
                 </button>
 
-                <button onClick={() => onSuggestionClick("Existem receptoras repetidoras com mais de 3 protocolos?")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                <button onClick={() => onSuggestionClick("Existem receptoras repetidoras com mais de 3 protocolos?")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
                     <div className="p-2.5 bg-red-500/10 rounded-lg group-hover:bg-red-500/20 transition-colors">
                         <AlertCircle className="w-5 h-5 text-red-600" />
                     </div>
@@ -370,7 +424,7 @@ function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string
                     </div>
                 </button>
 
-                <button onClick={() => onSuggestionClick("Qual é o meu estoque atual de sêmen?")} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
+                <button onClick={() => onSuggestionClick("Qual é o meu estoque atual de sêmen?")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
                     <div className="p-2.5 bg-cyan-500/10 rounded-lg group-hover:bg-cyan-500/20 transition-colors">
                         <Snowflake className="w-5 h-5 text-cyan-600" />
                     </div>
@@ -653,18 +707,6 @@ export default function ConsultorIA() {
         }
     };
 
-    const allSuggestions = [
-        "Quais os próximos partos?",
-        "Quais receptoras posso protocolar?",
-        "O que precisa ser feito essa semana?",
-        "Quais embriões estão congelados?",
-        "Compare o desempenho das fazendas",
-        "Mostre as doadoras com baixa produção",
-    ];
-    // Rotate 4 suggestions based on conversation length
-    const sugStartIdx = Math.floor(messages.length / 2) % allSuggestions.length;
-    const suggestions = Array.from({ length: 4 }, (_, i) => allSuggestions[(sugStartIdx + i) % allSuggestions.length]);
-
     if (hubLoading) {
         return <div className="flex h-[calc(100vh-100px)] items-center justify-center"><LoadingInline text="Carregando Córtex da Fazenda..." /></div>;
     }
@@ -723,7 +765,7 @@ export default function ConsultorIA() {
                                 <>
                                     {/* Lado Esquerdo (Balão IA) */}
                                     <div className="flex w-full justify-start md:pr-6 max-w-[95%] md:max-w-full">
-                                        <div className="bg-card border border-border/50 text-foreground/90 rounded-2xl rounded-tl-sm px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed w-full">
+                                        <div className="glass-panel border border-border/50 text-foreground/90 rounded-2xl rounded-tl-sm px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed w-full">
 
                                             {msg.isSearching ? (
                                                 <div className="flex items-center gap-3 h-6">
@@ -988,7 +1030,7 @@ export default function ConsultorIA() {
                                                                                             </div>
                                                                                         ) :
                                                                                             msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.categoria !== 'Não Encontrado na Base Principal' ? (
-                                                                                                <div className="mt-3 bg-card border border-primary/20 rounded-xl overflow-hidden shadow-md">
+                                                                                                <div className="mt-3 glass-panel border border-primary/20 rounded-xl overflow-hidden shadow-md">
                                                                                                     <div className="bg-primary/10 px-4 py-3 flex justify-between items-center border-b border-primary/20">
                                                                                                         <div className="flex items-center gap-3">
                                                                                                             <div className="w-10 h-10 rounded-full bg-primary/20 flex flex-col items-center justify-center border border-primary/30 shadow-inner">
@@ -1053,7 +1095,7 @@ export default function ConsultorIA() {
                                                                                                         {/* History */}
                                                                                                         {msg.intentData.historico && Array.isArray(msg.intentData.historico) && msg.intentData.historico.length > 0 && (
                                                                                                             <div className="pt-4 border-t border-border/40 relative">
-                                                                                                                <div className="absolute -top-3 left-4 bg-card px-2">
+                                                                                                                <div className="absolute -top-3 left-4 glass-panel px-2">
                                                                                                                     <span className="text-[10px] text-primary-dark uppercase font-black tracking-widest flex items-center gap-1.5">
                                                                                                                         <Activity className="w-3.5 h-3.5" /> Últimos Eventos
                                                                                                                     </span>
@@ -1261,7 +1303,7 @@ export default function ConsultorIA() {
                                                     <button
                                                         key={idx}
                                                         onClick={() => handleSend(sug, false)}
-                                                        className="text-[12px] font-medium px-3.5 py-2 rounded-xl border border-primary/20 bg-card text-foreground hover:bg-primary/5 hover:text-primary-dark hover:border-primary/40 transition-all flex items-center gap-2 shadow-sm group"
+                                                        className="text-[12px] font-medium px-3.5 py-2 rounded-xl border border-primary/20 glass-panel text-foreground hover:bg-primary/5 hover:text-primary-dark hover:border-primary/40 transition-all flex items-center gap-2 shadow-sm group"
                                                     >
                                                         <Sparkles className="w-3.5 h-3.5 text-primary/40 group-hover:text-primary transition-colors" />
                                                         {sug}
@@ -1284,11 +1326,27 @@ export default function ConsultorIA() {
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Time-Based Contextual Pills */}
+            {messages.length <= 1 && !isLoading && (
+                <div className="px-4 pb-1 pt-2 shrink-0 flex items-center gap-2 overflow-x-auto scrollbar-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                    {getTimeSuggestions().pills.map((pill, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSend(pill, false)}
+                            className="text-[11px] font-medium px-3 py-1.5 rounded-full border border-primary/15 bg-primary/5 text-foreground/80 hover:bg-primary/10 hover:text-primary-dark hover:border-primary/30 transition-all whitespace-nowrap shrink-0"
+                        >
+                            {pill}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Input Area */}
             <div className="mt-auto px-4 shrink-0 bg-background/95 backdrop-blur-md py-4 z-20 border-t border-border/30">
                 <div className="relative group">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-[2rem] blur-md transition-all group-focus-within:bg-primary/20" />
-                    <div className="relative flex items-end gap-2 bg-card border border-border/80 rounded-[2rem] p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                    <div className="relative flex items-end gap-2 glass-panel border border-border/80 rounded-[2rem] p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                         <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}

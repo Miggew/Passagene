@@ -119,7 +119,7 @@ export default function RelatorioTransferenciaDialog({
           </div>
 
           {/* Tabela agrupada por receptora */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-xl border border-border glass-panel overflow-hidden">
             {/* Header */}
             <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
               <div className="grid grid-cols-[1.5fr_3fr_1.5fr] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -142,7 +142,6 @@ export default function RelatorioTransferenciaDialog({
                     key={receptora.receptora_id || index}
                     className={`
                       grid grid-cols-[1.5fr_3fr_1.5fr] items-start
-                      ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
                       ${temDuplo ? 'bg-amber-500/5' : ''}
                     `}
                   >

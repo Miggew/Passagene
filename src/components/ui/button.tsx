@@ -5,35 +5,38 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  // Base: rounded-lg (8px dos tokens), transições suaves, tipografia
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium tracking-tight ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Base: rounded-xl (12px), border-2, transições suaves, tipografia Font-bold
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-border text-sm font-bold tracking-tight ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         // Primary verde PassaGene
+        // Primary verde PassaGene
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
+          "btn-primary-green border-0",
+        // Primary Dourado Marketplace
+        gold:
+          "btn-primary-gold border-0",
         // Destructive (vermelho)
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
-        // Outline com borda
-        outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent",
-        // Secondary (neutro)
+          "bg-danger text-white shadow-[0_0_15px_rgba(224,82,82,0.15)] hover:bg-danger/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96] border-0",
+        // Botão secundário: Borda active, fundo transparente
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
-        // Ghost (transparente)
+          "border-2 border-border-active bg-transparent text-text-primary shadow-sm hover:bg-border-active/10 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
+        // Botão terciário/cancelar: Borda padrão, fundo card
         ghost:
-          "hover:bg-primary-subtle hover:text-primary-subtle-foreground",
-        // Link (texto sublinhado)
+          "border-2 border-border-default bg-bg-card text-text-primary hover:bg-bg-card-hover hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
+        // Outline simples
+        outline:
+          "border-2 border-border-default bg-bg-card hover:bg-bg-card-hover text-text-primary shadow-sm hover:translate-y-0.5 hover:shadow-none",
+        // Link
         link:
-          "text-primary underline-offset-4 hover:underline hover:text-primary-dark",
-        // Accent - verde escuro (#27AE60)
+          "border-transparent text-info underline-offset-4 hover:underline hover:text-info/80",
+        // Alias retrocompatíveis
         accent:
-          "bg-accent text-accent-foreground shadow-sm hover:bg-accent/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
-        // Success - alias para primary (verde)
+          "btn-primary-green border-0",
         success:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary-dark hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
+          "btn-primary-green border-0",
       },
       size: {
         default: "h-10 px-4 py-2",

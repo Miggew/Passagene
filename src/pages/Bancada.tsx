@@ -73,7 +73,7 @@ function JobCard({ job, onSelect }: { job: BancadaJob; onSelect: () => void }) {
   return (
     <div
       onClick={onSelect}
-      className="rounded-xl border border-border bg-card shadow-sm p-4 cursor-pointer hover:border-primary/20 hover:shadow-md transition-all"
+      className="rounded-xl border border-border glass-panel shadow-sm p-4 cursor-pointer hover:border-primary/20 hover:shadow-md transition-all"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -366,7 +366,7 @@ function EmbryoExpandedRow({ emb, onReclassify }: {
             className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold transition-colors ${
               emb.classificacao === cls.value
                 ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border bg-card hover:border-primary/20 text-foreground'
+                : 'border-border glass-panel hover:border-primary/20 text-foreground'
             }`}
           >
             {cls.label}

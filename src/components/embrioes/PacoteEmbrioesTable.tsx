@@ -33,6 +33,8 @@ import {
   Brain,
   AlertTriangle,
   RefreshCw,
+  Eye,
+  ScanSearch,
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
 
@@ -273,8 +275,7 @@ export function PacoteEmbrioesTable({
       toast({
         title: 'Erro na redetecção',
         description: err.message || 'Erro desconhecido ao invocar análise.',
-        variant: 'destructive',
-        duration: 5000
+        variant: 'destructive'
       });
     } finally {
       setRedetectProgress(prev => {
@@ -408,7 +409,7 @@ export function PacoteEmbrioesTable({
             className="h-8 px-2"
           >
             {todosSelecionadosPagina ? (
-              <CheckSquare className="w-4 h-4 text-primary" />
+              <CheckSquare className="w-4 h-4 text-foreground" />
             ) : (
               <Square className="w-4 h-4 text-muted-foreground" />
             )}
@@ -447,8 +448,8 @@ export function PacoteEmbrioesTable({
               className={`
                 group relative flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border transition-all
                 ${selecionado
-                  ? 'bg-primary-subtle border-primary/30 shadow-sm'
-                  : 'bg-card border-border hover:border-primary/30 hover:shadow-sm'
+                  ? 'bg-muted border-foreground/30 shadow-md'
+                  : 'glass-panel border-border hover:border-foreground/30 hover:shadow-sm'
                 }
               `}
             >
@@ -460,7 +461,7 @@ export function PacoteEmbrioesTable({
                   aria-label="Selecionar embrião"
                 >
                   {selecionado ? (
-                    <CheckSquare className="w-5 h-5 text-primary" />
+                    <CheckSquare className="w-5 h-5 text-foreground" />
                   ) : (
                     <Square className="w-5 h-5 text-muted-foreground/50 group-hover:text-muted-foreground" />
                   )}
@@ -617,8 +618,8 @@ export function PacoteEmbrioesTable({
               className={`
                 rounded-lg border p-3 transition-all
                 ${selecionado
-                  ? 'bg-primary-subtle border-primary/30 shadow-sm'
-                  : 'bg-card border-border'
+                  ? 'bg-muted border-foreground/30 shadow-md'
+                  : 'glass-panel border-border'
                 }
               `}
             >
@@ -630,7 +631,7 @@ export function PacoteEmbrioesTable({
                   className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded hover:bg-muted active:bg-muted/80"
                 >
                   {selecionado ? (
-                    <CheckSquare className="w-5 h-5 text-primary" />
+                    <CheckSquare className="w-5 h-5 text-foreground" />
                   ) : (
                     <Square className="w-5 h-5 text-muted-foreground/50" />
                   )}

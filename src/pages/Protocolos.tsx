@@ -133,7 +133,7 @@ export default function Protocolos() {
       <div className="mt-4">
         <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as 'passo1' | 'passo2')} className="w-full">
           {/* Premium Tabs */}
-          <div className="rounded-xl border border-border bg-card p-1.5 mb-4">
+          <div className="rounded-xl border border-border glass-panel p-1.5 mb-4">
             <div className="flex gap-1">
               {[
                 { value: 'passo1', label: '1┬║ Passo', icon: Syringe, count: 0 },

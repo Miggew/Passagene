@@ -39,7 +39,7 @@ export default function Sidebar() {
       <div className="absolute inset-0 pointer-events-auto flex flex-col w-[326px]" style={{ filter: 'drop-shadow(3px 0px 12px rgba(0,0,0,0.04))' }}>
 
         {/* Top Flexible Segment */}
-        <div className="w-72 flex-1 bg-card/90 backdrop-blur-md rounded-tr-[2rem]" />
+        <div className="w-72 flex-1 glass-panel/90 backdrop-blur-md rounded-tr-[2rem]" />
 
         {/* Fixed Curve Segment (200px height). Aligns perfectly with the FAB. */}
         <div className="w-[326px] h-[200px] shrink-0 relative overflow-visible -mt-[1px] -mb-[1px]">
@@ -66,7 +66,7 @@ export default function Sidebar() {
             <div className="relative group mr-[6px]">
               <VoiceFAB size="lg" isSidebar />
               {/* Tooltip on hover */}
-              <span className="absolute right-[80px] top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-card border border-border text-foreground font-bold text-[12px] whitespace-nowrap shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 origin-right">
+              <span className="absolute right-[80px] top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl glass-panel border border-border text-foreground font-bold text-[12px] whitespace-nowrap shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 origin-right">
                 Gen.IA Relatórios
               </span>
             </div>
@@ -74,7 +74,7 @@ export default function Sidebar() {
         </div>
 
         {/* Bottom Fixed Segment */}
-        <div className="w-72 h-[40px] shrink-0 bg-card/90 backdrop-blur-md rounded-br-[2rem]" />
+        <div className="w-72 h-[40px] shrink-0 glass-panel/90 backdrop-blur-md rounded-br-[2rem]" />
       </div>
 
       {/* Main Content Area */}
@@ -99,17 +99,17 @@ export default function Sidebar() {
                 <Link
                   to={hubHomeRoute}
                   className={cn(
-                    'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative overflow-hidden group',
+                    'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative group border-2',
                     isHubHomeActive
-                      ? 'bg-primary/10 text-primary font-extrabold shadow-sm border-l-4 border-primary rounded-r-2xl pr-4'
-                      : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3'
+                      ? 'bg-gold/10 text-gold font-bold border-gold/20 shadow-[0_0_15px_rgba(212,162,76,0.1)] rounded-xl'
+                      : 'border-transparent text-muted-foreground hover:border-border/50 hover:bg-muted/80 hover:text-foreground font-medium rounded-xl'
                   )}
                 >
                   {!isHubHomeActive && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40 rounded-r-md scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300 ease-out" />
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gold/40 rounded-r-md scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300 ease-out" />
                   )}
-                  <HubHomeIcon className={cn('w-5 h-5 transition-transform duration-300', isHubHomeActive ? 'text-primary scale-110' : 'group-hover:scale-110')} />
-                  <span className="text-sm relative z-10">Visão Geral</span>
+                  <HubHomeIcon className={cn('w-5 h-5 transition-transform duration-300', isHubHomeActive ? 'text-foreground scale-110' : 'text-muted-foreground group-hover:scale-110 group-hover:text-foreground')} />
+                  <span className={cn("text-sm relative z-10 transition-colors", isHubHomeActive ? "text-foreground font-bold" : "text-muted-foreground group-hover:text-foreground")}>Visão Geral</span>
                 </Link>
                 <div className="mx-6 border-b border-border/40 my-2" />
               </>
@@ -125,19 +125,19 @@ export default function Sidebar() {
                 key={route}
                 to={route}
                 className={cn(
-                  'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative overflow-hidden group',
+                  'flex items-center gap-4 px-4 py-3 my-1.5 transition-all duration-300 relative group border-2',
                   isActive
-                    ? 'bg-primary/10 text-primary font-extrabold shadow-sm border-l-4 border-primary rounded-r-2xl pr-4'
-                    : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground font-medium rounded-2xl mx-3'
+                    ? 'bg-gold/10 text-gold font-bold border-gold/20 shadow-[0_0_15px_rgba(212,162,76,0.1)] rounded-xl'
+                    : 'border-transparent text-muted-foreground hover:border-border/50 hover:bg-muted/80 hover:text-foreground font-medium rounded-xl'
                 )}
               >
                 {/* Efeito Seiva Lateral (Sliding bar on hover) */}
                 {!isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40 rounded-r-md scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300 ease-out" />
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gold/40 rounded-r-md scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300 ease-out" />
                 )}
 
-                <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-primary scale-110' : 'group-hover:scale-110')} />
-                <span className="text-sm relative z-10">{label}</span>
+                <Icon className={cn('w-5 h-5 transition-transform duration-300', isActive ? 'text-foreground scale-110' : 'text-muted-foreground group-hover:scale-110 group-hover:text-foreground')} />
+                <span className={cn("text-sm relative z-10 transition-colors", isActive ? "text-foreground font-bold" : "text-muted-foreground group-hover:text-foreground")}>{label}</span>
               </Link>
             );
           })}

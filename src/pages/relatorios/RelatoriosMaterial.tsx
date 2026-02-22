@@ -409,7 +409,7 @@ export default function RelatoriosMaterial() {
         </TabsList>
 
         {/* Filtros */}
-        <div className="rounded-xl border border-border bg-card p-4 mt-4">
+        <div className="rounded-xl border border-border glass-panel p-4 mt-4">
           <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
             {/* Busca */}
             <div className="relative w-full md:flex-1 md:min-w-[200px] md:max-w-[280px]">
@@ -540,7 +540,7 @@ export default function RelatoriosMaterial() {
                   {tipoMaterial === 'embrioes' && (
                     <div className="md:hidden space-y-2">
                       {dadosPaginados.map((row: EmbriaoRow) => (
-                        <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                        <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-base font-medium text-foreground truncate">
@@ -621,7 +621,7 @@ export default function RelatoriosMaterial() {
                   {tipoMaterial === 'semen' && (
                     <div className="md:hidden space-y-2">
                       {dadosPaginados.map((row: DoseSemenRow) => (
-                        <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                        <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-base font-medium text-foreground truncate">

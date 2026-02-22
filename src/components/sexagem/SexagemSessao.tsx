@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Card,
     CardContent,
@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { DIAS_MINIMOS } from '@/lib/gestacao';
 import { useSexagem } from '@/hooks/useSexagem';
+import { useLastSelection } from '@/hooks/core/useLastSelection';
 import { useToast } from '@/hooks/use-toast';
 import type { ResultadoSexagem } from '@/lib/types/sexagem';
 import EntryModeSwitch from '@/components/escritorio/EntryModeSwitch';
@@ -81,6 +82,34 @@ export function SexagemSessao() {
         hoje
     } = useSexagem();
     const { toast } = useToast();
+    const [lastVet, saveLastVet] = useLastSelection('ultimo-veterinario-sexagem');
+    const [lastTec, saveLastTec] = useLastSelection('ultimo-tecnico-sexagem');
+    const [lastFazenda, saveLastFazenda] = useLastSelection('ultima-fazenda');
+    const didPrePopulate = useRef(false);
+    const didPrePopulateFazenda = useRef(false);
+
+    // Pre-populate from last selection (once)
+    useEffect(() => {
+        if (didPrePopulate.current) return;
+        didPrePopulate.current = true;
+        if (lastVet && !loteFormData.veterinario_responsavel) {
+            setLoteFormData(prev => ({ ...prev, veterinario_responsavel: lastVet }));
+        }
+        if (lastTec && !loteFormData.tecnico_responsavel) {
+            setLoteFormData(prev => ({ ...prev, tecnico_responsavel: lastTec }));
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Pre-populate fazenda from last selection (cross-module)
+    useEffect(() => {
+        if (didPrePopulateFazenda.current) return;
+        if (!fazendas?.length) return;
+        didPrePopulateFazenda.current = true;
+        if (lastFazenda && !fazendaSelecionada) {
+            const existe = fazendas.some(f => f.id === lastFazenda);
+            if (existe) setFazendaSelecionada(lastFazenda);
+        }
+    }, [fazendas]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── OCR state ──
     const [entryMode, setEntryMode] = useState<EntryMode>('manual');
@@ -314,7 +343,10 @@ export function SexagemSessao() {
                             </label>
                             <Select
                                 value={fazendaSelecionada}
-                                onValueChange={setFazendaSelecionada}
+                                onValueChange={(value) => {
+                                    setFazendaSelecionada(value);
+                                    saveLastFazenda(value);
+                                }}
                                 disabled={!loteFormData.veterinario_responsavel}
                             >
                                 <SelectTrigger className="h-11 md:h-9">
@@ -387,7 +419,11 @@ export function SexagemSessao() {
                         </Button>
 
                         <Button
-                            onClick={handleSalvarLote}
+                            onClick={() => {
+                                saveLastVet(loteFormData.veterinario_responsavel);
+                                saveLastTec(loteFormData.tecnico_responsavel);
+                                handleSalvarLote();
+                            }}
                             disabled={
                                 !loteSelecionado ||
                                 !todasReceptorasComSexagem ||
@@ -513,7 +549,7 @@ export function SexagemSessao() {
                                 const isDisabled = loteSelecionado.status === 'FECHADO';
 
                                 return (
-                                    <div key={receptora.receptora_id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                                    <div key={receptora.receptora_id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                                         {/* Header: brinco + dias gestacao */}
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">

@@ -105,7 +105,7 @@ export function BiologistClassButtons({
                   ? 'border-primary bg-primary/15 shadow-sm shadow-primary/25'
                   : isAiSuggestion
                     ? 'border-primary/30 bg-primary/5 ring-1 ring-primary/20'
-                    : 'border-border bg-card hover:border-primary/20 hover:bg-muted/40'
+                    : 'border-border glass-panel hover:border-primary/20 hover:bg-muted/40'
                 }
               `}
             >

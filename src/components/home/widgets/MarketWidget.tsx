@@ -63,7 +63,7 @@ export function MarketWidget({ compact = false }: { compact?: boolean }) {
     }
 
     return (
-        <Card className="h-full bg-card border-border p-6 overflow-hidden flex flex-col">
+        <Card className="h-full glass-panel border-border p-6 overflow-hidden flex flex-col">
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-emerald-500/10 rounded-lg">
                     <DollarSign className="w-5 h-5 text-emerald-500" />

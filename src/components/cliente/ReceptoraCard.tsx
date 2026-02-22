@@ -99,7 +99,7 @@ export function ReceptoraCard({ data, onClick }: ReceptoraCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        'group rounded-xl border bg-card p-3.5 transition-all duration-200 active:scale-[0.98] shadow-sm',
+        'group rounded-xl border glass-panel p-3.5 transition-all duration-200 active:scale-[0.98] shadow-sm',
         onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30',
         style.border,
         style.bg

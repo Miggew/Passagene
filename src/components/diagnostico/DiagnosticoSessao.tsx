@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Card,
     CardContent,
@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { DIAS_MINIMOS } from '@/lib/gestacao';
 import { useDiagnosticoGestacao } from '@/hooks/useDiagnosticoGestacao';
+import { useLastSelection } from '@/hooks/core/useLastSelection';
 import { useToast } from '@/hooks/use-toast';
 import EntryModeSwitch from '@/components/escritorio/EntryModeSwitch';
 import ReportScanner from '@/components/escritorio/ReportScanner';
@@ -79,6 +80,34 @@ export function DiagnosticoSessao() {
         hoje
     } = useDiagnosticoGestacao();
     const { toast } = useToast();
+    const [lastVet, saveLastVet] = useLastSelection('ultimo-veterinario-dg');
+    const [lastTec, saveLastTec] = useLastSelection('ultimo-tecnico-dg');
+    const [lastFazenda, saveLastFazenda] = useLastSelection('ultima-fazenda');
+    const didPrePopulate = useRef(false);
+    const didPrePopulateFazenda = useRef(false);
+
+    // Pre-populate from last selection (once)
+    useEffect(() => {
+        if (didPrePopulate.current) return;
+        didPrePopulate.current = true;
+        if (lastVet && !loteFormData.veterinario_responsavel) {
+            setLoteFormData(prev => ({ ...prev, veterinario_responsavel: lastVet }));
+        }
+        if (lastTec && !loteFormData.tecnico_responsavel) {
+            setLoteFormData(prev => ({ ...prev, tecnico_responsavel: lastTec }));
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Pre-populate fazenda from last selection (cross-module)
+    useEffect(() => {
+        if (didPrePopulateFazenda.current) return;
+        if (!fazendas?.length) return;
+        didPrePopulateFazenda.current = true;
+        if (lastFazenda && !fazendaSelecionada) {
+            const existe = fazendas.some(f => f.id === lastFazenda);
+            if (existe) setFazendaSelecionada(lastFazenda);
+        }
+    }, [fazendas]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── OCR state ──
     const [entryMode, setEntryMode] = useState<EntryMode>('manual');
@@ -261,7 +290,7 @@ export function DiagnosticoSessao() {
 
                     {/* Grupo: Local */}
                     <div className="flex flex-wrap items-end gap-3">
-                        <div className="w-1 h-6 rounded-full bg-emerald-500/40 self-center" />
+                        <div className="w-1 h-6 rounded-full bg-green/40 self-center" />
                         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground self-center">
                             <MapPin className="w-3.5 h-3.5" />
                             <span>Local</span>
@@ -272,7 +301,10 @@ export function DiagnosticoSessao() {
                             </label>
                             <Select
                                 value={fazendaSelecionada}
-                                onValueChange={setFazendaSelecionada}
+                                onValueChange={(value) => {
+                                    setFazendaSelecionada(value);
+                                    saveLastFazenda(value);
+                                }}
                                 disabled={!loteFormData.veterinario_responsavel}
                             >
                                 <SelectTrigger className="h-11 md:h-9">
@@ -333,7 +365,11 @@ export function DiagnosticoSessao() {
                         </div>
 
                         <Button
-                            onClick={handleSalvarLote}
+                            onClick={() => {
+                                saveLastVet(loteFormData.veterinario_responsavel);
+                                saveLastTec(loteFormData.tecnico_responsavel);
+                                handleSalvarLote();
+                            }}
                             disabled={
                                 !loteSelecionado ||
                                 !todasReceptorasComResultado ||
@@ -341,7 +377,7 @@ export function DiagnosticoSessao() {
                                 loteSelecionado?.status === 'FECHADO' ||
                                 (loteSelecionado?.dias_gestacao !== undefined && loteSelecionado.dias_gestacao < DIAS_MINIMOS.DG)
                             }
-                            className="h-11 md:h-9 px-6 bg-primary hover:bg-primary-dark shadow-sm w-full md:w-auto"
+                            className="h-11 md:h-9 px-6 btn-primary-green w-full md:w-auto border-0"
                         >
                             <Save className="w-4 h-4 mr-2" />
                             {submitting ? 'Salvando...' : 'Salvar Lote'}
@@ -439,9 +475,9 @@ export function DiagnosticoSessao() {
                             )}
                         </div>
                         {receptoras.length > 0 && (
-                            <div className="h-1.5 bg-primary/20 rounded-full mt-2">
+                            <div className="h-1.5 bg-green/20 rounded-full mt-2 overflow-hidden">
                                 <div
-                                    className="h-full bg-primary rounded-full transition-all duration-300"
+                                    className="h-full bg-green rounded-full transition-all duration-300 glow-green"
                                     style={{ width: `${progressoPct}%` }}
                                 />
                             </div>
@@ -460,7 +496,7 @@ export function DiagnosticoSessao() {
                                 const isDisabled = loteSelecionado.status === 'FECHADO';
 
                                 return (
-                                    <div key={receptora.receptora_id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                                    <div key={receptora.receptora_id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium text-base">{receptora.brinco}</span>
@@ -694,7 +730,7 @@ export function DiagnosticoSessao() {
             {loteSelecionado && loteSelecionado.status !== 'FECHADO' && (
                 <button
                     onClick={() => setEntryMode(entryMode === 'ocr' ? 'manual' : 'ocr')}
-                    className="md:hidden fixed bottom-28 right-4 z-40 h-14 w-14 rounded-full shadow-lg bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"
+                    className="md:hidden fixed bottom-28 right-4 z-40 h-14 w-14 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.3)] bg-green text-[#080B0A] glow-green flex items-center justify-center active:scale-95 transition-transform border border-emerald-700"
                     aria-label="Escanear Relatório"
                 >
                     <Camera className="w-6 h-6" />

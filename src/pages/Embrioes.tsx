@@ -314,7 +314,7 @@ export default function Embrioes() {
       />
 
       {/* Filter bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-4 rounded-lg border border-border shadow-sm">
         <div className="flex items-center gap-3">
           <Label htmlFor="fazenda_destino" className="text-sm font-medium whitespace-nowrap">
             Fazenda Destino:

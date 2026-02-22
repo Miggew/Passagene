@@ -290,7 +290,7 @@ export default function ClienteConfiguracoes() {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+    <div className="rounded-xl border border-border/60 glass-panel p-4 shadow-sm">
       {children}
     </div>
   );

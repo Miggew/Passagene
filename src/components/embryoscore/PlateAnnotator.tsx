@@ -132,7 +132,7 @@ function JobStatusPanel({ queueId }: { queueId: string }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] gap-6 p-6">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card shadow-sm p-6 space-y-4">
+      <div className="w-full max-w-md rounded-xl border border-border glass-panel shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-3">
           {status === 'completed' ? (
             <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">

@@ -112,7 +112,7 @@ function V2Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
   if (!stats.classified) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+    <div className="rounded-xl border border-border glass-panel p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -201,7 +201,7 @@ function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+    <div className="rounded-xl border border-border glass-panel p-4 space-y-4">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
           <Brain className="w-4 h-4 text-primary" />

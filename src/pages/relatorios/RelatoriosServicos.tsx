@@ -350,8 +350,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       (receptorasData || []).map(r => [
         r.id,
         {
-          id: (r.fazendas as { id: string; nome: string } | null)?.id,
-          nome: (r.fazendas as { id: string; nome: string } | null)?.nome
+          id: (r.fazendas as unknown as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as unknown as { id: string; nome: string } | null)?.nome
         }
       ])
     );
@@ -443,8 +443,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       (receptorasData || []).map(r => [
         r.id,
         {
-          id: (r.fazendas as { id: string; nome: string } | null)?.id,
-          nome: (r.fazendas as { id: string; nome: string } | null)?.nome
+          id: (r.fazendas as unknown as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as unknown as { id: string; nome: string } | null)?.nome
         }
       ])
     );
@@ -538,8 +538,8 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       (receptorasData || []).map(r => [
         r.id,
         {
-          id: (r.fazendas as { id: string; nome: string } | null)?.id,
-          nome: (r.fazendas as { id: string; nome: string } | null)?.nome
+          id: (r.fazendas as unknown as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as unknown as { id: string; nome: string } | null)?.nome
         }
       ])
     );
@@ -766,7 +766,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
       <Tabs value={tipoServico} onValueChange={handleTabChange}>
         {/* Tabs Premium (Ocultar se fixedTab for passado) */}
         {!fixedTab && (
-          <div className="rounded-xl border border-border bg-card p-1.5">
+          <div className="rounded-xl border border-border glass-panel p-1.5">
             <div className="flex gap-1">
               {[
                 { value: 'protocolos', label: 'Protocolos', icon: Syringe },
@@ -819,7 +819,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
         )}
 
         {/* Filtros */}
-        <div className={cn("rounded-xl border border-border bg-card overflow-hidden", fixedTab ? "" : "mt-4")}>
+        <div className={cn("rounded-xl border border-border glass-panel overflow-hidden", fixedTab ? "" : "mt-4")}>
           <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
             {/* Grupo: Busca */}
             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
@@ -954,11 +954,11 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
         {/* Conteúdo das tabs */}
         <TabsContent value={tipoServico} className="mt-4">
           {loading ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+            <div className="rounded-xl border border-border glass-panel p-12 text-center text-muted-foreground">
               <LoadingSpinner />
             </div>
           ) : dadosFiltrados.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+            <div className="rounded-xl border border-border glass-panel p-12 text-center text-muted-foreground">
               Nenhum registro encontrado
             </div>
           ) : (
@@ -969,7 +969,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
                   <div
                     key={row.id}
                     onClick={() => handleVerDetalhe(tipoServico, row)}
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -1038,7 +1038,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
               </div>
 
               {/* Desktop Table */}
-              <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
+              <div className="hidden md:block rounded-xl border border-border glass-panel overflow-hidden">
                 {/* Header da tabela com gradiente */}
                 <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
                   <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${tipoServico === 'te' || tipoServico === 'dg' || tipoServico === 'sexagem'
@@ -1069,8 +1069,7 @@ export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosS
                       onClick={() => handleVerDetalhe(tipoServico, row)}
                       className={`
                       group grid gap-0 items-center cursor-pointer transition-all duration-150
-                      hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                      ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                      hover:bg-muted/50
                       ${tipoServico === 'te' || tipoServico === 'dg' || tipoServico === 'sexagem'
                           ? 'grid-cols-[2fr_1fr_1.5fr_1fr_0.6fr]'
                           : 'grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr]'

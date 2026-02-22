@@ -28,7 +28,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
 
     // Elementos do DOM para as bolinhas (Preenchidos dinamicamente)
     const dotsRef = useRef<Array<{ base: HTMLDivElement; rev: HTMLDivElement; delaySec: number }>>([]);
-    const animFrameRef = useRef<number>();
+    const animFrameRef = useRef<number>(0);
     const [isHovered, setIsHovered] = useState(false);
 
     // Configurações Matemáticas Inquebráveis
@@ -54,11 +54,11 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
                 };
             case 'premium':
                 return {
-                    bg: 'hsl(var(--logo-bg))',
-                    frontStrand: 'hsl(var(--logo-front))',
-                    backStrand: 'hsl(var(--logo-back))',
+                    bg: 'hsl(var(--logo-bg))', // Fallback
+                    frontStrand: '#ffffff',
+                    backStrand: 'rgba(255, 255, 255, 0.5)',
                     // Texto fora do badge usa cores que se adaptam ao tema
-                    textPassa: 'hsl(var(--logo-hollow-passa))',
+                    textPassa: 'hsl(var(--logo-passa))',
                     textGene: 'hsl(var(--logo-hollow-gene))'
                 };
             case 'hollow':
@@ -161,7 +161,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
                 style={{
                     width: `${innerSize}px`,
                     height: `${innerSize}px`,
-                    backgroundColor: colors.bg,
+                    background: variant === 'premium' ? 'linear-gradient(135deg, #34D399, #D4A24C)' : colors.bg,
                     borderRadius: '50%',
                     boxShadow: variant === 'premium' ? '0 4px 14px rgba(0, 0, 0, 0.1)' : 'none'
                 }}
@@ -221,8 +221,13 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
                         fontFamily: "'Outfit', sans-serif"
                     }}
                 >
-                    <span style={{ color: colors.textPassa }}>Passa</span>
-                    <span style={{ color: colors.textGene, fontWeight: 400 }}>Gene</span>
+                    <span style={{ color: variant === 'premium' ? 'hsl(var(--logo-passa))' : colors.textPassa }}>Passa</span>
+                    <span style={{
+                        background: variant === 'premium' ? 'linear-gradient(135deg, #34D399, #D4A24C)' : colors.textGene,
+                        WebkitBackgroundClip: variant === 'premium' ? 'text' : 'unset',
+                        WebkitTextFillColor: variant === 'premium' ? 'transparent' : 'unset',
+                        fontWeight: 400
+                    }}>Gene</span>
                 </div>
             )}
         </div>

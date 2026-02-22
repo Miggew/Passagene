@@ -8,9 +8,10 @@ interface VoiceFABProps {
     className?: string;
     size?: 'md' | 'lg' | 'xl';
     isSidebar?: boolean;
+    isBrutalistCenter?: boolean;
 }
 
-export function VoiceFAB({ className, size = 'lg', isSidebar = false }: VoiceFABProps) {
+export function VoiceFAB({ className, size = 'lg', isSidebar = false, isBrutalistCenter = false }: VoiceFABProps) {
     const navigate = useNavigate();
     const [isHolding, setIsHolding] = useState(false);
     const pressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -18,15 +19,15 @@ export function VoiceFAB({ className, size = 'lg', isSidebar = false }: VoiceFAB
 
     // Configurações de tamanho
     const sizeClasses = {
-        md: 'w-12 h-12',
-        lg: 'w-16 h-16',
-        xl: 'w-20 h-20'
+        md: 'w-14 h-14',
+        lg: 'w-[72px] h-[72px]',
+        xl: 'w-24 h-24'
     };
 
     const iconSizes = {
-        md: 20,
-        lg: 24,
-        xl: 32
+        md: 22,
+        lg: 28,
+        xl: 36
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -87,6 +88,11 @@ export function VoiceFAB({ className, size = 'lg', isSidebar = false }: VoiceFAB
         };
     }, []);
 
+    // O novo estilo principal baseia-se num "Glow" respiratório e numa Aura giratória, em vez de sombras clássicas pesadas
+    const containerShadow = isBrutalistCenter
+        ? "voice-fab-glow border-[1px] border-white/20"
+        : (isSidebar && !isHolding) ? "shadow-md hover:shadow-lg" : "voice-fab-glow";
+
     // Se a sidebar tá colapsada, mostrar só o ícone. O design será um gradiente premium verde.
     return (
         <button
@@ -94,14 +100,25 @@ export function VoiceFAB({ className, size = 'lg', isSidebar = false }: VoiceFAB
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerLeave}
             className={cn(
-                "group relative bg-primary hover:bg-primary-light rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 select-none",
+                "group relative rounded-full flex items-center justify-center text-white z-20 transition-all active:scale-95 select-none",
                 sizeClasses[size],
-                isSidebar && !isHolding ? "shadow-md" : "shadow-[0_6px_20px_rgba(9,201,114,0.35)] hover:shadow-[0_8px_25px_rgba(9,201,114,0.5)]",
-                isHolding && "ring-4 ring-primary/30 animate-pulse bg-emerald-500 scale-110",
+                containerShadow,
+                isHolding && "scale-110",
                 className
             )}
             style={{ WebkitTapHighlightColor: 'transparent' }}
         >
+            {/* Animating Aura Border (using before pseudo-element equivalent) */}
+            <div className="absolute inset-[-2px] rounded-full overflow-hidden z-0">
+                <div className={cn("absolute inset-[-50%] voice-fab-aura", isHolding && "animate-[spin-slow_1s_linear_infinite]")} />
+            </div>
+
+            {/* Frost Acrylic Core */}
+            <div className={cn(
+                "absolute inset-[2px] rounded-full voice-fab-core transition-colors duration-300 z-10",
+                isHolding && "bg-black/80 backdrop-saturate-200"
+            )} />
+
             {/* Ondas Sonoras Radiais quando está segurando */}
             {isHolding && (
                 <>
@@ -123,8 +140,8 @@ export function VoiceFAB({ className, size = 'lg', isSidebar = false }: VoiceFAB
                         <div className="font-black tracking-tighter text-white text-[15px]">G</div>
                     ) : (
                         <div className={cn("font-black tracking-tighter uppercase text-white leading-none text-center")}>
-                            <div className="text-[14px] opacity-80" style={{ fontSize: size === 'xl' ? 22 : 14 }}>Gen</div>
-                            <div className="text-[17px]" style={{ fontSize: size === 'xl' ? 26 : 17 }}>.IA</div>
+                            <div className="text-[14px] opacity-80" style={{ fontSize: size === 'xl' ? 26 : size === 'lg' ? 16 : 14 }}>Gen</div>
+                            <div className="text-[17px]" style={{ fontSize: size === 'xl' ? 30 : size === 'lg' ? 20 : 17 }}>.IA</div>
                         </div>
                     )
                 )}

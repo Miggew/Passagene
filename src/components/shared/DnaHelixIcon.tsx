@@ -14,8 +14,8 @@ export default function DnaHelixIcon({ size, className }: DnaHelixIconProps) {
 
   return (
     <div
-      className={cn('bg-primary flex items-center justify-center overflow-hidden', className)}
-      style={{ width: size, height: size, borderRadius }}
+      className={cn('flex items-center justify-center overflow-hidden', className)}
+      style={{ width: size, height: size, borderRadius, background: 'linear-gradient(135deg, #34D399, #D4A24C)' }}
     >
       <div
         className="flex items-center justify-center h-[50%]"

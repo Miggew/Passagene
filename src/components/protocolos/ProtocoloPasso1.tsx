@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -27,7 +28,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, UserPlus, Lock } from 'lucide-react';
+import { Plus, UserPlus, Lock, Camera } from 'lucide-react';
+import ReportScanner from '@/components/escritorio/ReportScanner';
+import OcrReviewGrid from '@/components/escritorio/OcrReviewGrid';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
+import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import type { OcrResult, OcrRow } from '@/lib/types/escritorio';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 import { ProtocoloInfoCard } from '@/components/protocolos/ProtocoloInfoCard';
 import { ConfirmExitDialog } from '@/components/protocolos/ConfirmExitDialog';
@@ -35,7 +41,10 @@ import { AddReceptoraForm } from '@/components/protocolos/AddReceptoraForm';
 import { CreateReceptoraForm } from '@/components/protocolos/CreateReceptoraForm';
 import { ReceptorasTablePasso1 } from '@/components/protocolos/ReceptorasTablePasso1';
 import { useProtocoloWizardData, useProtocoloWizardReceptoras, useProtocoloWizardSubmit } from '@/hooks/protocolos';
+import type { ReceptoraLocal } from '@/hooks/protocolos';
 import { useProtocoloDraft } from '@/hooks/useProtocoloDraft';
+import { useLastSelection } from '@/hooks/core/useLastSelection';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProtocoloPasso1Props {
     onSuccess: () => void;
@@ -43,6 +52,13 @@ interface ProtocoloPasso1Props {
 
 export function ProtocoloPasso1({ onSuccess }: ProtocoloPasso1Props) {
     const [passo1CurrentStep, setPasso1CurrentStep] = useState<'form' | 'receptoras'>('form');
+    const { toast } = useToast();
+    const [lastVeterinario, saveLastVeterinario] = useLastSelection('ultimo-veterinario-protocolo');
+
+    // ── OCR state ──
+    const [showOcrScanner, setShowOcrScanner] = useState(false);
+    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+    const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
 
     // Draft Hook
     const {
@@ -118,6 +134,89 @@ export function ProtocoloPasso1({ onSuccess }: ProtocoloPasso1Props) {
 
     const submittingPasso1 = receptorasSubmitting || submitSubmittingPasso1;
 
+    // ── OCR hooks ──
+    const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
+        reportType: 'p1',
+        fazendaId: protocoloData.fazenda_id,
+    });
+    const { createImport } = useReportImports(protocoloData.fazenda_id);
+
+    const handleOcrResult = useCallback((result: unknown) => {
+        setOcrResult(result as OcrResult);
+    }, []);
+
+    const handleOcrImageUrl = useCallback((url: string) => {
+        setOcrImageUrl(url);
+    }, []);
+
+    /** Map confirmed OCR rows into receptorasLocais by matching registro/identificacao */
+    const handleOcrConfirm = useCallback((rows: OcrRow[]) => {
+        if (!allReceptoras.length) {
+            toast({ title: 'Nenhuma receptora disponível', description: 'Aguarde o carregamento das receptoras da fazenda.', variant: 'destructive' });
+            return;
+        }
+
+        const currentIds = getSelectedIds(receptorasLocais);
+        const newReceptoras: ReceptoraLocal[] = [];
+
+        rows.forEach(row => {
+            const registro = (row.registro.matched_value || row.registro.value || '').trim().toUpperCase();
+            if (!registro) return;
+
+            const receptora = allReceptoras.find(r =>
+                r.identificacao.toUpperCase().trim() === registro ||
+                (r.nome && r.nome.toUpperCase().trim() === registro)
+            );
+            if (!receptora) return;
+            if (currentIds.has(receptora.id)) return;
+            if (newReceptoras.some(r => r.id === receptora.id)) return;
+
+            newReceptoras.push({
+                id: receptora.id,
+                identificacao: receptora.identificacao,
+                nome: receptora.nome,
+            });
+        });
+
+        if (newReceptoras.length > 0) {
+            setReceptorasLocais(prev => [...prev, ...newReceptoras]);
+        }
+
+        toast({
+            title: 'Receptoras do OCR adicionadas',
+            description: `${newReceptoras.length} de ${rows.length} receptora(s) adicionada(s) ao protocolo.`,
+        });
+
+        createImport({
+            report_type: 'p1',
+            fazenda_id: protocoloData.fazenda_id,
+            extracted_data: ocrResult as unknown as Record<string, unknown>,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+        }).catch(() => { /* non-critical */ });
+
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        setShowOcrScanner(false);
+        resetOcr();
+    }, [allReceptoras, receptorasLocais, getSelectedIds, setReceptorasLocais, toast, resetOcr, createImport, protocoloData.fazenda_id, ocrResult]);
+
+    const handleOcrCancel = useCallback(() => {
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+    }, [resetOcr]);
+
+    // Pre-populate veterinário from last selection (once)
+    const didPrePopulateVet = useRef(false);
+    useEffect(() => {
+        if (didPrePopulateVet.current) return;
+        didPrePopulateVet.current = true;
+        if (lastVeterinario && !protocoloData.veterinario) {
+            setProtocoloData((prev) => ({ ...prev, veterinario: lastVeterinario }));
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Effects
     useEffect(() => {
         loadFazendasPasso1();
@@ -162,6 +261,7 @@ export function ProtocoloPasso1({ onSuccess }: ProtocoloPasso1Props) {
 
     const handleContinueToReceptoras = () => {
         if (validateProtocoloForm()) {
+            saveLastVeterinario(protocoloData.veterinario);
             setPasso1CurrentStep('receptoras');
         }
     };
@@ -192,7 +292,7 @@ export function ProtocoloPasso1({ onSuccess }: ProtocoloPasso1Props) {
             {passo1CurrentStep === 'form' ? (
                 <>
                     {/* Barra Premium de Controles */}
-                    <div className="rounded-xl border border-border bg-card overflow-hidden mb-4">
+                    <div className="rounded-xl border border-border glass-panel overflow-hidden mb-4">
                         <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
                             {/* Grupo: Responsáveis */}
                             <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
@@ -266,6 +366,52 @@ export function ProtocoloPasso1({ onSuccess }: ProtocoloPasso1Props) {
                         tecnico={protocoloData.tecnico}
                     />
 
+                    {/* ── OCR Scanner Panel ── */}
+                    {showOcrScanner && !ocrResult && (
+                        <Card className="mt-4 mb-4">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <Camera className="w-4 h-4" />
+                                    Escanear Relatório P1
+                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0">Beta</Badge>
+                                </CardTitle>
+                                <CardDescription>
+                                    Tire uma foto do relatório de campo para adicionar receptoras automaticamente
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ReportScanner
+                                    uploadAndProcess={processFile}
+                                    onResult={handleOcrResult}
+                                    onImageUrl={handleOcrImageUrl}
+                                    disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* ── OCR Review Grid ── */}
+                    {ocrResult && ocrResult.rows.length > 0 && (
+                        <Card className="mt-4 mb-4">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base">Revisar Dados Extraídos</CardTitle>
+                                <CardDescription>
+                                    Confira os registros antes de adicionar ao protocolo
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <OcrReviewGrid
+                                    rows={ocrResult.rows}
+                                    imageUrl={ocrImageUrl}
+                                    onSave={handleOcrConfirm}
+                                    onCancel={handleOcrCancel}
+                                    columns={['registro', 'raca']}
+                                    resultadoLabel="Registro"
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Lista de Receptoras */}
                     <Card className="mt-4">
                         <CardHeader className="pb-3">
@@ -279,6 +425,18 @@ export function ProtocoloPasso1({ onSuccess }: ProtocoloPasso1Props) {
                                     </CardDescription>
                                 </div>
                                 <div className="flex gap-2">
+                                    {/* Botão OCR Escanear */}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowOcrScanner(!showOcrScanner)}
+                                        disabled={submittingPasso1}
+                                    >
+                                        <Camera className="w-4 h-4 mr-1" />
+                                        Escanear
+                                        <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">Beta</Badge>
+                                    </Button>
+
                                     {/* Dialog Adicionar Receptora Existente */}
                                     <Dialog
                                         open={showAddReceptora}

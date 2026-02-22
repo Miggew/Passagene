@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,7 +21,12 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Lock } from 'lucide-react';
+import { CheckCircle, Lock, Camera } from 'lucide-react';
+import ReportScanner from '@/components/escritorio/ReportScanner';
+import OcrReviewGrid from '@/components/escritorio/OcrReviewGrid';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
+import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import type { OcrResult, OcrRow } from '@/lib/types/escritorio';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { ProtocoloInfoCard } from '@/components/protocolos/ProtocoloInfoCard';
@@ -29,6 +34,7 @@ import { ReceptorasPasso2Table } from '@/components/protocolos/ReceptorasPasso2T
 import { useProtocoloPasso2Data, useProtocoloPasso2Actions } from '@/hooks/protocoloPasso2';
 import { useProtocoloDraft } from '@/hooks/useProtocoloDraft';
 import { RascunhoPasso2 } from '@/hooks/useProtocoloDraft';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProtocoloPasso2Props {
     onSuccess: () => void;
@@ -50,6 +56,12 @@ export function ProtocoloPasso2({ onSuccess, protocolosPasso2Lista, loadingProto
         tecnico: '',
     });
     const [motivosInapta, setMotivosInapta] = useState<Record<string, string>>({});
+    const { toast } = useToast();
+
+    // ── OCR state ──
+    const [showOcrScanner, setShowOcrScanner] = useState(false);
+    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+    const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
 
     // Rascunho Hook
     const {
@@ -93,6 +105,85 @@ export function ProtocoloPasso2({ onSuccess, protocolosPasso2Lista, loadingProto
             onSuccess();
         },
     });
+
+    // ── OCR hooks ──
+    const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
+        reportType: 'p2',
+        fazendaId: fazendaFilterPasso2,
+    });
+    const { createImport } = useReportImports(fazendaFilterPasso2);
+
+    const handleOcrResult = useCallback((result: unknown) => {
+        setOcrResult(result as OcrResult);
+    }, []);
+
+    const handleOcrImageUrl = useCallback((url: string) => {
+        setOcrImageUrl(url);
+    }, []);
+
+    /** Map confirmed OCR rows into receptora status changes */
+    const handleOcrConfirm = useCallback((rows: OcrRow[]) => {
+        if (!receptorasPasso2.length) {
+            toast({ title: 'Nenhuma receptora carregada', description: 'Selecione um protocolo primeiro.', variant: 'destructive' });
+            return;
+        }
+
+        const statusMap: Record<string, 'APTA' | 'INAPTA'> = {
+            APTA: 'APTA', A: 'APTA', OK: 'APTA', SIM: 'APTA', '✓': 'APTA',
+            PERDA: 'INAPTA', INAPTA: 'INAPTA', X: 'INAPTA', 'NÃO': 'INAPTA', N: 'INAPTA', P: 'INAPTA',
+        };
+
+        let matched = 0;
+        rows.forEach(row => {
+            const registro = (row.registro.matched_value || row.registro.value || '').trim().toUpperCase();
+            if (!registro) return;
+
+            const receptora = receptorasPasso2.find(r =>
+                r.identificacao.toUpperCase().trim() === registro ||
+                (r.nome && r.nome.toUpperCase().trim() === registro)
+            );
+            if (!receptora) return;
+
+            const resultado = (row.resultado?.value || '').toUpperCase().trim();
+            const status = statusMap[resultado];
+
+            if (status) {
+                handleStatusChange(receptora.id, status);
+                if (status === 'APTA') {
+                    setMotivosInapta(prev => {
+                        const updated = { ...prev };
+                        delete updated[receptora.id];
+                        return updated;
+                    });
+                }
+                matched++;
+            }
+        });
+
+        toast({
+            title: 'Dados OCR aplicados',
+            description: `${matched} de ${rows.length} receptora(s) avaliada(s).`,
+        });
+
+        createImport({
+            report_type: 'p2',
+            fazenda_id: fazendaFilterPasso2,
+            extracted_data: ocrResult as unknown as Record<string, unknown>,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+        }).catch(() => { /* non-critical */ });
+
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        setShowOcrScanner(false);
+        resetOcr();
+    }, [receptorasPasso2, handleStatusChange, toast, resetOcr, createImport, fazendaFilterPasso2, ocrResult]);
+
+    const handleOcrCancel = useCallback(() => {
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+    }, [resetOcr]);
 
     // Computed
 
@@ -256,7 +347,7 @@ export function ProtocoloPasso2({ onSuccess, protocolosPasso2Lista, loadingProto
         <>
             {!protocoloSelecionadoId ? (
                 /* Etapa 1: Seleção do protocolo - Barra Premium */
-                <div className="rounded-xl border border-border bg-card overflow-hidden mb-4">
+                <div className="rounded-xl border border-border glass-panel overflow-hidden mb-4">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
                         {/* Grupo: Responsável */}
                         <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
@@ -357,6 +448,52 @@ export function ProtocoloPasso2({ onSuccess, protocolosPasso2Lista, loadingProto
                         showPasso2={true}
                     />
 
+                    {/* ── OCR Scanner Panel ── */}
+                    {showOcrScanner && !ocrResult && !isProtocoloFinalizado && (
+                        <Card className="mt-4">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <Camera className="w-4 h-4" />
+                                    Escanear Relatório P2
+                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0">Beta</Badge>
+                                </CardTitle>
+                                <CardDescription>
+                                    Tire uma foto do relatório de campo para avaliar receptoras automaticamente
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ReportScanner
+                                    uploadAndProcess={processFile}
+                                    onResult={handleOcrResult}
+                                    onImageUrl={handleOcrImageUrl}
+                                    disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* ── OCR Review Grid ── */}
+                    {ocrResult && ocrResult.rows.length > 0 && (
+                        <Card className="mt-4">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base">Revisar Dados Extraídos</CardTitle>
+                                <CardDescription>
+                                    Confira os dados antes de aplicar ao protocolo
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <OcrReviewGrid
+                                    rows={ocrResult.rows}
+                                    imageUrl={ocrImageUrl}
+                                    onSave={handleOcrConfirm}
+                                    onCancel={handleOcrCancel}
+                                    columns={['registro', 'resultado']}
+                                    resultadoLabel="Avaliação P2"
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Card com tabela */}
                     <Card className="mt-4">
                         <CardHeader className="pb-3">
@@ -373,8 +510,20 @@ export function ProtocoloPasso2({ onSuccess, protocolosPasso2Lista, loadingProto
                                                 : 'Todas as receptoras foram avaliadas'}
                                     </CardDescription>
                                 </div>
-                                {/* Stats badges */}
+                                {/* Stats badges + OCR button */}
                                 <div className="flex items-center gap-2">
+                                    {!isProtocoloFinalizado && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setShowOcrScanner(!showOcrScanner)}
+                                            disabled={submittingPasso2}
+                                        >
+                                            <Camera className="w-4 h-4 mr-1" />
+                                            Escanear
+                                            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">Beta</Badge>
+                                        </Button>
+                                    )}
                                     <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">
                                         <CheckCircle className="w-3 h-3 mr-1" />
                                         {statsPasso2.confirmadas} aptas

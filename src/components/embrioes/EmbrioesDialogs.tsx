@@ -443,7 +443,7 @@ export function HistoricoSheet({
                       {/* Timeline dot */}
                       <div className={`
                         relative z-10 flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                        ${index === 0 ? 'bg-card border-2 border-primary' : 'bg-card border border-border'}
+                        ${index === 0 ? 'glass-panel border-2 border-primary' : 'glass-panel border border-border'}
                       `}>
                         <span className="text-sm">{config.icon}</span>
                       </div>

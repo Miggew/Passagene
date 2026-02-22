@@ -7,8 +7,7 @@ import {
     ArrowRightLeft,
     TestTube,
     Syringe,
-    History,
-    Bell,
+    History
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { CowIcon } from '@/components/icons/CowIcon';
@@ -69,19 +68,6 @@ export default function CampoHome() {
                     color="slate"
                 />
             </div>
-
-            {/* Seção de Avisos (placeholder para Fase 5) */}
-            <Card>
-                <CardContent className="py-8">
-                    <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground rounded-lg p-8">
-                        <Bell className="w-8 h-8 opacity-40" />
-                        <p className="text-sm font-medium">Nenhum aviso pendente — tudo em dia!</p>
-                        <p className="text-xs opacity-60">
-                            Futuramente: DGs pendentes, protocolos vencendo, receptoras prontas
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }

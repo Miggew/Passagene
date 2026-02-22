@@ -523,7 +523,7 @@ export default function ProtocoloDetail() {
               {/* Mobile: Cards */}
               <div className="md:hidden space-y-3">
                 {receptoras.map((r) => (
-                  <div key={r.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={r.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-base font-medium text-foreground">{r.identificacao}</span>
                       <Badge variant="secondary">

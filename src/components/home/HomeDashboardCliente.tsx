@@ -718,7 +718,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
       })()}
 
       {/* ── B: MEU REBANHO ── */}
-      <div className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+      <div className="rounded-xl border border-border glass-panel px-4 py-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/15 flex items-center justify-center">
             <Beef className="w-5 h-5 text-primary" />
@@ -760,7 +760,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
             <div className="w-1 h-5 rounded-full bg-primary/50" />
             <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Últimos Resultados</span>
           </div>
-          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm flex-1">
+          <div className="rounded-xl border border-border glass-panel overflow-hidden shadow-sm flex-1">
             {quadrosServico.map((q, idx) => {
               const cores = colorMap[q.color];
               const Icon = q.icon;

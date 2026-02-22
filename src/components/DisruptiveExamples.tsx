@@ -102,7 +102,7 @@ export default function DisruptiveExamples() {
                         <p className="text-sm text-muted-foreground">Substituindo o padrão de "quadrados arredondados" em menus por formas assimétricas que respiram constantemente.</p>
                     </div>
 
-                    <div className="bg-slate-50 dark:bg-card border-2 border-primary-200/50 rounded-2xl p-12 flex flex-col md:flex-row justify-center gap-16 items-center shadow-sm">
+                    <div className="bg-slate-50 dark:glass-panel border-2 border-primary-200/50 rounded-2xl p-12 flex flex-col md:flex-row justify-center gap-16 items-center shadow-sm">
 
                         <style>{`
               @keyframes blob-breathe {

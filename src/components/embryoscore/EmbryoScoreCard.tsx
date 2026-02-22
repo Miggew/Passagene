@@ -105,7 +105,7 @@ function V2Header({ score }: { score: EmbryoScore }) {
       <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
         <span className={`font-mono text-sm font-bold leading-none ${clsColor}`}>{cls}</span>
         {score.combined_confidence != null && (
-          <span className="text-[8px] text-muted-foreground leading-none mt-0.5">
+          <span className={`text-[10px] font-mono leading-none mt-0.5 font-bold ${score.combined_confidence >= 80 ? 'text-green drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]' : 'text-amber-500'}`}>
             {score.combined_confidence}%
           </span>
         )}
@@ -183,7 +183,7 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
           <span>💡 Classificador sugere:</span>
           <span className="font-mono font-bold">{score.mlp_classification}</span>
           {score.mlp_confidence != null && (
-            <span className="text-xs text-muted-foreground">({score.mlp_confidence}%)</span>
+            <span className={`text-[10px] font-mono ml-1 font-bold ${score.mlp_confidence >= 80 ? 'text-green drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]' : 'text-amber-500'}`}>({score.mlp_confidence}%)</span>
           )}
         </div>
       )}
@@ -207,7 +207,7 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
             <Eye className="w-3.5 h-3.5 text-primary/60" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Gemini IA</span>
             {score.ai_confidence != null && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
+              <span className={`text-[10px] font-mono ml-auto font-bold ${score.ai_confidence >= 0.8 ? 'text-green drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]' : 'text-amber-500'}`}>
                 Confiança: {Math.round(score.ai_confidence * 100)}%
               </span>
             )}
@@ -224,12 +224,11 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
                     {STAGE_LABELS[score.stage_code] || `Estágio ${score.stage_code}`}
                   </span>
                   {score.quality_grade != null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      score.quality_grade === 1 ? 'bg-green-500/10 text-green-600' :
-                      score.quality_grade === 2 ? 'bg-emerald-500/10 text-emerald-600' :
-                      score.quality_grade === 3 ? 'bg-amber-500/10 text-amber-600' :
-                      'bg-red-500/10 text-red-600'
-                    }`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${score.quality_grade === 1 ? 'bg-green-500/10 text-green-600' :
+                        score.quality_grade === 2 ? 'bg-emerald-500/10 text-emerald-600' :
+                          score.quality_grade === 3 ? 'bg-amber-500/10 text-amber-600' :
+                            'bg-red-500/10 text-red-600'
+                      }`}>
                       {QUALITY_LABELS[score.quality_grade] || `Grau ${score.quality_grade}`}
                     </span>
                   )}

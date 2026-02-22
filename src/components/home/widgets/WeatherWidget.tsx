@@ -45,7 +45,7 @@ export function WeatherWidget({ compact = false }: { compact?: boolean }) {
 
     if (loading) {
         return (
-            <Card className="h-full bg-card border-border p-5 flex items-center justify-center">
+            <Card className="h-full glass-panel border-border p-5 flex items-center justify-center">
                 <LoadingInline text="Lendo atmosfera..." />
             </Card>
         );
@@ -60,7 +60,7 @@ export function WeatherWidget({ compact = false }: { compact?: boolean }) {
             : 'Previsão indisponível no momento.';
 
         return (
-            <Card className="h-full min-h-0 bg-card border-border/50 p-3 flex flex-col justify-between shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
+            <Card className="h-full min-h-0 glass-panel border-border/50 p-3 flex flex-col justify-between shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
 
                 {/* Top: Location & Current Temp in a structured row */}
                 <div className="flex items-start justify-between z-10 shrink-0 mb-2">
@@ -96,7 +96,7 @@ export function WeatherWidget({ compact = false }: { compact?: boolean }) {
     }
 
     return (
-        <Card className="h-full bg-card border-border p-6 overflow-hidden flex flex-col">
+        <Card className="h-full glass-panel border-border p-6 overflow-hidden flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <div className="flex items-center gap-2 mb-1">

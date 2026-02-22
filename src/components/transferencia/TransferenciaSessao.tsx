@@ -1,3 +1,4 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Select,
     SelectContent,
@@ -10,8 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { MapPin, Package, AlertTriangle, Play, CheckCircle } from "lucide-react";
+import { MapPin, Package, AlertTriangle, Play, CheckCircle, Camera } from "lucide-react";
+import ReportScanner from '@/components/escritorio/ReportScanner';
+import OcrReviewGrid from '@/components/escritorio/OcrReviewGrid';
+import { useCloudRunOcr } from '@/hooks/escritorio/useCloudRunOcr';
+import { useReportImports } from '@/hooks/escritorio/useReportImports';
+import { useToast } from '@/hooks/use-toast';
+import type { OcrResult, OcrRow } from '@/lib/types/escritorio';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import { useLastSelection } from '@/hooks/core/useLastSelection';
 import ReceptorasSelection from "@/components/transferencia/ReceptorasSelection";
 import EmbrioesTablePacote from "@/components/transferencia/EmbrioesTablePacote";
 import EmbrioesTableCongelados from "@/components/transferencia/EmbrioesTableCongelados";
@@ -89,16 +97,150 @@ export function TransferenciaSessao({
     onSelectEmbriao,
     submitting
 }: TransferenciaSessaoProps) {
+    const { toast } = useToast();
+    const [lastFazenda, saveLastFazenda] = useLastSelection('ultima-fazenda');
+    const didPrePopulateFazenda = useRef(false);
+
+    // Pre-populate fazenda from last selection (cross-module)
+    useEffect(() => {
+        if (didPrePopulateFazenda.current) return;
+        if (!fazendas?.length) return;
+        didPrePopulateFazenda.current = true;
+        if (lastFazenda && !formData.fazenda_id) {
+            const existe = fazendas.some(f => f.id === lastFazenda);
+            if (existe) handleFazendaChange(lastFazenda);
+        }
+    }, [fazendas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── OCR state ──
+    const [showOcrScanner, setShowOcrScanner] = useState(false);
+    const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+    const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
+
+    const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
+        reportType: 'te',
+        fazendaId: formData.fazenda_id,
+    });
+    const { createImport } = useReportImports(formData.fazenda_id);
+
+    const handleOcrResult = useCallback((result: unknown) => {
+        setOcrResult(result as OcrResult);
+    }, []);
+
+    const handleOcrImageUrl = useCallback((url: string) => {
+        setOcrImageUrl(url);
+    }, []);
+
+    /** TE OCR confirm — informational reference, shows matched pairs */
+    const handleOcrConfirm = useCallback((rows: OcrRow[]) => {
+        let matched = 0;
+        rows.forEach(row => {
+            const registro = (row.registro.matched_value || row.registro.value || '').trim().toUpperCase();
+            if (!registro) return;
+
+            const receptora = receptoras.find(r =>
+                r.brinco.toUpperCase().trim() === registro ||
+                (r.identificacao && r.identificacao.toUpperCase().trim() === registro)
+            );
+            if (receptora) matched++;
+        });
+
+        toast({
+            title: 'Relatório TE digitalizado',
+            description: `${rows.length} linha(s) extraída(s), ${matched} receptora(s) encontrada(s) no lote atual.`,
+        });
+
+        createImport({
+            report_type: 'te',
+            fazenda_id: formData.fazenda_id,
+            extracted_data: ocrResult as unknown as Record<string, unknown>,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+        }).catch(() => { /* non-critical */ });
+
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        setShowOcrScanner(false);
+        resetOcr();
+    }, [receptoras, toast, resetOcr, createImport, formData.fazenda_id, ocrResult]);
+
+    const handleOcrCancel = useCallback(() => {
+        setOcrResult(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+    }, [resetOcr]);
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+        <div className="space-y-4">
+            {/* ── OCR Scanner Panel ── */}
+            {showOcrScanner && !ocrResult && formData.fazenda_id && (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Camera className="w-4 h-4" />
+                            Escanear Relatório TE
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0">Beta</Badge>
+                        </CardTitle>
+                        <CardDescription>
+                            Tire uma foto do relatório de transferência para digitalizar os dados
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ReportScanner
+                            uploadAndProcess={processFile}
+                            onResult={handleOcrResult}
+                            onImageUrl={handleOcrImageUrl}
+                            disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
+                        />
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* ── OCR Review Grid ── */}
+            {ocrResult && ocrResult.rows.length > 0 && (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Revisar Dados Extraídos</CardTitle>
+                        <CardDescription>
+                            Confira os dados do relatório de transferência
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <OcrReviewGrid
+                            rows={ocrResult.rows}
+                            imageUrl={ocrImageUrl}
+                            onSave={handleOcrConfirm}
+                            onCancel={handleOcrCancel}
+                            columns={['registro', 'resultado', 'obs']}
+                            resultadoLabel="Embrião"
+                        />
+                    </CardContent>
+                </Card>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
             {/* Coluna da Esquerda: Seleção e Receptoras */}
             <div className="lg:col-span-4 space-y-4">
                 <Card className="border-border shadow-sm">
                     <CardHeader className="pb-3 bg-muted/30">
-                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-primary" />
-                            Local e Origem
+                        <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-primary" />
+                                Local e Origem
+                            </div>
+                            {formData.fazenda_id && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowOcrScanner(!showOcrScanner)}
+                                    disabled={submitting}
+                                    className="h-7"
+                                >
+                                    <Camera className="w-3.5 h-3.5 mr-1" />
+                                    Escanear
+                                    <Badge variant="outline" className="ml-1 text-[8px] px-1 py-0">Beta</Badge>
+                                </Button>
+                            )}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-4">
@@ -112,7 +254,10 @@ export function TransferenciaSessao({
                                     </Badge>
                                 )}
                             </Label>
-                            <Select value={formData.fazenda_id} onValueChange={handleFazendaChange}>
+                            <Select value={formData.fazenda_id} onValueChange={(value) => {
+                                handleFazendaChange(value);
+                                saveLastFazenda(value);
+                            }}>
                                 <SelectTrigger className={`h-11 md:h-10 ${formData.fazenda_id ? 'border-primary/50 bg-primary/5' : ''}`}>
                                     <SelectValue placeholder="Selecione a fazenda..." />
                                 </SelectTrigger>
@@ -281,6 +426,7 @@ export function TransferenciaSessao({
                     </div>
                 )}
             </div>
+        </div>
         </div>
     );
 }

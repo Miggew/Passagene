@@ -81,7 +81,7 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setExpandedWidget(null)}>
             <motion.div
               layoutId={`widget-${expandedWidget}`}
-              className="w-full max-w-4xl h-[80vh] bg-card rounded-2xl border border-border overflow-hidden relative shadow-2xl"
+              className="w-full max-w-4xl h-[80vh] glass-panel rounded-2xl border border-border overflow-hidden relative shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <button

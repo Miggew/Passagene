@@ -543,7 +543,7 @@ export default function DosesSemen() {
               <EmptyState title="Nenhuma dose cadastrada" description="Cadastre a primeira dose para começar." />
             ) : (
               dosesFiltradas.map((dose) => (
-                <div key={dose.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                <div key={dose.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-medium text-base truncate">{dose.touro_nome || '-'}</span>
                     {dose.tipo_semen && <Badge variant="secondary">{dose.tipo_semen}</Badge>}

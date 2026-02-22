@@ -129,7 +129,7 @@ function CustomTooltip({ active, payload }: any) {
   const colors = getScoreColor(data.embryo_score);
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
+    <div className="glass-panel border border-border rounded-lg shadow-lg p-3 text-xs">
       <div className="flex items-center gap-2 mb-1.5">
         <div className={`w-6 h-6 rounded ${colors.bg} flex items-center justify-center`}>
           <span className={`text-[10px] font-bold ${colors.text}`}>{Math.round(data.embryo_score)}</span>
@@ -198,7 +198,7 @@ export function ScorePregnancyCorrelation() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card p-6">
+      <div className="rounded-xl border border-border/60 glass-panel p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-5 bg-muted rounded w-48" />
           <div className="h-[250px] bg-muted/50 rounded-lg" />
@@ -209,7 +209,7 @@ export function ScorePregnancyCorrelation() {
 
   if (!correlationData.length) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/60 glass-panel overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
           <div className="w-1 h-5 rounded-full bg-primary/50" />
           <TrendingUp className="w-4 h-4 text-primary/60" />
@@ -229,7 +229,7 @@ export function ScorePregnancyCorrelation() {
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+    <div className="rounded-xl border border-border/60 glass-panel overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
         <div className="w-1 h-5 rounded-full bg-primary/50" />

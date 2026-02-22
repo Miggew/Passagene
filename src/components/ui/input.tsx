@@ -8,8 +8,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
       <input
         type={type}
         className={cn(
-          // Base: rounded-lg (8px), shadow-sm, transições
-          'flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground shadow-sm ring-offset-background transition-all duration-200',
+          // Base: rounded-xl (12px), shadow-brutal-sm, 2px border
+          'flex h-10 w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-base text-foreground shadow-brutal-sm ring-offset-background transition-all duration-200',
           // File input
           'file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground',
           // Placeholder

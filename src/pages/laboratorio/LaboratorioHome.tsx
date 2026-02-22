@@ -10,9 +10,7 @@ import {
     Snowflake,
     ArrowRightLeft,
     ChevronRight,
-    CalendarDays,
-    Microscope,
-    Baby
+    Microscope
 } from 'lucide-react';
 import { useEmbryoScoreStats } from '@/components/admin/AdminEmbryoScoreTab';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -61,9 +59,9 @@ export default function LaboratorioHome() {
                 />
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+            <div className="grid gap-6">
                 {/* EmbryoScore Status Widget */}
-                <Card className="col-span-4 border-l-4 border-l-violet-500">
+                <Card className="border-l-4 border-l-violet-500 shadow-brutal-sm border-2 border-border rounded-xl">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Microscope className="w-5 h-5 text-violet-600" />
@@ -93,7 +91,7 @@ export default function LaboratorioHome() {
                                 </div>
                                 <div className="flex flex-col p-3 bg-muted/30 rounded-lg">
                                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Hoje</span>
-                                    <span className="text-2xl font-bold text-foreground">{stats?.totalScores || 0}</span> {/* Placeholder: totalScores is actually ALL time, need daily stats later */}
+                                    <span className="text-2xl font-bold text-foreground">{stats?.totalScores || 0}</span>
                                 </div>
                                 <div className="flex flex-col p-3 bg-muted/30 rounded-lg">
                                     <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Média</span>
@@ -108,57 +106,7 @@ export default function LaboratorioHome() {
                         </div>
                     </CardContent>
                 </Card>
-
-                {/* Calendar / Reminder Widget (Placeholder) */}
-                <Card className="col-span-3">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <CalendarDays className="w-5 h-5 text-amber-500" />
-                            Agenda do Dia
-                        </CardTitle>
-                        <CardDescription>
-                            Atividades previstas para hoje
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">Aspiração (Fazenda Sta. Luzia)</p>
-                                    <p className="text-xs text-muted-foreground">08:00 - Veterinário João</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                                <div className="w-2 h-2 rounded-full bg-green-500" />
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">Transferência (Retiro Novo)</p>
-                                    <p className="text-xs text-muted-foreground">14:00 - 15 receptoras</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-center py-4 text-xs text-muted-foreground">
-                                Todas as atividades em dia
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
-
-            {/* Nascimento Forecast? Just an idea for Lab */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Baby className="w-5 h-5 text-pink-500" />
-                        Previsão de Nascimentos
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-sm text-muted-foreground flex items-center justify-center p-8 border-2 border-dashed rounded-lg">
-                        Gráfico de previsões em desenvolvimento...
-                    </div>
-                </CardContent>
-            </Card>
-
         </div>
     );
 }

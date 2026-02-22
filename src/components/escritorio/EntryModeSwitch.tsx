@@ -15,7 +15,7 @@ export default function EntryModeSwitch({ mode, onChange }: EntryModeSwitchProps
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
           mode === 'ocr'
-            ? 'bg-card text-foreground shadow-sm'
+            ? 'glass-panel text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -27,7 +27,7 @@ export default function EntryModeSwitch({ mode, onChange }: EntryModeSwitchProps
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
           mode === 'manual'
-            ? 'bg-card text-foreground shadow-sm'
+            ? 'glass-panel text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground',
         )}
       >

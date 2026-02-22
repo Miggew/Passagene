@@ -245,8 +245,9 @@ export function LoteDetailView({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 md:gap-4">
-        <Button variant="ghost" size="sm" onClick={handleBackClick} className="shrink-0" aria-label="Voltar">
-          <ArrowLeft className="w-4 h-4" />
+        <Button variant="ghost" size="sm" onClick={handleBackClick} className="shrink-0">
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          <span className="hidden sm:inline">Voltar</span>
         </Button>
         <div className="min-w-0">
           <h1 className="text-xl md:text-3xl font-bold text-foreground">Detalhes do Lote FIV</h1>
@@ -447,7 +448,7 @@ export function LoteDetailView({
                   return (
                     <div
                       key={acasalamento.id}
-                      className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden"
+                      className="rounded-xl border border-border/60 glass-panel shadow-sm overflow-hidden"
                     >
                       {/* Header do card - sempre visível */}
                       <button

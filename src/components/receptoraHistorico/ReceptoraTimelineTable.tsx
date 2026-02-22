@@ -41,7 +41,7 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
 
   if (historico.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-lg border border-border glass-panel p-4">
         <div className="flex items-center gap-2 mb-3">
           <History className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Linha do Tempo</span>
@@ -55,7 +55,7 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
   }
 
   return (
-    <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
+    <div className="rounded-xl border border-border/50 shadow-sm glass-panel overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b border-border">
         <div className="flex items-center gap-2">

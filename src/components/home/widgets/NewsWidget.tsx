@@ -99,7 +99,7 @@ export function NewsWidget({ compact = false }: { compact?: boolean }) {
     }
 
     return (
-        <Card className="h-full bg-card border-border p-6 overflow-hidden flex flex-col relative">
+        <Card className="h-full glass-panel border-border p-6 overflow-hidden flex flex-col relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl -z-0" />
 
             <div className="flex justify-between items-center mb-6 z-10">
@@ -134,7 +134,7 @@ export function NewsWidget({ compact = false }: { compact?: boolean }) {
                     </div>
                 ) : (
                     news.map((item, i) => (
-                        <div key={i} className="p-4 rounded-xl bg-card border border-border hover:border-purple-500/30 transition-all group">
+                        <div key={i} className="p-4 rounded-xl glass-panel border border-border hover:border-purple-500/30 transition-all group">
                             <div className="flex items-start justify-between mb-2">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">
                                     {item.category}

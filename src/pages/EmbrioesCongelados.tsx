@@ -31,7 +31,8 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Eye, Snowflake, Download, Filter, X } from 'lucide-react';
+import { Eye, Snowflake, Download, Filter, X } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 
 interface Cliente {
   id: string;
@@ -414,13 +415,11 @@ export default function EmbrioesCongelados() {
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative w-full md:w-auto md:flex-1 md:min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+            <div className="w-full md:w-auto md:flex-1 md:min-w-[200px]">
+              <SearchInput
                 placeholder="Buscar embrião..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-11 md:h-9"
+                onChange={setSearchTerm}
               />
             </div>
           </div>
@@ -548,7 +547,7 @@ export default function EmbrioesCongelados() {
                 return (
                   <div
                     key={embriao.id}
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/50"
                     onClick={() => setEmbriaoDetalhe(embriao)}
                   >
                     <div className="flex items-center justify-between mb-1.5">

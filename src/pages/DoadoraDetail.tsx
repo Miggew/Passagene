@@ -418,7 +418,7 @@ export default function DoadoraDetail() {
 
       {/* Tabs: Histórico e Edição (edição oculta para clientes) */}
       {!isCliente ? (
-        <div className="rounded-xl border border-border bg-card p-1.5">
+        <div className="rounded-xl border border-border glass-panel p-1.5">
           <div className="flex gap-1">
             <button
               onClick={() => setActiveTab('historico')}
@@ -493,7 +493,7 @@ export default function DoadoraDetail() {
                 {/* Mobile: Cards */}
                 <div className="md:hidden space-y-3">
                   {aspiracoes.map((asp) => (
-                    <div key={asp.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                    <div key={asp.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-foreground">{formatDate(asp.data_aspiracao)}</span>
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
@@ -560,8 +560,7 @@ export default function DoadoraDetail() {
                         key={asp.id}
                         className={`
                           group grid grid-cols-[90px_50px_60px_45px_45px_45px_45px_1fr_1fr] items-center transition-all duration-150
-                          hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                          ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                          hover:bg-muted/50
                         `}
                       >
                         {/* Data */}

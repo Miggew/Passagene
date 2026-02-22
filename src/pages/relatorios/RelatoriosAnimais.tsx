@@ -161,7 +161,7 @@ export default function RelatoriosAnimais() {
 
     // Filtrar por fazenda se necessário
     let result = receptorasData.map(r => {
-      const fazendaInfo = r.fazendas as { id: string; nome: string } | null;
+      const fazendaInfo = r.fazendas as unknown as { id: string; nome: string } | null;
       return {
         id: r.id,
         identificacao: r.identificacao,
@@ -246,7 +246,7 @@ export default function RelatoriosAnimais() {
           nome: d.nome,
           raca: d.raca,
           fazenda_id: d.fazenda_id,
-          fazenda_nome: (d.fazendas as { nome: string } | null)?.nome ?? 'N/A',
+          fazenda_nome: (d.fazendas as unknown as { nome: string } | null)?.nome ?? 'N/A',
           disponivel_aspiracao: d.disponivel_aspiracao,
           classificacao_genetica: d.classificacao_genetica,
           total_aspiracoes: stats?.count ?? 0,
@@ -373,7 +373,7 @@ export default function RelatoriosAnimais() {
 
       {/* Tabs Premium */}
       <Tabs value={tipoAnimal} onValueChange={handleTabChange}>
-        <div className="rounded-xl border border-border bg-card p-1.5">
+        <div className="rounded-xl border border-border glass-panel p-1.5">
           <div className="flex gap-1">
             {[
               { value: 'receptoras', label: 'Receptoras', icon: CowIcon },
@@ -412,7 +412,7 @@ export default function RelatoriosAnimais() {
         </div>
 
         {/* Filtros Premium */}
-        <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
+        <div className="mt-4 rounded-xl border border-border glass-panel overflow-hidden">
           <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
             {/* Grupo: Busca */}
             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
@@ -586,11 +586,11 @@ export default function RelatoriosAnimais() {
         {/* Conteúdo das tabs */}
         <TabsContent value={tipoAnimal} className="mt-4">
           {loading ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+            <div className="rounded-xl border border-border glass-panel p-12 text-center text-muted-foreground">
               <LoadingSpinner />
             </div>
           ) : dadosFiltrados.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+            <div className="rounded-xl border border-border glass-panel p-12 text-center text-muted-foreground">
               Nenhum registro encontrado
             </div>
           ) : (
@@ -604,7 +604,7 @@ export default function RelatoriosAnimais() {
                       ? navigate(`/receptoras/${row.id}/historico`)
                       : navigate(`/doadoras/${row.id}`)
                     }
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -687,7 +687,7 @@ export default function RelatoriosAnimais() {
               </div>
 
               {/* Desktop Table */}
-              <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
+              <div className="hidden md:block rounded-xl border border-border glass-panel overflow-hidden">
                 {/* Header da tabela com gradiente */}
                 <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
                   <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${tipoAnimal === 'receptoras'
@@ -728,8 +728,7 @@ export default function RelatoriosAnimais() {
                       }
                       className={`
                       group grid gap-0 items-center cursor-pointer transition-all duration-150
-                      hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                      ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                      hover:bg-muted/50
                       ${tipoAnimal === 'receptoras'
                           ? 'grid-cols-[1.5fr_1fr_1.5fr_1fr_0.8fr_0.6fr]'
                           : 'grid-cols-[1fr_0.8fr_1fr_0.8fr_0.8fr_0.6fr_0.6fr_0.5fr]'

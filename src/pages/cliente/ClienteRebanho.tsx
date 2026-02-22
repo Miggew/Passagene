@@ -201,7 +201,7 @@ export default function ClienteRebanho() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Tabs premium com CountBadge */}
         {counts.totalDoadoras > 0 ? (
-          <div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+          <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
             <TabsList className="grid grid-cols-2 h-auto p-0 bg-transparent gap-1.5">
               <TabsTrigger
                 value="receptoras"
@@ -252,7 +252,7 @@ export default function ClienteRebanho() {
             </TabsList>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+          <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
             <div className="h-12 px-4 rounded-lg bg-muted/80 shadow-sm flex items-center justify-center gap-2">
               <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center border border-primary/20">
                 <Beef className="w-4 h-4 text-primary" />
@@ -272,7 +272,7 @@ export default function ClienteRebanho() {
             placeholder={activeTab === 'receptoras' ? 'Buscar por brinco...' : 'Buscar por nome ou registro...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-11 h-11 text-base rounded-xl border-border/60 bg-card shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+            className="pl-11 h-11 text-base rounded-xl border-border/60 glass-panel shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
           />
         </div>
 
@@ -282,7 +282,7 @@ export default function ClienteRebanho() {
           <div className="flex gap-2">
             {fazendas.length > 1 && (
               <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-                <SelectTrigger className="flex-1 h-10 rounded-xl border-border/60 bg-card shadow-sm">
+                <SelectTrigger className="flex-1 h-10 rounded-xl border-border/60 glass-panel shadow-sm">
                   <div className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-primary/70" />
                     <SelectValue placeholder="Todas fazendas" />
@@ -298,7 +298,7 @@ export default function ClienteRebanho() {
             )}
 
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className={cn('h-10 rounded-xl border-border/60 bg-card shadow-sm', fazendas.length > 1 ? 'flex-1' : 'w-full')}>
+              <SelectTrigger className={cn('h-10 rounded-xl border-border/60 glass-panel shadow-sm', fazendas.length > 1 ? 'flex-1' : 'w-full')}>
                 <div className="flex items-center gap-1.5">
                   <Filter className="w-3.5 h-3.5 text-primary/70" />
                   <SelectValue placeholder="Todas" />

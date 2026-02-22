@@ -31,18 +31,29 @@ export default function HomeDefault({ clienteIds }: HomeDefaultProps) {
                 <LogoPassagene height={44} variant="premium" />
             </div>
 
-            {/* Card de Saudação */}
-            <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-5 relative overflow-hidden">
-                {/* Decoração de fundo */}
-                <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+            {/* Brutalist Greeting Card (Elegant Brutalism Fusion) */}
+            <div className="rounded-2xl border-2 border-border glass-panel p-6 md:p-8 relative overflow-hidden shadow-brutal">
+                {/* 
+                    Genetic/Organic Flow Pattern inside the Brutalist Box 
+                    Creates the tension that defines "Elegant Brutalism" 
+                */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/15 via-primary/5 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-gradient-to-tr from-primary/10 to-transparent rounded-full blur-xl pointer-events-none" />
 
-                <div className="relative flex items-center gap-3">
-                    <div className="w-1 h-10 rounded-full bg-primary" />
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">
-                            {getSaudacao()}, {profile?.nome?.split(' ')[0] ?? 'Usuário'}
+                <div className="relative flex items-center gap-4 md:gap-6 z-10">
+                    {/* Brutalist Stripe Anchor */}
+                    <div className="w-1.5 h-14 md:h-16 rounded-full bg-primary shadow-[0_0_15px_rgba(9,201,114,0.4)]" />
+
+                    <div className="space-y-1">
+                        <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tight leading-none" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {getSaudacao()},{' '}
+                            <span className="text-primary bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-light mix-blend-plus-lighter drop-shadow-sm">
+                                {profile?.nome?.split(' ')[0] ?? 'Usuário'}
+                            </span>
                         </h1>
-                        <p className="text-sm text-muted-foreground">{getSubtitulo()}</p>
+                        <p className="text-sm md:text-base font-semibold text-muted-foreground/90 tracking-wide uppercase">
+                            {getSubtitulo()}
+                        </p>
                     </div>
                 </div>
             </div>

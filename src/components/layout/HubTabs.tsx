@@ -25,7 +25,7 @@ export default function HubTabs() {
   };
 
   return (
-    <header className="bg-card border-b border-border">
+    <header className="glass-panel border-b border-border">
       <div className="flex items-center justify-between">
         {/* Lado esquerdo: Logo + Tabs */}
         <div className="flex items-center">

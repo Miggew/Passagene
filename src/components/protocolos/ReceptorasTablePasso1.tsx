@@ -37,7 +37,7 @@ export function ReceptorasTablePasso1({
                     const stats = r.historicoStats;
 
                     return (
-                        <div key={rowKey} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                        <div key={rowKey} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">

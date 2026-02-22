@@ -16,7 +16,7 @@ export default function AppErrorFallback({ error, resetErrorBoundary }: Fallback
 
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center p-6">
-      <div className="max-w-lg w-full bg-card border border-border rounded-2xl p-6 shadow-md">
+      <div className="max-w-lg w-full glass-panel border border-border rounded-2xl p-6 shadow-md">
         <h1 className="font-heading text-xl font-semibold text-foreground">Algo deu errado</h1>
         <p className="text-sm text-muted-foreground mt-2">
           Ocorreu um erro inesperado ao carregar esta página.

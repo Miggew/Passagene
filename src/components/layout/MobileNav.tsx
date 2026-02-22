@@ -54,76 +54,56 @@ function BarItem({ route, pathname, icon, label, isActive: forceActive }: BarIte
     <Link
       to={route}
       className={cn(
-        'flex flex-col items-center justify-center flex-1 h-full py-2 rounded-2xl mx-0.5 transition-all relative',
-        active ? 'text-primary' : 'text-muted-foreground'
+        'group flex flex-col items-center justify-center flex-1 h-full py-2 rounded-xl mx-0.5 transition-all relative',
+        active
+          ? 'text-gold'
+          : 'text-muted-foreground hover:text-foreground'
       )}
     >
-      <Icon className={cn('w-5 h-5 mb-1 transition-transform', active && 'scale-110')} />
-      <span className="text-[10px] font-bold tracking-tight truncate max-w-[90%]">{displayLabel}</span>
-      {active && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
+      <Icon className={cn('w-5 h-5 mb-1 transition-transform', active ? 'scale-110 text-foreground' : 'text-muted-foreground group-hover:scale-110 group-hover:text-foreground')} />
+      <span className={cn("text-[10px] tracking-tight truncate max-w-[90%]", active ? "font-bold text-foreground" : "font-medium text-muted-foreground group-hover:text-foreground")}>{displayLabel}</span>
+      {active && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-foreground" />}
     </Link>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Fundo Orgânico Compartilhado (Membrana Curva Perfeita)
+// Fundo Brutalista + Orgânico (Multi-Hub)
 // ═══════════════════════════════════════════════════════════════════
 
 function CurvedBottomNavBackground() {
   return (
-    <div className="absolute bottom-0 w-full h-[88px] overflow-hidden pointer-events-auto rounded-t-3xl md:rounded-2xl" style={{ filter: 'drop-shadow(0px -4px 12px rgba(0,0,0,0.05))' }}>
-      {/* 2000px wide SVG mapped down with xMidYMin slice avoids tablet distortion */}
+    <div className="absolute bottom-0 w-full h-[88px] overflow-hidden pointer-events-none z-0">
+      {/* SVG Background matching tailwind card / brutalist background */}
       <svg
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 min-w-[2000px] h-[88px]"
-        viewBox="0 0 2000 88"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="xMidYMin slice"
+        className="absolute bottom-0 w-full h-full text-card drop-shadow-[0_-5px_20px_rgba(0,0,0,0.5)] md:drop-shadow-[0_-5px_20px_rgba(0,0,0,0.15)]"
+        viewBox="0 0 400 88"
+        preserveAspectRatio="none"
+        fill="currentColor"
       >
-        {/* Curva geométrica precisa: afunda para "abraçar" uma bola de 64x64px com 6px de gap. */}
-        <path
-          d="M0 16 H 930 C 960 16, 960 66, 1000 66 C 1040 66, 1040 16, 1070 16 H 2000 V 88 H 0 Z"
-          className="fill-card opacity-95 backdrop-blur-md"
-        />
+        {/* Smooth organic cutout curve for the FAB. Hard top border line created with a separate path to simulate border-top for Brutalism */}
+        <path d="M0,20 C0,20 120,20 150,20 C165,20 170,55 200,55 C230,55 235,20 250,20 C280,20 400,20 400,20 L400,88 L0,88 Z" />
+        <path d="M0,20 C0,20 120,20 150,20 C165,20 170,55 200,55 C230,55 235,20 250,20 C280,20 400,20 400,20" stroke="hsl(var(--border))" strokeWidth="2" fill="none" />
       </svg>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ClienteBottomBar — curva orgânica + FAB central (AI Chat)
+// ClienteBottomBar (Single Hub) — Apenas FAB Flutuante Brutalista
 // ═══════════════════════════════════════════════════════════════════
 
 function ClienteBottomBar() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const leftRoutes = CLIENTE_NAV_ROUTES.slice(0, 2);
-  const rightRoutes = CLIENTE_NAV_ROUTES.slice(2, 4);
-
+  // Para Single-Hub, removemos totalmente a barra inferior
+  // O menu fica no Header. Aqui, mantemos apenas a IA flutuando isolada.
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none md:bottom-2 md:max-w-2xl md:mx-auto">
-      <CurvedBottomNavBackground />
-
-      {/* FAB Central: AI Chat */}
-      <div className="absolute bottom-[28px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-20">
-        <VoiceFAB size="xl" />
+      {/* Floating AI FAB isolated on the bottom right */}
+      <div className="absolute bottom-[28px] right-[24px] md:right-0 pointer-events-auto z-20 group">
+        <VoiceFAB size="lg" />
       </div>
-
-      {/* Itens de Navegação (2 + espaço + 2) */}
-      <div className="relative z-10 flex items-center justify-between h-[88px] px-2 pb-2 pointer-events-auto">
-        <div className="flex h-full flex-1 pt-2">
-          {leftRoutes.map((route) => (
-            <BarItem key={route} route={route} pathname={location.pathname} />
-          ))}
-        </div>
-        <div className="w-[100px] shrink-0" />
-        <div className="flex h-full flex-1 pt-2">
-          {rightRoutes.map((route) => (
-            <BarItem key={route} route={route} pathname={location.pathname} />
-          ))}
-        </div>
-      </div>
+      {/* Glow Sub-shadow matching proto */}
+      <div className="absolute bottom-[36px] right-[32px] md:right-2 w-8 h-8 bg-primary rounded-full blur-[30px] opacity-60 z-10 pointer-events-none"></div>
     </nav>
   );
 }
@@ -165,9 +145,9 @@ function StandardBottomBar() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none md:bottom-2 md:max-w-3xl md:mx-auto">
       <CurvedBottomNavBackground />
 
-      {/* FAB Central Global: Consultor IA */}
-      <div className="absolute bottom-[28px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50">
-        <VoiceFAB size="xl" />
+      {/* FAB Central Global: Consultor IA (Centered in cutout) */}
+      <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50">
+        <VoiceFAB size="lg" isBrutalistCenter />
       </div>
 
       {/* Itens de Navegação */}

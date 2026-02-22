@@ -3,7 +3,7 @@
  * Extraído de LotesFIV.tsx para melhor organização
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { DoseSemen, Fazenda, Cliente, AspiracaoDoadora, Doadora, LoteFIV } from '@/lib/types';
@@ -28,6 +28,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Check, ChevronsUpDown, X } from 'lucide-react';
 import { formatDate, cn } from '@/lib/utils';
@@ -110,6 +111,22 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
     }
   };
 
+  // Auto-select quando há apenas 1 proprietário para o touro selecionado
+  useEffect(() => {
+    if (!touroSelecionadoId || doses.length === 0) return;
+
+    const dosesDoTouro = doses.filter((d) => (d.touro_id || 'sem-touro') === touroSelecionadoId);
+    if (dosesDoTouro.length === 1) {
+      const doseId = dosesDoTouro[0].id;
+      if (!formData.doses_selecionadas.includes(doseId)) {
+        setFormData((prev) => ({
+          ...prev,
+          doses_selecionadas: [...prev.doses_selecionadas, doseId],
+        }));
+      }
+    }
+  }, [touroSelecionadoId, doses]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -129,6 +146,13 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
         variant: 'destructive',
       });
       return;
+    }
+
+    if (formData.doses_selecionadas.length === 0) {
+      toast({
+        title: 'Atenção',
+        description: 'Nenhuma dose de sêmen selecionada. Selecione ao menos uma dose ou continue sem.',
+      });
     }
 
     try {
@@ -162,15 +186,8 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
       // Calcular data_abertura = data do pacote + 1 dia
       const dataAbertura = addDays(selectedPacote.data_aspiracao, 1);
 
-      // Preparar dados do lote
-      const loteDataToInsert: {
-        pacote_aspiracao_id: string;
-        data_abertura: string;
-        data_fecundacao: string;
-        status: string;
-        observacoes: string | null;
-        doses_selecionadas?: string[];
-      } = {
+      // Preparar dados do lote (sem doses_selecionadas — campo pode não existir na tabela)
+      const loteDataToInsert = {
         pacote_aspiracao_id: formData.pacote_aspiracao_id,
         data_abertura: dataAbertura,
         data_fecundacao: dataAbertura,
@@ -178,43 +195,14 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
         observacoes: formData.observacoes || null,
       };
 
-      // Tentar adicionar doses_selecionadas apenas se houver doses selecionadas
-      if (formData.doses_selecionadas && formData.doses_selecionadas.length > 0) {
-        try {
-          loteDataToInsert.doses_selecionadas = formData.doses_selecionadas;
-        } catch {
-          // Campo doses_selecionadas não disponível
-        }
-      }
-
-      let loteData: LoteFIV;
-      const { data: loteDataInsert, error: loteError } = await supabase
+      const { data: loteData, error: loteError } = await supabase
         .from('lotes_fiv')
         .insert([loteDataToInsert])
         .select()
         .single();
 
       if (loteError) {
-        // Se o erro for relacionado ao campo doses_selecionadas, tentar novamente sem ele
-        if (loteError.message?.includes('doses_selecionadas') || loteError.code === '42703') {
-          delete loteDataToInsert.doses_selecionadas;
-
-          const { data: loteDataRetry, error: loteErrorRetry } = await supabase
-            .from('lotes_fiv')
-            .insert([loteDataToInsert])
-            .select()
-            .single();
-
-          if (loteErrorRetry) {
-            throw loteErrorRetry;
-          }
-
-          loteData = loteDataRetry;
-        } else {
-          throw loteError;
-        }
-      } else {
-        loteData = loteDataInsert;
+        throw loteError;
       }
 
       // Inserir fazendas destino do pacote no lote
@@ -308,11 +296,11 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
           <div className="space-y-2">
             <Label htmlFor="pacote_aspiracao_id">Pacote de Aspiração *</Label>
             {pacotes.length === 0 ? (
-              <div className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
-                <p className="text-sm text-yellow-800 font-medium mb-2">
+              <div className="border rounded-lg p-4 bg-warning/10 border-warning/30">
+                <p className="text-sm font-medium mb-2">
                   Nenhum pacote disponível
                 </p>
-                <p className="text-sm text-yellow-700">
+                <p className="text-sm text-muted-foreground">
                   Verifique se o pacote de aspiração está com status <strong>FINALIZADO</strong> e ainda não foi usado para criar um lote FIV.
                 </p>
               </div>
@@ -334,22 +322,20 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
               </Select>
             )}
             {selectedPacote && (
-              <div className="text-sm text-slate-600 space-y-1 mt-2 p-3 bg-slate-50 rounded-lg">
+              <div className="text-sm text-muted-foreground space-y-1 mt-2 p-3 bg-muted rounded-lg">
                 <p>
-                  <strong>Data do Pacote:</strong> {formatDate(selectedPacote.data_aspiracao)}
+                  <strong className="text-foreground">Data do Pacote:</strong> {formatDate(selectedPacote.data_aspiracao)}
                 </p>
                 <p>
-                  <strong>Data de Fecundação do Lote:</strong>{' '}
-                  {(() => {
-                    return formatDate(addDays(selectedPacote.data_aspiracao, 1));
-                  })()}
+                  <strong className="text-foreground">Data de Fecundação do Lote:</strong>{' '}
+                  {formatDate(addDays(selectedPacote.data_aspiracao, 1))}
                 </p>
                 <p>
-                  <strong>Fazendas Destino:</strong>{' '}
+                  <strong className="text-foreground">Fazendas Destino:</strong>{' '}
                   {selectedPacote.fazendas_destino_nomes?.join(', ') || 'Nenhuma'}
                 </p>
                 <p>
-                  <strong>Quantidade de Doadoras:</strong> {selectedPacote.quantidade_doadoras || 0}
+                  <strong className="text-foreground">Quantidade de Doadoras:</strong> {selectedPacote.quantidade_doadoras || 0}
                 </p>
               </div>
             )}
@@ -358,14 +344,14 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
           <div className="space-y-2">
             <Label>Doses de Sêmen Disponíveis no Lote</Label>
             {doses.length === 0 ? (
-              <div className="border rounded-lg p-4 bg-slate-50">
-                <p className="text-sm text-slate-500">
+              <div className="border rounded-lg p-4 bg-muted">
+                <p className="text-sm text-muted-foreground">
                   {selectedPacote ? 'Carregando doses...' : 'Selecione um pacote primeiro'}
                 </p>
               </div>
             ) : (
               <>
-                {/* Seleção em cascata: Touro -> Dono */}
+                {/* Seleção em cascata: Touro -> Proprietário */}
                 {(() => {
                   // Agrupar doses por touro
                   const dosesPorTouro = doses.reduce((acc, dose) => {
@@ -441,7 +427,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                                         )}
                                       </span>
                                       <span className="ml-auto text-xs text-muted-foreground">
-                                        {touro.doses.length} {touro.doses.length === 1 ? 'dono' : 'donos'}
+                                        {touro.doses.length} {touro.doses.length === 1 ? 'dose' : 'doses'}
                                       </span>
                                     </CommandItem>
                                   ))}
@@ -452,22 +438,24 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                         </Popover>
                       </div>
 
-                      {/* Passo 2: Selecionar donos (checkboxes) */}
+                      {/* Passo 2: Selecionar proprietário do sêmen (checkboxes) */}
                       {touroSelecionadoId && dosesDoTouro.length > 0 && (
                         <div className="space-y-1.5">
-                          <span className="text-xs text-muted-foreground">2. Selecionar donos para adicionar</span>
-                          <div className="border rounded-lg p-3 bg-slate-50 space-y-2">
+                          <span className="text-xs text-muted-foreground">
+                            2. Selecionar proprietário do sêmen
+                            {dosesDoTouro.length === 1 && ' (auto-selecionado)'}
+                          </span>
+                          <div className="border border-border rounded-lg p-3 bg-muted space-y-2">
                             {dosesDoTouro.map((dose) => {
                               const cliente = clientes.find((c) => c.id === dose.cliente_id);
                               const isSelected = formData.doses_selecionadas.includes(dose.id);
                               return (
                                 <div key={dose.id} className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
+                                  <Checkbox
                                     id={`dose-${dose.id}`}
                                     checked={isSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
                                         setFormData({
                                           ...formData,
                                           doses_selecionadas: [...formData.doses_selecionadas, dose.id],
@@ -479,7 +467,6 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                                         });
                                       }
                                     }}
-                                    className="rounded"
                                   />
                                   <label htmlFor={`dose-${dose.id}`} className="text-sm cursor-pointer flex-1">
                                     {cliente?.nome || 'Sem cliente'}
@@ -500,7 +487,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                     <span className="text-xs text-muted-foreground">
                       Doses selecionadas ({formData.doses_selecionadas.length})
                     </span>
-                    <div className="border rounded-lg p-3 bg-green-50 border-green-200 space-y-1.5 max-h-40 overflow-y-auto">
+                    <div className="border border-border rounded-lg p-3 bg-success/10 space-y-1.5 max-h-40 overflow-y-auto">
                       {formData.doses_selecionadas.map((doseId) => {
                         const dose = doses.find((d) => d.id === doseId);
                         const cliente = dose ? clientes.find((c) => c.id === dose.cliente_id) : null;
@@ -510,9 +497,9 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                             <span>
                               <span className="font-medium">{dose.touro?.nome || 'Touro'}</span>
                               {dose.touro?.registro && (
-                                <span className="text-slate-500 ml-1">({dose.touro.registro})</span>
+                                <span className="text-muted-foreground ml-1">({dose.touro.registro})</span>
                               )}
-                              <span className="text-slate-500 ml-1">- {cliente?.nome || 'Sem cliente'}</span>
+                              <span className="text-muted-foreground ml-1">- {cliente?.nome || 'Sem cliente'}</span>
                             </span>
                             <button
                               type="button"
@@ -522,7 +509,7 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                                   doses_selecionadas: formData.doses_selecionadas.filter((id) => id !== doseId),
                                 });
                               }}
-                              className="text-red-500 hover:text-red-700 p-1"
+                              className="text-danger hover:text-danger/80 p-1"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -534,8 +521,8 @@ export function NovoLoteDialog({ pacotes, clientes, fazendas }: NovoLoteDialogPr
                 )}
               </>
             )}
-            <p className="text-xs text-slate-500">
-              Busque o touro e selecione de quais donos as doses estarão disponíveis neste lote
+            <p className="text-xs text-muted-foreground">
+              Busque o touro e selecione o proprietário do sêmen para este lote
             </p>
           </div>
 

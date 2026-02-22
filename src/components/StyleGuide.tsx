@@ -100,7 +100,7 @@ export default function StyleGuide() {
           <h2 className="font-heading text-2xl font-semibold border-b border-border pb-2">
             Logos
           </h2>
-          <div className="flex items-center gap-8 p-6 bg-card rounded-2xl border border-border shadow-sm">
+          <div className="flex items-center gap-8 p-6 glass-panel rounded-2xl border border-border shadow-sm">
             <div className="text-center">
               <img src={logoSimples} alt="Logo Simples" className="h-16 mx-auto mb-2" loading="lazy" />
               <span className="text-sm text-muted-foreground">Simples (mobile)</span>
@@ -191,7 +191,7 @@ export default function StyleGuide() {
               <p className="text-xs font-medium">Background</p>
             </div>
             <div className="space-y-2">
-              <div className="h-20 rounded-lg bg-card border border-border shadow-sm" />
+              <div className="h-20 rounded-lg glass-panel border border-border shadow-sm" />
               <p className="text-xs font-medium">Card</p>
             </div>
             <div className="space-y-2">
@@ -427,19 +427,19 @@ export default function StyleGuide() {
             Shadows & Border Radius
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="p-6 bg-card rounded-sm shadow-sm text-center">
+            <div className="p-6 glass-panel rounded-sm shadow-sm text-center">
               <p className="text-sm font-medium">rounded-sm</p>
               <p className="text-xs text-muted-foreground">shadow-sm</p>
             </div>
-            <div className="p-6 bg-card rounded-md shadow-md text-center">
+            <div className="p-6 glass-panel rounded-md shadow-md text-center">
               <p className="text-sm font-medium">rounded-md</p>
               <p className="text-xs text-muted-foreground">shadow-md</p>
             </div>
-            <div className="p-6 bg-card rounded-lg shadow-lg text-center">
+            <div className="p-6 glass-panel rounded-lg shadow-lg text-center">
               <p className="text-sm font-medium">rounded-lg</p>
               <p className="text-xs text-muted-foreground">shadow-lg</p>
             </div>
-            <div className="p-6 bg-card rounded-2xl shadow-xl text-center">
+            <div className="p-6 glass-panel rounded-2xl shadow-xl text-center">
               <p className="text-sm font-medium">rounded-2xl</p>
               <p className="text-xs text-muted-foreground">shadow-xl</p>
             </div>

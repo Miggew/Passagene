@@ -60,7 +60,7 @@ export function AnimalCard({
   return (
     <div
       onClick={handleClick}
-      className="group rounded-xl border border-border bg-card overflow-hidden hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 cursor-pointer"
+      className="group rounded-xl border border-border glass-panel overflow-hidden hover:border-foreground/30 hover:shadow-md transition-all duration-300 cursor-pointer"
     >
       {/* Imagem com badge de destaque */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
@@ -80,13 +80,13 @@ export function AnimalCard({
         {/* Badges superiores direita */}
         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
           {destaque && (
-            <div className="px-2 py-1 rounded-full bg-amber-500/90 text-white text-xs font-medium flex items-center gap-1 shadow-lg">
+            <div className="px-2 py-1 rounded-full bg-foreground text-background text-xs font-bold flex items-center gap-1 shadow-sm">
               <Star className="w-3 h-3 fill-current" />
               Destaque
             </div>
           )}
           {estoque !== undefined && estoque > 0 && (
-            <div className="px-2 py-1 rounded-full bg-emerald-500/90 text-white text-xs font-medium flex items-center gap-1 shadow-lg">
+            <div className="px-2 py-1 rounded-full bg-green text-[#080B0A] glow-green text-xs font-bold flex items-center gap-1 shadow-md">
               <Package className="w-3 h-3" />
               {estoque} {estoqueLabel}
             </div>
@@ -97,20 +97,19 @@ export function AnimalCard({
         <div className="absolute top-2 left-2">
           <Badge
             variant="outline"
-            className={`text-xs backdrop-blur-sm ${
-              tipo === 'doadora'
-                ? 'bg-pink-500/80 text-white border-pink-400'
-                : 'bg-blue-500/80 text-white border-blue-400'
-            }`}
+            className={`text-xs backdrop-blur-sm ${tipo === 'doadora'
+              ? 'bg-pink-500/80 text-white border-pink-400'
+              : 'bg-blue-500/80 text-white border-blue-400'
+              }`}
           >
             {tipo === 'doadora' ? 'Doadora' : 'Touro'}
           </Badge>
         </div>
 
         {/* Overlay com nome */}
-        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-3">
-          <p className="text-white font-semibold truncate">{displayNome}</p>
-          <p className="text-white/80 text-sm truncate">{registro}</p>
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#080B0A]/90 via-[#080B0A]/50 to-transparent p-3 pt-8">
+          <p className="text-white font-bold truncate text-base">{displayNome}</p>
+          <p className="text-muted-foreground font-mono text-xs truncate mt-0.5">{registro}</p>
         </div>
       </div>
 
@@ -155,17 +154,17 @@ export function AnimalCard({
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                   {tipo === 'doadora' ? 'Embrião' : 'Dose'} a partir de
                 </p>
-                <p className="text-lg font-bold text-primary">
+                <p className="text-xl font-mono font-bold text-gradient-logo">
                   {preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Consultar preço</p>
+              <p className="text-sm font-bold text-muted-foreground">Consultar</p>
             )}
           </div>
           <Button
             size="sm"
-            className="bg-primary hover:bg-primary/90 shadow-sm shadow-primary/25"
+            className="btn-primary-gold border-0"
           >
             Ver mais
           </Button>

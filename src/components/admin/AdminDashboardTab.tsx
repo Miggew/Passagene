@@ -119,16 +119,16 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Clientes */}
         <Card
-          className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
+          className="cursor-pointer transition-all border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none hover:border-primary/50"
           onClick={() => onNavigateToTab('clientes')}
         >
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
                 <Users className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Clientes</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Clientes</p>
                 <p className="text-2xl font-bold">{kpis.totalClientes}</p>
               </div>
             </div>
@@ -137,16 +137,16 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
 
         {/* Total Fazendas */}
         <Card
-          className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
+          className="cursor-pointer transition-all border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none hover:border-emerald-500/50"
           onClick={() => onNavigateToTab('fazendas')}
         >
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
                 <Home className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Fazendas</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Fazendas</p>
                 <p className="text-2xl font-bold">{kpis.totalFazendas}</p>
               </div>
             </div>
@@ -156,16 +156,16 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
         {/* Total Usuarios (admin only) */}
         {isAdmin && (
           <Card
-            className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
+            className="cursor-pointer transition-all border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none hover:border-violet-500/50"
             onClick={() => onNavigateToTab('usuarios')}
           >
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
                   <Shield className="w-5 h-5 text-violet-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Usuarios</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Usuarios</p>
                   <p className="text-2xl font-bold">{kpis.totalUsuarios}</p>
                 </div>
               </div>
@@ -176,16 +176,16 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
         {/* Usuarios Ativos (admin only) */}
         {isAdmin && (
           <Card
-            className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
+            className="cursor-pointer transition-all border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none hover:border-green-500/50"
             onClick={() => onNavigateToTab('usuarios')}
           >
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20">
                   <UserCheck className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Ativos</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Ativos</p>
                   <p className="text-2xl font-bold">{kpis.usuariosAtivos}</p>
                 </div>
               </div>
@@ -197,22 +197,22 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
       {/* Cards de distribuicao (admin only) */}
       {isAdmin && (
         <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="pt-4 text-center">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Admins</p>
-              <p className="text-xl font-bold text-primary">{kpis.usuariosAdmin}</p>
+          <Card className="border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none transition-all">
+            <CardContent className="pt-4 flex flex-col gap-1 items-start">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-bold">Admins</p>
+              <p className="text-3xl font-extrabold text-primary">{kpis.usuariosAdmin}</p>
             </CardContent>
           </Card>
-          <Card className="bg-sky-500/5 border-sky-500/20">
-            <CardContent className="pt-4 text-center">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Operacionais</p>
-              <p className="text-xl font-bold text-sky-600">{kpis.usuariosOperacional}</p>
+          <Card className="border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none transition-all">
+            <CardContent className="pt-4 flex flex-col gap-1 items-start">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-bold">Operacionais</p>
+              <p className="text-3xl font-extrabold text-sky-500">{kpis.usuariosOperacional}</p>
             </CardContent>
           </Card>
-          <Card className="bg-amber-500/5 border-amber-500/20">
-            <CardContent className="pt-4 text-center">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Clientes</p>
-              <p className="text-xl font-bold text-amber-600">{kpis.usuariosCliente}</p>
+          <Card className="border-2 border-border shadow-brutal-sm hover:translate-y-0.5 hover:shadow-none transition-all">
+            <CardContent className="pt-4 flex flex-col gap-1 items-start">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-bold">Clientes</p>
+              <p className="text-3xl font-extrabold text-amber-500">{kpis.usuariosCliente}</p>
             </CardContent>
           </Card>
         </div>
@@ -221,8 +221,8 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
       {/* Listas recentes */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Ultimos Clientes */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border flex items-center justify-between">
+        <div className="rounded-xl border-2 border-border glass-panel overflow-hidden shadow-brutal-sm">
+          <div className="px-4 py-3 glass-panel border-b-2 border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-primary/40" />
               <span className="text-sm font-semibold">Ultimos Clientes</span>
@@ -243,9 +243,7 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
               recentClientes.map((cliente, index) => (
                 <div
                   key={cliente.id}
-                  className={`group px-4 py-3 flex items-center justify-between transition-colors hover:bg-primary/5 ${
-                    index % 2 === 1 ? 'bg-muted/20' : ''
-                  }`}
+                  className="group px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/50"
                 >
                   <span className="font-medium text-sm group-hover:text-primary transition-colors truncate">
                     {cliente.nome}
@@ -260,8 +258,8 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
         </div>
 
         {/* Ultimas Fazendas */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border flex items-center justify-between">
+        <div className="rounded-xl border-2 border-border glass-panel overflow-hidden shadow-brutal-sm">
+          <div className="px-4 py-3 glass-panel border-b-2 border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-emerald-500/40" />
               <span className="text-sm font-semibold">Ultimas Fazendas</span>
@@ -282,9 +280,7 @@ export default function AdminDashboardTab({ onNavigateToTab }: Props) {
               recentFazendas.map((fazenda, index) => (
                 <div
                   key={fazenda.id}
-                  className={`group px-4 py-3 flex items-center justify-between transition-colors hover:bg-primary/5 ${
-                    index % 2 === 1 ? 'bg-muted/20' : ''
-                  }`}
+                  className="group px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/50"
                 >
                   <span className="font-medium text-sm group-hover:text-primary transition-colors truncate">
                     {fazenda.nome}

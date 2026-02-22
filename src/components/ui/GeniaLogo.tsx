@@ -22,7 +22,7 @@ export function GeniaLogo({
             {showText && (
                 <div className={cn("font-black tracking-tighter uppercase", isWhite ? "text-white" : "")} style={{ fontSize: size }}>
                     <span className={cn(isWhite ? "text-white" : "text-foreground")}>Gen</span>
-                    <span className={cn(isWhite ? "text-white/80" : "text-primary")}>.IA</span>
+                    <span className={cn(isWhite ? "text-white/80" : "")} style={!isWhite ? { background: 'linear-gradient(135deg, #34D399, #D4A24C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' } : {}}>.IA</span>
                 </div>
             )}
         </div>

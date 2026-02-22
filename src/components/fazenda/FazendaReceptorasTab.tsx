@@ -31,7 +31,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import StatusBadge from '@/components/shared/StatusBadge';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Edit, Search, History, ArrowRight, Baby, Filter, X } from 'lucide-react';
+import { Plus, Edit, History, ArrowRight, Baby, Filter, X } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import { formatStatusLabel } from '@/lib/statusLabels';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -174,13 +175,11 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
                 <Filter className="w-3.5 h-3.5" />
                 <span>Busca</span>
               </div>
-              <div className="relative flex-1 min-w-0 md:min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+              <div className="flex-1 min-w-0 md:min-w-[200px]">
+                <SearchInput
                   placeholder="Buscar por brinco ou nome..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-11 md:h-9"
+                  onChange={setSearchTerm}
                 />
               </div>
             </div>
@@ -304,7 +303,7 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
               {/* Mobile: Cards */}
               <div className="md:hidden space-y-3">
                 {filteredReceptoras.map((receptora) => (
-                  <div key={receptora.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={receptora.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <span className="text-base font-medium text-foreground">{receptora.identificacao}</span>

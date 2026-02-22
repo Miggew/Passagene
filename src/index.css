@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,177 +10,193 @@ html.font-grande {
 }
 
 @layer base {
+
   :root {
-    /* Background: Alabaster Puro (Minimalista, extremamente limpo) */
-    --background: 0 0% 98%;
+    /* Light Mode Backgrounds */
+    --bg-primary: #F7FAF8;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F0F4F1;
+    --bg-subtle: #E8EDE9;
+    --bg-warm: #FDFCF7;
 
-    /* Foreground: Preto Rico e Profundo (Máximo contraste e elegância) */
-    --foreground: 224 71.4% 4.1%;
+    /* Light Mode Bordas */
+    --border-default: #E2E8E4;
+    --border-active: #34D399;
+    --border-gold: #D4A24C;
 
-    /* Cards: Branco Puro flutuando sobre alabaster */
+    /* Light Mode Textos */
+    --text-primary: #080B0A;
+    --text-secondary: #4E5F54;
+    --text-muted: #8A9B90;
+
+    /* Light Mode Verde */
+    --green: #1A7A50;
+    --green-glow: rgba(26, 122, 80, 0.10);
+    --green-dim: #34D399;
+
+    /* Light Mode Dourado */
+    --gold: #8B6A2F;
+    --gold-light: #D4A24C;
+    --gold-glow: rgba(139, 106, 47, 0.12);
+    --gold-dim: #E8C77B;
+
+    /* Light Mode Semânticas */
+    --success: #1A7A50;
+    --warning: #D97706;
+    --danger: #DC2626;
+    --info: #0284C7;
+
+    /* Compatibilidade Base Shadcn - Light */
+    --background: 153 30% 98%;
+    --foreground: 153 16% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
-
-    /* Popovers */
+    --card-foreground: 153 16% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-
-    /* Primary: Verde Musgo Profundo da Logo (Ancoragem da marca) */
-    --primary: 164 86% 16%;
+    --popover-foreground: 153 16% 4%;
+    --primary: 158 64% 40%;
     --primary-foreground: 0 0% 100%;
+    --secondary: 152 20% 90%;
+    --secondary-foreground: 153 16% 4%;
+    --muted: 151 20% 92%;
+    --muted-foreground: 151 10% 45%;
+    --accent: 38 61% 56%;
+    --accent-foreground: 153 16% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 155 15% 90%;
+    --input: 155 15% 90%;
+    --ring: 158 64% 40%;
 
-    /* Primary Dark: Musgo Ultra Escuro */
-    --primary-dark: 166 91% 9%;
-    --primary-dark-foreground: 0 0% 100%;
+    /* Radius base */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius: 10px;
 
-    /* Primary Light: Neon Moderado */
-    --primary-light: 153 60% 45%;
-    --primary-light-foreground: 0 0% 100%;
+    /* Cores Globais da Marca */
+    --logo-bg: 0 0% 100%;
+    --logo-passa: 153 16% 4%;
+    --logo-gene: 158 64% 40%;
+    --logo-front: 158 64% 40%;
+    --logo-back: 38 61% 56%;
 
-    /* Primary Subtle: Fundo verde exttremamente sutil */
-    --primary-subtle: 153 50% 96%;
-    --primary-subtle-foreground: 164 86% 16%;
-
-    /* Secondary: Cinza ultra clean */
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220 39.3% 11%;
-
-    /* Muted: Bases minimalistas sem intervenção de cor */
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
-
-    /* Accent: Verde Neon (Disrupção interativa) */
-    --accent: 153 91% 41%;
-    --accent-foreground: 0 0% 100%;
-
-    /* Destructive */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-
-    /* Borders & Inputs: Totalmente invisíveis */
-    --border: 0 0% 100%;
-    --input: 0 0% 100%;
-    --ring: 153 91% 41%;
-
-    /* Cores Globais da Marca para Componentes React (Sincronia Logo <-> UI) */
-    --logo-bg: 164 86% 16%;
-    /* Musgo Profundo */
-    --logo-passa: 153 91% 41%;
-    /* Neon */
-    --logo-gene: 0 0% 100%;
-    /* Branco */
-    --logo-front: 153 91% 41%;
-    /* Neon */
-    --logo-back: 0 0% 100%;
-    /* Branco */
-
-    /* Variante Hollow (Logo vazada para fundos claros) */
-    --logo-hollow-bg: 0 0% 0% / 0;
-    /* Transparente */
-    --logo-hollow-passa: 164 86% 16%;
-    /* Musgo Profundo */
-    --logo-hollow-gene: 153 91% 41%;
-    /* Neon */
-    --logo-hollow-front: 164 86% 16%;
-    /* Musgo Profundo */
-    --logo-hollow-back: 153 91% 41%;
-    /* Neon */
-
-    /* Radius base - Elementos arredondados na medida certa para ser chic e atual */
-    --radius: 1.2rem;
-
-    /* Sidebar Light Mode - Base Off-White Brilhante, texturas clean */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 224 71.4% 4.1%;
-    --sidebar-primary: 164 86% 16%;
+    /* Sidebar Light */
+    --sidebar-background: 153 30% 98%;
+    --sidebar-foreground: 153 16% 4%;
+    --sidebar-primary: 158 64% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14.3% 95.9%;
-    --sidebar-accent-foreground: 164 86% 16%;
-    --sidebar-border: 0 0% 100%;
-    --sidebar-ring: 153 91% 41%;
+    --sidebar-accent: 152 20% 90%;
+    --sidebar-accent-foreground: 153 16% 4%;
+    --sidebar-border: 155 15% 90%;
+    --sidebar-ring: 158 64% 40%;
   }
 
   .dark {
-    /* Design Tokens PassaGene - Dark Mode (Obsidian / AMOLED Pure Black) */
+    /* Backgrounds */
+    --bg-primary: #080B0A;
+    --bg-card: #0F1412;
+    --bg-card-hover: #141C18;
+    --bg-subtle: #0D1210;
+    --bg-warm: #12100D;
 
-    /* Background: Preto Verdadeiramente Profundo (Efeito espelhado escuro) */
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
+    /* Bordas */
+    --border-default: #1C2822;
+    --border-active: #2A5C3F;
+    --border-gold: #3D2E14;
+    /* Textos */
+    --text-primary: #ECF0ED;
+    --text-secondary: #8A9B90;
+    --text-muted: #5E7268;
 
-    /* Cards: Um tom marginalmente acima do preto pra criar profundidade */
-    --card: 240 6% 6%;
-    --card-foreground: 0 0% 98%;
+    /* Verde */
+    --green: #34D399;
+    --green-glow: rgba(52, 211, 153, 0.10);
+    --green-dim: #1A7A50;
 
-    /* Popovers */
-    --popover: 240 6% 6%;
-    --popover-foreground: 0 0% 98%;
+    /* Dourado */
+    --gold: #D4A24C;
+    --gold-light: #E8C77B;
+    --gold-glow: rgba(212, 162, 76, 0.12);
+    --gold-dim: #8B6A2F;
 
-    /* Primary: Verde Neon Laser Assumindo o Protagonismo Absoluto (Disruptivo) */
-    --primary: 153 91% 41%;
-    --primary-foreground: 240 10% 4%;
+    /* Semânticas */
+    --success: #34D399;
+    --warning: #F59E0B;
+    --danger: #E05252;
+    --info: #5BA4CF;
 
-    /* Primary Dark: Musgo */
-    --primary-dark: 164 86% 16%;
-    --primary-dark-foreground: 0 0% 100%;
+    /* Compatibilidade Base Shadcn - Mapeando para as nossas novas */
+    --background: 153 16% 4%;
+    /* #080B0A */
+    --foreground: 144 19% 93%;
+    /* #ECF0ED */
+    --card: 156 14% 7%;
+    /* #0F1412 */
+    --card-foreground: 144 19% 93%;
+    --popover: 156 14% 7%;
+    --popover-foreground: 144 19% 93%;
+    --primary: 158 64% 52%;
+    /* #34D399 */
+    --primary-foreground: 153 16% 4%;
+    --secondary: 152 7% 57%;
+    /* #8A9B90 */
+    --secondary-foreground: 153 16% 4%;
+    --muted: 151 10% 35%;
+    /* #4E5F54 */
+    --muted-foreground: 144 19% 93%;
+    --accent: 38 61% 56%;
+    /* #D4A24C */
+    --accent-foreground: 153 16% 4%;
+    --destructive: 0 69% 60%;
+    /* #E05252 */
+    --destructive-foreground: 144 19% 93%;
+    --border: 155 18% 13%;
+    /* #1C2822 */
+    --input: 155 18% 13%;
+    --ring: 158 64% 52%;
 
-    /* Primary Light: Teal Premium */
-    --primary-light: 174 77% 26%;
-    --primary-light-foreground: 0 0% 98%;
+    /* Radius base */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius: 10px;
 
-    /* Primary Subtle: Reflexão sutil Neon no fundo Escuro */
-    --primary-subtle: 153 91% 10%;
-    --primary-subtle-foreground: 153 91% 41%;
+    /* Cores Globais da Marca para Componentes React (Sincronia Logo <-> UI) */
+    --logo-bg: 156 14% 7%;
+    --logo-passa: 0 0% 100%;
+    --logo-gene: 158 64% 52%;
+    --logo-front: 158 64% 52%;
+    --logo-back: 38 61% 56%;
 
-    /* Secondary: Painéis limpos sem hue verde suja */
-    --secondary: 240 4% 12%;
-    --secondary-foreground: 0 0% 98%;
-
-    /* Muted: Neutro de verdade */
-    --muted: 240 4% 12%;
-    --muted-foreground: 240 5% 65%;
-
-    /* Accent: Neon Puro */
-    --accent: 153 91% 41%;
-    --accent-foreground: 0 0% 10%;
-
-    /* Destructive */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    /* Borders & Inputs: Totalmente invisíveis */
-    --border: 240 6% 6%;
-    --input: 240 6% 6%;
-    --ring: 153 91% 41%;
-
-    /* Variante Hollow (Logo vazada dark) */
-    --logo-hollow-bg: 0 0% 0% / 0;
-    --logo-hollow-passa: 0 0% 100%;
-    --logo-hollow-gene: 153 91% 41%;
-    --logo-hollow-front: 0 0% 100%;
-    --logo-hollow-back: 153 91% 41%;
-
-    /* Sidebar - Dark */
-    --sidebar-background: 240 10% 3%;
-    --sidebar-foreground: 0 0% 98%;
-    /* Primary Neon chamando atenção */
-    --sidebar-primary: 153 91% 41%;
-    --sidebar-primary-foreground: 240 10% 4%;
-    --sidebar-accent: 240 4% 10%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 10% 3%;
-    --sidebar-ring: 153 91% 41%;
+    /* Sidebar */
+    --sidebar-background: 153 16% 4%;
+    --sidebar-foreground: 144 19% 93%;
+    --sidebar-primary: 158 64% 52%;
+    --sidebar-primary-foreground: 153 16% 4%;
+    --sidebar-accent: 156 14% 7%;
+    --sidebar-accent-foreground: 144 19% 93%;
+    --sidebar-border: 155 18% 13%;
+    --sidebar-ring: 158 64% 52%;
   }
 }
 
-/* Zero borders: regra unlayered sobrescreve TODAS as utilities do Tailwind */
-* {
-  border-color: transparent;
-}
+
 
 @layer base {
   body {
-    @apply bg-background text-foreground;
+    font-family: 'Outfit', sans-serif;
+    @apply text-foreground;
+    background-color: var(--bg-primary);
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  .data,
+  .price,
+  .score,
+  .id {
+    font-family: 'JetBrains Mono', monospace;
   }
 
   /* Esconder spinners de inputs numéricos */
@@ -406,5 +422,175 @@ html.font-grande {
 
   100% {
     background-position: 200% 0;
+  }
+}
+
+@layer utilities {
+  .glow-green {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(212, 162, 76, 0.12);
+  }
+
+  .btn-primary-gold {
+    background: linear-gradient(135deg, #D4A24C, #8B6A2F);
+    color: #080B0A;
+    box-shadow: 0 0 20px rgba(212, 162, 76, 0.12);
+  }
+
+  .btn-primary-green {
+    background: linear-gradient(135deg, #34D399, #1A7A50);
+    color: #080B0A;
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
+  }
+
+  .text-gradient-logo {
+    background: linear-gradient(135deg, var(--green), var(--gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* CSS SVG Noise pattern for frosted effect */
+  :root {
+    --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  .glass-panel {
+    @apply bg-background/50 backdrop-blur-[24px] backdrop-saturate-[1.3] border-0 transition-all duration-300;
+    box-shadow:
+      0 8px 30px 0 rgba(0, 0, 0, 0.04),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.01);
+  }
+
+  .glass-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.1;
+    mix-blend-mode: overlay;
+    background-image: var(--glass-noise);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Directional Rim Light */
+  .glass-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(26, 122, 80, 0.4) 0%,
+        rgba(52, 211, 153, 0.3) 15%,
+        rgba(255, 255, 255, 0.15) 30%,
+        rgba(255, 255, 255, 0.0) 50%,
+        rgba(255, 255, 255, 0.15) 70%,
+        rgba(212, 162, 76, 0.25) 85%,
+        rgba(139, 106, 47, 0.4) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Hover Enhancement (Optional for clickable cards) */
+  .glass-panel.clickable:hover::after,
+  button.glass-panel:hover::after,
+  a.glass-panel:hover::after {
+    background: linear-gradient(135deg,
+        rgba(26, 122, 80, 0.7) 0%,
+        rgba(52, 211, 153, 0.5) 15%,
+        rgba(255, 255, 255, 0.3) 30%,
+        rgba(255, 255, 255, 0.0) 50%,
+        rgba(255, 255, 255, 0.3) 70%,
+        rgba(212, 162, 76, 0.5) 85%,
+        rgba(139, 106, 47, 0.6) 100%);
+  }
+
+  .glass-panel:not(.fixed):not(.absolute) {
+    position: relative;
+  }
+
+  .dark .glass-panel {
+    @apply bg-background/40;
+    box-shadow:
+      0 10px 30px 0 rgba(0, 0, 0, 0.2),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  .dark .glass-panel::before {
+    opacity: 0.08;
+  }
+
+  .dark .glass-panel::after {
+    opacity: 0.6;
+    background: linear-gradient(135deg,
+        rgba(52, 211, 153, 0.3) 0%,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.0) 40%,
+        rgba(255, 255, 255, 0.0) 60%,
+        rgba(255, 255, 255, 0.1) 80%,
+        rgba(212, 162, 76, 0.2) 100%);
+  }
+
+  .dark .glass-panel.clickable:hover::after,
+  .dark button.glass-panel:hover::after,
+  .dark a.glass-panel:hover::after {
+    opacity: 1;
+    background: linear-gradient(135deg,
+        rgba(52, 211, 153, 0.5) 0%,
+        rgba(255, 255, 255, 0.2) 20%,
+        rgba(255, 255, 255, 0.0) 40%,
+        rgba(255, 255, 255, 0.0) 60%,
+        rgba(255, 255, 255, 0.15) 80%,
+        rgba(212, 162, 76, 0.4) 100%);
+  }
+
+  /* VoiceFAB Premium Aura */
+  @keyframes spin-slow {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  @keyframes breathe-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px 0 rgba(52, 211, 153, 0.2), 0 0 40px 0 rgba(212, 162, 76, 0.1);
+    }
+
+    50% {
+      box-shadow: 0 0 30px 5px rgba(52, 211, 153, 0.4), 0 0 60px 10px rgba(212, 162, 76, 0.2);
+    }
+  }
+
+  .voice-fab-glow {
+    animation: breathe-glow 4s ease-in-out infinite;
+  }
+
+  .voice-fab-aura {
+    background: conic-gradient(from 0deg,
+        transparent 0deg,
+        rgba(52, 211, 153, 1) 90deg,
+        transparent 180deg,
+        rgba(212, 162, 76, 1) 270deg,
+        transparent 360deg);
+    animation: spin-slow 5s linear infinite;
+  }
+
+  .voice-fab-core {
+    @apply bg-black/60 backdrop-blur-[24px];
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
   }
 }

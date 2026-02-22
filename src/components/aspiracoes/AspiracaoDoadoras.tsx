@@ -125,28 +125,39 @@ export function AspiracaoDoadoras({
 
     // ── OCR state ──
     const [showOcrScanner, setShowOcrScanner] = useState(false);
+    const [ocrPendingData, setOcrPendingData] = useState<OcrAspiracaoResult | null>(null);
+    const [ocrImageUrl, setOcrImageUrl] = useState<string | undefined>(undefined);
     const { processFile, step: ocrStep, reset: resetOcr } = useCloudRunOcr({
         reportType: 'aspiracao',
         fazendaId: formData.fazenda_id,
     });
     const { createImport } = useReportImports(formData.fazenda_id);
 
+    /** Store OCR result for review instead of immediately applying */
     const handleOcrResult = useCallback((result: unknown) => {
         const ocrData = result as OcrAspiracaoResult;
         if (!ocrData?.rows?.length) {
             toast({ title: 'OCR não encontrou dados', description: 'Tente com outra foto ou insira manualmente.', variant: 'destructive' });
             return;
         }
+        setOcrPendingData(ocrData);
+    }, []);
+
+    const handleOcrImageUrl = useCallback((url: string) => {
+        setOcrImageUrl(url);
+    }, []);
+
+    /** Apply pending OCR data after user review */
+    const handleOcrApply = useCallback(() => {
+        if (!ocrPendingData?.rows?.length) return;
 
         let matched = 0;
-        ocrData.rows.forEach(row => {
+        ocrPendingData.rows.forEach(row => {
             const registro = (row.registro.matched_value || row.registro.value || '').trim();
             if (!registro) return;
 
-            // Try to find existing doadora in list or available
             const existingIdx = doadoras.findIndex(d => d.registro.toUpperCase() === registro.toUpperCase());
             if (existingIdx >= 0) {
-                // Update existing doadora's oocyte counts
                 const fields = ['atresicos', 'degenerados', 'expandidos', 'desnudos', 'viaveis'] as const;
                 fields.forEach(field => {
                     const val = row[field]?.value;
@@ -156,7 +167,6 @@ export function AspiracaoDoadoras({
                 });
                 matched++;
             } else {
-                // Add as new doadora from available list or create new
                 const disponivel = doadorasDisponiveis.find(d => d.registro.toUpperCase() === registro.toUpperCase());
                 const novaDoadora: DoadoraLocal = {
                     doadora_id: disponivel?.id || `new_${Date.now()}_${row.numero}`,
@@ -182,21 +192,28 @@ export function AspiracaoDoadoras({
 
         toast({
             title: 'Dados OCR aplicados',
-            description: `${matched} doadora(s) processada(s) de ${ocrData.rows.length} linha(s).`,
+            description: `${matched} doadora(s) processada(s) de ${ocrPendingData.rows.length} linha(s).`,
         });
 
-        // Record import for audit trail
         createImport({
             report_type: 'aspiracao',
             fazenda_id: formData.fazenda_id,
-            extracted_data: ocrData as unknown as Record<string, unknown>,
+            extracted_data: ocrPendingData as unknown as Record<string, unknown>,
             status: 'completed',
             completed_at: new Date().toISOString(),
         }).catch(() => { /* non-critical */ });
 
+        setOcrPendingData(null);
+        setOcrImageUrl(undefined);
         setShowOcrScanner(false);
         resetOcr();
-    }, [doadoras, doadorasDisponiveis, handleUpdateDoadora, setDoadoras, resetOcr, createImport, formData.fazenda_id]);
+    }, [ocrPendingData, doadoras, doadorasDisponiveis, handleUpdateDoadora, setDoadoras, resetOcr, createImport, formData.fazenda_id]);
+
+    const handleOcrCancelAsp = useCallback(() => {
+        setOcrPendingData(null);
+        setOcrImageUrl(undefined);
+        resetOcr();
+    }, [resetOcr]);
 
     // Busca fazendas destino
     useEffect(() => {
@@ -344,7 +361,7 @@ export function AspiracaoDoadoras({
     return (
         <div className="space-y-4">
             {/* Header Actions */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-card p-4 rounded-lg border shadow-sm">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center glass-panel p-4 rounded-lg border shadow-sm">
                 <div className="flex flex-col gap-1">
                     <h3 className="font-semibold text-lg flex items-center gap-2">
                         <CircleDot className="w-5 h-5 text-primary" />
@@ -380,7 +397,7 @@ export function AspiracaoDoadoras({
             </div>
 
             {/* ── OCR Scanner Panel ── */}
-            {showOcrScanner && (
+            {showOcrScanner && !ocrPendingData && (
                 <Card>
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -396,8 +413,69 @@ export function AspiracaoDoadoras({
                         <ReportScanner
                             uploadAndProcess={processFile}
                             onResult={handleOcrResult}
+                            onImageUrl={handleOcrImageUrl}
                             disabled={ocrStep === 'compressing' || ocrStep === 'sending' || ocrStep === 'processing'}
                         />
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* ── OCR Review Summary ── */}
+            {ocrPendingData && ocrPendingData.rows.length > 0 && (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Revisar Dados Extraídos</CardTitle>
+                        <CardDescription>
+                            {ocrPendingData.rows.length} doadora(s) encontrada(s) — confira antes de aplicar
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {ocrImageUrl && (
+                                <div className="rounded-lg overflow-hidden border border-border max-h-48 mb-3">
+                                    <img src={ocrImageUrl} alt="Relatório escaneado" className="w-full h-full object-contain" loading="lazy" />
+                                </div>
+                            )}
+                            <div className="rounded-lg border border-border">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-muted/50 border-b border-border">
+                                            <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">#</th>
+                                            <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">Doadora</th>
+                                            <th className="px-1 py-1.5 text-center font-medium text-red-600 text-xs">At</th>
+                                            <th className="px-1 py-1.5 text-center font-medium text-orange-600 text-xs">Dg</th>
+                                            <th className="px-1 py-1.5 text-center font-medium text-blue-600 text-xs">Ex</th>
+                                            <th className="px-1 py-1.5 text-center font-medium text-purple-600 text-xs">Dn</th>
+                                            <th className="px-1 py-1.5 text-center font-medium text-emerald-600 text-xs">Vi</th>
+                                            <th className="px-1 py-1.5 text-center font-medium text-xs">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {ocrPendingData.rows.map((row, i) => (
+                                            <tr key={i} className="border-b border-border/50">
+                                                <td className="px-2 py-1 text-muted-foreground text-xs">{row.numero}</td>
+                                                <td className="px-2 py-1 font-medium">{row.registro.matched_value || row.registro.value}</td>
+                                                <td className="px-1 py-1 text-center text-red-700">{row.atresicos?.value ?? 0}</td>
+                                                <td className="px-1 py-1 text-center text-orange-700">{row.degenerados?.value ?? 0}</td>
+                                                <td className="px-1 py-1 text-center text-blue-700">{row.expandidos?.value ?? 0}</td>
+                                                <td className="px-1 py-1 text-center text-purple-700">{row.desnudos?.value ?? 0}</td>
+                                                <td className="px-1 py-1 text-center text-emerald-700">{row.viaveis?.value ?? 0}</td>
+                                                <td className="px-1 py-1 text-center font-bold">{row.total?.value ?? 0}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={handleOcrCancelAsp}>
+                                    Cancelar
+                                </Button>
+                                <Button onClick={handleOcrApply}>
+                                    <Save className="w-4 h-4 mr-1" />
+                                    Aplicar Dados
+                                </Button>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             )}
@@ -504,7 +582,7 @@ export function AspiracaoDoadoras({
                                 {/* Mobile cards */}
                                 <div className="md:hidden space-y-3 p-3">
                                     {doadoras.map((d, idx) => (
-                                        <div key={d.doadora_id || idx} className="rounded-xl border border-border/60 bg-card shadow-sm p-4">
+                                        <div key={d.doadora_id || idx} className="rounded-xl border border-border/60 glass-panel shadow-sm p-4">
                                             {/* Header */}
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">

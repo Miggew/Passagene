@@ -48,7 +48,7 @@ export function TrendLineChart({
     if (!active || !payload || !payload.length) return null;
 
     return (
-      <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+      <div className="glass-panel border border-border rounded-lg shadow-lg p-3">
         <p className="font-medium text-sm text-foreground mb-2">{label}</p>
         {payload.map((entry: any, index: number) => (
           <div key={index} className="flex items-center gap-2 text-sm">

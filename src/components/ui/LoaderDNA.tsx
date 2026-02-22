@@ -18,7 +18,7 @@ export const LoaderDNA: React.FC<LoaderDNAProps> = ({
     variant = 'accent'
 } = {}) => {
     const dotsRef = useRef<Array<{ base: HTMLDivElement; rev: HTMLDivElement; delaySec: number }>>([]);
-    const animFrameRef = useRef<number>();
+    const animFrameRef = useRef<number>(0);
 
     const numDots = 7;
     // O Circulo tem padding interno de ~16% para o DNA caber perfeitamente girando
@@ -34,18 +34,16 @@ export const LoaderDNA: React.FC<LoaderDNAProps> = ({
         switch (variant) {
             case 'premium':
                 return {
-                    // O Loader "Premium" usa o fundo do Logo normal
-                    bg: 'hsl(var(--logo-bg))',
-                    frontStrand: 'hsl(var(--logo-front))',
-                    backStrand: 'hsl(var(--logo-back))',
+                    bg: 'linear-gradient(135deg, #34D399, #D4A24C)',
+                    frontStrand: '#ffffff',
+                    backStrand: 'rgba(255, 255, 255, 0.5)',
                 };
             case 'accent':
             default:
                 return {
-                    // Variante mais forte para loaders primários
-                    bg: 'hsl(var(--primary))',
-                    frontStrand: 'hsl(var(--primary-foreground))',
-                    backStrand: 'hsl(var(--logo-back))',
+                    bg: 'var(--green)',
+                    frontStrand: '#080B0A',
+                    backStrand: 'rgba(8, 11, 10, 0.5)',
                 }
         }
     };
@@ -112,7 +110,7 @@ export const LoaderDNA: React.FC<LoaderDNAProps> = ({
             style={{
                 width: `${size}px`,
                 height: `${size}px`,
-                backgroundColor: colors.bg,
+                background: colors.bg,
             }}
         >
             <div

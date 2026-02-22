@@ -17,8 +17,8 @@ export default {
     extend: {
       // Tipografia dos design tokens
       fontFamily: {
-        sans: ["Manrope", "system-ui", "sans-serif"],
-        heading: ["Outfit", "Plus Jakarta Sans", "sans-serif"], // Outfit adicionada como principal
+        sans: ["Outfit", "system-ui", "sans-serif"],
+        heading: ["Outfit", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
@@ -71,39 +71,57 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Cores diretas do design system PassaGene (baseadas na logo real)
-        passagene: {
-          primary: "#09C972",        // Verde vibrante da logo
-          "primary-dark": "#049357", // Verde escuro da logo
-          "primary-light": "#5EDFA3",// Derivado mais claro
-          "primary-subtle": "#D0F5E3",// Fundo sutil
-          accent: "#07B566",         // Intermediário
-          text: "#666666",           // Cinza do texto da logo
-          "neutral-900": "#333333",
-          "neutral-700": "#555555",
-          "neutral-400": "#999999",
-          "neutral-100": "#F7FAF9",
+        // Cores Orgânicas Biotech do app
+        "bg-primary": "var(--bg-primary)",
+        "bg-card": "var(--bg-card)",
+        "bg-card-hover": "var(--bg-card-hover)",
+        "bg-subtle": "var(--bg-subtle)",
+        "bg-warm": "var(--bg-warm)",
+        "border-default": "var(--border-default)",
+        "border-active": "var(--border-active)",
+        "border-gold": "var(--border-gold)",
+        "text-primary": "var(--text-primary)",
+        "text-secondary": "var(--text-secondary)",
+        "text-muted": "var(--text-muted)",
+        green: {
+          DEFAULT: "var(--green)",
+          dim: "var(--green-dim)",
         },
+        gold: {
+          DEFAULT: "var(--gold)",
+          light: "var(--gold-light)",
+          dim: "var(--gold-dim)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
+        info: "var(--info)",
       },
-      // Border radius dos design tokens (Atualizado: Organic/Rounded)
+      // Border radius dos design tokens (Organic Builder)
       borderRadius: {
         none: "0",
-        sm: "calc(var(--radius) - 4px)", // 8px
-        DEFAULT: "calc(var(--radius))",   // 12px
-        md: "calc(var(--radius))",        // 12px
-        lg: "calc(var(--radius) + 4px)",  // 16px
-        xl: "calc(var(--radius) + 8px)",  // 20px
-        "2xl": "calc(var(--radius) + 12px)", // 24px - Super arredondado para Cards
-        "3xl": "calc(var(--radius) + 20px)", // 32px
+        sm: "var(--radius-sm)", // 6px
+        DEFAULT: "var(--radius-md)", // 10px
+        md: "var(--radius-md)", // 10px
+        lg: "var(--radius-lg)", // 14px
+        xl: "var(--radius-xl)", // 20px
+        "2xl": "1.5rem",
+        "3xl": "2rem",
         full: "9999px",
       },
-      // Sombras suaves com tom verde (cores reais da logo)
+      // Sombras Brutalistas + Glow Orgânico
       boxShadow: {
         sm: "0 1px 3px rgba(9, 201, 114, 0.08)",
         DEFAULT: "0 4px 12px rgba(9, 201, 114, 0.12)",
         md: "0 4px 12px rgba(9, 201, 114, 0.12)",
         lg: "0 8px 24px rgba(4, 147, 87, 0.15)",
         xl: "0 12px 32px rgba(4, 147, 87, 0.18)",
+        'brutal': '4px 4px 0px 0px var(--brutal-shadow-color)',
+        'brutal-sm': '2px 2px 0px 0px var(--brutal-shadow-color)',
+        'brutal-lg': '8px 8px 0px 0px var(--brutal-shadow-color)',
+        'brutal-dark': '4px 4px 0px 0px #09C972',
+        'brutal-dark-lg': '8px 8px 0px 0px rgba(9, 201, 114, 0.4)',
+        'glow': '0 0 20px rgba(9, 201, 114, 0.4)',
       },
       keyframes: {
         "accordion-down": {

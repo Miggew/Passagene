@@ -213,7 +213,7 @@ export default function RelatoriosProducao() {
           id: l.id,
           codigo: l.codigo,
           data_abertura: l.data_abertura,
-          fazenda_nome: (pacote?.fazendas as { nome: string } | null)?.nome ?? 'N/A',
+          fazenda_nome: (pacote?.fazendas as unknown as { nome: string } | null)?.nome ?? 'N/A',
           total_oocitos: totalOocitos,
           total_embrioes: totalEmbrioes,
           taxa_sucesso: taxaSucesso,
@@ -368,7 +368,7 @@ export default function RelatoriosProducao() {
       ? `${filtroDataInicio ? formatDate(filtroDataInicio) : '...'} a ${filtroDataFim ? formatDate(filtroDataFim) : '...'}`
       : undefined;
 
-    exportRelatorio('lotesFiv', dadosFiltrados, {
+    exportRelatorio('lotesFiv', dadosFiltrados as unknown as Record<string, unknown>[], {
       fazenda: fazendaNome,
       periodo,
     });
@@ -481,7 +481,7 @@ export default function RelatoriosProducao() {
       </div>
 
       {/* Filtros */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border glass-panel p-4">
         <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
           {/* Busca */}
           <div className="relative w-full md:flex-1 md:min-w-[200px] md:max-w-[280px]">
@@ -590,7 +590,7 @@ export default function RelatoriosProducao() {
                   <div
                     key={row.id}
                     onClick={() => navigate(`/lotes-fiv/${row.id}`)}
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">

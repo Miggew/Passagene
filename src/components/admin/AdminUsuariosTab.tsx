@@ -551,7 +551,7 @@ export default function AdminUsuariosTab() {
           )}
         />
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border glass-panel overflow-hidden">
           {/* Mobile: Cards */}
           <div className="md:hidden divide-y divide-border/50">
             {usersPaginados.map((user) => (
@@ -630,8 +630,7 @@ export default function AdminUsuariosTab() {
                 key={user.id}
                 className={`
                   group grid grid-cols-[1.5fr_1.5fr_0.8fr_1.5fr_0.6fr_0.6fr] items-center transition-all duration-150
-                  hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                  ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                  hover:bg-muted/50
                   ${!user.active ? 'opacity-50' : ''}
                 `}
               >

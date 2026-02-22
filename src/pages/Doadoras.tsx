@@ -364,7 +364,7 @@ function DoadorasTable({
           doadoras.map((doadora) => (
             <div
               key={doadora.id}
-              className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+              className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/50"
               onClick={() => navigate(`/doadoras/${doadora.id}`)}
             >
               <div className="flex items-center justify-between mb-1.5">

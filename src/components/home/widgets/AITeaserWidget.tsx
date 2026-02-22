@@ -104,7 +104,7 @@ export function AITeaserWidget({ clienteId, compact = true }: Props) {
     return (
         <Card
             onClick={() => navigate('/genia')}
-            className="group flex flex-col h-full w-full overflow-hidden border-2 border-primary/20 bg-card shadow-md hover:shadow-lg hover:border-primary/40 transition-all duration-500 relative cursor-pointer"
+            className="group flex flex-col h-full w-full overflow-hidden border-2 border-primary/20 glass-panel shadow-md hover:shadow-lg hover:border-primary/40 transition-all duration-500 relative cursor-pointer"
         >
             {/* Very subtle elegant neutral shimmer on hover */}
             <div className="absolute inset-0 bg-gradient-to-tr from-foreground/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />

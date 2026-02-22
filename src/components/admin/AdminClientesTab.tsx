@@ -16,7 +16,8 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { handleError } from '@/lib/error-handler';
-import { Plus, Eye, Search, Filter, X, Building2 } from 'lucide-react';
+import { Plus, Eye, Filter, X, Building2 } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -230,29 +231,14 @@ export default function AdminClientesTab() {
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative flex-1 min-w-[250px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+            <div className="flex-1 min-w-[250px]">
+              <SearchInput
                 placeholder="Buscar por nome, telefone ou endereco..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9"
+                onChange={setSearchTerm}
               />
             </div>
           </div>
-
-          {/* Botao Limpar */}
-          {searchTerm && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSearchTerm('')}
-              className="h-9"
-            >
-              <X className="w-4 h-4 mr-2" />
-              Limpar
-            </Button>
-          )}
 
           {/* Botao Novo Cliente */}
           <Button onClick={() => handleOpenDialog()} className="h-9 ml-auto">
@@ -278,7 +264,7 @@ export default function AdminClientesTab() {
           )}
         />
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border glass-panel overflow-hidden">
           {/* Header da tabela */}
           <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
             <div className="grid grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -301,8 +287,7 @@ export default function AdminClientesTab() {
                 key={cliente.id}
                 className={`
                   group grid grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr] items-center cursor-pointer transition-all duration-150
-                  hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                  ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                  hover:bg-muted/50
                 `}
                 onClick={() => handleVerDetalhes(cliente)}
               >

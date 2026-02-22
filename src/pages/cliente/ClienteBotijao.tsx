@@ -143,7 +143,7 @@ export default function ClienteBotijao() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Tabs premium com CountBadge */}
-        <div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+        <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
           <TabsList className="grid grid-cols-2 h-auto p-0 bg-transparent gap-1.5">
             <TabsTrigger
               value="doses"
@@ -203,7 +203,7 @@ export default function ClienteBotijao() {
             placeholder={activeTab === 'doses' ? 'Buscar touro...' : 'Buscar...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-11 h-11 text-base rounded-xl border-border/60 bg-card shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+            className="pl-11 h-11 text-base rounded-xl border-border/60 glass-panel shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
           />
         </div>
 
@@ -233,7 +233,7 @@ export default function ClienteBotijao() {
               className={cn(
                 'relative flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
                 embrioesSubTab === 'doadora'
-                  ? 'bg-card shadow-sm text-foreground'
+                  ? 'glass-panel shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}
             >
@@ -253,7 +253,7 @@ export default function ClienteBotijao() {
               className={cn(
                 'relative flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
                 embrioesSubTab === 'touro'
-                  ? 'bg-card shadow-sm text-foreground'
+                  ? 'glass-panel shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}
             >

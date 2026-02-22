@@ -671,7 +671,7 @@ export default function PacoteAspiracaoDetail() {
               {/* Mobile card layout */}
               <div className="md:hidden space-y-2">
                 {aspiracoes.map((row, index) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs text-muted-foreground shrink-0">{index + 1}.</span>

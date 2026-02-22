@@ -52,6 +52,16 @@ function DatePickerBR({
     return undefined;
   }, [min, max]);
 
+  const hojeDesabilitado = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = isoToLocalDate(min || '');
+    const maxDate = isoToLocalDate(max || '');
+    if (minDate && today < minDate) return true;
+    if (maxDate && today > maxDate) return true;
+    return false;
+  }, [min, max]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -101,6 +111,22 @@ function DatePickerBR({
             day_disabled: 'text-muted-foreground opacity-50',
           }}
         />
+        <div className="border-t border-border px-2 py-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => {
+              const hoje = normalizeDateForDB(new Date()) || '';
+              onChange(hoje);
+              setOpen(false);
+            }}
+            type="button"
+            disabled={hojeDesabilitado}
+          >
+            Hoje
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
