@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalFarmData } from '@/hooks/useGlobalFarmData';
-import { Send, Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download, Mic, MicOff } from 'lucide-react';
+import { Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download, Mic, MicOff, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
+import { VoiceFAB } from '@/components/ui/VoiceFAB';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { GeniaLogo } from '@/components/ui/GeniaLogo';
 import { fetchReportDataFromIntent, type AIIntent } from '@/services/aiReportService';
@@ -388,52 +389,10 @@ function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string
             <div className="mb-6 flex items-center justify-center">
                 <GeniaLogo size={80} showText={false} variant="premium" />
             </div>
-            <h2 className="text-2xl font-black text-foreground mb-3 tracking-tight">{getTimeSuggestions().greeting}</h2>
+            <h2 className="text-2xl font-black text-foreground mb-3 tracking-tight">Bom dia, sou a Gen.IA</h2>
             <p className="text-muted-foreground mb-8 text-[15px] leading-relaxed max-w-md">
-                Sou sua consultora de reprodução. Me pergunte sobre o rebanho, estoques ou métricas — falo a sua língua.
+                Sua consultora de reprodução. Me pergunte sobre o rebanho, estoques ou métricas.
             </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-                <button onClick={() => onSuggestionClick("Resumo geral da fazenda")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
-                    <div className="p-2.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
-                        <Activity className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-bold text-foreground text-[14px]">Resumo da Fazenda</span>
-                        <span className="text-[12px] text-muted-foreground line-clamp-1">Status atual do rebanho</span>
-                    </div>
-                </button>
-
-                <button onClick={() => onSuggestionClick("Quais touros têm melhor desempenho nas DGs?")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
-                    <div className="p-2.5 bg-amber-500/10 rounded-lg group-hover:bg-amber-500/20 transition-colors">
-                        <Award className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-bold text-foreground text-[14px]">Ranking de Touros</span>
-                        <span className="text-[12px] text-muted-foreground line-clamp-1">Maior taxa de prenhez</span>
-                    </div>
-                </button>
-
-                <button onClick={() => onSuggestionClick("Existem receptoras repetidoras com mais de 3 protocolos?")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
-                    <div className="p-2.5 bg-red-500/10 rounded-lg group-hover:bg-red-500/20 transition-colors">
-                        <AlertCircle className="w-5 h-5 text-red-600" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-bold text-foreground text-[14px]">Alerta Repetidoras</span>
-                        <span className="text-[12px] text-muted-foreground line-clamp-1">Receptoras problemáticas</span>
-                    </div>
-                </button>
-
-                <button onClick={() => onSuggestionClick("Qual é o meu estoque atual de sêmen?")} className="flex items-center gap-3 p-4 glass-panel rounded-xl border border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group shadow-sm">
-                    <div className="p-2.5 bg-cyan-500/10 rounded-lg group-hover:bg-cyan-500/20 transition-colors">
-                        <Snowflake className="w-5 h-5 text-cyan-600" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-bold text-foreground text-[14px]">Estoque de Sêmen</span>
-                        <span className="text-[12px] text-muted-foreground line-clamp-1">Doses por touro e raça</span>
-                    </div>
-                </button>
-            </div>
 
             <div className="mt-8 text-[12px] text-muted-foreground/80 flex items-center gap-2">
                 <Mic className="w-3.5 h-3.5" /> Experimente apertar o microfone e falar comigo!
@@ -712,7 +671,7 @@ export default function ConsultorIA() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100dvh-180px)] md:h-[calc(100dvh-140px)] w-full max-w-4xl mx-auto overflow-hidden bg-background rounded-2xl border border-border/50 shadow-sm relative">
+        <div className="flex flex-col h-[calc(100dvh-180px)] md:h-[calc(100dvh-100px)] w-full mx-auto overflow-hidden bg-background relative">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 shrink-0 bg-background/95 backdrop-blur-md z-20 shadow-sm">
                 <GeniaLogo size={42} showText={true} variant="default" />
@@ -749,13 +708,13 @@ export default function ConsultorIA() {
                                 <>
                                     {/* Lado Esquerdo (Conector MD+) */}
                                     <div className="hidden md:flex items-center justify-end w-full pr-[15px] pt-5 opacity-70">
-                                        <div className="h-[2px] w-[30%] bg-gradient-to-l from-primary/50 to-transparent" />
-                                        <div className="w-2.5 h-2.5 rounded-full border-2 border-background bg-primary shrink-0 translate-x-[20px]" />
+                                        <div className="h-[2px] w-[30%] bg-gradient-to-l from-border/60 to-transparent" />
+                                        <div className="w-2.5 h-2.5 rounded-full border-2 border-background bg-border/60 shrink-0 translate-x-[20px]" />
                                     </div>
                                     {/* Lado Direito (Balão Usuário) */}
                                     <div className="flex w-full justify-end md:pl-6 max-w-[90%] md:max-w-full justify-self-end">
-                                        <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed relative">
-                                            <div className="md:hidden absolute top-5 -left-2 w-[10px] h-[2px] bg-primary/30" />
+                                        <div className="bg-muted/40 backdrop-blur-md border border-border/50 text-foreground rounded-2xl rounded-tr-sm px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed relative">
+                                            <div className="md:hidden absolute top-5 -left-2 w-[10px] h-[2px] bg-border/50" />
                                             {msg.content}
                                         </div>
                                     </div>
@@ -1294,25 +1253,6 @@ export default function ConsultorIA() {
                                         </div>
                                     </div>
 
-                                    {/* Follow Up Suggestion Chips */}
-                                    {i === messages.length - 1 && !msg.isSearching && msg.intentData && (
-                                        <div className="flex flex-col gap-2 mt-3 animate-in fade-in slide-in-from-top-2 duration-500 ml-10">
-                                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Sugestões para continuar:</span>
-                                            <div className="flex flex-wrap gap-2">
-                                                {getFollowUpSuggestions(msg.intentData).map((sug, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        onClick={() => handleSend(sug, false)}
-                                                        className="text-[12px] font-medium px-3.5 py-2 rounded-xl border border-primary/20 glass-panel text-foreground hover:bg-primary/5 hover:text-primary-dark hover:border-primary/40 transition-all flex items-center gap-2 shadow-sm group"
-                                                    >
-                                                        <Sparkles className="w-3.5 h-3.5 text-primary/40 group-hover:text-primary transition-colors" />
-                                                        {sug}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
                                     {/* Lado Direito (Conector MD+) */}
                                     <div className="hidden md:flex items-center justify-start w-full pl-[15px] pt-5 opacity-70">
                                         <div className={cn("w-2.5 h-2.5 rounded-full border-2 border-background shrink-0 -translate-x-[20px] transition-colors", msg.isSearching ? "bg-primary/40 animate-pulse" : "bg-primary")} />
@@ -1326,61 +1266,44 @@ export default function ConsultorIA() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Time-Based Contextual Pills */}
-            {messages.length <= 1 && !isLoading && (
-                <div className="px-4 pb-1 pt-2 shrink-0 flex items-center gap-2 overflow-x-auto scrollbar-none animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                    {getTimeSuggestions().pills.map((pill, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleSend(pill, false)}
-                            className="text-[11px] font-medium px-3 py-1.5 rounded-full border border-primary/15 bg-primary/5 text-foreground/80 hover:bg-primary/10 hover:text-primary-dark hover:border-primary/30 transition-all whitespace-nowrap shrink-0"
-                        >
-                            {pill}
-                        </button>
-                    ))}
-                </div>
-            )}
+            {/* Input Area - Text Pill Above Menu */}
+            <div className="mt-auto px-4 pb-[30px] pt-4 shrink-0 z-20 w-full bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none flex flex-col items-center justify-end">
+                <div className="relative flex items-end justify-center w-full max-w-xl mx-auto pointer-events-auto">
 
-            {/* Input Area */}
-            <div className="mt-auto px-4 shrink-0 bg-background/95 backdrop-blur-md py-4 z-20 border-t border-border/30">
-                <div className="relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-[2rem] blur-md transition-all group-focus-within:bg-primary/20" />
-                    <div className="relative flex items-end gap-2 glass-panel border border-border/80 rounded-[2rem] p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                        <textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Como posso te ajudar?"
-                            className="flex-1 max-h-32 min-h-[44px] bg-transparent border-0 focus:ring-0 resize-none py-3 px-3 text-[15px] scrollbar-thin outline-none placeholder:text-muted-foreground/60 placeholder:font-medium leading-relaxed"
-                            rows={1}
-                        />
-                        <button
-                            onClick={startListening}
-                            disabled={isLoading}
-                            className={cn(
-                                "w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-all disabled:opacity-50 mb-0.5",
-                                isListening
-                                    ? "bg-red-500 hover:bg-red-600 text-white shadow-lg animate-pulse ring-4 ring-red-500/20"
-                                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                            )}
-                            title="Falar com a Gen.IA"
-                        >
-                            {isListening ? <Mic className="w-4 h-4 ml-0.5" /> : <Mic className="w-4 h-4 ml-0.5" />}
-                        </button>
-                        <button
-                            onClick={() => handleSend(input, false)}
-                            disabled={!input.trim() || isLoading}
-                            className="w-11 h-11 shrink-0 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground rounded-full flex items-center justify-center transition-all shadow-md mb-0.5 mr-0.5"
-                        >
-                            <Send className="w-4 h-4 ml-0.5" />
-                        </button>
+                    {/* Floating Text Input Pill */}
+                    <div className="relative flex-1 group sm:max-w-xl transition-all duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-[2rem] blur-md transition-all group-focus-within:bg-primary/20 opacity-0 group-focus-within:opacity-100" />
+                        <div className="relative flex items-end gap-2 glass-panel border border-border/80 rounded-[2rem] p-1.5 shadow-lg focus-within:ring-2 focus-within:ring-primary/20 bg-background/60 backdrop-blur-xl transition-all hover:bg-background/80">
+                            <textarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder="Consultar a Gen.IA..."
+                                className="flex-1 max-h-32 min-h-[44px] bg-transparent border-0 focus:ring-0 resize-none py-3 px-4 text-[15px] scrollbar-thin outline-none placeholder:text-muted-foreground/60 placeholder:font-medium leading-relaxed"
+                                rows={1}
+                            />
+
+                            {/* Send Button */}
+                            <button
+                                onClick={() => handleSend(input, false)}
+                                disabled={!input.trim() || isLoading}
+                                className={cn(
+                                    "w-9 h-9 shrink-0 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm mb-1.5 mr-1.5",
+                                    !input.trim() || isLoading
+                                        ? "bg-muted/50 text-muted-foreground opacity-50 cursor-not-allowed"
+                                        : "bg-foreground text-background hover:scale-105 hover:shadow-md"
+                                )}
+                            >
+                                <ArrowUp className="w-5 h-5 stroke-[2.5]" />
+                            </button>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </div>

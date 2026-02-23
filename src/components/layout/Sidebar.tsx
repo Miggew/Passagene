@@ -61,16 +61,18 @@ export default function Sidebar() {
             />
           </svg>
 
-          {/* FAB: Consultor IA (Aligned inside the curve exactly) */}
-          <div className="absolute inset-0 flex items-center justify-end z-50">
-            <div className="relative group mr-[6px]">
-              <VoiceFAB size="lg" isSidebar />
-              {/* Tooltip on hover */}
-              <span className="absolute right-[80px] top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl glass-panel border border-border text-foreground font-bold text-[12px] whitespace-nowrap shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 origin-right">
-                Gen.IA Relatórios
-              </span>
+          {/* FAB: Consultor IA (Aligned inside the curve exactly) - Hidden on Gen.IA route */}
+          {!isRouteActive('/genia') && (
+            <div className="absolute inset-0 flex items-center justify-end z-50">
+              <div className="relative group mr-[6px]">
+                <VoiceFAB size="lg" isSidebar />
+                {/* Tooltip on hover */}
+                <span className="absolute right-[80px] top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl glass-panel border border-border text-foreground font-bold text-[12px] whitespace-nowrap shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 origin-right">
+                  Gen.IA Relatórios
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Bottom Fixed Segment */}

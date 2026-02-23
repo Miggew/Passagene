@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useUserClientes } from '@/hooks/useUserClientes';
 import { HUB_HOME_ROUTES } from '@/lib/nav-config';
@@ -57,15 +57,9 @@ export default function Home() {
     return <LoadingSpinner />;
   }
 
-  // Layout compacto para cliente (cabe na tela sem scroll)
-  if (isCliente && clienteId) {
-    const nomeCliente = clientes.find(c => c.id === clienteId)?.nome;
-    return (
-      <HomeCliente
-        clienteId={clienteId}
-        clienteNome={nomeCliente}
-      />
-    );
+  // Cliente → redireciona direto para a tela Genética
+  if (isCliente) {
+    return <Navigate to="/cliente/mercado" replace />;
   }
 
   if (targetRoute) {

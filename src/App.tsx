@@ -63,6 +63,7 @@ const GeneticaTouros = lazy(() => import('./pages/genetica/GeneticaTouros'));
 const GeneticaTouroDetail = lazy(() => import('./pages/genetica/GeneticaTouroDetail'));
 
 // Páginas do Hub Cliente
+const ClienteMercado = lazy(() => import('./pages/cliente/ClienteMercado'));
 const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
 
 // Antigo Relatorios 
@@ -260,6 +261,7 @@ const AppRoutes = () => {
             <Route path="/biologist" element={<Navigate to="/bancada" replace />} />
 
             {/* Hub Cliente */}
+            <Route path="/cliente/mercado" element={<ClienteMercado />} />
             <Route path="/cliente/rebanho" element={<ClienteRebanho />} />
             <Route path="/cliente/relatorios" element={<ClienteRelatorios />} />
 

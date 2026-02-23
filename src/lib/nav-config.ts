@@ -24,6 +24,7 @@ import {
   Beef,
   Container,
   Building2,
+  Settings,
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
@@ -78,9 +79,11 @@ export const routeIcons: Record<string, React.ElementType> = {
   // Escritório (legacy — redirects only, kept for backward compat)
   '/escritorio': FileText,
   // Rotas do cliente
+  '/cliente/mercado': Dna,
   '/cliente/rebanho': Beef,
   '/cliente/relatorios': FileBarChart,
   '/cliente/botijao': Container,
+  '/cliente/configuracoes': Settings,
 };
 
 // ─── Labels Curtos (mobile bottom bar / menu) ──────────────────────
@@ -113,9 +116,12 @@ export const routeLabels: Record<string, string> = {
   '/genetica/doadoras': 'Doadoras',
   '/genetica/touros': 'Touros',
   '/escritorio': 'Escritório',
+  '/genia': 'Gen.IA',
+  '/cliente/mercado': 'Genética',
   '/cliente/rebanho': 'Rebanho',
   '/cliente/relatorios': 'Relatórios',
   '/cliente/botijao': 'Botijão',
+  '/cliente/configuracoes': 'Configurações',
 };
 
 // ─── Labels Longos (sidebar desktop) ───────────────────────────────
@@ -169,8 +175,8 @@ export const HUB_QUICK_ROUTES: Record<string, string[]> = {
   genetica: ['/genetica/doadoras', '/genetica/touros'],
 };
 
-// ─── Rotas do Cliente (bottom bar) ────────────────────────────────
-export const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios', '/cliente/botijao'];
+// ─── Rotas do Cliente (drawer hamburger) ────────────────────────────────
+export const CLIENTE_NAV_ROUTES = ['/cliente/mercado', '/genia', '/cliente/configuracoes'];
 
 // ─── Detecção de Hub por URL ──────────────────────────────────────
 export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {

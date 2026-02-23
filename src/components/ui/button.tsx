@@ -10,33 +10,32 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Primary verde PassaGene
-        // Primary verde PassaGene
+        // Primary Global (High-Contrast Luxury)
         default:
-          "btn-primary-green border-0",
-        // Primary Dourado Marketplace
+          "bg-foreground text-background hover:bg-foreground/90 hover:scale-[1.02] shadow-xl shadow-foreground/10 border-0",
+        // Primary Dourado Marketplace (Mantido para ênfase comercial)
         gold:
-          "btn-primary-gold border-0",
+          "btn-primary-gold border-0 hover:scale-[1.02]",
         // Destructive (vermelho)
         destructive:
           "bg-danger text-white shadow-[0_0_15px_rgba(224,82,82,0.15)] hover:bg-danger/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96] border-0",
-        // Botão secundário: Borda active, fundo transparente
+        // Botão secundário: Neutro sutil
         secondary:
-          "border-2 border-border-active bg-transparent text-text-primary shadow-sm hover:bg-border-active/10 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
-        // Botão terciário/cancelar: Borda padrão, fundo card
+          "border border-border/60 bg-muted/40 text-foreground shadow-sm hover:bg-muted/60 hover:border-border hover:translate-y-0.5 active:scale-[0.96]",
+        // Botão terciário/cancelar: Transparente com destaque suave
         ghost:
-          "border-2 border-border-default bg-bg-card text-text-primary hover:bg-bg-card-hover hover:translate-y-0.5 hover:shadow-none active:scale-[0.96]",
+          "border-transparent bg-transparent text-foreground hover:bg-muted/50 hover:translate-y-0.5 active:scale-[0.96]",
         // Outline simples
         outline:
-          "border-2 border-border-default bg-bg-card hover:bg-bg-card-hover text-text-primary shadow-sm hover:translate-y-0.5 hover:shadow-none",
+          "border-2 border-border/80 bg-transparent hover:bg-muted/20 text-foreground shadow-sm hover:translate-y-0.5 active:scale-[0.96]",
         // Link
         link:
-          "border-transparent text-info underline-offset-4 hover:underline hover:text-info/80",
-        // Alias retrocompatíveis
+          "border-transparent text-foreground underline-offset-4 hover:underline hover:text-foreground/80",
+        // Alias retrocompatíveis mapeados para a nova estética
         accent:
-          "btn-primary-green border-0",
+          "bg-foreground text-background border-0",
         success:
-          "btn-primary-green border-0",
+          "bg-primary text-primary-foreground border-0 hover:bg-primary/90 hover:scale-[1.02]",
       },
       size: {
         default: "h-10 px-4 py-2",

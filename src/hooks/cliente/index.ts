@@ -12,3 +12,11 @@ export {
 } from './useClienteHubData';
 
 export { useDailySummary } from './useDailySummary';
+
+export {
+  useMercadoCatalogo,
+  useMinhasReservas,
+  useCriarReserva,
+  useCancelarReserva,
+  type ReservaGenetica,
+} from './useMercadoGenetica';

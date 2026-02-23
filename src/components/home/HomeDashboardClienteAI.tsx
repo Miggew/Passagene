@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Maximize2, X, Dna } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Maximize2, X, Dna, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WeatherWidget } from './widgets/WeatherWidget';
 import { MarketWidget } from './widgets/MarketWidget';
@@ -37,20 +38,20 @@ export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props
     <div className="flex flex-col h-full w-full px-1 py-1 overflow-hidden">
       {/* Mini Banner Genética (Compacto para não gerar scroll) */}
       <div className="mb-3 shrink-0 px-1">
-        <div className="relative w-full rounded-xl overflow-hidden min-h-[50px] bg-gradient-to-r from-card to-card/50 border border-border flex items-center px-4 py-2 justify-between cursor-pointer hover:border-primary/30 transition-colors">
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-              <Dna className="w-4 h-4 text-primary" />
+        <Link to="/cliente/mercado" className="block">
+          <div className="relative w-full rounded-xl overflow-hidden min-h-[50px] bg-gradient-to-r from-card to-card/50 border border-border flex items-center px-4 py-2 justify-between cursor-pointer hover:border-primary/30 transition-colors">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                <Dna className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Bolsa de Genética</h3>
+                <p className="text-[10px] text-muted-foreground">Compre e venda prenhezes elite</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-foreground">Bolsa de Genética</h3>
-              <p className="text-[10px] text-muted-foreground">Compre e venda prenhezes elite</p>
-            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </div>
-          <span className="text-[10px] bg-primary/10 text-primary-light px-2 py-0.5 rounded border border-primary/20 font-bold uppercase tracking-wider">
-            Em Breve
-          </span>
-        </div>
+        </Link>
       </div>
 
       {/* Grid Cockpit Principal - Elegante e Estruturado */}

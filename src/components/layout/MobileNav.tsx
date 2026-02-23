@@ -1,6 +1,6 @@
 /**
  * Navegação mobile com barra inferior hub-aware.
- * Clientes: curva SVG + FAB central (AI Chat) + 4 slots fixos.
+ * Clientes: FAB flutuante (Gen.IA).
  * Não-clientes: barra flat com links diretos para hub home pages (multi-hub) ou hub home + 3 quick routes (single-hub).
  */
 
@@ -9,16 +9,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Home } from 'lucide-react';
-import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { VoiceFAB } from '@/components/ui/VoiceFAB';
-import { GeniaLogo } from '@/components/ui/GeniaLogo';
 import {
   routeIcons,
   routeLabels,
   hubIcons,
   HUB_QUICK_ROUTES,
   HUB_HOME_ROUTES,
-  CLIENTE_NAV_ROUTES,
 } from '@/lib/nav-config';
 import type { Hub } from '@/lib/types';
 
@@ -90,21 +87,17 @@ function CurvedBottomNavBackground() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ClienteBottomBar (Single Hub) — Apenas FAB Flutuante Brutalista
+// ClienteBottomBar — FAB flutuante isolado (Gen.IA)
 // ═══════════════════════════════════════════════════════════════════
 
 function ClienteBottomBar() {
-  // Para Single-Hub, removemos totalmente a barra inferior
-  // O menu fica no Header. Aqui, mantemos apenas a IA flutuando isolada.
+  const location = useLocation();
+  const isGenIaRoute = isRouteActive(location.pathname, '/genia');
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none md:bottom-2 md:max-w-2xl md:mx-auto">
-      {/* Floating AI FAB isolated on the bottom right */}
-      <div className="absolute bottom-[28px] right-[24px] md:right-0 pointer-events-auto z-20 group">
-        <VoiceFAB size="lg" />
-      </div>
-      {/* Glow Sub-shadow matching proto */}
-      <div className="absolute bottom-[36px] right-[32px] md:right-2 w-8 h-8 bg-primary rounded-full blur-[30px] opacity-60 z-10 pointer-events-none"></div>
-    </nav>
+    <div className="fixed bottom-6 right-6 z-50 pointer-events-auto safe-area-bottom">
+      <VoiceFAB size={isGenIaRoute ? "xl" : "lg"} />
+    </div>
   );
 }
 
@@ -141,13 +134,18 @@ function StandardBottomBar() {
     return { hub, hubHomeRoute, quickRoutes };
   }, [isSingleHub, realHubs]);
 
+  const isGenIaRoute = isRouteActive(location.pathname, '/genia');
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none md:bottom-2 md:max-w-3xl md:mx-auto">
       <CurvedBottomNavBackground />
 
       {/* FAB Central Global: Consultor IA (Centered in cutout) */}
-      <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50">
-        <VoiceFAB size="lg" isBrutalistCenter />
+      <div className={cn(
+        "absolute left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50 transition-all duration-300",
+        isGenIaRoute ? "bottom-[40px] md:bottom-[32px]" : "bottom-[24px]"
+      )}>
+        <VoiceFAB size={isGenIaRoute ? "xl" : "lg"} isBrutalistCenter />
       </div>
 
       {/* Itens de Navegação */}
