@@ -147,6 +147,26 @@ export function AspiracaoDoadoras({
         setOcrImageUrl(url);
     }, []);
 
+    const handleUpdateDoadora = useCallback((index: number, field: keyof DoadoraLocal, value: string | number) => {
+        setDoadoras(prev => {
+            const newDoadoras = prev.map((d, i) => {
+                if (i !== index) return d;
+
+                const updated = { ...d, [field]: value };
+                const oocitosFields = ['atresicos', 'degenerados', 'expandidos', 'desnudos', 'viaveis'];
+                if (oocitosFields.includes(field as string)) {
+                    const getVal = (f: string) => {
+                        if (f === field) return typeof value === 'number' ? value : parseInt(String(value)) || 0;
+                        return (d as Record<string, number>)[f] || 0;
+                    };
+                    updated.total_oocitos = getVal('atresicos') + getVal('degenerados') + getVal('expandidos') + getVal('desnudos') + getVal('viaveis');
+                }
+                return updated;
+            });
+            return newDoadoras;
+        });
+    }, [setDoadoras]);
+
     /** Apply pending OCR data after user review */
     const handleOcrApply = useCallback(() => {
         if (!ocrPendingData?.rows?.length) return;
@@ -331,28 +351,6 @@ export function AspiracaoDoadoras({
         setDoadoras(prev => [...prev, novaDoadora]);
         setCreateDoadoraForm({ registro: '', nome: '', raca: '', racaCustom: '' });
         setShowCreateDoadoraDialog(false);
-    };
-
-    const handleUpdateDoadora = (index: number, field: keyof DoadoraLocal, value: string | number) => {
-        setDoadoras(prev => {
-            const newDoadoras = prev.map((d, i) => {
-                if (i !== index) return d;
-
-                const updated = { ...d, [field]: value };
-                const oocitosFields = ['atresicos', 'degenerados', 'expandidos', 'desnudos', 'viaveis'];
-                if (oocitosFields.includes(field as string)) {
-                    const getVal = (f: string) => {
-                        if (f === field) return typeof value === 'number' ? value : parseInt(String(value)) || 0;
-                        return (d as Record<string, number>)[f] || 0;
-                    };
-                    updated.total_oocitos = getVal('atresicos') + getVal('degenerados') + getVal('expandidos') + getVal('desnudos') + getVal('viaveis');
-                }
-                return updated;
-            });
-
-            // Auto-update next start time logic could go here but skipping for simplicity in extraction
-            return newDoadoras;
-        });
     };
 
     const totalOocitos = doadoras.reduce((sum, d) => sum + (d.total_oocitos || 0), 0);
