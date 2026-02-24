@@ -131,7 +131,7 @@ export function MinhasReservas({ reservas, onCancelar, cancelando }: MinhasReser
                 size="sm"
                 className="h-7 text-xs text-muted-foreground hover:text-red-500"
                 onClick={() => onCancelar(r.id)}
-                disabled={cancelando === r.id}
+                disabled={!!cancelando}
               >
                 {cancelando === r.id ? (
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />

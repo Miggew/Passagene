@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { handleError } from '@/lib/error-handler';
 import type { CatalogoDoadora, CatalogoTouro } from '@/hooks/genetica/useCatalogoData';
 
 // ==================== TIPOS ====================
@@ -197,6 +198,10 @@ export function useCriarReserva() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['minhas-reservas', variables.cliente_id] });
+      queryClient.invalidateQueries({ queryKey: ['mercado-catalogo'] });
+    },
+    onError: (error) => {
+      handleError(error, 'Erro ao criar reserva');
     },
   });
 }
@@ -216,6 +221,10 @@ export function useCancelarReserva() {
     },
     onSuccess: (clienteId) => {
       queryClient.invalidateQueries({ queryKey: ['minhas-reservas', clienteId] });
+      queryClient.invalidateQueries({ queryKey: ['mercado-catalogo'] });
+    },
+    onError: (error) => {
+      handleError(error, 'Erro ao cancelar reserva');
     },
   });
 }

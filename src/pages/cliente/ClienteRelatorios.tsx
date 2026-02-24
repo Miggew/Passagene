@@ -5,12 +5,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { usePagination } from '@/hooks/core/usePagination';
 import { supabase } from '@/lib/supabase';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import { useClienteHubData } from '@/hooks/cliente';
+import { Button } from '@/components/ui/button';
+import EmptyState from '@/components/shared/EmptyState';
 import {
   Stethoscope,
   ScanSearch,
@@ -24,6 +27,7 @@ import {
   ClipboardList,
   X,
   MapPin,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
@@ -101,6 +105,7 @@ export default function ClienteRelatorios() {
   const { clienteId } = usePermissions();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Filtros
@@ -188,6 +193,25 @@ export default function ClienteRelatorios() {
     return filtered;
   }, [atividades, tipoFiltro, fazendaFiltro, periodoFiltro, mostrarApenasUltimo, idsFixos]);
 
+  // Paginação
+  const {
+    paginatedData,
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    hasNextPage,
+    hasPrevPage,
+    startIndex,
+    endIndex,
+    resetPage,
+  } = usePagination(atividadesFiltradas, { pageSize: 15 });
+
+  // Reset page quando filtros mudam
+  useEffect(() => {
+    resetPage();
+  }, [tipoFiltro, fazendaFiltro, periodoFiltro, resetPage]);
+
   // ============ CARREGAMENTO ============
 
   const loadAtividades = async () => {
@@ -261,7 +285,7 @@ export default function ClienteRelatorios() {
           const receptorasProtocolo = (protocolo.protocolo_receptoras as { receptora_id: string; status: string; motivo_inapta?: string }[]) || [];
           const dataTE = protocolo.passo2_data || protocolo.data_inicio;
           for (const pr of receptorasProtocolo) {
-            if (pr.status === 'INAPTA' && pr.motivo_inapta && pr.motivo_inapta.toLowerCase().includes('te')) {
+            if (pr.status === 'INAPTA' && pr.motivo_inapta && (/\bTE\b/.test(pr.motivo_inapta) || pr.motivo_inapta.startsWith('Descartada no menu de TE'))) {
               descartesTE.push({
                 receptora_id: pr.receptora_id,
                 motivo: pr.motivo_inapta,
@@ -488,10 +512,12 @@ export default function ClienteRelatorios() {
       atividadesData.sort((a, b) => b.data.getTime() - a.data.getTime());
       setAtividades(atividadesData);
 
-    } catch (error) {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
       toast({
         title: 'Erro ao carregar relatórios',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        description: msg,
         variant: 'destructive',
       });
     } finally {
@@ -583,6 +609,24 @@ export default function ClienteRelatorios() {
 
   if (loading || hubLoading) {
     return <LoadingScreen />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4 pb-24">
+        <PageHeader title="Relatórios" />
+        <EmptyState
+          title="Erro ao carregar relatórios"
+          description={error}
+          action={
+            <Button variant="outline" size="sm" onClick={() => { setError(null); loadAtividades(); }}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   return (
@@ -680,7 +724,10 @@ export default function ClienteRelatorios() {
           <div className="flex items-center gap-2">
             <div className="w-1 h-5 rounded-full bg-primary/50" />
             <h2 className="text-sm font-semibold text-foreground">
-              {atividadesFiltradas.length} {atividadesFiltradas.length === 1 ? 'relatório' : 'relatórios'}
+              {atividadesFiltradas.length > 15
+                ? `${startIndex + 1}–${endIndex} de ${atividadesFiltradas.length} relatórios`
+                : `${atividadesFiltradas.length} ${atividadesFiltradas.length === 1 ? 'relatório' : 'relatórios'}`
+              }
             </h2>
           </div>
         </div>
@@ -691,15 +738,42 @@ export default function ClienteRelatorios() {
           </div>
         ) : (
           <div className="space-y-2">
-            {atividadesFiltradas.map((atividade, index) => (
+            {paginatedData.map((atividade, index) => (
               <RelatorioCard
-                key={`${atividade.tipo}-${atividade.fazenda_id}-${index}`}
+                key={`${atividade.tipo}-${atividade.fazenda_id}-${startIndex + index}`}
                 atividade={atividade}
-                expanded={expandedSection === `ativ-${index}`}
-                onToggle={() => toggleSection(`ativ-${index}`)}
+                expanded={expandedSection === `ativ-${startIndex + index}`}
+                onToggle={() => toggleSection(`ativ-${startIndex + index}`)}
                 onNavigate={navigate}
               />
             ))}
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={!hasPrevPage}
+                  className="h-8 text-xs"
+                >
+                  Anterior
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={!hasNextPage}
+                  className="h-8 text-xs"
+                >
+                  Próximo
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -772,7 +846,7 @@ function RelatorioCard({ atividade, expanded, onToggle, onNavigate }: RelatorioC
       expanded && 'shadow-md border-primary/30'
     )}>
       {/* Header do card */}
-      <div onClick={onToggle} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} className="flex items-center gap-3 p-3.5 cursor-pointer hover:bg-muted/30 transition-colors">
+      <div onClick={onToggle} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} aria-expanded={expanded} aria-label={`${config.label} — ${atividade.fazenda_nome} — ${format(atividade.data, "dd/MM/yy", { locale: ptBR })}`} className="flex items-center gap-3 p-3.5 cursor-pointer hover:bg-muted/30 transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none rounded-xl">
         <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center border shrink-0', colors.iconBg)}>
           <Icon className={cn('w-5 h-5', colors.iconText)} />
         </div>

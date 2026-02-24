@@ -68,7 +68,7 @@ const ClienteRebanho = lazy(() => import('./pages/cliente/ClienteRebanho'));
 
 // Antigo Relatorios 
 const ClienteRelatorios = lazy(() => import('./pages/cliente/ClienteRelatorios'));
-const ClienteBotijao = lazy(() => import('./pages/cliente/ClienteBotijao'));
+// ClienteBotijao route now redirects to /cliente/mercado?tab=botijao
 const ClienteConfiguracoes = lazy(() => import('./pages/cliente/ClienteConfiguracoes'));
 
 const Bancada = lazy(() => import('./pages/Bancada'));
@@ -196,10 +196,6 @@ const AppRoutes = () => {
             <Route path="/fazendas" element={<Navigate to="/administrativo?tab=fazendas" replace />} />
             <Route path="/fazendas/:id" element={<FazendaDetail />} />
 
-            {/* Doadoras */}
-            <Route path="/doadoras" element={<Doadoras />} />
-            <Route path="/doadoras/:id" element={<DoadoraDetail />} />
-
             {/* Receptoras - agora fica dentro de FazendaDetail, só histórico tem rota própria */}
             <Route path="/receptoras/:id/historico" element={<ReceptoraHistorico />} />
 
@@ -248,7 +244,9 @@ const AppRoutes = () => {
             <Route path="/relatorios/material" element={<RelatoriosMaterial />} />
             <Route path="/relatorios/producao" element={<RelatoriosProducao />} />
 
-            {/* Hub Genética (Catálogo de Vendas) */}
+            {/* Hub Genética (Catálogo + Doadoras) */}
+            <Route path="/doadoras" element={<Doadoras />} />
+            <Route path="/doadoras/:id" element={<DoadoraDetail />} />
             <Route path="/genetica" element={<GeneticaHome />} />
             <Route path="/genetica/doadoras" element={<GeneticaDoadoras />} />
             <Route path="/genetica/doadoras/:id" element={<GeneticaDoadoraDetail />} />
@@ -271,7 +269,7 @@ const AppRoutes = () => {
             <Route path="/ai-chat" element={<Navigate to="/genia" replace />} />
             <Route path="/cliente/ai-chat" element={<Navigate to="/genia" replace />} />
 
-            <Route path="/cliente/botijao" element={<ClienteBotijao />} />
+            <Route path="/cliente/botijao" element={<Navigate to="/cliente/mercado?tab=botijao" replace />} />
             <Route path="/cliente/configuracoes" element={<ClienteConfiguracoes />} />
 
             {/* 

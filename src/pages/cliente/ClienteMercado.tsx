@@ -4,7 +4,8 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useDebounce } from '@/hooks/core/useDebounce';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useMercadoCatalogo, useMinhasReservas, useCriarReserva, useCancelarReserva } from '@/hooks/cliente';
 import { useClienteHubData, useEmbrioesDetalhes } from '@/hooks/cliente';
@@ -17,7 +18,8 @@ import { MercadoFilters, MercadoAnimalCard, ReservaDialog, MinhasReservas } from
 import { TouroCard } from '@/components/cliente/TouroCard';
 import { EmbrioCard } from '@/components/cliente/EmbrioCard';
 import { useToast } from '@/hooks/use-toast';
-import { Dna, ShoppingBag, ClipboardList, Container, Snowflake, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dna, ShoppingBag, ClipboardList, Container, Snowflake, Search, RefreshCw } from 'lucide-react';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { Input } from '@/components/ui/input';
@@ -54,11 +56,15 @@ interface EmbriaoAgrupado {
 
 export default function ClienteMercado() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { clienteId } = usePermissions();
   const { toast } = useToast();
 
-  // State — Catálogo
-  const [activeTab, setActiveTab] = useState('catalogo');
+  // State — Catálogo (inicializar tab a partir da URL se presente)
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    tabParam === 'botijao' || tabParam === 'reservas' ? tabParam : 'catalogo'
+  );
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos');
   const [racaFilter, setRacaFilter] = useState('');
   const [buscaFilter, setBuscaFilter] = useState('');
@@ -70,17 +76,21 @@ export default function ClienteMercado() {
   const [botijaoSubTab, setBotijaoSubTab] = useState<'doses' | 'embrioes'>('doses');
   const [botijaoSearch, setBotijaoSearch] = useState('');
 
+  // ─── Debounce ────────────────────────────────────────────────────
+  const debouncedBusca = useDebounce(buscaFilter, 300);
+  const debouncedBotijaoSearch = useDebounce(botijaoSearch, 300);
+
   // ─── Catálogo Queries ──────────────────────────────────────────────
-  const { data: catalogo, isLoading: catalogoLoading } = useMercadoCatalogo({
+  const { data: catalogo, isLoading: catalogoLoading, isError: catalogoError, refetch: refetchCatalogo } = useMercadoCatalogo({
     tipo: tipoFilter,
     raca: racaFilter || undefined,
-    busca: buscaFilter || undefined,
+    busca: debouncedBusca || undefined,
   });
 
   const { data: reservas = [], isLoading: reservasLoading } = useMinhasReservas(clienteId);
 
   // ─── Botijão Queries ───────────────────────────────────────────────
-  const { data: hubData, isLoading: hubLoading } = useClienteHubData(clienteId);
+  const { data: hubData, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useClienteHubData(clienteId);
 
   const acasalamentoIds = useMemo(() => {
     if (!hubData) return [];
@@ -135,13 +145,13 @@ export default function ClienteMercado() {
 
   const filteredTouros = useMemo(() => {
     return tourosDoses.filter(t => {
-      if (!botijaoSearch) return true;
-      const search = botijaoSearch.toLowerCase();
+      if (!debouncedBotijaoSearch) return true;
+      const search = debouncedBotijaoSearch.toLowerCase();
       return t.nome?.toLowerCase().includes(search) ||
              t.registro?.toLowerCase().includes(search) ||
              t.raca?.toLowerCase().includes(search);
     });
-  }, [tourosDoses, botijaoSearch]);
+  }, [tourosDoses, debouncedBotijaoSearch]);
 
   const embrioesAgrupados = useMemo((): EmbriaoAgrupado[] => {
     const map = new Map<string, { nome: string; count: number }>();
@@ -162,10 +172,10 @@ export default function ClienteMercado() {
 
   const filteredEmbrioes = useMemo(() => {
     return embrioesAgrupados.filter(e => {
-      if (!botijaoSearch) return true;
-      return e.nome?.toLowerCase().includes(botijaoSearch.toLowerCase());
+      if (!debouncedBotijaoSearch) return true;
+      return e.nome?.toLowerCase().includes(debouncedBotijaoSearch.toLowerCase());
     });
-  }, [embrioesAgrupados, botijaoSearch]);
+  }, [embrioesAgrupados, debouncedBotijaoSearch]);
 
   // ─── Handlers ─────────────────────────────────────────────────────
   const handleReservar = (item: { tipo: 'doadora' | 'touro'; data: CatalogoDoadora | CatalogoTouro }) => {
@@ -230,6 +240,24 @@ export default function ClienteMercado() {
     return <LoadingScreen />;
   }
 
+  if (catalogoError || hubError) {
+    return (
+      <div className="space-y-4 pb-20">
+        <PageHeader title="Genética" icon={Dna} />
+        <EmptyState
+          title="Erro ao carregar dados"
+          description="Não foi possível carregar as informações. Verifique sua conexão e tente novamente."
+          action={
+            <Button variant="outline" size="sm" onClick={() => { refetchCatalogo(); refetchHub(); }}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-20">
       <PageHeader title="Genética" icon={Dna} />
@@ -241,6 +269,7 @@ export default function ClienteMercado() {
             {/* Catálogo */}
             <TabsTrigger
               value="catalogo"
+              aria-label={`Catálogo — ${totalCatalogo} animais`}
               className={cn(
                 'relative h-12 gap-1.5 rounded-lg font-medium transition-all duration-200',
                 'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -266,6 +295,7 @@ export default function ClienteMercado() {
             {/* Meu Botijão */}
             <TabsTrigger
               value="botijao"
+              aria-label={`Meu Botijão — ${totalBotijao} itens`}
               className={cn(
                 'relative h-12 gap-1.5 rounded-lg font-medium transition-all duration-200',
                 'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -293,6 +323,7 @@ export default function ClienteMercado() {
             {/* Reservas */}
             <TabsTrigger
               value="reservas"
+              aria-label={`Reservas${reservasPendentes > 0 ? ` — ${reservasPendentes} pendentes` : ''}`}
               className={cn(
                 'relative h-12 gap-1.5 rounded-lg font-medium transition-all duration-200',
                 'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -335,7 +366,12 @@ export default function ClienteMercado() {
           {itens.length === 0 ? (
             <EmptyState
               title="Nenhum animal encontrado"
-              description={buscaFilter || racaFilter ? 'Tente ajustar os filtros de busca' : 'O catálogo ainda não possui animais publicados'}
+              description={buscaFilter || racaFilter ? 'Nenhum resultado para os filtros aplicados' : 'O catálogo ainda não possui animais publicados'}
+              action={(buscaFilter || racaFilter) ? (
+                <Button variant="outline" size="sm" onClick={() => { setBuscaFilter(''); setRacaFilter(''); setTipoFilter('todos'); }}>
+                  Limpar filtros
+                </Button>
+              ) : undefined}
             />
           ) : (
             <div className="space-y-2.5">
@@ -446,6 +482,11 @@ export default function ClienteMercado() {
                     <EmptyState
                       title="Nenhuma dose"
                       description={botijaoSearch ? 'Nenhum touro encontrado para a busca' : 'Você ainda não possui doses de sêmen'}
+                      action={botijaoSearch ? (
+                        <Button variant="outline" size="sm" onClick={() => setBotijaoSearch('')}>
+                          Limpar busca
+                        </Button>
+                      ) : undefined}
                     />
                   ) : (
                     filteredTouros.map((touro) => (
@@ -507,6 +548,11 @@ export default function ClienteMercado() {
                     <EmptyState
                       title="Nenhum embrião"
                       description={botijaoSearch ? 'Nenhum resultado para a busca' : 'Você ainda não possui embriões congelados'}
+                      action={botijaoSearch ? (
+                        <Button variant="outline" size="sm" onClick={() => setBotijaoSearch('')}>
+                          Limpar busca
+                        </Button>
+                      ) : undefined}
                     />
                   ) : (
                     <div className="space-y-2.5">

@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 
 // ==================== TIPOS ====================
 
@@ -77,6 +78,9 @@ export function useClientePreferences(clienteId: string | undefined) {
         );
 
       if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Preferência salva' });
     },
     onMutate: async (updates) => {
       // Optimistic update

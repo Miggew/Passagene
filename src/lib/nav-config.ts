@@ -91,7 +91,7 @@ export const routeLabels: Record<string, string> = {
   '/': 'Início',
   '/campo': 'Campo',
   '/administrativo': 'Admin',
-  '/doadoras': 'Doadoras',
+  '/doadoras': 'Minhas Doadoras',
   '/touros': 'Touros',
   '/lotes-fiv': 'Lotes FIV',
   '/embrioes': 'Embriões',
@@ -130,7 +130,7 @@ export const routeLabelsLong: Record<string, string> = {
   '/administrativo': 'Painel Admin',
   '/embryoscore': 'EmbryoScore IA',
   '/bancada': 'Bancada',
-  '/doadoras': 'Doadoras',
+  '/doadoras': 'Minhas Doadoras',
   '/touros': 'Catálogo de Touros',
   '/lotes-fiv': 'Lotes FIV',
   '/embrioes': 'Embriões',
@@ -172,7 +172,7 @@ export const HUB_QUICK_ROUTES: Record<string, string[]> = {
   laboratorio: ['/bancada', '/lotes-fiv', '/embryoscore'],
   campo: ['/dg', '/sexagem', '/transferencia', '/protocolos', '/aspiracoes'],
   relatorios: ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
-  genetica: ['/genetica/doadoras', '/genetica/touros'],
+  genetica: ['/doadoras', '/genetica/doadoras', '/genetica/touros'],
 };
 
 // ─── Detecção de Hub por URL ──────────────────────────────────────
@@ -183,6 +183,7 @@ export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): 
   if (pathname.startsWith('/historico')) return 'campo';
   if (pathname.startsWith('/escritorio')) return 'campo'; // legacy redirects
   if (pathname.startsWith('/relatorios')) return 'relatorios';
+  if (pathname.startsWith('/doadoras')) return 'genetica';
   if (pathname.startsWith('/genetica')) return 'genetica';
   if (pathname.startsWith('/cliente')) return 'cliente';
   // Rotas do Lab

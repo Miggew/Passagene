@@ -8,13 +8,15 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useDebounce } from '@/hooks/core/useDebounce';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import EmptyState from '@/components/shared/EmptyState';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Beef, Search, MapPin, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Beef, Search, MapPin, Filter, RefreshCw } from 'lucide-react';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { ReceptoraCard } from '@/components/cliente/ReceptoraCard';
 import { DoadoraCard } from '@/components/cliente/DoadoraCard';
@@ -55,6 +57,8 @@ export default function ClienteRebanho() {
   const [filtroFazenda, setFiltroFazenda] = useState<string>('todas');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   // Aplicar filtro baseado no parâmetro "etapa" da URL
   useEffect(() => {
     const etapa = searchParams.get('etapa');
@@ -75,12 +79,14 @@ export default function ClienteRebanho() {
           break;
       }
       // Limpar o parâmetro da URL após aplicar o filtro
-      setSearchParams({});
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('etapa');
+      setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
   // Hook de cache compartilhado
-  const { data: hubData, isLoading: hubLoading } = useClienteHubData(clienteId);
+  const { data: hubData, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useClienteHubData(clienteId);
 
   // IDs das receptoras prenhes para buscar cruzamentos
   const prenhesIds = useMemo(() => {
@@ -167,31 +173,49 @@ export default function ClienteRebanho() {
       }
 
       // Filtro de busca (apenas por identificação/brinco)
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
+      if (debouncedSearch) {
+        const search = debouncedSearch.toLowerCase();
         return r.identificacao?.toLowerCase().includes(search);
       }
       return true;
     });
-  }, [receptoras, filtroFazenda, statusFilter, searchTerm]);
+  }, [receptoras, filtroFazenda, statusFilter, debouncedSearch]);
 
   // Filtrar doadoras
   const filteredDoadoras = useMemo(() => {
     return doadoras.filter(d => {
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
+      if (debouncedSearch) {
+        const search = debouncedSearch.toLowerCase();
         return d.nome?.toLowerCase().includes(search) ||
                d.registro?.toLowerCase().includes(search) ||
                d.raca?.toLowerCase().includes(search);
       }
       return true;
     });
-  }, [doadoras, searchTerm]);
+  }, [doadoras, debouncedSearch]);
 
   const fazendas = hubData?.fazendas || [];
 
   if (hubLoading) {
     return <LoadingScreen />;
+  }
+
+  if (hubError) {
+    return (
+      <div className="space-y-4 pb-20">
+        <PageHeader title="Meu Rebanho" />
+        <EmptyState
+          title="Erro ao carregar rebanho"
+          description="Não foi possível carregar as informações. Verifique sua conexão e tente novamente."
+          action={
+            <Button variant="outline" size="sm" onClick={() => refetchHub()}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   return (
@@ -205,6 +229,7 @@ export default function ClienteRebanho() {
             <TabsList className="grid grid-cols-2 h-auto p-0 bg-transparent gap-1.5">
               <TabsTrigger
                 value="receptoras"
+                aria-label={`Receptoras — ${counts.totalReceptoras} animais`}
                 className={cn(
                   'relative h-12 gap-2 rounded-lg font-medium transition-all duration-200',
                   'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -228,6 +253,7 @@ export default function ClienteRebanho() {
               </TabsTrigger>
               <TabsTrigger
                 value="doadoras"
+                aria-label={`Doadoras — ${counts.totalDoadoras} animais`}
                 className={cn(
                   'relative h-12 gap-2 rounded-lg font-medium transition-all duration-200',
                   'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -318,7 +344,12 @@ export default function ClienteRebanho() {
           {filteredReceptoras.length === 0 ? (
             <EmptyState
               title="Nenhuma receptora"
-              description={searchTerm ? 'Nenhuma receptora encontrada para a busca' : 'Você ainda não possui receptoras cadastradas'}
+              description={(searchTerm || statusFilter !== 'todas' || filtroFazenda !== 'todas') ? 'Nenhuma receptora encontrada para os filtros aplicados' : 'Você ainda não possui receptoras cadastradas'}
+              action={(searchTerm || statusFilter !== 'todas' || filtroFazenda !== 'todas') ? (
+                <Button variant="outline" size="sm" onClick={() => { setSearchTerm(''); setStatusFilter('todas'); setFiltroFazenda('todas'); }}>
+                  Limpar filtros
+                </Button>
+              ) : undefined}
             />
           ) : (
             <div className="space-y-2.5">
@@ -339,7 +370,12 @@ export default function ClienteRebanho() {
             {filteredDoadoras.length === 0 ? (
               <EmptyState
                 title="Nenhuma doadora"
-                description="Nenhuma doadora encontrada para a busca"
+                description={searchTerm ? 'Nenhuma doadora encontrada para a busca' : 'Você ainda não possui doadoras cadastradas'}
+                action={searchTerm ? (
+                  <Button variant="outline" size="sm" onClick={() => setSearchTerm('')}>
+                    Limpar busca
+                  </Button>
+                ) : undefined}
               />
             ) : (
               <div className="space-y-2.5">
