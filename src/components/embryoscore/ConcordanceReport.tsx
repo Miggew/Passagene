@@ -51,7 +51,7 @@ export function ConcordanceReport() {
 
     const byRange = ranges.map(({ min, max, label }) => {
       const rangeScores = scores.filter(
-        (s) => s.score >= min && s.score < max
+        (s) => s.embryo_score >= min && s.embryo_score < max
       );
       const concordant = rangeScores.filter((s) => s.biologo_concorda === true).length;
 
@@ -91,7 +91,7 @@ export function ConcordanceReport() {
       <div className="rounded-xl border border-border glass-panel overflow-hidden">
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Brain className="w-5 h-5 animate-pulse" />
+            <Brain className="w-5 h-5" />
             <span className="text-sm">Carregando dados de concordância...</span>
           </div>
         </div>

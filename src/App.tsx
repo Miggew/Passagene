@@ -10,35 +10,24 @@ import { ErrorBoundary } from 'react-error-boundary';
 import LoadingSpinner from './components/shared/LoadingSpinner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-// Paginas de autenticacao
+// Importação das rotas segregadas por Hub (Lazy)
+const LabRoutes = lazy(() => import('./routes/LabRoutes'));
+const CampoRoutes = lazy(() => import('./routes/CampoRoutes'));
+const ClienteRoutes = lazy(() => import('./routes/ClienteRoutes'));
+
+// Páginas de autenticação
 const Login = lazy(() => import('./pages/Login'));
 const SignUp = lazy(() => import('./pages/SignUp'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
-// Paginas do app
+// Páginas principais
 const Home = lazy(() => import('./pages/Home'));
+const Administrativo = lazy(() => import('./pages/Administrativo'));
 const FazendaDetail = lazy(() => import('./pages/FazendaDetail'));
 const Doadoras = lazy(() => import('./pages/Doadoras'));
 const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
-// Receptoras agora fica dentro de FazendaDetail
-const ReceptoraHistorico = lazy(() => import('./pages/ReceptoraHistorico'));
-const Protocolos = lazy(() => import('./pages/Protocolos'));
-const ProtocoloDetail = lazy(() => import('./pages/ProtocoloDetail'));
-const ProtocoloRelatorioFechado = lazy(() => import('./pages/ProtocoloRelatorioFechado'));
-const Aspiracoes = lazy(() => import('./pages/Aspiracoes'));
-const PacoteAspiracaoDetail = lazy(() => import('./pages/PacoteAspiracaoDetail'));
-const DosesSemen = lazy(() => import('./pages/DosesSemen'));
 const Touros = lazy(() => import('./pages/Touros'));
 const TouroDetail = lazy(() => import('./pages/TouroDetail'));
-const LotesFIV = lazy(() => import('./pages/LotesFIV'));
-const Embrioes = lazy(() => import('./pages/Embrioes'));
-const EmbrioesCongelados = lazy(() => import('./pages/EmbrioesCongelados'));
-const TransferenciaEmbrioes = lazy(() => import('./pages/TransferenciaEmbrioes'));
-const TESessaoDetail = lazy(() => import('./pages/TESessaoDetail'));
-const DiagnosticoGestacao = lazy(() => import('./pages/DiagnosticoGestacao'));
-const DiagnosticoSessaoDetail = lazy(() => import('./pages/DiagnosticoSessaoDetail'));
-const Sexagem = lazy(() => import('./pages/Sexagem'));
-const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Administrativo = lazy(() => import('./pages/Administrativo'));
 const EmbryoScore = lazy(() => import('./pages/EmbryoScore'));
@@ -47,7 +36,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
 const DisruptiveExamples = lazy(() => import('./components/DisruptiveExamples'));
 
-// Páginas do Hub Relatórios
+// Hub Relatórios (Lazy)
 const RelatoriosHome = lazy(() => import('./pages/relatorios/RelatoriosHome'));
 const RelatoriosServicos = lazy(() => import('./pages/relatorios/RelatoriosServicos'));
 const RelatoriosAnimais = lazy(() => import('./pages/relatorios/RelatoriosAnimais'));
@@ -87,37 +76,17 @@ const queryClient = new QueryClient({
   },
 });
 
-// Componente que protege rotas: se nao logado, redireciona para /login
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-
-  // Enquanto verifica sessao, mostra loading
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  // Se nao esta logado, redireciona para login
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Se logado, mostra o conteudo
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
-// Componente que impede acesso a paginas de auth se ja estiver logado
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  // Se ja esta logado, redireciona para o dashboard
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-
+  if (loading) return <LoadingSpinner />;
+  if (user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -164,12 +133,10 @@ const AppRoutes = () => {
     <ErrorBoundary FallbackComponent={AppErrorFallback} resetKeys={[location.pathname]}>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-          {/* Rotas publicas (login, cadastro, recuperar senha) */}
+          {/* Rotas Públicas */}
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute><SignUp /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-
-          {/* Style Guide (público para testes) */}
           <Route path="/style-guide" element={<StyleGuide />} />
           <Route path="/disruptive" element={<DisruptiveExamples />} />
 
@@ -181,8 +148,13 @@ const AppRoutes = () => {
 
             {/* Página inicial - Dashboard unificado por tipo de usuário */}
             <Route path="/" element={<Home />} />
+            
+            {/* Hubs: Modularizados para performance mobile */}
+            <Route path="/lab/*" element={<LabRoutes />} />
+            <Route path="/campo/*" element={<CampoRoutes />} />
+            <Route path="/cliente/*" element={<ClienteRoutes />} />
 
-            {/* Painel Administrativo Unificado */}
+            {/* Rotas Globais/Admin */}
             <Route path="/administrativo" element={<Administrativo />} />
             <Route path="/embryoscore" element={<EmbryoScore />} />
             <Route path="/embryoscore/review/:queueId" element={<EmbryoScoreReview />} />
@@ -287,7 +259,6 @@ const AppRoutes = () => {
             <Route path="/escritorio/historico" element={<Navigate to="/historico" replace />} />
           </Route>
 
-          {/* Rota 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -300,7 +271,6 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        {/* AuthProvider envolve tudo para gerenciar estado de login */}
         <AuthProvider>
           <ScrollToTop />
           <AppRoutes />

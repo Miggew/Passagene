@@ -332,7 +332,7 @@ export function useLotesFIVDetailData({
       setAcasalamentos(acasalamentosComNomes);
       setSelectedLote({
         ...loteData,
-        pacote_nome: pacoteData.fazenda_id,
+        pacote_nome: fazendaOrigemNome || pacoteData.fazenda_id,
         pacote_data: pacoteData.data_aspiracao,
       } as LoteFIVComNomes);
       setShowLoteDetail(true);

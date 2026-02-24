@@ -10,6 +10,7 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react';
+import { Map } from 'lucide-react';
 import type { DetectedBbox } from '@/lib/types';
 
 type EmbryoStatus = 'pending' | 'classified' | 'active';
@@ -68,7 +69,7 @@ export function PlatePanorama({
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Solid circle
+        // solid circle
         ctx.beginPath();
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = '#34D399'; // --green
@@ -82,8 +83,8 @@ export function PlatePanorama({
         ctx.shadowBlur = 0; // reset
 
         // Number (white, bold)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 13px Manrope, sans-serif';
+        ctx.fillStyle = '#022c22';
+        ctx.font = 'bold 13px Outfit, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${i + 1}`, cx, cy);
@@ -105,15 +106,15 @@ export function PlatePanorama({
       } else {
         // Pending — outlined
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Number (dim)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '12px Manrope, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '12px JetBrains Mono, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${i + 1}`, cx, cy);
@@ -136,9 +137,9 @@ export function PlatePanorama({
       imageRef.current = img;
       const canvas = canvasRef.current;
       if (canvas) {
-        // Set canvas size proportional to image (max 600px wide)
+        // Set canvas size proportional to image (max 800px wide for desktop)
         const aspect = img.height / img.width;
-        const w = Math.min(600, img.width);
+        const w = Math.min(800, img.width);
         canvas.width = w;
         canvas.height = w * aspect;
       }
@@ -181,7 +182,7 @@ export function PlatePanorama({
       const cx = (bbox.x_percent / 100) * canvas.width;
       const cy = (bbox.y_percent / 100) * canvas.height;
       const dist = Math.sqrt((clickX - cx) ** 2 + (clickY - cy) ** 2);
-      if (dist < MARKER_RADIUS * 1.5 && dist < closestDist) {
+      if (dist < MARKER_RADIUS * 2 && dist < closestDist) {
         closestDist = dist;
         closestIdx = i;
       }
@@ -194,23 +195,24 @@ export function PlatePanorama({
 
   if (!plateFrameUrl) {
     return (
-      <div className="rounded-xl border border-border bg-muted/30 flex items-center justify-center h-32 text-sm text-muted-foreground">
-        Sem frame da placa
+      <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm flex flex-col items-center justify-center h-48 text-xs font-mono uppercase tracking-widest text-muted-foreground gap-2">
+        <Map className="w-6 h-6 opacity-20" />
+        Frame da placa não disponível
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden bg-black/5">
+    <div className="rounded-xl border border-border/50 overflow-hidden bg-black/40">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        className="w-full cursor-pointer"
+        className="w-full cursor-pointer touch-manipulation"
         style={{ display: 'block' }}
       />
-      <div className="flex items-center gap-4 px-3 py-1.5 bg-muted/50 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-full border border-white/50" /> Pendente
+      <div className="flex items-center gap-6 px-4 py-2 bg-card/80 backdrop-blur-sm border-t border-border/30">
+        <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">
+          <span className="inline-block w-2.5 h-2.5 rounded-full border border-white/20" /> Pendente
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-green/25 border border-green" /> Classificado

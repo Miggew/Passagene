@@ -11,6 +11,7 @@ import { LoteFIV, LoteFIVAcasalamento, PacoteAspiracao, AspiracaoDoadora } from 
 export interface LoteFIVComNomes extends LoteFIV {
   pacote_nome?: string;
   pacote_data?: string;
+  cliente_nome?: string;
   fazendas_destino_nomes?: string[];
   quantidade_acasalamentos?: number;
   dia_atual?: number;

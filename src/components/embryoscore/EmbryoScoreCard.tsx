@@ -57,7 +57,9 @@ const CLASS_COLORS: Record<string, string> = {
 
 export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, classificacaoManual }: EmbryoScoreCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const isV2 = score.combined_classification != null;
+  const isV2 = score.combined_classification != null
+    || score.embedding != null
+    || score.knn_votes != null;
 
   return (
     <div className={`rounded-lg border border-border/60 overflow-hidden transition-all ${expanded ? 'shadow-sm' : ''}`}>
@@ -116,17 +118,17 @@ function V2Header({ score }: { score: EmbryoScore }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-sm font-semibold ${clsColor}`}>{cls}</span>
           {score.biologist_classification && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-primary">
+            <span className="inline-flex items-center gap-0.5 text-xs text-primary">
               <Check className="w-3 h-3" /> Biólogo
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {sourceInfo.icon} {sourceInfo.label}
           </span>
           {score.knn_real_bovine_count != null && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               · {score.knn_real_bovine_count} refs reais
             </span>
           )}
@@ -155,7 +157,7 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
           <div className="flex items-center gap-2 mb-2">
             <Brain className="w-3.5 h-3.5 text-primary/60" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Votação KNN</span>
-            <span className="text-[10px] text-muted-foreground ml-auto">{totalVotes} vizinhos</span>
+            <span className="text-xs text-muted-foreground ml-auto">{totalVotes} vizinhos</span>
           </div>
           <div className="space-y-1.5 pl-5">
             {sortedVotes.map(([cls, count]) => {
@@ -169,7 +171,7 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground w-12 text-right">{count} ({pct}%)</span>
+                  <span className="text-xs text-muted-foreground w-12 text-right">{count} ({pct}%)</span>
                 </div>
               );
             })}
@@ -191,12 +193,12 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
       {/* Insufficient / mlp_only notes */}
       {source === 'insufficient' && (
         <div className="text-xs text-muted-foreground italic px-2">
-          Atlas em construção ({score.knn_real_bovine_count || 0} referências reais).
+          Atlas em construção{score.knn_real_bovine_count != null ? ` (${score.knn_real_bovine_count} referências reais)` : ''}.
         </div>
       )}
       {source === 'mlp_only' && (
         <div className="text-xs text-muted-foreground italic px-2">
-          {score.knn_real_bovine_count || 0} referências reais — classificação baseada no classificador treinado.
+          {score.knn_real_bovine_count != null ? `${score.knn_real_bovine_count} referências reais — ` : ''}Classificação baseada no classificador treinado.
         </div>
       )}
 
@@ -366,7 +368,7 @@ function V1Header({ score }: { score: EmbryoScore }) {
               {score.transfer_recommendation.replace('_', ' ')}
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             <Shield className="w-3 h-3 inline -mt-0.5 mr-0.5" />
             {score.confidence}
           </span>
@@ -416,7 +418,7 @@ function V1Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <span className="text-[10px] text-muted-foreground">{label}: </span>
+      <span className="text-xs text-muted-foreground">{label}: </span>
       <span className="text-[11px] text-foreground">{value}</span>
     </div>
   );

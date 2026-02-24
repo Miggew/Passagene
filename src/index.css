@@ -4,11 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fonte grande para uso no campo */
-html.font-grande {
-  font-size: 18px;
-}
-
 @layer base {
 
   :root {
@@ -220,17 +215,22 @@ html.font-grande {
 
   /* PWA / Mobile Styles */
   html {
-    /* Prevenir zoom em inputs no iOS */
-    touch-action: manipulation;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 15px; /* DS v4 base size */
   }
 
-  /* Safe area para iOS (notch, home indicator) */
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  body {
+    @apply bg-background text-foreground font-sans;
+    line-height: 1.65;
   }
 
-  .safe-area-top {
-    padding-top: env(safe-area-inset-top, 0px);
+  /* Títulos Premium em Outfit - Aplicar em tags e classes comuns */
+  h1, h2, h3, h4, h5, h6, 
+  .text-lg, .text-xl, .text-2xl, .text-3xl, 
+  .font-bold, .font-semibold, .font-extrabold {
+    @apply font-display tracking-tightest;
   }
 
   /* Prevenir seleção acidental de texto em elementos interativos */
@@ -261,10 +261,8 @@ html.font-grande {
       min-height: 44px;
     }
 
-    /* Ajuste de fontes para legibilidade */
-    html {
-      font-size: 16px;
-    }
+  code {
+    @apply font-mono bg-muted px-1.5 py-0.5 rounded text-[12px];
   }
 }
 

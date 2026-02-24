@@ -72,7 +72,7 @@ export function VideoUploadButton({
         >
           <AlertCircle className="w-4 h-4 text-red-500" />
         </button>
-        <span className="text-[9px] text-red-500">Tentar</span>
+        <span className="text-xs text-red-500">Tentar</span>
         <input
           ref={inputRef}
           type="file"
@@ -143,7 +143,7 @@ export function VideoUploadButton({
           onRecordingComplete={onUploadComplete}
         />
       </div>
-      <span className="text-[9px] text-muted-foreground">Filmar</span>
+      <span className="text-xs text-muted-foreground">Filmar</span>
       <input
         ref={inputRef}
         type="file"

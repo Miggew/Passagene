@@ -15,11 +15,14 @@ export default {
       },
     },
     extend: {
-      // Tipografia dos design tokens
       fontFamily: {
         sans: ["Outfit", "system-ui", "sans-serif"],
         heading: ["Outfit", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
+      },
+      fontSize: {
+        'xs': '11px',
+        'base': '15px',
       },
       colors: {
         border: "hsl(var(--border))",
@@ -30,12 +33,6 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          dark: "hsl(var(--primary-dark))",
-          "dark-foreground": "hsl(var(--primary-dark-foreground))",
-          light: "hsl(var(--primary-light))",
-          "light-foreground": "hsl(var(--primary-light-foreground))",
-          subtle: "hsl(var(--primary-subtle))",
-          "subtle-foreground": "hsl(var(--primary-subtle-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -52,10 +49,6 @@ export default {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
         },
         card: {
           DEFAULT: "hsl(var(--card))",
@@ -173,6 +166,11 @@ export default {
         "dna-spin": "dna-spin 1.5s ease-in-out infinite",
         "dna-spin-rev": "dna-spin-rev 1.5s ease-in-out infinite",
       },
+      letterSpacing: {
+        tightest: '-0.045em',
+        tighter: '-0.035em',
+        widest: '0.12em',
+      }
     },
   },
   plugins: [tailwindcssAnimate, tailwindcssAspectRatio],

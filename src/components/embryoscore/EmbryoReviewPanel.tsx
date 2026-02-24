@@ -14,8 +14,9 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { ClassificacaoEmbriao, EmbryoScore, DetectedBbox } from '@/lib/types';
-import { useReviewData, useSubmitClassification, useUndoClassification, useAtlasStats } from '@/hooks/useEmbryoReview';
+import { useReviewData, useSubmitClassification, useUndoClassification, useAtlasStats, useDispatchLote } from '@/hooks/useEmbryoReview';
 import { useEmbryoscoreUrl } from '@/hooks/useStorageUrl';
+import { useNavigate } from 'react-router-dom';
 import { PlatePanorama } from './PlatePanorama';
 import { EmbryoMinimap } from './EmbryoMinimap';
 import { BiologistClassButtons, CLASSES } from './BiologistClassButtons';
@@ -23,12 +24,12 @@ import { DispatchSummary } from './DispatchSummary';
 import { Eye } from 'lucide-react';
 import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
 
-const SOURCE_LABELS: Record<string, { icon: string; text: string; color: string }> = {
-  knn: { icon: '🤖', text: 'KNN', color: 'text-primary' },
-  knn_mlp_agree: { icon: '🤖', text: 'KNN + Classificador concordam', color: 'text-primary' },
-  knn_mlp_disagree: { icon: '⚠️', text: 'KNN vs Classificador divergem', color: 'text-amber-500' },
-  mlp_only: { icon: '💡', text: 'Sugestão do classificador', color: 'text-blue-500' },
-  insufficient: { icon: '🔍', text: 'Classifique manualmente', color: 'text-muted-foreground' },
+const SOURCE_LABELS: Record<string, { icon: React.ReactNode; text: string; color: string }> = {
+  knn: { icon: <BrainCircuit className="w-3.5 h-3.5" />, text: 'Consenso Atlas', color: 'text-primary' },
+  knn_mlp_agree: { icon: <BrainCircuit className="w-3.5 h-3.5" />, text: 'KNN + Classificador concordam', color: 'text-primary' },
+  knn_mlp_disagree: { icon: <BrainCircuit className="w-3.5 h-3.5" />, text: 'KNN vs Classificador divergem', color: 'text-amber-500' },
+  mlp_only: { icon: <BrainCircuit className="w-3.5 h-3.5" />, text: 'Sugestão do classificador', color: 'text-blue-500' },
+  insufficient: { icon: <BrainCircuit className="w-3.5 h-3.5" />, text: 'Classifique manualmente', color: 'text-muted-foreground' },
 };
 
 interface EmbryoReviewPanelProps {
@@ -39,7 +40,10 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
   const { data: reviewData, isLoading } = useReviewData(queueId);
   const submitMutation = useSubmitClassification();
   const undoMutation = useUndoClassification();
+  const dispatchMutation = useDispatchLote();
   const { data: atlasStats } = useAtlasStats();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -70,16 +74,13 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
     [embrioes, activeIdx],
   );
 
-  // Count classified
   const classifiedCount = embrioes.filter(e => e.score?.biologist_classification).length;
   const totalCount = embrioes.length;
   const allClassified = totalCount > 0 && classifiedCount === totalCount;
 
-  // Current embryo
   const current = embrioes[activeIdx];
   const score = current?.score;
 
-  // Navigate to next pending
   const goToNextPending = useCallback(() => {
     const nextIdx = embrioes.findIndex((e, i) => i > activeIdx && !e.score?.biologist_classification);
     if (nextIdx >= 0) {
@@ -90,7 +91,6 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
     }
   }, [embrioes, activeIdx]);
 
-  // Handlers
   const handleClassify = useCallback((classification: ClassificacaoEmbriao) => {
     if (!current || !score) return;
     setIsRevealed(true);
@@ -113,7 +113,25 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
     });
   }, [current, score, queueId, undoMutation]);
 
-  // Check if undo is allowed (within 5 min)
+  const handleDispatch = useCallback(() => {
+    dispatchMutation.mutate(queueId, {
+      onSuccess: () => {
+        toast({
+          title: "Lote Despachado!",
+          description: "Os embriões já estão disponíveis para transferência no campo.",
+        });
+        navigate('/lab/lotes-fiv');
+      },
+      onError: (err: any) => {
+        toast({
+          title: "Erro ao despachar",
+          description: err.message,
+          variant: "destructive",
+        });
+      }
+    });
+  }, [queueId, dispatchMutation, navigate, toast]);
+
   const canUndo = useMemo(() => {
     if (!score?.biologist_classification || !score?.created_at) return false;
     return true;
@@ -179,32 +197,45 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-20">
       {/* Header with progress */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <div className="w-1 h-5 rounded-full bg-primary/50" />
-          Revisão
-        </h2>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">{classifiedCount}/{totalCount}</span>
-          <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="flex items-center justify-between px-1">
+        <div>
+          <h2 className="text-xl font-display font-black text-foreground tracking-tightest">
+            Mesa de Conferência
+          </h2>
+          <p className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground opacity-70">
+            Validação de IA • {reviewData.queue?.expected_count} embriões
+          </p>
+        </div>
+        
+        <div className="text-right">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-xs font-bold text-muted-foreground uppercase tracking-wider">Progresso</span>
+            <span className="font-display font-black text-lg leading-none">{classifiedCount}/{totalCount}</span>
+          </div>
+          <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden border border-border/50">
             <div
-              className="h-full bg-primary rounded-full transition-all"
+              className="h-full bg-primary rounded-full transition-all duration-500"
               style={{ width: `${totalCount > 0 ? (classifiedCount / totalCount) * 100 : 0}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Plate Panorama */}
-      <PlatePanorama
-        plateFrameUrl={plateFrameUrl}
-        bboxes={bboxes}
-        statuses={statuses}
-        activeIndex={activeIdx}
-        onSelect={setActiveIdx}
-      />
+      {/* Plate Panorama - View da Placa Completa */}
+      <div className="relative">
+        <div className="absolute -top-3 left-4 px-2 py-0.5 bg-background border border-border rounded text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground z-10">
+          Mapa da Placa
+        </div>
+        <PlatePanorama
+          plateFrameUrl={plateFrameUrl}
+          bboxes={bboxes}
+          statuses={statuses}
+          activeIndex={activeIdx}
+          onSelect={setActiveIdx}
+        />
+      </div>
 
       {/* Current embryo card */}
       {current && score && (
@@ -235,7 +266,8 @@ export function EmbryoReviewPanel({ queueId }: EmbryoReviewPanelProps) {
           scores={embrioes.map(e => e.score!).filter(Boolean)}
           atlasTotal={atlasStats?.total || 0}
           atlasBovineReal={atlasStats?.bovine_real || 0}
-          onConfirmDispatch={() => { /* Will be wired to actual dispatch logic */ }}
+          onConfirmDispatch={handleDispatch}
+          isLoading={dispatchMutation.isPending}
         />
       )}
     </div>
@@ -290,10 +322,9 @@ function EmbryoDetailCard({
   const source = score.combined_source || 'insufficient';
   const sourceInfo = SOURCE_LABELS[source] || SOURCE_LABELS.insufficient;
 
-  // Build vote bars from knn_votes
   const votes = score.knn_votes || {};
-  const totalVotes = Object.values(votes).reduce((sum, v) => sum + v, 0);
-  const sortedVotes = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+  const totalVotes = Object.values(votes).reduce((sum: any, v: any) => sum + v, 0);
+  const sortedVotes = Object.entries(votes).sort((a: any, b: any) => b[1] - a[1]);
 
   return (
     <div className="rounded-xl border border-border glass-panel overflow-hidden">

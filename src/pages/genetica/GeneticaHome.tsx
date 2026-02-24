@@ -2,25 +2,25 @@
  * Página principal do Hub Genética - Vitrine de Vendas
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCatalogoData } from '@/hooks/genetica';
 import { AnimalCard } from '@/components/genetica';
+import { Button, Badge } from '@/components/ui/mobile-atoms'; // DS v4
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import EmptyState from '@/components/shared/EmptyState';
 import {
-  Dna,
-  ArrowRight,
-  Star,
+  Search,
+  Filter,
   Sparkles,
+  ArrowRight,
+  TrendingUp,
 } from 'lucide-react';
-import { CowIcon } from '@/components/icons/CowIcon';
+import { Input } from '@/components/ui/input';
 
 export default function GeneticaHome() {
   const navigate = useNavigate();
   const { loading, destaques, doadoras, touros, loadHomeData } = useCatalogoData();
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadHomeData();
@@ -28,17 +28,11 @@ export default function GeneticaHome() {
 
   if (loading) {
     return (
-      <div className="space-y-8">
-        {/* Header skeleton */}
-        <Skeleton className="h-32 rounded-xl" />
-        {/* Destaques skeleton */}
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-72 rounded-xl" />
-            ))}
-          </div>
+      <div className="space-y-6 p-4">
+        <Skeleton className="h-48 w-full rounded-2xl" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
     );
@@ -66,6 +60,10 @@ export default function GeneticaHome() {
               </div>
             </div>
           </div>
+          <Button variant="ghost" size="icon" className="bg-card border border-border">
+            <Filter className="w-5 h-5" />
+          </Button>
+        </div>
 
           <div className="flex items-center gap-3">
             <Button
@@ -88,42 +86,29 @@ export default function GeneticaHome() {
         </div>
       </div>
 
-      {/* Destaques */}
+      {/* Destaques (Carousel Horizontal) */}
       {destaques.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Star className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Destaques</h2>
-                <p className="text-sm text-muted-foreground">Seleção especial da semana</p>
-              </div>
+        <section className="space-y-3">
+          <div className="px-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Destaques</h2>
             </div>
             <Badge variant="outline" className="text-amber-600">
               <Sparkles className="w-3 h-3 mr-1" />
               {destaques.length} em destaque
             </Badge>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <div className="flex gap-4 overflow-x-auto px-4 pb-4 snap-x snap-mandatory scrollbar-hide">
             {destaques.map((item) => (
-              <AnimalCard
-                key={item.catalogo_id}
-                catalogoId={item.catalogo_id}
-                tipo={item.tipo}
-                nome={item.nome}
-                registro={item.registro}
-                raca={item.raca}
-                preco={item.preco}
-                destaque={item.destaque}
-                fotoUrl={item.foto_url}
-                fotoPrincipal={item.foto_principal}
-                paiNome={item.pai_nome}
-                maeNome={item.mae_nome}
-                fazendaNome={item.fazenda_nome}
-              />
+              <div key={item.catalogo_id} className="min-w-[280px] snap-center">
+                <AnimalCard
+                  {...item}
+                  tipo={item.tipo as 'doadora' | 'touro'}
+                  variant="hero" // Novo visual hero
+                />
+              </div>
             ))}
           </div>
         </section>
@@ -236,6 +221,38 @@ export default function GeneticaHome() {
           )}
         </section>
       </div>
+
+      {/* Grid Principal */}
+      <section className="px-4">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Em Alta</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...doadoras, ...touros]
+            .filter(item => 
+              !search || 
+              item.nome.toLowerCase().includes(search.toLowerCase()) || 
+              item.raca?.toLowerCase().includes(search.toLowerCase())
+            )
+            .slice(0, 10) // Limitado para demo
+            .map((item) => (
+            <AnimalCard
+              key={item.catalogo_id}
+              {...item}
+              tipo={item.tipo as 'doadora' | 'touro'}
+            />
+          ))}
+        </div>
+        
+        <div className="mt-6 text-center">
+          <Button variant="outline" fullWidth>
+            Carregar mais
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
+

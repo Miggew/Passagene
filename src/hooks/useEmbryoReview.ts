@@ -89,18 +89,30 @@ export function useSubmitClassification() {
 
   return useMutation({
     mutationFn: async ({ scoreId, embriaoId, classification, queueId }: SubmitClassificationParams) => {
-      // 1. Update embryo_scores with biologist classification
+      // 1. Fetch current AI classification to determine agreement
+      const { data: currentScore } = await supabase
+        .from('embryo_scores')
+        .select('combined_classification, knn_classification, mlp_classification')
+        .eq('id', scoreId)
+        .single();
+
+      const aiClass = currentScore?.combined_classification
+        || currentScore?.knn_classification
+        || currentScore?.mlp_classification
+        || null;
+
+      // 2. Update embryo_scores with biologist classification
       const { error: scoreErr } = await supabase
         .from('embryo_scores')
         .update({
           biologist_classification: classification,
-          biologist_agreed: true,
+          biologist_agreed: aiClass ? aiClass === classification : null,
         })
         .eq('id', scoreId);
 
       if (scoreErr) throw scoreErr;
 
-      // 2. Fetch score data for atlas insertion
+      // 3. Fetch score data for atlas insertion
       const { data: score } = await supabase
         .from('embryo_scores')
         .select('embedding, kinetic_intensity, kinetic_harmony, kinetic_stability, kinetic_bg_noise, crop_image_path, motion_map_path, composite_path, knn_classification, knn_confidence')
@@ -109,7 +121,7 @@ export function useSubmitClassification() {
 
       if (!score?.embedding) return;
 
-      // 3. Fetch lote_fiv_id for the reference
+      // 4. Fetch lote_fiv_id for the reference
       const { data: queue } = await supabase
         .from('embryo_analysis_queue')
         .select('lote_fiv_acasalamento_id')
@@ -128,7 +140,7 @@ export function useSubmitClassification() {
         loteFivId = acas?.lote_fiv_id || null;
       }
 
-      // 4. Get lab_id (use a constant for now — single lab)
+      // 5. Get lab_id (use a constant for now — single lab)
       const labId = '00000000-0000-0000-0000-000000000001';
 
       // 5. Upsert into embryo_references (atlas grows!)
@@ -148,9 +160,9 @@ export function useSubmitClassification() {
           best_frame_path: score.crop_image_path,
           motion_map_path: score.motion_map_path,
           composite_path: score.composite_path,
-          ai_suggested_class: score.knn_classification,
+          ai_suggested_class: aiSuggestedClass,
           ai_confidence: score.knn_confidence,
-          biologist_agreed: score.knn_classification === classification,
+          biologist_agreed: aiSuggestedClass ? aiSuggestedClass === classification : null,
           species: 'bovine_real',
           source: 'lab',
         }, { onConflict: 'embriao_id' });
@@ -255,5 +267,68 @@ export function useAtlasStats() {
       };
     },
     staleTime: 60_000,
+  });
+}
+
+// ─── useDispatchLote ───
+
+export function useDispatchLote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (queueId: string) => {
+      // 1. Get embryos and their classifications from scores
+      const { data: embrioes } = await supabase
+        .from('embrioes')
+        .select('id, identificacao, embryo_scores(biologist_classification)')
+        .eq('queue_id', queueId)
+        .eq('embryo_scores.is_current', true);
+
+      if (!embrioes?.length) throw new Error('Nenhum embrião encontrado para despachar.');
+
+      // 2. Update each embryo with its official classification
+      const updates = embrioes.map(e => {
+        const score = (e.embryo_scores as any)?.[0];
+        return supabase
+          .from('embrioes')
+          .update({
+            classificacao: score?.biologist_classification || 'Dg',
+            data_classificacao: new Date().toISOString(),
+            status_atual: 'FRESCO',
+          })
+          .eq('id', e.id);
+      });
+
+      await Promise.all(updates);
+
+      // 3. Find and close the Lote FIV
+      const { data: queue } = await supabase
+        .from('embryo_analysis_queue')
+        .select('lote_fiv_acasalamento_id')
+        .eq('id', queueId)
+        .single();
+
+      if (queue?.lote_fiv_acasalamento_id) {
+        const { data: acas } = await supabase
+          .from('lote_fiv_acasalamentos')
+          .select('lote_fiv_id')
+          .eq('id', queue.lote_fiv_acasalamento_id)
+          .single();
+
+        if (acas?.lote_fiv_id) {
+          await supabase
+            .from('lotes_fiv')
+            .update({
+              status: 'FECHADO',
+              disponivel_para_transferencia: true,
+            })
+            .eq('id', acas.lote_fiv_id);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lotes-fiv'] });
+      queryClient.invalidateQueries({ queryKey: ['embryo-review'] });
+    },
   });
 }

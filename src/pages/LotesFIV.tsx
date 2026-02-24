@@ -538,6 +538,7 @@ export default function LotesFIV() {
         throw new Error('Validação falhou');
       }
 
+      // Validação prévia de estoque (leitura) — a baixa real é atômica via RPC
       const { data: doseAtual, error: doseAtualError } = await supabase
         .from('doses_semen')
         .select('id, quantidade')
@@ -579,12 +580,12 @@ export default function LotesFIV() {
         throw error;
       }
 
-      const novaQuantidade = quantidadeDisponivel - quantidadeFracionada;
-      const { error: doseUpdateError } = await supabase
-        .from('doses_semen')
-        .update({ quantidade: novaQuantidade })
-        .eq('id', doseAtual?.id || '');
-      if (doseUpdateError) throw doseUpdateError;
+      // Baixa atômica via RPC (SELECT FOR UPDATE + CHECK >= 0 no banco)
+      const { error: rpcError } = await supabase.rpc('decrementar_estoque_semen', {
+        p_dose_id: doseAtual?.id,
+        p_quantidade: quantidadeFracionada,
+      });
+      if (rpcError) throw rpcError;
 
       toast({
         title: 'Acasalamento adicionado',

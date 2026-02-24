@@ -89,7 +89,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md ${clsColors.bg} ring-1 ${clsColors.ring}`}
           title={`Gemini: ${cls}${confidence ? ` (${confidence})` : ''}`}
         >
-          <span className={`text-[10px] font-bold font-mono ${clsColors.text}`}>{cls}</span>
+          <span className={`text-xs font-bold font-mono ${clsColors.text}`}>{cls}</span>
         </div>
       );
     }
@@ -102,7 +102,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
         <Brain className={`w-3 h-3 ${clsColors.text}`} />
         <span className={`text-xs font-bold font-mono ${clsColors.text}`}>{cls}</span>
         {confidence && (
-          <span className={`text-[10px] ${clsColors.text} opacity-70`}>{confidence}</span>
+          <span className={`text-xs ${clsColors.text} opacity-70`}>{confidence}</span>
         )}
       </div>
     );
@@ -118,7 +118,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
         title={`EmbryoScore: ${score.embryo_score} — ${score.classification} (${getConfidenceLabel(score.confidence)})`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-        <span className={`text-[10px] font-bold ${colors.text}`}>
+        <span className={`text-xs font-bold ${colors.text}`}>
           {Math.round(score.embryo_score)}
         </span>
       </div>
@@ -134,7 +134,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
       <span className={`text-xs font-bold ${colors.text}`}>
         {Math.round(score.embryo_score)}
       </span>
-      <span className={`text-[10px] ${colors.text} opacity-70`}>
+      <span className={`text-xs ${colors.text} opacity-70`}>
         {score.classification}
       </span>
     </div>
@@ -187,7 +187,7 @@ export function EmbryoScoreProcessing({
         {label}
       </span>
       {elapsed && (
-        <span className="text-[10px] text-blue-500/70">{elapsed}</span>
+        <span className="text-xs text-blue-500/70">{elapsed}</span>
       )}
     </div>
   );
@@ -209,9 +209,9 @@ export function EmbryoScoreError({ message, retryCount }: { message?: string; re
       title={`${message || 'Falha na análise'}${retryLabel}`}
     >
       <Brain className="w-3 h-3 text-red-500" />
-      <span className="text-[10px] text-red-600 dark:text-red-400 font-medium">Falha IA</span>
+      <span className="text-xs text-red-600 dark:text-red-400 font-medium">Falha IA</span>
       {retryCount != null && retryCount >= 3 && (
-        <span className="text-[10px] text-red-500/60">max</span>
+        <span className="text-xs text-red-500/60">max</span>
       )}
     </div>
   );

@@ -7,15 +7,16 @@
 
 import type { EmbryoScore } from '@/lib/types';
 import { Check, Brain, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/mobile-atoms';
 
 const CLASS_COLORS: Record<string, string> = {
-  BE: 'bg-emerald-500',
-  BN: 'bg-green-500',
+  BE: 'bg-primary',
+  BN: 'bg-primary/80',
   BX: 'bg-amber-500',
   BL: 'bg-blue-500',
   BI: 'bg-sky-400',
   Mo: 'bg-purple-500',
-  Dg: 'bg-red-500',
+  Dg: 'bg-destructive',
 };
 
 interface DispatchSummaryProps {
@@ -56,32 +57,40 @@ export function DispatchSummary({
     : 0;
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-gradient-to-b from-primary/5 to-transparent p-4 space-y-4">
+    <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-          <BarChart3 className="w-4 h-4 text-primary" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+            <BarChart3 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-display font-bold tracking-tight text-foreground">Resumo do Despacho</h3>
+            <p className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground opacity-70">
+              {totalClassified} embriões validados
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Resumo do Despacho</h3>
-          <p className="text-xs text-muted-foreground">{totalClassified} embriões classificados</p>
+        
+        <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono text-xs font-bold uppercase tracking-widest">
+          Consenso: {concordancePercent}%
         </div>
       </div>
 
       {/* Class distribution */}
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-3">
         {sortedClasses.map(([cls, count]) => {
           const pct = Math.round((count / totalClassified) * 100);
           return (
-            <div key={cls} className="flex items-center gap-3">
-              <span className="font-mono text-sm font-bold w-8 text-foreground">{cls}</span>
-              <div className="flex-1 h-5 bg-muted rounded-sm overflow-hidden">
+            <div key={cls} className="flex items-center gap-4">
+              <span className="font-display font-black text-xs w-6 text-foreground text-center">{cls}</span>
+              <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden border border-border/30">
                 <div
-                  className={`h-full rounded-sm ${CLASS_COLORS[cls] || 'bg-primary'}`}
+                  className={`h-full rounded-full transition-all duration-1000 ${CLASS_COLORS[cls] || 'bg-primary'}`}
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <span className="text-xs text-muted-foreground w-16 text-right">
+              <span className="font-mono text-xs font-bold text-muted-foreground w-12 text-right tracking-tighter">
                 {count} ({pct}%)
               </span>
             </div>
@@ -89,31 +98,28 @@ export function DispatchSummary({
         })}
       </div>
 
-      {/* Concordance */}
-      <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
-        <Brain className="w-4 h-4 text-primary/60" />
+      {/* Atlas maturity */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/5 border border-primary/10">
+        <Brain className="w-4 h-4 text-primary" />
         <div className="flex-1">
-          <span className="text-xs text-muted-foreground">Concordância IA</span>
-          <span className="ml-2 text-sm font-semibold text-foreground">
-            {concordancePercent}% ({agreed}/{totalClassified})
-          </span>
+          <p className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">Maturidade da IA</p>
+          <p className="text-[11px] font-sans text-foreground mt-0.5">
+            <b>{atlasTotal.toLocaleString()}</b> referências no atlas (<b>{atlasBovineReal.toLocaleString()}</b> bovinas reais)
+          </p>
         </div>
       </div>
 
-      {/* Atlas maturity */}
-      <div className="px-3 py-2 rounded-lg bg-muted/30 text-xs text-muted-foreground">
-        Atlas: {atlasTotal.toLocaleString()} cross-species + {atlasBovineReal.toLocaleString()} reais
-      </div>
-
       {/* Confirm dispatch */}
-      <button
+      <Button
         onClick={onConfirmDispatch}
-        disabled={isLoading}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary hover:bg-primary-dark text-white font-medium text-sm shadow-sm shadow-primary/25 transition-colors disabled:opacity-50"
+        loading={isLoading}
+        fullWidth
+        size="lg"
+        className="h-14 rounded-xl font-display font-bold text-base tracking-tight"
       >
-        <Check className="w-4 h-4" />
-        Confirmar despacho
-      </button>
+        <Check className="w-5 h-5 mr-2" />
+        Confirmar Despacho do Lote
+      </Button>
     </div>
   );
 }

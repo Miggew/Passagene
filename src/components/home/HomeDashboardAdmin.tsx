@@ -137,8 +137,8 @@ export default function HomeDashboardAdmin() {
                   <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground truncate">{kpi.label}</p>
-                  <p className="text-xl font-bold truncate">{kpi.value}</p>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground truncate">{kpi.label}</p>
+                  <p className="text-xl font-display font-black tracking-tightest truncate">{kpi.value}</p>
                 </div>
               </div>
             </div>
@@ -158,8 +158,8 @@ export default function HomeDashboardAdmin() {
               <item.icon className={`w-5 h-5 ${item.color}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{item.label}</p>
-              <p className="text-xs text-muted-foreground truncate">{item.sublabel}</p>
+              <p className="text-sm font-display font-bold tracking-tight truncate group-hover:text-primary transition-colors">{item.label}</p>
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground truncate opacity-70">{item.sublabel}</p>
             </div>
             <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
           </button>

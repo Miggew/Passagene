@@ -8,7 +8,8 @@
  */
 
 import type { ClassificacaoEmbriao } from '@/lib/types';
-import { Check, Undo2 } from 'lucide-react';
+import { Button } from '@/components/ui/mobile-atoms'; // DS v4
+import { Check, Undo2, Sparkles } from 'lucide-react';
 
 export const CLASSES: { value: ClassificacaoEmbriao; label: string; description: string }[] = [
   { value: 'BE', label: 'BE', description: 'Excelente' },
@@ -21,17 +22,11 @@ export const CLASSES: { value: ClassificacaoEmbriao; label: string; description:
 ];
 
 interface BiologistClassButtonsProps {
-  /** Sugestão da IA (combined_classification) */
   aiSuggestion?: string | null;
-  /** Classificação já confirmada pelo biólogo */
   currentClassification?: string | null;
-  /** Callback ao classificar */
   onClassify: (classification: ClassificacaoEmbriao) => void;
-  /** Callback ao desfazer */
   onUndo?: () => void;
-  /** Se pode desfazer (dentro de 5 min) */
   canUndo?: boolean;
-  /** Se mutation está em progresso */
   isLoading?: boolean;
   /** Selected class (controlled from parent for hotkey support) */
   selected: ClassificacaoEmbriao | null;
@@ -62,23 +57,24 @@ export function BiologistClassButtons({
     onSelect(null);
   };
 
-  // Already classified — show result + undo
   if (isConfirmed) {
     return (
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20">
           <Check className="w-4 h-4 text-primary" />
-          <span className="font-mono text-lg font-bold text-primary">{currentClassification}</span>
+          <span className="font-display font-black text-xl text-primary tracking-tightest">{currentClassification}</span>
         </div>
         {canUndo && onUndo && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onUndo}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
           >
-            <Undo2 className="w-3.5 h-3.5" />
+            <Undo2 className="w-3.5 h-3.5 mr-1.5" />
             Desfazer
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -99,17 +95,17 @@ export function BiologistClassButtons({
               onClick={() => handleSelect(cls.value)}
               disabled={isLoading}
               className={`
-                relative flex flex-col items-center justify-center rounded-lg p-3 h-auto min-w-[60px]
-                border transition-all duration-150 disabled:opacity-50
+                relative flex flex-col items-center justify-center rounded-xl p-3 h-auto
+                border transition-all duration-300 disabled:opacity-50 active:scale-95
                 ${isSelected
-                  ? 'border-primary bg-primary/15 shadow-sm shadow-primary/25'
+                  ? 'border-primary bg-primary/20'
                   : isAiSuggestion
                     ? 'border-primary/30 bg-primary/5 ring-1 ring-primary/20'
                     : 'border-border glass-panel hover:border-primary/20 hover:bg-muted/40'
                 }
               `}
             >
-              <span className={`font-mono text-lg font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+              <span className={`font-display font-black text-lg tracking-tightest ${isSelected ? 'text-primary' : 'text-foreground'}`}>
                 {cls.label}
               </span>
               <span className="text-[10px] text-muted-foreground mt-0.5">{cls.description}</span>
@@ -126,12 +122,14 @@ export function BiologistClassButtons({
         })}
       </div>
 
-      {/* Confirm button */}
+      {/* Confirm action */}
       {selected && (
-        <button
-          onClick={handleConfirm}
-          disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-medium text-sm shadow-sm shadow-primary/25 transition-colors disabled:opacity-50"
+        <Button 
+          onClick={handleConfirm} 
+          loading={isLoading} 
+          fullWidth
+          size="lg"
+          className="h-14 rounded-xl"
         >
           <Check className="w-4 h-4" />
           Confirmar {selected} → próximo
