@@ -29,7 +29,6 @@ const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
 const Touros = lazy(() => import('./pages/Touros'));
 const TouroDetail = lazy(() => import('./pages/TouroDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
-const Administrativo = lazy(() => import('./pages/Administrativo'));
 const EmbryoScore = lazy(() => import('./pages/EmbryoScore'));
 const EmbryoScoreReview = lazy(() => import('./pages/EmbryoScoreReview'));
 const NotFound = lazy(() => import('./pages/NotFound'));
