@@ -250,20 +250,19 @@
   }
 
   /* Touch targets mínimos (44px recomendado por Apple) */
-    @media (max-width: 768px) {
-      button,
-      a,
-      [role="button"],
-      input,
-      select,
-      textarea {
-        min-height: 44px;
-      }
+  @media (max-width: 768px) {
+    button,
+    a,
+    [role="button"],
+    input,
+    select,
+    textarea {
+      min-height: 44px;
     }
+  }
 
-    code {
-      @apply font-mono bg-muted px-1.5 py-0.5 rounded text-[12px];
-    }
+  code {
+    @apply font-mono bg-muted px-1.5 py-0.5 rounded text-[12px];
   }
 }
 
