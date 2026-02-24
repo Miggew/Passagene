@@ -94,9 +94,12 @@ function ClienteBottomBar() {
   const location = useLocation();
   const isGenIaRoute = isRouteActive(location.pathname, '/genia');
 
+  // Na página Gen.IA, a barra unificada já tem o mic — FAB flutuante é redundante
+  if (isGenIaRoute) return null;
+
   return (
     <div className="fixed bottom-6 right-6 z-50 pointer-events-auto safe-area-bottom">
-      <VoiceFAB size={isGenIaRoute ? "xl" : "lg"} />
+      <VoiceFAB size="lg" />
     </div>
   );
 }
@@ -140,13 +143,12 @@ function StandardBottomBar() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none md:bottom-2 md:max-w-3xl md:mx-auto">
       <CurvedBottomNavBackground />
 
-      {/* FAB Central Global: Consultor IA (Centered in cutout) */}
-      <div className={cn(
-        "absolute left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50 transition-all duration-300",
-        isGenIaRoute ? "bottom-[40px] md:bottom-[32px]" : "bottom-[24px]"
-      )}>
-        <VoiceFAB size={isGenIaRoute ? "xl" : "lg"} isBrutalistCenter />
-      </div>
+      {/* FAB Central Global: Consultor IA (Centered in cutout) — escondido na /genia pois a barra unificada já tem mic */}
+      {!isGenIaRoute && (
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50 transition-all duration-300 bottom-[24px]">
+          <VoiceFAB size="lg" isBrutalistCenter />
+        </div>
+      )}
 
       {/* Itens de Navegação */}
       <div className="relative z-10 flex items-center justify-between h-[88px] px-2 pb-2 pointer-events-auto md:px-6">

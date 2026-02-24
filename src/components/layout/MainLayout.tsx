@@ -1,8 +1,15 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { usePermissions } from '@/hooks/usePermissions';
 import MobileNav from './MobileNav';
 import TopBar from './TopBar';
 
 export default function MainLayout() {
+  const location = useLocation();
+  const { isCliente } = usePermissions();
+  const isGenia = location.pathname === '/genia';
+  const hideBottomNav = isGenia && isCliente;
+
   return (
     <div className="min-h-screen bg-muted flex items-center justify-center p-0 md:p-8">
       {/* 
@@ -14,7 +21,11 @@ export default function MainLayout() {
         <TopBar />
 
         {/* Conteúdo principal */}
-        <main className="flex-1 w-full p-4 md:p-6 lg:p-8 overflow-y-auto pb-32">
+        <main className={cn(
+          "flex-1 w-full overflow-y-auto flex flex-col relative",
+          isGenia ? "p-0" : "p-4 md:p-6 lg:p-8",
+          hideBottomNav ? "pb-0" : "pb-32"
+        )}>
           <Outlet />
         </main>
 

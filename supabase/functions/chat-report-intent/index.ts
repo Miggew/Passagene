@@ -50,6 +50,18 @@ NOVOS INTENTS E RELATÓRIOS:
 - 'comparacao_fazendas': Ranking entre fazendas, qual fazenda foi melhor.
 - 'resumo_geral': Visão geral, resumo da fazenda.
 
+GENÉTICA E MARKETPLACE:
+- 'catalogo_genetica': Catálogo de doadoras e touros disponíveis para compra. Use filtros.tipo_catalogo ('doadora'/'touro'), filtros.raca, e filtros.destaque.
+- 'meu_botijao': Estoque pessoal de doses de sêmen e embriões congelados que o cliente possui.
+- 'minhas_reservas': Reservas de genética do cliente (pendentes, confirmadas, etc.).
+- 'recomendacao_genetica': Quando o cliente pedir sugestão de genética, recomendação ou o que combina com o rebanho.
+
+JARGÕES DE GENÉTICA:
+- "quero comprar", "tem disponível", "catálogo", "mercado", "o que tem pra vender" → catalogo_genetica
+- "meu botijão", "meu estoque", "minhas doses", "meus embriões", "o que eu comprei" → meu_botijao
+- "minhas reservas", "meus pedidos", "status da compra", "minha encomenda" → minhas_reservas
+- "sugere", "recomenda", "combina com meu rebanho", "melhorar o padrão", "que genética usar" → recomendacao_genetica
+
 FILTRO POR FAZENDA: Se mencionar fazenda, preencha nome_fazenda. Null = todas as fazendas.
 
 REGRA DE ROTEAMENTO: Sempre preencha precisa_buscar_dados=true para intents de lista e relatórios. O objeto 'filtros' é OPCIONAL — preencha SOMENTE os sub-campos que o usuário explicitamente pediu ou se deduzidos por jargão.`;
@@ -58,7 +70,7 @@ const RESPONSE_SCHEMA = {
   properties: {
     intent: {
       type: "STRING",
-      description: "Intenção principal: 'relatorio_te' (Transferência de Embrião), 'relatorio_dg' (Diagnóstico de Gestação), 'relatorio_aspiracao' (Aspiração), 'relatorio_sexagem' (Sexagem), 'relatorio_receptoras' (Status e contagem de receptoras/barrigas de aluguel), 'relatorio_rebanho' (Estoque geral de animais, doadoras e touros), 'relatorio_animal_especifico' (Status de apenas UM animal exato mencionado no termo de busca), 'resumo_geral' (Resumo geral da fazenda — retorna dados reais de receptoras, doadoras, animais e DGs), 'desempenho_veterinario' (Aproveitamento ou perfomance de um vet), 'lista_receptoras' (Listar receptoras com filtros — por status, etapa próxima, dias de gestação, aptas para protocolo, repetidoras), 'lista_doadoras' (Listar doadoras com filtros — por média de oócitos, total aspirações), 'proximos_partos' (Animais com parto previsto nos próximos dias/semanas), 'proximos_servicos' (Próximas etapas — 2ºPasso, TE, DG, Sexagem — baseado no status atual), 'relatorio_protocolos' (Protocolos e receptoras protocoladas em um período), 'analise_repetidoras' (Receptoras com múltiplos protocolos consecutivos sem emprenhar), 'nascimentos' (Bezerros nascidos/registrados no período), 'estoque_semen' (Doses de sêmen disponíveis em estoque por touro), 'estoque_embrioes' (Embriões congelados em estoque por classificação), 'desempenho_touro' (Ranking de touros por taxa de prenhez nas DGs), 'comparacao_fazendas' (Comparar desempenho reprodutivo entre fazendas), 'desconhecido' (Fora de escopo)."
+      description: "Intenção principal: 'relatorio_te' (Transferência de Embrião), 'relatorio_dg' (Diagnóstico de Gestação), 'relatorio_aspiracao' (Aspiração), 'relatorio_sexagem' (Sexagem), 'relatorio_receptoras' (Status e contagem de receptoras/barrigas de aluguel), 'relatorio_rebanho' (Estoque geral de animais, doadoras e touros), 'relatorio_animal_especifico' (Status de apenas UM animal exato mencionado no termo de busca), 'resumo_geral' (Resumo geral da fazenda — retorna dados reais de receptoras, doadoras, animais e DGs), 'desempenho_veterinario' (Aproveitamento ou perfomance de um vet), 'lista_receptoras' (Listar receptoras com filtros — por status, etapa próxima, dias de gestação, aptas para protocolo, repetidoras), 'lista_doadoras' (Listar doadoras com filtros — por média de oócitos, total aspirações), 'proximos_partos' (Animais com parto previsto nos próximos dias/semanas), 'proximos_servicos' (Próximas etapas — 2ºPasso, TE, DG, Sexagem — baseado no status atual), 'relatorio_protocolos' (Protocolos e receptoras protocoladas em um período), 'analise_repetidoras' (Receptoras com múltiplos protocolos consecutivos sem emprenhar), 'nascimentos' (Bezerros nascidos/registrados no período), 'estoque_semen' (Doses de sêmen disponíveis em estoque por touro), 'estoque_embrioes' (Embriões congelados em estoque por classificação), 'desempenho_touro' (Ranking de touros por taxa de prenhez nas DGs), 'comparacao_fazendas' (Comparar desempenho reprodutivo entre fazendas), 'catalogo_genetica' (Catálogo de doadoras e touros disponíveis para compra no marketplace), 'meu_botijao' (Estoque pessoal de doses de sêmen e embriões do cliente), 'minhas_reservas' (Reservas de genética do cliente — pendentes, confirmadas, etc.), 'recomendacao_genetica' (Sugestão de genética compatível com o rebanho do cliente), 'desconhecido' (Fora de escopo)."
     },
     meses_retroativos: {
       type: "INTEGER",
@@ -128,6 +140,14 @@ const RESPONSE_SCHEMA = {
         raca: {
           type: "STRING",
           description: "Raça específica do animal (ex: 'Nelore', 'Angus', 'Gir'). Null = todas as raças."
+        },
+        tipo_catalogo: {
+          type: "STRING",
+          description: "Tipo de catálogo: 'doadora' ou 'touro'. Null = ambos. Para intent catalogo_genetica e recomendacao_genetica."
+        },
+        destaque: {
+          type: "BOOLEAN",
+          description: "True = somente destaques do catálogo. Para intent catalogo_genetica."
         }
       }
     }

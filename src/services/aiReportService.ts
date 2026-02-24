@@ -31,13 +31,13 @@ export interface AIIntent {
     | 'lista_receptoras' | 'lista_doadoras' | 'analise_repetidoras'
     | 'nascimentos' | 'estoque_semen' | 'estoque_embrioes'
     | 'desempenho_touro' | 'comparacao_fazendas'
+    | 'catalogo_genetica' | 'meu_botijao' | 'minhas_reservas' | 'recomendacao_genetica'
     | 'desconhecido';
     meses_retroativos: number;
     nome_veterinario: string | null;
     nome_fazenda: string | null;
     termo_busca: string | null;
     resposta_amigavel: string;
-    audioBase64?: string;
     precisa_buscar_dados: boolean;
     filtros?: {
         status_reprodutivo?: string[];
@@ -49,6 +49,8 @@ export interface AIIntent {
         protocolos_sem_prenhez_min?: number;
         media_oocitos_max?: number;
         media_oocitos_min?: number;
+        tipo_catalogo?: 'doadora' | 'touro';
+        destaque?: boolean;
     };
 }
 
@@ -65,49 +67,72 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
             case 'relatorio_te': {
                 if (receptoraIds.length === 0) return { error: 'Nenhuma receptora vinculada às suas fazendas.' };
 
-                // Buscar TEs
-                let query = supabase
-                    .from('transferencias_embrioes')
-                    .select('id, data_te, status_te, veterinario_responsavel')
-                    .in('receptora_id', receptoraIds)
-                    .gte('data_te', dataInicio);
-
-                if (intent.nome_veterinario) {
-                    query = query.ilike('veterinario_responsavel', `%${intent.nome_veterinario}%`);
-                }
-
-                const { data: tes, error } = await query;
-                if (error) throw error;
+                // fetchInChunks para evitar estouro de URL com muitas receptoras
+                const tes: any[] = await fetchInChunks(
+                    'transferencias_embrioes',
+                    'id, receptora_id, data_te, status_te, veterinario_responsavel',
+                    'receptora_id',
+                    receptoraIds,
+                    (q) => {
+                        q = q.gte('data_te', dataInicio);
+                        if (intent.nome_veterinario) q = q.ilike('veterinario_responsavel', `%${intent.nome_veterinario}%`);
+                        return q;
+                    }
+                );
 
                 const realizadas = tes.filter(te => te.status_te === 'REALIZADA').length;
-                const perdas = tes.filter(te => te.status_te !== 'REALIZADA').length;
+
+                // Receptoras únicas que receberam TE no período
+                const teRecIds = [...new Set(tes.filter(t => t.status_te === 'REALIZADA').map((t: any) => t.receptora_id as string))];
+                const receptorasComTE = teRecIds.length;
+                let prenhes = 0;
+                let comDG = 0;
+
+                if (teRecIds.length > 0) {
+                    const dgs: any[] = await fetchInChunks(
+                        'diagnosticos_gestacao',
+                        'receptora_id, resultado',
+                        'receptora_id',
+                        teRecIds,
+                        (q) => q.eq('tipo_diagnostico', 'DG').gte('data_diagnostico', dataInicio)
+                    );
+                    // Última DG por receptora
+                    const dgMap = new Map<string, string>();
+                    dgs.forEach(dg => { if (!dgMap.has(dg.receptora_id)) dgMap.set(dg.receptora_id, dg.resultado); });
+                    comDG = dgMap.size;
+                    prenhes = [...dgMap.values()].filter(r => r?.startsWith('PRENHE')).length;
+                }
+
+                // Tudo em unidades de receptoras únicas
+                const aguardandoDG = receptorasComTE - comDG;
+                const taxaAproveitamento = comDG > 0 ? ((prenhes / comDG) * 100).toFixed(1) : '—';
 
                 return {
                     tipo: 'TE',
                     periodo: `${limitMeses} meses`,
-                    total: tes.length,
                     realizadas,
-                    perdas,
-                    raw: tes
+                    receptorasComTE,
+                    comDG,
+                    aguardandoDG,
+                    prenhes,
+                    taxaAproveitamento: taxaAproveitamento !== '—' ? `${taxaAproveitamento}%` : taxaAproveitamento,
                 };
             }
 
             case 'relatorio_dg': {
                 if (receptoraIds.length === 0) return { error: 'Nenhuma receptora vinculada.' };
 
-                let query = supabase
-                    .from('diagnosticos_gestacao')
-                    .select('id, data_diagnostico, resultado, veterinario_responsavel')
-                    .in('receptora_id', receptoraIds)
-                    .eq('tipo_diagnostico', 'DG')
-                    .gte('data_diagnostico', dataInicio);
-
-                if (intent.nome_veterinario) {
-                    query = query.ilike('veterinario_responsavel', `%${intent.nome_veterinario}%`);
-                }
-
-                const { data: dgs, error } = await query;
-                if (error) throw error;
+                const dgs: any[] = await fetchInChunks(
+                    'diagnosticos_gestacao',
+                    'id, data_diagnostico, resultado, veterinario_responsavel',
+                    'receptora_id',
+                    receptoraIds,
+                    (q) => {
+                        q = q.eq('tipo_diagnostico', 'DG').gte('data_diagnostico', dataInicio);
+                        if (intent.nome_veterinario) q = q.ilike('veterinario_responsavel', `%${intent.nome_veterinario}%`);
+                        return q;
+                    }
+                );
 
                 const positivos = dgs.filter(dg => dg.resultado?.startsWith('PRENHE')).length;
                 const negativos = dgs.filter(dg => dg.resultado === 'VAZIA').length;
@@ -120,23 +145,19 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     positivos,
                     negativos,
                     taxaPrenhez: `${taxaPrenhez}%`,
-                    raw: dgs
                 };
             }
 
             case 'relatorio_sexagem': {
                 if (receptoraIds.length === 0) return { error: 'Nenhuma receptora vinculada.' };
 
-                let query = supabase
-                    .from('diagnosticos_gestacao')
-                    .select('id, data_diagnostico, sexagem')
-                    .in('receptora_id', receptoraIds)
-                    .eq('tipo_diagnostico', 'SEXAGEM')
-                    .gte('data_diagnostico', dataInicio)
-                    .not('sexagem', 'is', null);
-
-                const { data: sexagens, error } = await query;
-                if (error) throw error;
+                const sexagens: any[] = await fetchInChunks(
+                    'diagnosticos_gestacao',
+                    'id, data_diagnostico, sexagem',
+                    'receptora_id',
+                    receptoraIds,
+                    (q) => q.eq('tipo_diagnostico', 'SEXAGEM').gte('data_diagnostico', dataInicio).not('sexagem', 'is', null)
+                );
 
                 const machos = sexagens.filter(s => s.sexagem === 'MACHO').length;
                 const femeas = sexagens.filter(s => s.sexagem === 'FEMEA').length;
@@ -147,7 +168,6 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     total: sexagens.length,
                     machos,
                     femeas,
-                    raw: sexagens
                 };
             }
 
@@ -1087,6 +1107,271 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     tipo: 'COMPARACAO_FAZENDAS',
                     periodo: `${limitMeses} meses`,
                     veterinarios,
+                };
+            }
+
+            case 'catalogo_genetica': {
+                const filtros = intent.filtros || {};
+                const tipoCat = filtros.tipo_catalogo;
+                let itens: any[] = [];
+
+                // Fetch doadoras (se tipo não é exclusivamente 'touro')
+                if (tipoCat !== 'touro') {
+                    let q = supabase
+                        .from('vw_catalogo_doadoras')
+                        .select('catalogo_id, nome, registro, raca, preco, destaque, foto_principal, foto_url, pai_nome, mae_nome, embrioes_disponiveis')
+                        .order('destaque', { ascending: false })
+                        .order('ordem');
+                    if (filtros.raca) q = q.ilike('raca', `%${filtros.raca}%`);
+                    if (filtros.destaque) q = q.eq('destaque', true);
+                    if (intent.termo_busca) {
+                        const safe = intent.termo_busca.replace(/[%,.*()]/g, '');
+                        q = q.or(`nome.ilike.%${safe}%,registro.ilike.%${safe}%`);
+                    }
+                    const { data } = await q.limit(12);
+                    (data || []).forEach(d => itens.push({
+                        catalogo_id: d.catalogo_id, nome: d.nome || d.registro, registro: d.registro,
+                        raca: d.raca, tipo: 'doadora', preco: d.preco, destaque: d.destaque,
+                        foto_url: d.foto_principal || d.foto_url, pai_nome: d.pai_nome, mae_nome: d.mae_nome,
+                        estoque: d.embrioes_disponiveis,
+                    }));
+                }
+
+                // Fetch touros (se tipo não é exclusivamente 'doadora')
+                if (tipoCat !== 'doadora') {
+                    let q = supabase
+                        .from('vw_catalogo_touros')
+                        .select('catalogo_id, nome, registro, raca, preco, destaque, foto_principal, foto_url, pai_nome, mae_nome, doses_disponiveis')
+                        .order('destaque', { ascending: false })
+                        .order('ordem');
+                    if (filtros.raca) q = q.ilike('raca', `%${filtros.raca}%`);
+                    if (filtros.destaque) q = q.eq('destaque', true);
+                    if (intent.termo_busca) {
+                        const safe = intent.termo_busca.replace(/[%,.*()]/g, '');
+                        q = q.or(`nome.ilike.%${safe}%,registro.ilike.%${safe}%`);
+                    }
+                    const { data } = await q.limit(12);
+                    (data || []).forEach(t => itens.push({
+                        catalogo_id: t.catalogo_id, nome: t.nome || t.registro, registro: t.registro,
+                        raca: t.raca, tipo: 'touro', preco: t.preco, destaque: t.destaque,
+                        foto_url: t.foto_principal || t.foto_url, pai_nome: t.pai_nome, mae_nome: t.mae_nome,
+                        estoque: t.doses_disponiveis,
+                    }));
+                }
+
+                // Destaques primeiro, limitar a 12 total
+                itens.sort((a, b) => (b.destaque ? 1 : 0) - (a.destaque ? 1 : 0));
+                itens = itens.slice(0, 12);
+
+                return { tipo: 'CATALOGO_GENETICA', total: itens.length, itens };
+            }
+
+            case 'meu_botijao': {
+                if (!clienteId) return { error: 'Você precisa estar logado como cliente para ver seu botijão.' };
+
+                // Doses de sêmen do cliente
+                const { data: doses } = await supabase
+                    .from('doses_semen')
+                    .select('id, touro_id, quantidade')
+                    .eq('cliente_id', clienteId)
+                    .gt('quantidade', 0);
+
+                // Embriões congelados do cliente
+                const { data: embrioes } = await supabase
+                    .from('embrioes')
+                    .select('id, classificacao, status_embriao')
+                    .eq('cliente_id', clienteId)
+                    .eq('status_embriao', 'CONGELADO');
+
+                // Agrupar doses por touro
+                const touroIds = [...new Set((doses || []).map(d => d.touro_id))];
+                let touroNomeMap = new Map<string, { nome: string; raca: string | null }>();
+                if (touroIds.length > 0) {
+                    const { data: touros } = await supabase
+                        .from('touros')
+                        .select('id, nome, raca')
+                        .in('id', touroIds);
+                    (touros || []).forEach(t => touroNomeMap.set(t.id, { nome: t.nome, raca: t.raca }));
+                }
+
+                const dosesPorTouro = new Map<string, { touro: string; raca: string | null; doses: number }>();
+                (doses || []).forEach(d => {
+                    const info = touroNomeMap.get(d.touro_id) || { nome: d.touro_id.substring(0, 8), raca: null };
+                    const entry = dosesPorTouro.get(d.touro_id) || { touro: info.nome, raca: info.raca, doses: 0 };
+                    entry.doses += d.quantidade || 0;
+                    dosesPorTouro.set(d.touro_id, entry);
+                });
+
+                // Agrupar embriões por classificação
+                const embrioesPorClass = new Map<string, number>();
+                (embrioes || []).forEach(e => {
+                    const cls = e.classificacao || 'N/C';
+                    embrioesPorClass.set(cls, (embrioesPorClass.get(cls) || 0) + 1);
+                });
+
+                const totalDoses = Array.from(dosesPorTouro.values()).reduce((s, e) => s + e.doses, 0);
+                const totalEmbrioes = (embrioes || []).length;
+
+                return {
+                    tipo: 'MEU_BOTIJAO',
+                    totalDoses,
+                    totalEmbrioes,
+                    dosesPorTouro: Array.from(dosesPorTouro.values()).sort((a, b) => b.doses - a.doses),
+                    embrioesPorClassificacao: Array.from(embrioesPorClass.entries())
+                        .map(([classificacao, quantidade]) => ({ classificacao, quantidade }))
+                        .sort((a, b) => b.quantidade - a.quantidade),
+                };
+            }
+
+            case 'minhas_reservas': {
+                if (!clienteId) return { error: 'Você precisa estar logado como cliente para ver suas reservas.' };
+
+                const { data: reservas } = await supabase
+                    .from('reservas_genetica')
+                    .select('*')
+                    .eq('cliente_id', clienteId)
+                    .order('created_at', { ascending: false });
+
+                if (!reservas || reservas.length === 0) return { tipo: 'MINHAS_RESERVAS', total: 0, itens: [] };
+
+                // Enrich with animal names from catalog views
+                const catalogoIds = [...new Set(reservas.map(r => r.catalogo_id))];
+                const [{ data: catDoadoras }, { data: catTouros }] = await Promise.all([
+                    supabase.from('vw_catalogo_doadoras')
+                        .select('catalogo_id, nome, registro, raca, foto_principal, foto_url')
+                        .in('catalogo_id', catalogoIds),
+                    supabase.from('vw_catalogo_touros')
+                        .select('catalogo_id, nome, registro, raca, foto_principal, foto_url')
+                        .in('catalogo_id', catalogoIds),
+                ]);
+
+                const animalMap = new Map<string, { nome: string; raca: string | null; foto: string | null }>();
+                (catDoadoras || []).forEach(d => animalMap.set(d.catalogo_id, {
+                    nome: d.nome || d.registro, raca: d.raca, foto: d.foto_principal || d.foto_url,
+                }));
+                (catTouros || []).forEach(t => animalMap.set(t.catalogo_id, {
+                    nome: t.nome || t.registro, raca: t.raca, foto: t.foto_principal || t.foto_url,
+                }));
+
+                const itens = reservas.map(r => {
+                    const animal = animalMap.get(r.catalogo_id);
+                    return {
+                        animal_nome: animal?.nome || 'Animal não encontrado',
+                        animal_raca: animal?.raca,
+                        animal_foto: animal?.foto,
+                        tipo: r.tipo,
+                        status: r.status,
+                        data_desejada: r.data_desejada,
+                        quantidade: r.quantidade_embrioes,
+                        observacoes: r.observacoes,
+                        resposta_admin: r.resposta_admin,
+                        created_at: r.created_at,
+                    };
+                });
+
+                return { tipo: 'MINHAS_RESERVAS', total: itens.length, itens };
+            }
+
+            case 'recomendacao_genetica': {
+                // 1. Buscar doadoras do cliente (prioridade)
+                let doadorasCliente: { nome: string; registro: string; raca: string | null; foto_url: string | null; classificacao_genetica: string | null }[] = [];
+                if (farmIds.length > 0) {
+                    const { data: doasCliente } = await supabase
+                        .from('doadoras')
+                        .select('nome, registro, raca, foto_url, classificacao_genetica')
+                        .in('fazenda_id', farmIds);
+                    doadorasCliente = (doasCliente || []).map(d => ({
+                        nome: d.nome || d.registro, registro: d.registro,
+                        raca: d.raca, foto_url: d.foto_url, classificacao_genetica: d.classificacao_genetica,
+                    }));
+                }
+
+                // 2. Buscar touros do catálogo (disponíveis para compra)
+                const { data: catTouros } = await supabase
+                    .from('vw_catalogo_touros')
+                    .select('catalogo_id, nome, registro, raca, preco, destaque, foto_principal, foto_url, pai_nome, mae_nome, doses_disponiveis')
+                    .gt('doses_disponiveis', 0)
+                    .order('destaque', { ascending: false })
+                    .order('ordem')
+                    .limit(20);
+
+                // 3. Buscar doadoras do catálogo (fallback se cliente não tem doadoras)
+                let catDoadoras: any[] = [];
+                if (doadorasCliente.length === 0) {
+                    const { data } = await supabase
+                        .from('vw_catalogo_doadoras')
+                        .select('catalogo_id, nome, registro, raca, preco, destaque, foto_principal, foto_url, pai_nome, mae_nome, embrioes_disponiveis')
+                        .order('destaque', { ascending: false })
+                        .order('ordem')
+                        .limit(10);
+                    catDoadoras = data || [];
+                }
+
+                // 4. Montar cruzamentos
+                let cruzamentos: any[] = [];
+                const touros = catTouros || [];
+                const usandoDoadorasCliente = doadorasCliente.length > 0;
+
+                if (usandoDoadorasCliente) {
+                    // Doadoras do cliente × Touros do catálogo
+                    for (const doa of doadorasCliente) {
+                        for (const tou of touros) {
+                            const racaMatch = doa.raca && tou.raca &&
+                                doa.raca.toLowerCase().includes(tou.raca.toLowerCase());
+                            cruzamentos.push({
+                                doadora: { nome: doa.nome, registro: doa.registro, raca: doa.raca, foto_url: doa.foto_url, origem: 'proprio' },
+                                touro: {
+                                    nome: tou.nome || tou.registro, registro: tou.registro, raca: tou.raca,
+                                    foto_url: tou.foto_principal || tou.foto_url, preco: tou.preco,
+                                    catalogo_id: tou.catalogo_id, destaque: tou.destaque, doses: tou.doses_disponiveis,
+                                },
+                                compativel: !!racaMatch,
+                                motivo: racaMatch
+                                    ? `${doa.raca} × ${tou.raca} — mesma raça`
+                                    : tou.destaque ? 'Touro destaque do catálogo' : null,
+                            });
+                        }
+                    }
+                } else {
+                    // Catálogo doadoras × Catálogo touros
+                    for (const doa of catDoadoras) {
+                        for (const tou of touros) {
+                            const racaMatch = doa.raca && tou.raca &&
+                                doa.raca.toLowerCase().includes(tou.raca.toLowerCase());
+                            cruzamentos.push({
+                                doadora: {
+                                    nome: doa.nome || doa.registro, registro: doa.registro, raca: doa.raca,
+                                    foto_url: doa.foto_principal || doa.foto_url, catalogo_id: doa.catalogo_id, origem: 'catalogo',
+                                },
+                                touro: {
+                                    nome: tou.nome || tou.registro, registro: tou.registro, raca: tou.raca,
+                                    foto_url: tou.foto_principal || tou.foto_url, preco: tou.preco,
+                                    catalogo_id: tou.catalogo_id, destaque: tou.destaque, doses: tou.doses_disponiveis,
+                                },
+                                compativel: !!racaMatch,
+                                motivo: racaMatch
+                                    ? `${doa.raca} × ${tou.raca} — mesma raça`
+                                    : (doa.destaque || tou.destaque) ? 'Destaques do catálogo' : null,
+                            });
+                        }
+                    }
+                }
+
+                // 5. Priorizar: compatíveis primeiro, com motivo segundo, limitar
+                cruzamentos.sort((a, b) => {
+                    if (a.compativel !== b.compativel) return a.compativel ? -1 : 1;
+                    if (a.motivo && !b.motivo) return -1;
+                    if (!a.motivo && b.motivo) return 1;
+                    return 0;
+                });
+                cruzamentos = cruzamentos.slice(0, 10);
+
+                return {
+                    tipo: 'RECOMENDACAO_GENETICA',
+                    usandoDoadorasCliente,
+                    totalDoadoras: usandoDoadorasCliente ? doadorasCliente.length : catDoadoras.length,
+                    totalTouros: touros.length,
+                    cruzamentos,
                 };
             }
 

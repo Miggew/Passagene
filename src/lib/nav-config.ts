@@ -175,9 +175,6 @@ export const HUB_QUICK_ROUTES: Record<string, string[]> = {
   genetica: ['/genetica/doadoras', '/genetica/touros'],
 };
 
-// ─── Rotas do Cliente (drawer hamburger) ────────────────────────────────
-export const CLIENTE_NAV_ROUTES = ['/cliente/mercado', '/genia', '/cliente/configuracoes'];
-
 // ─── Detecção de Hub por URL ──────────────────────────────────────
 export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): string | null {
   if (pathname === '/genia' || pathname === '/ai-chat') return fallbackHub?.code ?? 'campo'; // IA herda o hub atual

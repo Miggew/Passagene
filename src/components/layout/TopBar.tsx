@@ -6,10 +6,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { useGlobalAnalysisQueue, useCancelAllAnalysis } from '@/hooks/useEmbryoScores';
 import type { GlobalAnalysisQueueData } from '@/hooks/useEmbryoScores';
 import { LoaderDNA } from '@/components/ui/LoaderDNA';
-import { Settings, LogOut, Sun, Moon, Laptop, User, X, Menu, Home, FileText } from 'lucide-react';
+import { Settings, LogOut, Sun, Moon, User, X } from 'lucide-react';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { cn } from '@/lib/utils';
-import { CLIENTE_NAV_ROUTES, routeIcons, routeLabels } from '@/lib/nav-config';
 
 function TopBarAnalysisBadge() {
     const { data: queue } = useGlobalAnalysisQueue();
@@ -85,11 +84,10 @@ function TopBarAnalysisBadge() {
 export default function TopBar() {
     const navigate = useNavigate();
     const { signOut } = useAuth();
-    const { profile } = usePermissions();
+    const { profile, isCliente } = usePermissions();
     const { theme, setTheme } = useTheme();
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -102,29 +100,13 @@ export default function TopBar() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleMobileNav = (route: string) => {
-        setIsMobileMenuOpen(false);
-        navigate(route);
-    };
-
     return (
         <>
             <header className="sticky top-0 z-40 w-full border-b-[3px] border-border glass-panel/95 backdrop-blur supports-[backdrop-filter]:glass-panel/80 shadow-sm">
                 <div className="flex h-16 items-center justify-between px-4 lg:px-8 max-w-7xl mx-auto">
 
-                    {/* Left: Hamburger Menu (Mobile Clientes ONLY) */}
+                    {/* Left: Logo */}
                     <div className="flex items-center gap-3">
-                        {/* Type Assertion on profile to avoid UserProfile missing "role" */}
-                        {(profile as any)?.role === 'cliente' && (
-                            <button
-                                onClick={() => setIsMobileMenuOpen(true)}
-                                className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl border-2 border-border bg-background text-foreground hover:bg-muted transition-colors"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-
-                        {/* Logo */}
                         <div
                             className="flex items-center cursor-pointer transition-transform hover:-translate-y-0.5"
                             onClick={() => navigate('/')}
@@ -191,7 +173,7 @@ export default function TopBar() {
 
                                 {/* Preferencias */}
                                 <button
-                                    onClick={() => setIsMenuOpen(false)}
+                                    onClick={() => { setIsMenuOpen(false); if (isCliente) navigate('/cliente/configuracoes'); }}
                                     className={cn(
                                         "group/btn flex items-center justify-end gap-3 transition-all duration-300 ease-out",
                                         isMenuOpen ? "translate-y-0 scale-100 delay-[100ms]" : "translate-y-[-40px] scale-75"
@@ -241,80 +223,6 @@ export default function TopBar() {
                 </div>
             </header>
 
-            {/* Mobile Nav Overlay (Clients Only) */}
-            {(profile as any)?.role === 'cliente' && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className={cn(
-                            "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-opacity duration-300 md:hidden",
-                            isMobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                    />
-
-                    {/* Drawer */}
-                    <div
-                        className={cn(
-                            "fixed inset-y-0 left-0 z-50 w-[280px] glass-panel border-r-[3px] border-border shadow-brutal transition-transform duration-300 ease-out md:hidden flex flex-col",
-                            isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-                        )}
-                    >
-                        <div className="flex items-center justify-between p-4 border-b-2 border-border/50">
-                            <LogoPassagene height={28} variant="premium" />
-                            <button
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="p-2 rounded-lg hover:bg-muted transition-colors"
-                            >
-                                <X className="w-5 h-5 text-foreground" />
-                            </button>
-                        </div>
-
-                        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                            {CLIENTE_NAV_ROUTES.map(route => {
-                                const Icon = routeIcons[route] || Home;
-                                const label = routeLabels[route] || route;
-                                const isActive = window.location.pathname === route || window.location.pathname.startsWith(route + '/');
-
-                                return (
-                                    <button
-                                        key={route}
-                                        onClick={() => handleMobileNav(route)}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left",
-                                            isActive
-                                                ? "bg-muted border-border text-foreground shadow-sm font-bold"
-                                                : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground font-medium"
-                                        )}
-                                    >
-                                        <Icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                                        <span>{label}</span>
-                                    </button>
-                                );
-                            })}
-                        </nav>
-
-                        <div className="p-4 border-t-2 border-border/50">
-                            <div className="flex items-center gap-3 px-2 mb-4">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border-2 border-border">
-                                    {profile?.nome?.[0] || 'U'}
-                                </div>
-                                <div className="flex-1 truncate">
-                                    <p className="text-sm font-bold truncate text-foreground">{profile?.nome}</p>
-                                    <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={signOut}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 border-border glass-panel text-red-500 font-bold hover:bg-red-50 transition-colors shadow-brutal-sm active:translate-y-1 active:shadow-none"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                <span>Sair da Conta</span>
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
         </>
     );
 }

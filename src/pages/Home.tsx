@@ -59,7 +59,7 @@ export default function Home() {
 
   // Cliente → redireciona direto para a tela Genética
   if (isCliente) {
-    return <Navigate to="/cliente/mercado" replace />;
+    return <Navigate to="/genia" replace />;
   }
 
   if (targetRoute) {

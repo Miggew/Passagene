@@ -1,14 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalFarmData } from '@/hooks/useGlobalFarmData';
-import { Sparkles, User, ArrowRight, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download, Mic, MicOff, ArrowUp } from 'lucide-react';
+import { useClienteHubData } from '@/hooks/cliente';
+import { Sparkles, User, BarChart3, CheckCircle2, Activity, AlertCircle, Calendar, ListChecks, ChevronDown, Award, Baby, Clock, Repeat2, Snowflake, Download, Dna, ShoppingBag } from 'lucide-react';
+import { UnifiedInputBar } from '@/components/ui/UnifiedInputBar';
 import { cn } from '@/lib/utils';
 import { LoadingInline } from '@/components/shared/LoadingScreen';
-import { VoiceFAB } from '@/components/ui/VoiceFAB';
-import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { GeniaLogo } from '@/components/ui/GeniaLogo';
 import { fetchReportDataFromIntent, type AIIntent } from '@/services/aiReportService';
 import { tipoIconConfig, tipoBadgeConfig } from '@/lib/receptoraHistoricoUtils';
@@ -125,6 +125,45 @@ function exportGenIAPdf(intentData: any) {
             data = intentData.itens || [];
             break;
 
+        case 'CATALOGO_GENETICA':
+            title = 'Catálogo de Genética';
+            columns = [
+                { header: 'Nome', key: 'nome', width: 25 },
+                { header: 'Tipo', key: 'tipo', width: 12, align: 'center' },
+                { header: 'Raça', key: 'raca', width: 18 },
+                { header: 'Preço', key: 'preco', width: 15, align: 'center' },
+                { header: 'Estoque', key: 'estoque', width: 12, align: 'center' },
+            ];
+            data = intentData.itens || [];
+            break;
+
+        case 'MINHAS_RESERVAS':
+            title = 'Minhas Reservas';
+            columns = [
+                { header: 'Animal', key: 'animal_nome', width: 25 },
+                { header: 'Tipo', key: 'tipo', width: 12, align: 'center' },
+                { header: 'Status', key: 'status', width: 15, align: 'center' },
+                { header: 'Data Desejada', key: 'data_desejada', width: 15, align: 'center' },
+            ];
+            data = intentData.itens || [];
+            break;
+
+        case 'RECOMENDACAO_GENETICA':
+            title = 'Cruzamentos Sugeridos';
+            columns = [
+                { header: 'Doadora', key: 'doadora_nome', width: 22 },
+                { header: 'Raça Doa.', key: 'doadora_raca', width: 14 },
+                { header: 'Touro', key: 'touro_nome', width: 22 },
+                { header: 'Raça Touro', key: 'touro_raca', width: 14 },
+                { header: 'Motivo', key: 'motivo', width: 22 },
+            ];
+            data = (intentData.cruzamentos || []).map((c: any) => ({
+                doadora_nome: c.doadora?.nome, doadora_raca: c.doadora?.raca,
+                touro_nome: c.touro?.nome, touro_raca: c.touro?.raca,
+                motivo: c.motivo,
+            }));
+            break;
+
         default: {
             // Fallback: transpor campos numéricos como Chave → Valor
             const tipoLabels: Record<string, string> = {
@@ -171,8 +210,9 @@ function hasExportableData(intentData: any): boolean {
     const { tipo } = intentData;
     if (['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS'].includes(tipo))
         return (intentData.animais?.length ?? 0) > 0;
-    if (['PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES'].includes(tipo))
+    if (['PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'CATALOGO_GENETICA', 'MINHAS_RESERVAS'].includes(tipo))
         return (intentData.itens?.length ?? 0) > 0;
+    if (tipo === 'RECOMENDACAO_GENETICA') return (intentData.cruzamentos?.length ?? 0) > 0;
     if (['DESEMPENHO_VET', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(tipo))
         return (intentData.veterinarios?.length ?? 0) > 0;
     if (tipo === 'BUSCA_ANIMAL') return false;
@@ -287,6 +327,299 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
     );
 }
 
+// === Genetics Card Components ===
+
+function GeneticaItemRow({ item, onNavigate }: { item: any; onNavigate: (path: string) => void }) {
+    const formatPrice = (p: number | null) => p ? `R$ ${p.toLocaleString('pt-BR')}` : 'Consultar';
+    return (
+        <div className="flex items-center gap-3 py-2">
+            {item.foto_url ? (
+                <img src={item.foto_url} alt={item.nome} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-muted" />
+            ) : (
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Dna className="w-5 h-5 text-primary/60" />
+                </div>
+            )}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-[13px] text-foreground truncate">{item.nome}</span>
+                    <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase",
+                        item.tipo === 'doadora' ? "bg-pink-500/10 text-pink-700" : "bg-blue-500/10 text-blue-700"
+                    )}>{item.tipo === 'doadora' ? 'Doadora' : 'Touro'}</span>
+                    {item.destaque && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700">Destaque</span>}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                    {item.raca && <span className="text-[11px] text-muted-foreground">{item.raca}</span>}
+                    <span className="text-[11px] font-bold text-primary-dark">{formatPrice(item.preco)}</span>
+                    {item.estoque != null && <span className="text-[10px] text-muted-foreground">{item.estoque} disp.</span>}
+                </div>
+            </div>
+            <button
+                onClick={() => onNavigate(`/genetica/${item.tipo}s/${item.catalogo_id}`)}
+                className="text-[10px] font-bold text-primary hover:text-primary/80 px-2 py-1 rounded-md border border-primary/20 shrink-0"
+            >
+                Ver
+            </button>
+        </div>
+    );
+}
+
+function CatalogoGeneticaCard({ intentData }: { intentData: any }) {
+    const navigate = useNavigate();
+    return (
+        <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2 border-b border-border/30 pb-2">
+                <div className="flex items-center gap-2 font-semibold text-primary-dark">
+                    <Dna className="w-4 h-4" />
+                    Catálogo de Genética
+                    <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{intentData.total}</span>
+                </div>
+                <ExportPdfButton intentData={intentData} />
+            </div>
+            <div className="flex flex-col divide-y divide-border/30">
+                {intentData.itens.slice(0, 12).map((item: any, i: number) => (
+                    <GeneticaItemRow key={i} item={item} onNavigate={navigate} />
+                ))}
+            </div>
+            <button
+                onClick={() => navigate('/cliente/mercado')}
+                className="mt-3 w-full text-center text-[12px] font-bold text-primary hover:text-primary/80 py-1.5 rounded-lg border border-primary/20 transition-colors"
+            >
+                Ver catálogo completo
+            </button>
+        </div>
+    );
+}
+
+function MeuBotijaoCard({ intentData }: { intentData: any }) {
+    const navigate = useNavigate();
+    return (
+        <div className="mt-2 flex flex-col gap-3">
+            {/* Doses de Sêmen */}
+            <div className="bg-background/50 border border-blue-500/20 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-blue-700 font-semibold mb-2 border-b border-blue-500/10 pb-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Doses de Sêmen
+                    <span className="text-xs bg-blue-500/10 text-blue-700 px-2 py-0.5 rounded-full font-bold ml-auto">{intentData.totalDoses}</span>
+                </div>
+                {intentData.dosesPorTouro?.length > 0 ? (
+                    <div className="flex flex-col divide-y divide-border/30">
+                        {intentData.dosesPorTouro.slice(0, 10).map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between gap-2 py-1.5">
+                                <span className="font-bold text-[13px] text-foreground truncate">{item.touro}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {item.raca && <span className="text-[11px] text-muted-foreground">({item.raca})</span>}
+                                    <span className="text-[12px] font-black px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700">{item.doses} doses</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-[12px] text-muted-foreground">Nenhuma dose de sêmen no seu estoque.</p>
+                )}
+            </div>
+
+            {/* Embriões Congelados */}
+            <div className="bg-background/50 border border-cyan-500/20 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-cyan-700 font-semibold mb-2 border-b border-cyan-500/10 pb-2">
+                    <Snowflake className="w-4 h-4" />
+                    Embriões Congelados
+                    <span className="text-xs bg-cyan-500/10 text-cyan-700 px-2 py-0.5 rounded-full font-bold ml-auto">{intentData.totalEmbrioes}</span>
+                </div>
+                {intentData.embrioesPorClassificacao?.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {intentData.embrioesPorClassificacao.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg bg-muted/30">
+                                <span className="text-[12px] font-bold text-foreground truncate">{item.classificacao}</span>
+                                <span className="text-[12px] font-black text-cyan-700">{item.quantidade}</span>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-[12px] text-muted-foreground">Nenhum embrião congelado no seu estoque.</p>
+                )}
+            </div>
+
+            <button
+                onClick={() => navigate('/cliente/mercado')}
+                className="w-full text-center text-[12px] font-bold text-primary hover:text-primary/80 py-1.5 rounded-lg border border-primary/20 transition-colors"
+            >
+                Ver detalhes no Meu Botijão
+            </button>
+        </div>
+    );
+}
+
+function ReservaStatusBadge({ status }: { status: string }) {
+    const config: Record<string, string> = {
+        PENDENTE: 'bg-amber-500/10 text-amber-700',
+        CONFIRMADA: 'bg-emerald-500/10 text-emerald-700',
+        RECUSADA: 'bg-red-500/10 text-red-700',
+        CANCELADA: 'bg-gray-500/10 text-gray-600',
+        CONCLUIDA: 'bg-blue-500/10 text-blue-700',
+    };
+    return (
+        <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full uppercase", config[status] || 'bg-muted text-muted-foreground')}>
+            {status}
+        </span>
+    );
+}
+
+function MinhasReservasCard({ intentData }: { intentData: any }) {
+    const navigate = useNavigate();
+    return (
+        <div className="mt-2 bg-background/50 border border-amber-500/20 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2 border-b border-border/30 pb-2">
+                <div className="flex items-center gap-2 font-semibold text-amber-700">
+                    <ShoppingBag className="w-4 h-4" />
+                    Minhas Reservas
+                    <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{intentData.total}</span>
+                </div>
+            </div>
+            <div className="flex flex-col divide-y divide-border/30">
+                {intentData.itens.slice(0, 10).map((item: any, i: number) => (
+                    <div key={i} className="py-2 flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-[13px] text-foreground truncate">{item.animal_nome}</span>
+                                <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase",
+                                    item.tipo === 'doadora' ? "bg-pink-500/10 text-pink-700" : "bg-blue-500/10 text-blue-700"
+                                )}>{item.tipo === 'doadora' ? 'Doadora' : 'Touro'}</span>
+                            </div>
+                            <ReservaStatusBadge status={item.status} />
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                            {item.data_desejada && <span>Data: {formatDateBR(item.data_desejada)}</span>}
+                            {item.quantidade && <span>Qtd: {item.quantidade}</span>}
+                            <span>{formatDateBR(item.created_at?.substring(0, 10))}</span>
+                        </div>
+                        {item.resposta_admin && (
+                            <div className="text-[11px] bg-primary/5 border border-primary/10 rounded-md px-2 py-1 mt-1 text-foreground/80">
+                                <span className="font-bold text-primary-dark">Resposta: </span>{item.resposta_admin}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            <button
+                onClick={() => navigate('/cliente/mercado')}
+                className="mt-3 w-full text-center text-[12px] font-bold text-primary hover:text-primary/80 py-1.5 rounded-lg border border-primary/20 transition-colors"
+            >
+                Gerenciar reservas
+            </button>
+        </div>
+    );
+}
+
+function CruzamentoRow({ cruzamento }: { cruzamento: any }) {
+    const navigate = useNavigate();
+    const doa = cruzamento.doadora;
+    const tou = cruzamento.touro;
+    const formatPrice = (p: number | null) => p ? `R$ ${p.toLocaleString('pt-BR')}` : null;
+
+    return (
+        <div className="py-2.5 flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+                {/* Doadora */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {doa.foto_url ? (
+                        <img src={doa.foto_url} alt={doa.nome} className="w-8 h-8 rounded-lg object-cover shrink-0 bg-muted" />
+                    ) : (
+                        <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-black text-pink-700">D</span>
+                        </div>
+                    )}
+                    <div className="min-w-0">
+                        <span className="font-bold text-[12px] text-foreground truncate block">{doa.nome}</span>
+                        {doa.raca && <span className="text-[10px] text-muted-foreground">{doa.raca}</span>}
+                    </div>
+                </div>
+
+                {/* × separator */}
+                <span className="text-[14px] font-black text-primary shrink-0">×</span>
+
+                {/* Touro */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {tou.foto_url ? (
+                        <img src={tou.foto_url} alt={tou.nome} className="w-8 h-8 rounded-lg object-cover shrink-0 bg-muted" />
+                    ) : (
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-black text-blue-700">T</span>
+                        </div>
+                    )}
+                    <div className="min-w-0">
+                        <span className="font-bold text-[12px] text-foreground truncate block">{tou.nome}</span>
+                        <div className="flex items-center gap-1.5">
+                            {tou.raca && <span className="text-[10px] text-muted-foreground">{tou.raca}</span>}
+                            {formatPrice(tou.preco) && <span className="text-[10px] font-bold text-primary-dark">{formatPrice(tou.preco)}</span>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action */}
+                {tou.catalogo_id && (
+                    <button
+                        onClick={() => navigate(`/genetica/touros/${tou.catalogo_id}`)}
+                        className="text-[10px] font-bold text-primary hover:text-primary/80 px-2 py-1 rounded-md border border-primary/20 shrink-0"
+                    >
+                        Ver
+                    </button>
+                )}
+            </div>
+
+            {/* Motivo / badge */}
+            {cruzamento.motivo && (
+                <div className="ml-10">
+                    <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                        cruzamento.compativel ? "text-emerald-600 bg-emerald-500/10" : "text-muted-foreground bg-muted/50"
+                    )}>
+                        {cruzamento.motivo}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function RecomendacaoGeneticaCard({ intentData }: { intentData: any }) {
+    const navigate = useNavigate();
+
+    return (
+        <div className="mt-2 bg-background/50 border border-emerald-500/20 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2 border-b border-border/30 pb-2">
+                <div className="flex items-center gap-2 font-semibold text-emerald-700">
+                    <Sparkles className="w-4 h-4" />
+                    Cruzamentos Sugeridos
+                </div>
+                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{intentData.cruzamentos?.length || 0}</span>
+            </div>
+
+            {/* Contexto */}
+            <div className="text-[12px] text-muted-foreground mb-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg px-3 py-2">
+                {intentData.usandoDoadorasCliente ? (
+                    <>Combinei suas <span className="font-bold text-foreground">{intentData.totalDoadoras} doadora{intentData.totalDoadoras !== 1 ? 's' : ''}</span> com <span className="font-bold text-foreground">{intentData.totalTouros} touro{intentData.totalTouros !== 1 ? 's' : ''}</span> disponíveis no catálogo</>
+                ) : (
+                    <>Sugestões de cruzamento com <span className="font-bold text-foreground">{intentData.totalDoadoras} doadora{intentData.totalDoadoras !== 1 ? 's' : ''}</span> e <span className="font-bold text-foreground">{intentData.totalTouros} touro{intentData.totalTouros !== 1 ? 's' : ''}</span> do catálogo</>
+                )}
+            </div>
+
+            <div className="flex flex-col divide-y divide-border/30">
+                {(intentData.cruzamentos || []).map((c: any, i: number) => (
+                    <CruzamentoRow key={i} cruzamento={c} />
+                ))}
+            </div>
+
+            <button
+                onClick={() => navigate('/cliente/mercado')}
+                className="mt-3 w-full text-center text-[12px] font-bold text-primary hover:text-primary/80 py-1.5 rounded-lg border border-primary/20 transition-colors"
+            >
+                Ver catálogo completo
+            </button>
+        </div>
+    );
+}
+
 // === Time-Based Contextual Suggestions ===
 function getTimeSuggestions(): { greeting: string; pills: string[] } {
     const hour = new Date().getHours();
@@ -369,6 +702,14 @@ function getFollowUpSuggestions(intentData: any): string[] {
             return ["Ranking de touros", "Resumo geral"];
         case 'COMPARACAO_FAZENDAS':
             return ["Resumo geral", "Lista de Doadoras"];
+        case 'CATALOGO_GENETICA':
+            return ["Meu botijão", "Minhas reservas", "Sugerir genética pro meu rebanho"];
+        case 'MEU_BOTIJAO':
+            return ["Ver catálogo de genética", "Minhas reservas"];
+        case 'MINHAS_RESERVAS':
+            return ["Ver catálogo de genética", "O que tenho no botijão?"];
+        case 'RECOMENDACAO_GENETICA':
+            return ["Ver catálogo completo", "Meu botijão", "Resumo do rebanho"];
         default:
             return ["O que precisa ser feito essa semana?", "Compare o desempenho das fazendas"];
     }
@@ -383,19 +724,100 @@ let persistedMessages: Message[] = [];
 
 // === Zero-State Onboarding Component ===
 
-function ZeroStateHero({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
-    return (
-        <div className="flex flex-col items-center justify-center w-full max-w-2xl px-4 py-8 mx-auto text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="mb-6 flex items-center justify-center">
-                <GeniaLogo size={80} showText={false} variant="premium" />
-            </div>
-            <h2 className="text-2xl font-black text-foreground mb-3 tracking-tight">Bom dia, sou a Gen.IA</h2>
-            <p className="text-muted-foreground mb-8 text-[15px] leading-relaxed max-w-md">
-                Sua consultora de reprodução. Me pergunte sobre o rebanho, estoques ou métricas.
-            </p>
+const SUGGESTION_CHIPS = [
+    { label: 'Vacas prenhes', query: 'Quais receptoras estão prenhes?' },
+    { label: 'Próximos partos', query: 'Quais os próximos partos?' },
+    { label: 'Buscar animal', query: 'Buscar animal pelo brinco' },
+    { label: 'Estoque de sêmen', query: 'Qual o estoque de sêmen atual?' },
+];
 
-            <div className="mt-8 text-[12px] text-muted-foreground/80 flex items-center gap-2">
-                <Mic className="w-3.5 h-3.5" /> Experimente apertar o microfone e falar comigo!
+const SUGGESTION_CHIPS_CLIENTE = [
+    { label: 'Catálogo genética', query: 'O que tem disponível no catálogo de genética?' },
+    { label: 'Meu botijão', query: 'O que tenho no meu botijão?' },
+    { label: 'Minhas reservas', query: 'Como estão minhas reservas de genética?' },
+    { label: 'Próximos partos', query: 'Quais os próximos partos?' },
+];
+
+
+interface ZeroStateHeroProps {
+    onSuggestionClick: (text: string) => void;
+    kpis: { totalReceptoras: number; prenhes: number; proximosPartos: number | null; fazendas: number } | null;
+    isLoadingKpis: boolean;
+}
+
+function SuggestionChips({ chips, onSelect }: { chips: { label: string; query: string }[]; onSelect: (query: string) => void }) {
+    return (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+            {chips.map((chip) => (
+                <button
+                    key={chip.label}
+                    onClick={() => onSelect(chip.query)}
+                    className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[12px] font-medium text-muted-foreground transition-all active:scale-[0.97] hover:bg-muted/50 hover:text-foreground"
+                >
+                    {chip.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function buildResumoTexto(kpis: ZeroStateHeroProps['kpis']): string {
+    if (!kpis) return '';
+    const parts: string[] = [];
+    parts.push(`Você tem ${kpis.totalReceptoras} receptora${kpis.totalReceptoras !== 1 ? 's' : ''}`);
+    if (kpis.prenhes > 0) {
+        parts.push(`${kpis.prenhes} ${kpis.prenhes === 1 ? 'está prenhe' : 'estão prenhes'}`);
+    }
+    if (kpis.proximosPartos != null && kpis.proximosPartos > 0) {
+        parts.push(`${kpis.proximosPartos} com parto previsto nos próximos 60 dias`);
+    }
+    if (kpis.fazendas > 1) {
+        parts.push(`distribuídas em ${kpis.fazendas} fazendas`);
+    }
+    return parts.join(', ') + '.';
+}
+
+function ZeroStateHero({ onSuggestionClick, kpis, isLoadingKpis }: ZeroStateHeroProps) {
+    const { isCliente } = usePermissions();
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+    const resumo = buildResumoTexto(kpis);
+    const chips = isCliente ? SUGGESTION_CHIPS_CLIENTE : SUGGESTION_CHIPS;
+
+    return (
+        <div className="flex flex-col items-center w-full max-w-2xl px-4 py-6 mx-auto">
+            {/* Saudação + Logo */}
+            <div className="flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="mb-4">
+                    <GeniaLogo size={56} showText={false} variant="premium" />
+                </div>
+                <h2 className="text-xl font-black text-foreground tracking-tight">
+                    {greeting}! Sou a Gen.IA
+                </h2>
+                <p className="text-[15px] text-muted-foreground mt-2 leading-relaxed max-w-md">
+                    {isLoadingKpis && !kpis
+                        ? 'Carregando dados do seu rebanho...'
+                        : resumo
+                            ? <>{resumo} <span className="text-foreground font-medium">Como posso ajudar hoje?</span></>
+                            : 'Sua consultora de reprodução. Me pergunte sobre o rebanho, estoques ou métricas.'
+                    }
+                </p>
+            </div>
+
+            {/* Sugestões rápidas */}
+            <div
+                className="flex flex-wrap justify-center gap-2 mt-5 animate-in fade-in slide-in-from-bottom-4 duration-700"
+                style={{ animationDelay: '200ms', animationFillMode: 'backwards' }}
+            >
+                {chips.map((chip) => (
+                    <button
+                        key={chip.label}
+                        onClick={() => onSuggestionClick(chip.query)}
+                        className="rounded-full border border-border/60 bg-card/50 px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-all active:scale-[0.97] hover:bg-muted/50"
+                    >
+                        {chip.label}
+                    </button>
+                ))}
             </div>
         </div>
     );
@@ -407,7 +829,37 @@ export default function ConsultorIA() {
     const { toast } = useToast();
     const { clienteId } = usePermissions();
     const { data: hubData, isLoading: hubLoading } = useGlobalFarmData();
+    const { data: clienteHubData, isLoading: clienteHubLoading } = useClienteHubData(clienteId ?? undefined);
     const location = useLocation();
+
+    const kpis = useMemo(() => {
+        if (clienteHubData) {
+            const receptoras = clienteHubData.receptoras;
+            const hoje = new Date();
+            const prenhes = receptoras.filter(r => r.status_reprodutivo?.includes('PRENHE')).length;
+            const proximosPartos = receptoras.filter(r => {
+                if (!r.data_provavel_parto) return false;
+                const diff = Math.ceil((new Date(r.data_provavel_parto).getTime() - hoje.getTime()) / 86400000);
+                return diff >= 0 && diff <= 60;
+            }).length;
+
+            return {
+                totalReceptoras: receptoras.length,
+                prenhes,
+                proximosPartos,
+                fazendas: clienteHubData.fazendas.length,
+            };
+        }
+        if (hubData) {
+            return {
+                totalReceptoras: hubData.receptoras.length,
+                prenhes: hubData.receptoras.filter(r => r.status?.includes('PRENHE')).length,
+                proximosPartos: null,
+                fazendas: hubData.fazendaIds.length,
+            };
+        }
+        return null;
+    }, [clienteHubData, hubData]);
 
     const humanizeStatus = (statusStr?: string | null) => {
         if (!statusStr) return 'Desconhecido';
@@ -483,7 +935,7 @@ export default function ConsultorIA() {
                 const transcript = event.results[0][0].transcript;
                 setInput(transcript);
                 // Send automatically and request voice return
-                setTimeout(() => handleSend(transcript, true), 300);
+                setTimeout(() => handleSend(transcript), 300);
             };
 
             recognition.start();
@@ -528,7 +980,7 @@ export default function ConsultorIA() {
         }
     }, [isListening, location.state]);
 
-    const handleSend = async (text: string = input, wantsVoice: boolean = false) => {
+    const handleSend = async (text: string = input) => {
         if (!text.trim() || isLoading) return;
 
         const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
@@ -568,7 +1020,7 @@ export default function ConsultorIA() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ query: text, history: historyToSend, wantsVoice })
+                body: JSON.stringify({ query: text, history: historyToSend })
             });
 
             if (!res.ok) {
@@ -597,15 +1049,19 @@ export default function ConsultorIA() {
                     : m
             ));
 
-            // Se recebemos a voz da OpenAI, tocar imediatamente
-            if (jsonIntent.audioBase64) {
-                try {
-                    const audio = new Audio("data:audio/mp3;base64," + jsonIntent.audioBase64);
-                    audio.play().catch(e => console.error("Audio playback prevented by browser policy", e));
-                } catch (e) {
-                    console.error("Error creating audio instance", e);
-                }
-            }
+            // Beep curto de notificação (Web Audio API)
+            try {
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                gain.gain.value = 0.12;
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.15);
+            } catch (_) { /* browser policy — ignora */ }
 
             // 3. If it needs data, fetch it
             if (jsonIntent.precisa_buscar_dados) {
@@ -671,7 +1127,7 @@ export default function ConsultorIA() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100dvh-180px)] md:h-[calc(100dvh-100px)] w-full mx-auto overflow-hidden bg-background relative">
+        <div className="flex flex-col absolute inset-0 w-full mx-auto overflow-hidden bg-background">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 shrink-0 bg-background/95 backdrop-blur-md z-20 shadow-sm">
                 <GeniaLogo size={42} showText={true} variant="default" />
@@ -690,7 +1146,14 @@ export default function ConsultorIA() {
 
                 {messages.map((msg, i) => {
                     if (msg.id === 'welcome') {
-                        return <ZeroStateHero key={msg.id} onSuggestionClick={(text) => handleSend(text, false)} />;
+                        return (
+                            <ZeroStateHero
+                                key={msg.id}
+                                onSuggestionClick={(text) => handleSend(text)}
+                                kpis={kpis}
+                                isLoadingKpis={clienteHubLoading}
+                            />
+                        );
                     }
 
                     const isUser = msg.role === 'user';
@@ -749,25 +1212,8 @@ export default function ConsultorIA() {
                                                                 onExport={() => exportGenIAPdf(msg.intentData)}
                                                                 renderItem={(a: any) => (
                                                                     <div className="flex items-center justify-between gap-2 py-1.5">
-                                                                        <div className="flex items-center gap-2 min-w-0">
-                                                                            <UrgencyDot dias={a.diasParaEtapa} />
-                                                                            <span className="font-bold text-[13px] text-foreground truncate">{a.identificacao}</span>
-                                                                            <StatusBadge status={a.status} humanize={humanizeStatus} />
-                                                                            {a.diasGestacao != null && (
-                                                                                <span className="text-[11px] text-muted-foreground">({a.diasGestacao}d)</span>
-                                                                            )}
-                                                                        </div>
-                                                                        {a.etapaProxima && (
-                                                                            <div className="flex items-center gap-1.5 shrink-0">
-                                                                                <EtapaBadge etapa={a.etapaProxima} />
-                                                                                <span className="text-[11px] text-muted-foreground">{a.dataEtapa ? formatDateBR(a.dataEtapa) : ''}</span>
-                                                                                {a.diasParaEtapa != null && (
-                                                                                    <span className={cn("text-[11px] font-bold", a.diasParaEtapa <= 0 ? "text-red-600" : a.diasParaEtapa <= 3 ? "text-amber-600" : "text-muted-foreground")}>
-                                                                                        {a.diasParaEtapa <= 0 ? 'hoje' : `${a.diasParaEtapa}d`}
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
+                                                                        <span className="font-bold text-[13px] text-foreground truncate">{a.identificacao}</span>
+                                                                        <StatusBadge status={a.status} humanize={humanizeStatus} />
                                                                     </div>
                                                                 )}
                                                             />
@@ -881,6 +1327,22 @@ export default function ConsultorIA() {
                                                                                 )}
                                                                             />
                                                                         ) :
+                                                                            /* === CATALOGO_GENETICA Card === */
+                                                                            msg.intentData.tipo === 'CATALOGO_GENETICA' && msg.intentData.itens?.length > 0 ? (
+                                                                                <CatalogoGeneticaCard intentData={msg.intentData} />
+                                                                            ) :
+                                                                            /* === MEU_BOTIJAO Card === */
+                                                                            msg.intentData.tipo === 'MEU_BOTIJAO' ? (
+                                                                                <MeuBotijaoCard intentData={msg.intentData} />
+                                                                            ) :
+                                                                            /* === MINHAS_RESERVAS Card === */
+                                                                            msg.intentData.tipo === 'MINHAS_RESERVAS' && msg.intentData.itens?.length > 0 ? (
+                                                                                <MinhasReservasCard intentData={msg.intentData} />
+                                                                            ) :
+                                                                            /* === RECOMENDACAO_GENETICA Card === */
+                                                                            msg.intentData.tipo === 'RECOMENDACAO_GENETICA' && msg.intentData.cruzamentos?.length > 0 ? (
+                                                                                <RecomendacaoGeneticaCard intentData={msg.intentData} />
+                                                                            ) :
                                                                             /* === DESEMPENHO_VET Card === */
                                                                             (msg.intentData.tipo === 'DESEMPENHO_VET' || msg.intentData.tipo === 'DESEMPENHO_TOURO' || msg.intentData.tipo === 'COMPARACAO_FAZENDAS') && msg.intentData.veterinarios?.length > 0 ? (
                                                                                 <div className="mt-2 bg-background/50 border border-violet-500/20 rounded-xl p-4 shadow-sm">
@@ -1106,9 +1568,11 @@ export default function ConsultorIA() {
                                                                                                     RESUMO: 'Resumo Geral', TE: 'Transferência de Embriões', DG: 'Diagnóstico de Gestação',
                                                                                                     ASPIRACAO: 'Aspiração', SEXAGEM: 'Sexagem', RECEPTORAS: 'Receptoras',
                                                                                                     REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', BUSCA_ANIMAL: 'Busca de Animal',
+                                                                                                    CATALOGO_GENETICA: 'Catálogo de Genética', MEU_BOTIJAO: 'Meu Botijão',
+                                                                                                    MINHAS_RESERVAS: 'Minhas Reservas', RECOMENDACAO_GENETICA: 'Sugestões de Genética',
                                                                                                 };
                                                                                                 const tipoLabel = tipoLabels[msg.intentData.tipo] || msg.intentData.tipo;
-                                                                                                const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(msg.intentData.tipo);
+                                                                                                const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS', 'CATALOGO_GENETICA', 'MINHAS_RESERVAS'].includes(msg.intentData.tipo);
                                                                                                 return (
                                                                                                     <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
                                                                                                         <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
@@ -1182,10 +1646,34 @@ export default function ConsultorIA() {
                                                                                                                         <span className="text-lg font-bold text-emerald-600">{msg.intentData.realizadas}</span>
                                                                                                                     </div>
                                                                                                                 )}
+                                                                                                                {msg.intentData.receptorasComTE !== undefined && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Receptoras</span>
+                                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.receptorasComTE}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.comDG !== undefined && msg.intentData.comDG > 0 && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Com DG</span>
+                                                                                                                        <span className="text-lg font-bold text-foreground">{msg.intentData.comDG}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.aguardandoDG > 0 && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Aguard. DG</span>
+                                                                                                                        <span className="text-lg font-bold text-amber-600">{msg.intentData.aguardandoDG}</span>
+                                                                                                                    </div>
+                                                                                                                )}
                                                                                                                 {msg.intentData.taxaPrenhez && (
                                                                                                                     <div className="flex flex-col">
                                                                                                                         <span className="text-xs text-muted-foreground uppercase font-medium">Tx. Prenhez</span>
                                                                                                                         <span className="text-lg font-bold text-emerald-600">{msg.intentData.taxaPrenhez}</span>
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                                {msg.intentData.taxaAproveitamento && (
+                                                                                                                    <div className="flex flex-col">
+                                                                                                                        <span className="text-xs text-muted-foreground uppercase font-medium">Tx. Aproveit.</span>
+                                                                                                                        <span className="text-lg font-bold text-emerald-600">{msg.intentData.taxaAproveitamento}</span>
                                                                                                                     </div>
                                                                                                                 )}
                                                                                                                 {msg.intentData.positivos !== undefined && (
@@ -1253,6 +1741,16 @@ export default function ConsultorIA() {
                                         </div>
                                     </div>
 
+                                    {/* Follow-up chips — só na última msg da IA, se não está carregando */}
+                                    {i === messages.length - 1 && !msg.isSearching && !isLoading && (
+                                        <div className="max-w-[95%] md:max-w-full mt-1.5 ml-1">
+                                            <SuggestionChips
+                                                chips={getFollowUpSuggestions(msg.intentData).map(s => ({ label: s, query: s }))}
+                                                onSelect={(text) => handleSend(text)}
+                                            />
+                                        </div>
+                                    )}
+
                                     {/* Lado Direito (Conector MD+) */}
                                     <div className="hidden md:flex items-center justify-start w-full pl-[15px] pt-5 opacity-70">
                                         <div className={cn("w-2.5 h-2.5 rounded-full border-2 border-background shrink-0 -translate-x-[20px] transition-colors", msg.isSearching ? "bg-primary/40 animate-pulse" : "bg-primary")} />
@@ -1266,46 +1764,15 @@ export default function ConsultorIA() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area - Text Pill Above Menu */}
-            <div className="mt-auto px-4 pb-[30px] pt-4 shrink-0 z-20 w-full bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none flex flex-col items-center justify-end">
-                <div className="relative flex items-end justify-center w-full max-w-xl mx-auto pointer-events-auto">
-
-                    {/* Floating Text Input Pill */}
-                    <div className="relative flex-1 group sm:max-w-xl transition-all duration-300">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-[2rem] blur-md transition-all group-focus-within:bg-primary/20 opacity-0 group-focus-within:opacity-100" />
-                        <div className="relative flex items-end gap-2 glass-panel border border-border/80 rounded-[2rem] p-1.5 shadow-lg focus-within:ring-2 focus-within:ring-primary/20 bg-background/60 backdrop-blur-xl transition-all hover:bg-background/80">
-                            <textarea
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }
-                                }}
-                                placeholder="Consultar a Gen.IA..."
-                                className="flex-1 max-h-32 min-h-[44px] bg-transparent border-0 focus:ring-0 resize-none py-3 px-4 text-[15px] scrollbar-thin outline-none placeholder:text-muted-foreground/60 placeholder:font-medium leading-relaxed"
-                                rows={1}
-                            />
-
-                            {/* Send Button */}
-                            <button
-                                onClick={() => handleSend(input, false)}
-                                disabled={!input.trim() || isLoading}
-                                className={cn(
-                                    "w-9 h-9 shrink-0 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm mb-1.5 mr-1.5",
-                                    !input.trim() || isLoading
-                                        ? "bg-muted/50 text-muted-foreground opacity-50 cursor-not-allowed"
-                                        : "bg-foreground text-background hover:scale-105 hover:shadow-md"
-                                )}
-                            >
-                                <ArrowUp className="w-5 h-5 stroke-[2.5]" />
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
+            {/* Input Bar — Living Input Bar (mic/send/waveform unificados) */}
+            <UnifiedInputBar
+                input={input}
+                setInput={setInput}
+                isLoading={isLoading}
+                isListening={isListening}
+                onSend={() => handleSend(input)}
+                onStartListening={startListening}
+            />
         </div>
     );
 }
