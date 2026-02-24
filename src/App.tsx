@@ -238,6 +238,8 @@ const AppRoutes = () => {
             <Route path="/laboratorio" element={<LaboratorioHome />} />
             <Route path="/lotes-fiv" element={<LotesFIV />} />
             <Route path="/lotes-fiv/:id" element={<LotesFIV />} />
+            <Route path="/embrioes" element={<Embrioes />} />
+            <Route path="/embrioes-congelados" element={<EmbrioesCongelados />} />
             <Route path="/relatorios" element={<Navigate to="/genia" replace />} />
             <Route path="/relatorios/servicos" element={<RelatoriosServicos />} />
             <Route path="/relatorios/animais" element={<RelatoriosAnimais />} />

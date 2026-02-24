@@ -6,6 +6,7 @@ export interface QuickActionCardProps {
     description: string;
     onClick: () => void;
     color: 'blue' | 'green' | 'violet' | 'cyan' | 'amber' | 'slate';
+    badge?: string;
 }
 
 const colorStyles: Record<QuickActionCardProps['color'], string> = {
@@ -17,14 +18,19 @@ const colorStyles: Record<QuickActionCardProps['color'], string> = {
     slate: 'border-slate-500/20 text-slate-500 bg-slate-500/10',
 };
 
-export function QuickActionCard({ title, icon: Icon, description, onClick, color }: QuickActionCardProps) {
+export function QuickActionCard({ title, icon: Icon, description, onClick, color, badge }: QuickActionCardProps) {
     return (
         <div
             onClick={onClick}
             className={`group relative flex flex-col justify-between p-5 rounded-2xl border-2 shadow-brutal-sm glass-panel text-foreground transition-all duration-300 hover:translate-y-0.5 hover:shadow-none cursor-pointer overflow-hidden ${colorStyles[color].split(' ')[0]}`}
         >
-            <div className="absolute top-4 right-4 opacity-50 group-hover:opacity-100 transition-opacity">
-                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground" />
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+                {badge && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colorStyles[color].split(' ')[2]} ${colorStyles[color].split(' ')[1]}`}>
+                        {badge}
+                    </span>
+                )}
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
             </div>
             <div className="space-y-3">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center border border-border shadow-sm ${colorStyles[color].split(' ')[2]}`}>

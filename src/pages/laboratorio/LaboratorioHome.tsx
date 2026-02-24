@@ -1,113 +1,177 @@
-
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import PageHeader from '@/components/shared/PageHeader';
 import { QuickActionCard } from '@/components/shared/QuickActionCard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     FlaskConical,
     TestTube,
     Snowflake,
-    ArrowRightLeft,
-    ChevronRight,
-    Microscope
+    Microscope,
+    AlertCircle,
+    Loader2,
+    Clock,
 } from 'lucide-react';
-import { useEmbryoScoreStats } from '@/components/admin/AdminEmbryoScoreTab';
+import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
+import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
+
+/** Lightweight stats for the Lab home dashboard */
+function useLabDashboard() {
+    return useQuery({
+        queryKey: ['lab-dashboard'],
+        queryFn: async () => {
+            // Lotes em cultivo ativo (abertos)
+            const { count: lotesAtivos } = await supabase
+                .from('lotes_fiv')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'ABERTO');
+
+            // Embriões frescos (prontos para despacho potencial)
+            const { count: embrioesFrescos } = await supabase
+                .from('embrioes')
+                .select('*', { count: 'exact', head: true })
+                .eq('status_atual', 'FRESCO');
+
+            // Embriões congelados
+            const { count: embrioesCongelados } = await supabase
+                .from('embrioes')
+                .select('*', { count: 'exact', head: true })
+                .eq('status_atual', 'CONGELADO');
+
+            // Fila de análise IA (pending + processing)
+            const { data: queueJobs } = await supabase
+                .from('embryo_analysis_queue')
+                .select('status')
+                .in('status', ['pending', 'processing']);
+
+            const pending = queueJobs?.filter(j => j.status === 'pending').length || 0;
+            const processing = queueJobs?.filter(j => j.status === 'processing').length || 0;
+
+            // Jobs falhados
+            const { count: failedJobs } = await supabase
+                .from('embryo_analysis_queue')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'failed');
+
+            return {
+                lotesAtivos: lotesAtivos || 0,
+                embrioesFrescos: embrioesFrescos || 0,
+                embrioesCongelados: embrioesCongelados || 0,
+                queuePending: pending,
+                queueProcessing: processing,
+                failedJobs: failedJobs || 0,
+            };
+        },
+        refetchInterval: 15_000,
+        staleTime: 10_000,
+    });
+}
 
 export default function LaboratorioHome() {
     const navigate = useNavigate();
-    const { data: stats, isLoading } = useEmbryoScoreStats();
+    const { data: stats, isLoading } = useLabDashboard();
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <PageHeader
                 title="Hub Laboratório"
-                description="Gestão centralizada de processos laboratoriais e análises embrionárias"
+                description="Produção, classificação e despacho de embriões"
                 icon={FlaskConical}
             />
 
             {/* Quick Actions Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
                 <QuickActionCard
-                    title="Cultivo (Lotes FIV)"
+                    title="Cultivo"
                     icon={TestTube}
-                    description="Gerenciar lotes em andamento"
+                    description="Lotes FIV em andamento"
                     onClick={() => navigate('/lotes-fiv')}
                     color="blue"
+                    badge={stats?.lotesAtivos ? `${stats.lotesAtivos}` : undefined}
                 />
                 <QuickActionCard
-                    title="Congelamento"
+                    title="Embriões"
+                    icon={EmbryoIcon}
+                    description="Classificar e despachar"
+                    onClick={() => navigate('/embrioes')}
+                    color="amber"
+                    badge={stats?.embrioesFrescos ? `${stats.embrioesFrescos}` : undefined}
+                />
+                <QuickActionCard
+                    title="Congelados"
                     icon={Snowflake}
-                    description="Embriões vitrificados"
+                    description="Inventário vitrificados"
                     onClick={() => navigate('/embrioes-congelados')}
                     color="cyan"
+                    badge={stats?.embrioesCongelados ? `${stats.embrioesCongelados}` : undefined}
                 />
                 <QuickActionCard
-                    title="Transferências (TE)"
-                    icon={ArrowRightLeft}
-                    description="Registrar inovulações"
-                    onClick={() => navigate('/transferencia')}
-                    color="green"
-                />
-                <QuickActionCard
-                    title="EmbryoScore AI"
+                    title="Bancada IA"
                     icon={Microscope}
-                    description="Análise de qualidade"
-                    onClick={() => navigate('/embryoscore')}
+                    description="Avaliação com IA"
+                    onClick={() => navigate('/bancada')}
                     color="violet"
                 />
             </div>
 
-            <div className="grid gap-6">
-                {/* EmbryoScore Status Widget */}
-                <Card className="border-l-4 border-l-violet-500 shadow-brutal-sm border-2 border-border rounded-xl">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Microscope className="w-5 h-5 text-violet-600" />
-                            Status EmbryoScore
-                        </CardTitle>
-                        <CardDescription>
-                            Monitoramento em tempo real das análises de IA
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="grid grid-cols-2 gap-4">
-                                <Skeleton className="h-20 w-full" />
-                                <Skeleton className="h-20 w-full" />
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div className="flex flex-col p-3 bg-muted/30 rounded-lg">
-                                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Fila</span>
-                                    <span className="text-2xl font-bold text-foreground">{stats?.pendingJobs || 0}</span>
+            {/* Dashboard Cards */}
+            {isLoading ? (
+                <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                </div>
+            ) : (
+                <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+                    {/* Fila de IA */}
+                    {(stats?.queuePending || 0) + (stats?.queueProcessing || 0) > 0 && (
+                        <Card className="rounded-xl">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                                    Análise IA
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-baseline gap-3">
+                                    {stats?.queueProcessing ? (
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-2xl font-bold text-blue-600">{stats.queueProcessing}</span>
+                                            <span className="text-xs text-muted-foreground">processando</span>
+                                        </div>
+                                    ) : null}
+                                    {stats?.queuePending ? (
+                                        <div className="flex items-baseline gap-1">
+                                            <Clock className="w-3 h-3 text-amber-500" />
+                                            <span className="text-lg font-semibold text-amber-600">{stats.queuePending}</span>
+                                            <span className="text-xs text-muted-foreground">na fila</span>
+                                        </div>
+                                    ) : null}
                                 </div>
-                                <div className="flex flex-col p-3 bg-muted/30 rounded-lg">
-                                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Erros</span>
-                                    <span className={`text-2xl font-bold ${stats?.failedJobs ? 'text-red-500' : 'text-foreground'}`}>
-                                        {stats?.failedJobs || 0}
-                                    </span>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Jobs falhados */}
+                    {(stats?.failedJobs || 0) > 0 && (
+                        <Card className="rounded-xl cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/bancada')}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-destructive flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    Análises com Erro
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-bold text-destructive">{stats?.failedJobs}</span>
+                                    <span className="text-xs text-muted-foreground">job(s) falhado(s)</span>
                                 </div>
-                                <div className="flex flex-col p-3 bg-muted/30 rounded-lg">
-                                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Hoje</span>
-                                    <span className="text-2xl font-bold text-foreground">{stats?.totalScores || 0}</span>
-                                </div>
-                                <div className="flex flex-col p-3 bg-muted/30 rounded-lg">
-                                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Média</span>
-                                    <span className="text-2xl font-bold text-foreground">{Math.round(stats?.avgScore || 0)}</span>
-                                </div>
-                            </div>
-                        )}
-                        <div className="mt-4 flex justify-end">
-                            <Button variant="outline" size="sm" onClick={() => navigate('/embryoscore')}>
-                                Ver Detalhes <ChevronRight className="w-4 h-4 ml-1" />
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
-

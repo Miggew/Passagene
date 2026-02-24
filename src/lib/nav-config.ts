@@ -169,7 +169,7 @@ export const HUB_HOME_ROUTES: Record<string, string> = {
 // ─── Rotas Rápidas por Hub (bottom bar mobile) ────────────────────
 export const HUB_QUICK_ROUTES: Record<string, string[]> = {
   administrativo: ['/protocolos', '/transferencia', '/dg'],
-  laboratorio: ['/bancada', '/lotes-fiv', '/embryoscore'],
+  laboratorio: ['/lotes-fiv', '/embrioes', '/bancada'],
   campo: ['/dg', '/sexagem', '/transferencia', '/protocolos', '/aspiracoes'],
   relatorios: ['/relatorios/servicos', '/relatorios/animais', '/relatorios/producao'],
   genetica: ['/doadoras', '/genetica/doadoras', '/genetica/touros'],
@@ -191,6 +191,7 @@ export function getBottomBarHubCode(pathname: string, fallbackHub: Hub | null): 
   if (pathname === '/embryoscore' || pathname.startsWith('/embryoscore/')) return 'laboratorio';
   if (pathname === '/laboratorio') return 'laboratorio';
   if (pathname === '/lotes-fiv' || pathname.startsWith('/lotes-fiv/')) return 'laboratorio';
+  if (pathname === '/embrioes' || pathname.startsWith('/embrioes')) return 'laboratorio';
   // Home → null (modo hubs)
   if (pathname === '/') return null;
   // Default: use hub do DB ou administrativo
