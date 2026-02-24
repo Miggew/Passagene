@@ -15,6 +15,7 @@ import {
   ArrowRight,
   TrendingUp,
   Dna,
+  User as CowIcon, // Fallback icon for CowIcon
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -61,11 +62,6 @@ export default function GeneticaHome() {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="bg-card border border-border">
-            <Filter className="w-5 h-5" />
-          </Button>
-        </div>
-
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -80,6 +76,9 @@ export default function GeneticaHome() {
               className="text-blue-600 hover:bg-blue-500/10"
             >
               Ver Touros
+            </Button>
+            <Button variant="ghost" size="icon" className="bg-card border border-border">
+              <Filter className="w-5 h-5" />
             </Button>
           </div>
         </div>
@@ -147,23 +146,14 @@ export default function GeneticaHome() {
                   tipo="doadora"
                   nome={doadora.nome}
                   registro={doadora.registro}
+                  imagemUrl={doadora.imagem_url}
                   raca={doadora.raca}
-                  preco={doadora.preco}
-                  destaque={doadora.destaque}
-                  fotoUrl={doadora.foto_url}
-                  fotoPrincipal={doadora.foto_principal}
-                  paiNome={doadora.pai_nome}
-                  maeNome={doadora.mae_nome}
-                  fazendaNome={doadora.fazenda_nome}
                 />
               ))}
             </div>
           ) : (
-            <div className="rounded-xl p-8">
-              <EmptyState
-                title="Nenhuma doadora"
-                description="Ainda não há doadoras no catálogo"
-              />
+            <div className="p-8 text-center bg-muted/20 rounded-xl border border-dashed">
+              <p className="text-sm text-muted-foreground">Nenhuma doadora em destaque</p>
             </div>
           )}
         </section>
@@ -173,11 +163,11 @@ export default function GeneticaHome() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <CowIcon className="w-5 h-5 text-blue-500" />
+                <TrendingUp className="w-5 h-5 text-blue-500" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold">Touros</h2>
-                <p className="text-sm text-muted-foreground">Reprodutores selecionados</p>
+                <p className="text-sm text-muted-foreground">Genética provada</p>
               </div>
             </div>
             <Button
@@ -200,58 +190,18 @@ export default function GeneticaHome() {
                   tipo="touro"
                   nome={touro.nome}
                   registro={touro.registro}
+                  imagemUrl={touro.imagem_url}
                   raca={touro.raca}
-                  preco={touro.preco}
-                  destaque={touro.destaque}
-                  fotoUrl={touro.foto_url}
-                  fotoPrincipal={touro.foto_principal}
-                  paiNome={touro.pai_nome}
-                  maeNome={touro.mae_nome}
                 />
               ))}
             </div>
           ) : (
-            <div className="rounded-xl p-8">
-              <EmptyState
-                title="Nenhum touro"
-                description="Ainda não há touros no catálogo"
-              />
+            <div className="p-8 text-center bg-muted/20 rounded-xl border border-dashed">
+              <p className="text-sm text-muted-foreground">Nenhum touro em destaque</p>
             </div>
           )}
         </section>
       </div>
-
-      {/* Grid Principal */}
-      <section className="px-4">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-4 h-4 text-primary" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Em Alta</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...doadoras, ...touros]
-            .filter(item => 
-              !search || 
-              item.nome.toLowerCase().includes(search.toLowerCase()) || 
-              item.raca?.toLowerCase().includes(search.toLowerCase())
-            )
-            .slice(0, 10) // Limitado para demo
-            .map((item) => (
-            <AnimalCard
-              key={item.catalogo_id}
-              {...item}
-              tipo={item.tipo as 'doadora' | 'touro'}
-            />
-          ))}
-        </div>
-        
-        <div className="mt-6 text-center">
-          <Button variant="outline" fullWidth>
-            Carregar mais
-          </Button>
-        </div>
-      </section>
     </div>
   );
 }
-
