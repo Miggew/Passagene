@@ -230,7 +230,7 @@
   h1, h2, h3, h4, h5, h6, 
   .text-lg, .text-xl, .text-2xl, .text-3xl, 
   .font-bold, .font-semibold, .font-extrabold {
-    @apply font-display tracking-tightest;
+    @apply font-heading tracking-tightest;
   }
 
   /* Prevenir seleção acidental de texto em elementos interativos */
