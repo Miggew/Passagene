@@ -134,7 +134,7 @@ export function BiologistClassButtons({
           <Check className="w-4 h-4" />
           Confirmar {selected} → próximo
           <kbd className="ml-1 text-[10px] font-mono text-white/60 bg-white/10 px-1 rounded">Enter</kbd>
-        </button>
+        </Button>
       )}
     </div>
   );
