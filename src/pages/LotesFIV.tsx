@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import { LoteFIVComNomes, PacoteComNomes } from '@/lib/types/lotesFiv';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -461,12 +462,10 @@ export default function LotesFIV() {
             if (queueLinkError) { /* non-blocking */ }
           }
 
-          // 6. Disparar Edge Function automaticamente (não-bloqueante)
+          // 6. Disparar análise no Cloud Run (não-bloqueante)
           if (queueId) {
             queueIds.push(queueId);
-            supabase.functions.invoke('embryo-analyze', {
-              body: { queue_id: queueId },
-            }).catch(() => { /* non-blocking */ });
+            triggerAnalysis(queueId).catch(() => { /* non-blocking */ });
           }
         } catch { /* non-blocking */ }
       }

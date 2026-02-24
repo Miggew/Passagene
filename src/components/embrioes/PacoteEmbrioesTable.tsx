@@ -19,6 +19,7 @@ import {
 } from '@/components/embryoscore';
 import { useEmbryoScoresBatch, useEmbryoAnalysisStatusBatch, useRetryAnalysis, useCancelAnalysis } from '@/hooks/useEmbryoScores';
 import { supabase } from '@/lib/supabase';
+import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import { useToast } from '@/hooks/use-toast';
 import {
   Snowflake,
@@ -222,42 +223,12 @@ export function PacoteEmbrioesTable({
         if (linkError) { toast({ title: 'Erro ao vincular embrião', variant: 'destructive' }); return; }
       }
 
-      // 3. Invocar Edge Function com retry
+      // 3. Invocar análise no Cloud Run (com retry embutido)
       progress(3, 'Iniciando análise IA...');
-      let invokeOk = false;
-      for (let attempt = 0; attempt < 3 && !invokeOk; attempt++) {
-        try {
-          const { data: fnData, error: fnError } = await supabase.functions.invoke('embryo-analyze', {
-            body: { queue_id: queueId },
-          });
-          if (fnError) {
-            // Capturar body real do erro da Edge Function
-            let errorBody = '';
-            try {
-              if (fnError && typeof fnError === 'object' && 'context' in fnError) {
-                const ctx = (fnError as { context: Response }).context;
-                errorBody = await ctx.text();
-              }
-            } catch { /* ignore */ }
-            throw fnError;
-          }
-          invokeOk = true;
-        } catch (invokeErr) {
-          if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
-        }
-      }
-
-      // Se falhou, buscar error_message da fila para diagnóstico
-      if (!invokeOk) {
-        const { data: failedJob } = await supabase
-          .from('embryo_analysis_queue')
-          .select('status, error_message, retry_count')
-          .eq('id', queueId)
-          .maybeSingle();
-        console.error('[Redetect] Estado da fila após falha:', failedJob);
-      }
-      if (!invokeOk) {
-        toast({ title: 'Erro', description: 'Falha ao invocar análise IA após 3 tentativas. Tente novamente.', variant: 'destructive' });
+      const result = await triggerAnalysis(queueId);
+      if (!result.success) {
+        console.error('[Redetect] Falha:', result.error);
+        toast({ title: 'Erro', description: 'Falha ao invocar análise IA. Tente novamente.', variant: 'destructive' });
         return;
       }
 
@@ -592,6 +563,7 @@ export function PacoteEmbrioesTable({
                   status={analysisStatus.status as 'pending' | 'processing' | 'failed'}
                   startedAt={analysisStatus.started_at}
                   retryCount={analysisStatus.retry_count}
+                  progressMessage={analysisStatus.progress_message}
                   onRetry={analysisStatus.status === 'failed' ? () => retryAnalysis.mutate(analysisStatus.id) : undefined}
                   onCancel={analysisStatus.status !== 'failed' ? () => cancelAnalysis.mutate(analysisStatus.id) : undefined}
                 />
@@ -826,6 +798,7 @@ export function PacoteEmbrioesTable({
                   status={analysisStatus.status as 'pending' | 'processing' | 'failed'}
                   startedAt={analysisStatus.started_at}
                   retryCount={analysisStatus.retry_count}
+                  progressMessage={analysisStatus.progress_message}
                   onRetry={analysisStatus.status === 'failed' ? () => retryAnalysis.mutate(analysisStatus.id) : undefined}
                   onCancel={analysisStatus.status !== 'failed' ? () => cancelAnalysis.mutate(analysisStatus.id) : undefined}
                 />

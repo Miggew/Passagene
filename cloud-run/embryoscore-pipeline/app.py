@@ -27,7 +27,7 @@ from typing import Any, Optional
 import cv2
 import numpy as np
 import requests as http_requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from PIL import Image
@@ -94,23 +94,52 @@ def _get_supabase(url: str, key: str):
     return create_client(url, key)
 
 
+# ─── API Key Auth ────────────────────────────────────────
+
+PIPELINE_API_KEY = os.environ.get("PIPELINE_API_KEY", "")
+
+
+def _check_api_key(request):
+    """Validate X-Api-Key header if PIPELINE_API_KEY is configured."""
+    if not PIPELINE_API_KEY:
+        return  # No key configured = open (backward compat during rollout)
+    key = request.headers.get("x-api-key") or ""
+    if key != PIPELINE_API_KEY:
+        raise HTTPException(403, "Invalid or missing API key")
+
+
 # ─── Request/Response Models ─────────────────────────────
 
 class AnalyzeRequest(BaseModel):
-    video_url: str
-    job_id: str
+    # Minimal mode: only queue_id needed (Cloud Run resolves everything from DB)
+    queue_id: Optional[str] = None
+    # Legacy mode (backward compat with Edge Function): all fields provided
+    video_url: Optional[str] = None
+    job_id: Optional[str] = None
     expected_count: int = 0
-    gemini_api_key: str
-    supabase_url: str
-    supabase_key: str
+    gemini_api_key: Optional[str] = None
+    supabase_url: Optional[str] = None
+    supabase_key: Optional[str] = None
     prompt: Optional[str] = None
-    model_name: str = "gemini-3-flash-preview"
-    # Fields for direct DB save (Cloud Run saves scores, Edge Function doesn't wait)
+    model_name: str = "gemini-2.5-flash"
+    # Fields for direct DB save
     lote_fiv_acasalamento_id: Optional[str] = None
     media_id: Optional[str] = None
     embryo_offset: int = 0
     # Biologist-provided bboxes (replaces OpenCV detection when present)
     bboxes: Optional[list[dict]] = None
+
+
+# ─── Progress Helper ─────────────────────────────────────
+
+def _update_progress(sb, job_id: str, message: str):
+    """Update progress_message in embryo_analysis_queue for real-time UI feedback."""
+    try:
+        sb.table('embryo_analysis_queue').update({
+            'progress_message': message,
+        }).eq('id', job_id).execute()
+    except Exception as e:
+        logger.warning(f"Progress update failed for {job_id}: {e}")
 
 
 # ─── Health ──────────────────────────────────────────────
@@ -182,7 +211,7 @@ async def extract_frame(req: ExtractFrameRequest):
 # ─── Main Pipeline ───────────────────────────────────────
 
 @app.post("/analyze")
-async def analyze(req: AnalyzeRequest):
+async def analyze(req: AnalyzeRequest, request: Request = None):
     """
     Full pipeline:
     1. Download video
@@ -191,17 +220,136 @@ async def analyze(req: AnalyzeRequest):
     4. Per embryo: crops, kinetics, best frame, DINOv2, Gemini
     5. Upload to Storage
     6. Return results
+
+    Supports two modes:
+    - queue_id only: Cloud Run resolves job context from DB (new, preferred)
+    - Full payload: backward compat with Edge Function (legacy)
     """
+    # Auth check
+    if request is not None:
+        _check_api_key(request)
+
+    # ─── Resolve job context from DB when queue_id-only ──────
+    sb_url = req.supabase_url or os.environ.get("SUPABASE_URL", "")
+    sb_key = req.supabase_key or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    gemini_key = req.gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+
+    if not sb_url or not sb_key:
+        raise HTTPException(500, "Supabase credentials not configured")
+
+    sb = _get_supabase(sb_url, sb_key)
+
+    # Determine effective job_id
+    effective_job_id = req.queue_id or req.job_id
+    if not effective_job_id:
+        raise HTTPException(400, "queue_id or job_id is required")
+
+    # If queue_id mode (no video_url), resolve everything from DB
+    if req.queue_id and not req.video_url:
+        try:
+            # 1. Check job status (idempotency)
+            job_resp = sb.table('embryo_analysis_queue').select(
+                'status, started_at, media_id, lote_fiv_acasalamento_id, '
+                'expected_count, manual_bboxes, embryo_offset'
+            ).eq('id', req.queue_id).single().execute()
+            job = job_resp.data
+            if not job:
+                raise HTTPException(404, f"Job not found: {req.queue_id}")
+
+            # Idempotency: skip if already processing (< 5min) or completed
+            if job['status'] == 'processing' and job.get('started_at'):
+                elapsed = time.time() - datetime.fromisoformat(
+                    job['started_at'].replace('Z', '+00:00')
+                ).timestamp()
+                if elapsed < 300:
+                    return {"message": "Job already processing", "queue_id": req.queue_id}
+            if job['status'] == 'completed':
+                return {"message": "Job already completed", "queue_id": req.queue_id}
+
+            # 2. Mark as processing
+            sb.table('embryo_analysis_queue').update({
+                'status': 'processing',
+                'started_at': datetime.utcnow().isoformat(),
+                'error_message': None,
+                'progress_message': 'Iniciando análise...',
+            }).eq('id', req.queue_id).execute()
+
+            # 3. Get media path
+            media_resp = sb.table('acasalamento_embrioes_media').select(
+                'arquivo_path'
+            ).eq('id', job['media_id']).single().execute()
+            media = media_resp.data
+            if not media:
+                raise HTTPException(404, f"Media not found for job {req.queue_id}")
+
+            # 4. Generate signed URL
+            _update_progress(sb, req.queue_id, "Gerando URL do vídeo...")
+            signed = sb.storage.from_('embryo-videos').create_signed_url(
+                media['arquivo_path'], 3600
+            )
+            if not signed or not signed.get('signedURL'):
+                raise HTTPException(500, f"Failed to generate signed URL")
+            video_url = signed['signedURL']
+
+            # 5. Get config (prompt, model)
+            config_resp = sb.table('embryo_score_config').select(
+                'calibration_prompt, model_name'
+            ).limit(1).maybe_single().execute()
+            config = config_resp.data if config_resp.data else {}
+
+            # 6. Get Gemini API key from secrets table (fallback to env var)
+            secret_resp = sb.table('embryo_score_secrets').select(
+                'gemini_api_key'
+            ).limit(1).maybe_single().execute()
+            if secret_resp.data and secret_resp.data.get('gemini_api_key'):
+                gemini_key = secret_resp.data['gemini_api_key']
+
+            # Populate req fields for the rest of the pipeline
+            req.video_url = video_url
+            req.job_id = req.queue_id
+            req.expected_count = job.get('expected_count') or 0
+            req.bboxes = job.get('manual_bboxes') or None
+            req.gemini_api_key = gemini_key
+            req.supabase_url = sb_url
+            req.supabase_key = sb_key
+            req.prompt = config.get('calibration_prompt')
+            req.model_name = config.get('model_name') or 'gemini-2.5-flash'
+            req.lote_fiv_acasalamento_id = job['lote_fiv_acasalamento_id']
+            req.media_id = job['media_id']
+            req.embryo_offset = job.get('embryo_offset') or 0
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to resolve job context for {req.queue_id}: {e}")
+            sb.table('embryo_analysis_queue').update({
+                'status': 'failed',
+                'error_message': f'Job context resolution failed: {str(e)[:500]}',
+                'progress_message': None,
+                'completed_at': datetime.utcnow().isoformat(),
+            }).eq('id', req.queue_id).execute()
+            raise HTTPException(500, f"Failed to resolve job: {str(e)[:200]}")
+
+    if not req.video_url:
+        raise HTTPException(400, "video_url is required (or use queue_id mode)")
+    if not gemini_key:
+        raise HTTPException(500, "Gemini API key not configured")
+
     _ensure_onnx()
-    _ensure_gemini(req.gemini_api_key)
+    _ensure_gemini(gemini_key)
 
-    sb = _get_supabase(req.supabase_url, req.supabase_key)
-    job_dir = f"analysis/{req.job_id}"
+    # Re-resolve sb in case credentials changed
+    sb = _get_supabase(sb_url, sb_key)
+    job_dir = f"analysis/{effective_job_id}"
 
-    # 1. Download video
-    tmp_path = _download_video(req.video_url)
-
+    # Global try/except: any crash marks job as failed with useful message
+    tmp_path = None
     try:
+        # 1. Download video
+        _update_progress(sb, effective_job_id, "Baixando vídeo...")
+        tmp_path = _download_video(req.video_url)
+
+        _update_progress(sb, effective_job_id, "Extraindo frames...")
         cap = cv2.VideoCapture(tmp_path)
         if not cap.isOpened():
             raise HTTPException(422, "Could not open video")
@@ -260,12 +408,14 @@ async def analyze(req: AnalyzeRequest):
         det_frame = color_frames[det_idx]
 
         # 3. Detect embryos (use biologist-provided bboxes if available)
+        _update_progress(sb, effective_job_id, "Detectando embriões...")
         if req.bboxes:
             bboxes = req.bboxes
             logger.info(f"Using {len(bboxes)} biologist-provided bboxes (skipping OpenCV)")
         else:
             bboxes = _detect_embryos(det_frame, req.expected_count)
             logger.info(f"OpenCV detected {len(bboxes)} embryos")
+        _update_progress(sb, effective_job_id, f"Detectados {len(bboxes)} embrião(ões)")
         if not bboxes:
             # Upload plate frame even if no detection
             plate_jpg = cv2.imencode('.jpg', det_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
@@ -325,6 +475,7 @@ async def analyze(req: AnalyzeRequest):
         logger.info(f"Vision: {len(valid_vision)}/{len(bboxes)} embryos succeeded")
 
         # Phase 2: Gemini in parallel (with retry per embryo)
+        _update_progress(sb, effective_job_id, f"Classificando {len(valid_vision)} embrião(ões) com IA...")
         if valid_vision:
             with ThreadPoolExecutor(max_workers=min(3, len(valid_vision))) as pool:
                 gemini_futures = {
@@ -356,6 +507,7 @@ async def analyze(req: AnalyzeRequest):
         embryo_results = [valid_vision[i] for i in sorted(valid_vision)]
 
         # ─── 5. Save scores directly to DB ─────────────────
+        _update_progress(sb, effective_job_id, "Salvando resultados...")
         if req.lote_fiv_acasalamento_id and req.media_id:
             try:
                 _save_scores_to_db(sb, req, embryo_results, bboxes, job_dir)
@@ -371,14 +523,30 @@ async def analyze(req: AnalyzeRequest):
                 except Exception as db_err:
                     logger.error(f"CRITICAL: Could not update queue status to failed: {db_err}")
 
+        _update_progress(sb, effective_job_id, None)  # Clear progress on success
         return {
             "plate_frame_path": f"{job_dir}/plate_frame.jpg",
             "bboxes": bboxes,
             "embryos": embryo_results,
         }
 
+    except HTTPException:
+        raise  # Let FastAPI handle HTTP errors normally
+    except Exception as e:
+        # Global catch: any unhandled crash marks job as failed with useful message
+        logger.error(f"Pipeline crashed for job {effective_job_id}: {e}", exc_info=True)
+        try:
+            sb.table('embryo_analysis_queue').update({
+                'status': 'failed',
+                'error_message': f'Pipeline crash: {str(e)[:500]}',
+                'progress_message': None,
+                'completed_at': datetime.utcnow().isoformat(),
+            }).eq('id', effective_job_id).execute()
+        except Exception:
+            pass
+        raise HTTPException(500, f"Pipeline error: {str(e)[:200]}")
     finally:
-        if os.path.exists(tmp_path):
+        if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
 
 
@@ -2072,14 +2240,24 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
 # HELPERS
 # ═══════════════════════════════════════════════════════════
 
-def _download_video(url: str) -> str:
-    """Download video to temp file, return path."""
-    resp = http_requests.get(url, timeout=120, stream=True)
-    resp.raise_for_status()
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        for chunk in resp.iter_content(chunk_size=8192):
-            tmp.write(chunk)
-        return tmp.name
+def _download_video(url: str, retries: int = 2) -> str:
+    """Download video to temp file with retry, return path."""
+    last_err = None
+    for attempt in range(retries):
+        try:
+            resp = http_requests.get(url, timeout=120, stream=True)
+            resp.raise_for_status()
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    tmp.write(chunk)
+                return tmp.name
+        except Exception as e:
+            last_err = e
+            if attempt < retries - 1:
+                delay = 2 ** attempt
+                logger.warning(f"Video download attempt {attempt + 1} failed: {e}, retrying in {delay}s...")
+                time.sleep(delay)
+    raise last_err
 
 
 def _upload_to_storage(sb, path: str, data: bytes):

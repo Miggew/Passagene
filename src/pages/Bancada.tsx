@@ -20,6 +20,7 @@ import { useEmbryoscoreUrl } from '@/hooks/useStorageUrl';
 import { useBancadaJobs, useBancadaPlate } from '@/hooks/useBancadaJobs';
 import type { BancadaJob, BancadaPlateEmbryo } from '@/hooks/useBancadaJobs';
 import { supabase } from '@/lib/supabase';
+import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import { useToast } from '@/hooks/use-toast';
 import type { ClassificacaoEmbriao } from '@/lib/types';
 import { getKineticDiagnosis, getLabelClasses } from '@/lib/embryoscore/kinetic-labels';
@@ -52,12 +53,10 @@ function JobCard({ job, onSelect }: { job: BancadaJob; onSelect: () => void }) {
 
   const handleProcessWithoutClassification = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await supabase.functions.invoke('embryo-analyze', {
-        body: { queue_id: job.id },
-      });
+    const result = await triggerAnalysis(job.id);
+    if (result.success) {
       toast({ title: 'Análise iniciada (OpenCV)' });
-    } catch {
+    } else {
       toast({ title: 'Erro ao iniciar análise', variant: 'destructive' });
     }
   };

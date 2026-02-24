@@ -1,4 +1,8 @@
-// Edge Function: embryo-analyze v8 — Awaits Cloud Run with timeout
+// ⚠️ DEPRECATED (2026-02-24): Frontend now calls Cloud Run directly via useAnalyzeEmbryo.ts
+// This Edge Function is no longer invoked. Kept for reference only.
+// Do NOT re-deploy — no frontend code calls this anymore.
+//
+// Original: Edge Function embryo-analyze v8 — Awaits Cloud Run with timeout
 // Fetches job context, calls Cloud Run /analyze with 4-min timeout.
 // If Cloud Run fails or times out, marks the job as 'failed'.
 

@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import type { ClassificacaoEmbriao } from '@/lib/types';
 
 const PIPELINE_URL = 'https://embryoscore-pipeline-63493118456.us-central1.run.app';
@@ -247,13 +248,9 @@ export function useQuickClassify(queueId: string) {
         }
       }
 
-      // 3. Dispatch Edge Function
-      // Dispatch Edge Function
-      const { error: fnErr } = await supabase.functions.invoke('embryo-analyze', {
-        body: { queue_id: queueId },
-      });
-      if (fnErr) console.error('saveAndFinish step 4 (Edge Function):', fnErr);
-      // Edge Function dispatched OK
+      // 3. Dispatch análise no Cloud Run
+      const analyzeResult = await triggerAnalysis(queueId);
+      if (!analyzeResult.success) console.error('saveAndFinish step 3 (Cloud Run):', analyzeResult.error);
     } catch (e) {
       console.error('saveAndFinish unexpected error:', e);
       throw e;

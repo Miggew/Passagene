@@ -230,12 +230,14 @@ export function EmbryoAnalysisBar({
   status,
   startedAt,
   retryCount,
+  progressMessage,
   onRetry,
   onCancel,
 }: {
   status: 'pending' | 'processing' | 'failed';
   startedAt?: string | null;
   retryCount?: number;
+  progressMessage?: string | null;
   onRetry?: () => void;
   onCancel?: () => void;
 }) {
@@ -319,7 +321,7 @@ export function EmbryoAnalysisBar({
               ? 'text-muted-foreground'
               : 'text-[hsl(var(--logo-bg))]'
             }`}>
-            {isPending ? 'Na fila de IA' : 'Analisando Embrião'}
+            {progressMessage || (isPending ? 'Na fila de IA' : 'Analisando Embrião')}
           </span>
         </div>
 
@@ -328,7 +330,7 @@ export function EmbryoAnalysisBar({
           {isPending ? (
             <div className="flex items-center gap-1.5 text-muted-foreground/70">
               <Clock className="w-3 h-3" />
-              <span className="text-[10px] font-medium">Aguardando servidor...</span>
+              <span className="text-[10px] font-medium">{progressMessage ? '' : 'Aguardando servidor...'}</span>
             </div>
           ) : (
             elapsed && (

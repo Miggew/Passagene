@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -306,10 +307,8 @@ export default function AdminEmbryoScoreTab() {
 
         if (queueData?.id) {
           createdCount++;
-          // Fire-and-forget: invocar Edge Function
-          supabase.functions.invoke('embryo-analyze', {
-            body: { queue_id: queueData.id },
-          }).catch((err: unknown) => {
+          // Fire-and-forget: invocar Cloud Run
+          triggerAnalysis(queueData.id).catch((err: unknown) => {
             console.warn('Reprocess: falha ao invocar análise:', err);
           });
         }
@@ -332,9 +331,7 @@ export default function AdminEmbryoScoreTab() {
             .update({ status: 'pending' })
             .eq('id', failedJob.id);
 
-          supabase.functions.invoke('embryo-analyze', {
-            body: { queue_id: failedJob.id },
-          }).catch((err: unknown) => {
+          triggerAnalysis(failedJob.id).catch((err: unknown) => {
             console.warn('Retry: falha ao invocar análise:', err);
           });
           retriedCount++;
@@ -374,9 +371,7 @@ export default function AdminEmbryoScoreTab() {
       log.push(`${pendingJobs.length} job(s) pendente(s). Invocando Edge Function...`);
 
       for (const job of pendingJobs) {
-        supabase.functions.invoke('embryo-analyze', {
-          body: { queue_id: job.id },
-        }).catch((err: unknown) => {
+        triggerAnalysis(job.id).catch((err: unknown) => {
           console.warn('Retrigger: falha ao invocar:', err);
         });
       }

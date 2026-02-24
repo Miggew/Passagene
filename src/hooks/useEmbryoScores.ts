@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import type { EmbryoScore, EmbryoAnalysisQueue } from '@/lib/types';
 
 /**
@@ -303,17 +304,12 @@ export function useRetryAnalysis() {
 
       if (updateError) throw updateError;
 
-      // Invocar a Edge Function para processar
-      const { data, error: fnError } = await supabase.functions.invoke('embryo-analyze', {
-        body: { queue_id: queueId },
-      });
-
-      if (fnError) {
-        console.error('EmbryoScore: Erro na função embryo-analyze (Retry):', fnError);
-        throw fnError;
+      // Invocar análise no Cloud Run diretamente
+      const result = await triggerAnalysis(queueId);
+      if (!result.success) {
+        console.error('EmbryoScore: Erro na análise (Retry):', result.error);
+        throw new Error(result.error);
       }
-
-      // Retry dispatched successfully
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embryo-analysis-status'] });

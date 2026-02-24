@@ -632,6 +632,8 @@ export interface EmbryoAnalysisQueue {
   crop_paths?: string[] | null;
   // v2: frame completo da placa no Storage (bucket: embryoscore)
   plate_frame_path?: string | null;
+  // Real-time progress from Cloud Run pipeline
+  progress_message?: string | null;
 }
 
 export interface EmbryoScoreConfig {
