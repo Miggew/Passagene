@@ -14,6 +14,7 @@ import {
   Sparkles,
   ArrowRight,
   TrendingUp,
+  Dna,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -71,7 +72,6 @@ export default function GeneticaHome() {
               onClick={() => navigate('/genetica/doadoras')}
               className="text-pink-600 hover:bg-pink-500/10"
             >
-              <CowIcon className="w-4 h-4 mr-2" />
               Ver Doadoras
             </Button>
             <Button
@@ -79,7 +79,6 @@ export default function GeneticaHome() {
               onClick={() => navigate('/genetica/touros')}
               className="text-blue-600 hover:bg-blue-500/10"
             >
-              <CowIcon className="w-4 h-4 mr-2" />
               Ver Touros
             </Button>
           </div>
