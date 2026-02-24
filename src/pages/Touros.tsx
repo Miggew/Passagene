@@ -31,7 +31,8 @@ import { Textarea } from '@/components/ui/textarea';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Search, Eye, Filter, Dna, X } from 'lucide-react';
+import { Plus, Eye, Filter, Dna, X } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import { Badge } from '@/components/ui/badge';
 import CamposDinamicosPorRaca from '@/components/touros/CamposDinamicosPorRaca';
 import type { Touro } from '@/lib/types';
@@ -140,13 +141,11 @@ function TourosFilters({
             <Filter className="w-3.5 h-3.5" />
             <span>Busca</span>
           </div>
-          <div className="relative w-full md:w-auto md:flex-1 md:min-w-[250px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
+          <div className="w-full md:w-auto md:flex-1 md:min-w-[250px]">
+            <SearchInput
               placeholder="Buscar por nome, registro ou raça..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-11 md:h-9"
+              onChange={setSearchTerm}
             />
           </div>
         </div>
@@ -217,7 +216,7 @@ function TourosTable({ touros, navigate }: TourosTableProps) {
         touros.map((touro) => (
           <div
             key={touro.id}
-            className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+            className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/50"
             onClick={() => navigate(`/touros/${touro.id}`)}
           >
             <div className="flex items-center justify-between mb-1.5">

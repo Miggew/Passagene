@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview: Animado DNA (Perspectiva Torcida 3D)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+        body {
+            background: #fafafa;
+            color: #333;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .dna-container {
+            background: #09C972;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .dna-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            transform: rotate(-45deg) scale(0.93);
+        }
+
+        .dot-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dot {
+            position: absolute;
+            border-radius: 50%;
+            background: #ffffff;
+        }
+
+        /* Animações Padrão (Perspectiva Lado Esquerdo) */
+        @keyframes dna-spin {
+            0% {
+                top: 0;
+                transform: scale(1);
+                z-index: 2;
+            }
+
+            50% {
+                top: 100%;
+                transform: scale(0.5);
+                z-index: 1;
+            }
+
+            100% {
+                top: 0;
+                transform: scale(1);
+                z-index: 2;
+            }
+        }
+
+        @keyframes dna-spin-rev {
+            0% {
+                bottom: 0;
+                transform: scale(0.5);
+                z-index: 1;
+            }
+
+            50% {
+                bottom: 100%;
+                transform: scale(1);
+                z-index: 2;
+            }
+
+            100% {
+                bottom: 0;
+                transform: scale(0.5);
+                z-index: 1;
+            }
+        }
+
+        /* Animações Torcidas (Perspectiva Lado Direito) 
+       O eixo Y (top/bottom) inverte de ponta a ponta. */
+        @keyframes dna-spin-flip {
+            0% {
+                top: 100%;
+                transform: scale(1);
+                z-index: 2;
+            }
+
+            50% {
+                top: 0%;
+                transform: scale(0.5);
+                z-index: 1;
+            }
+
+            100% {
+                top: 100%;
+                transform: scale(1);
+                z-index: 2;
+            }
+        }
+
+        @keyframes dna-spin-rev-flip {
+            0% {
+                bottom: 100%;
+                transform: scale(0.5);
+                z-index: 1;
+            }
+
+            50% {
+                bottom: 0%;
+                transform: scale(1);
+                z-index: 2;
+            }
+
+            100% {
+                bottom: 100%;
+                transform: scale(0.5);
+                z-index: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Preview: Animação (Torcida 3D na Imagem)</h1>
+    <p>Aqui está o segredo que a bolinha do lado direito ser "grande embaixo" causava na matemática: A hélice precisa se
+        <strong>torcer no centro</strong> (estilo fita de möbius). Esse HTML simula exatamente isso unindo duas físicas
+        de eixo Y invertidas fluindo na mesma direção.</p>
+
+    <div class="grid" id="grid"></div>
+
+    <script>
+        const SIZE = 200;
+        const targetLength = 194;
+
+        const grid = document.getElementById('grid');
+        const numDots = 7;
+        const wrapperSize = targetLength / numDots;
+        const dotSize = wrapperSize * 0.93;
+
+        // Configurações de tempo para manter tudo perfeitamente contínuo no cruzamento
+        const delaySpan = 0.75;
+
+        const card = document.createElement('div');
+        card.style.textAlign = 'center';
+
+        const container = document.createElement('div');
+        container.className = 'dna-container';
+        container.style.width = SIZE + 'px';
+        container.style.height = SIZE + 'px';
+        container.style.borderRadius = Math.round(SIZE * 0.2) + 'px';
+
+        const inner = document.createElement('div');
+        inner.className = 'dna-inner';
+
+        Array.from({ length: numDots }).forEach((_, i) => {
+            let isFlipped = i > 3; // Lado Direito tem perspectiva invertida
+            let delaySec = -((i / (numDots - 1)) * delaySpan);
+
+            // A mágica: para compensar a inversão visual de eixo mas não estragar a continuidade da linha no centro cruzando,
+            // O delay temporal da animação é puxado pra frente em EXATAMENTE metade de uma volta (0.75s dentro de 1.5s).
+            if (isFlipped) {
+                delaySec -= 0.75;
+            }
+
+            const delay = delaySec + 's';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'dot-wrapper';
+            wrapper.style.width = wrapperSize + 'px';
+
+            const dotBase = document.createElement('div');
+            dotBase.className = 'dot';
+            dotBase.style.width = dotSize + 'px';
+            dotBase.style.height = dotSize + 'px';
+            dotBase.style.left = `calc(50% - ${dotSize / 2}px)`;
+            dotBase.style.animation = (isFlipped ? 'dna-spin-flip' : 'dna-spin') + ` 1.5s ease-in-out infinite`;
+            dotBase.style.animationDelay = delay;
+
+            const dotRev = document.createElement('div');
+            dotRev.className = 'dot';
+            dotRev.style.width = dotSize + 'px';
+            dotRev.style.height = dotSize + 'px';
+            dotRev.style.left = `calc(50% - ${dotSize / 2}px)`;
+            dotRev.style.animation = (isFlipped ? 'dna-spin-rev-flip' : 'dna-spin-rev') + ` 1.5s ease-in-out infinite`;
+            dotRev.style.animationDelay = delay;
+
+            wrapper.appendChild(dotBase);
+            wrapper.appendChild(dotRev);
+            inner.appendChild(wrapper);
+        });
+
+        container.appendChild(inner);
+
+        const label = document.createElement('div');
+        label.innerHTML = `<strong>Movimento S-Torcido</strong><br/>Perspectiva Invertida no Meio`;
+
+        card.appendChild(container);
+        card.appendChild(label);
+
+        grid.appendChild(card);
+    </script>
+</body>
+
+</html>

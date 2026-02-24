@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Receptora, Fazenda } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 export interface UseMoverReceptoraProps {
   fazendas: Fazenda[];
@@ -74,13 +75,13 @@ export function useMoverReceptora({
 
       try {
         const { data: viewData, error: viewError } = await supabase
-          .from('vw_receptoras_fazenda_atual')
-          .select('receptora_id')
-          .eq('fazenda_id_atual', novaFazendaId);
+          .from('receptoras')
+          .select('id')
+          .eq('fazenda_atual_id', novaFazendaId);
 
         if (viewError) return;
 
-        const receptoraIdsNaFazendaDestino = viewData?.map(v => v.receptora_id) || [];
+        const receptoraIdsNaFazendaDestino = viewData?.map(v => v.id) || [];
 
         if (receptoraIdsNaFazendaDestino.length === 0) {
           setTemConflitoBrinco(false);
@@ -227,7 +228,7 @@ export function useMoverReceptora({
       const { error } = await supabase.rpc('mover_receptora_fazenda', {
         p_receptora_id: editingReceptora.id,
         p_nova_fazenda_id: novaFazendaId,
-        p_data_mudanca: new Date().toISOString().split('T')[0],
+        p_data_mudanca: getTodayDateString(),
         p_observacoes: null,
       });
 

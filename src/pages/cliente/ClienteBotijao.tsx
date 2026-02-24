@@ -7,12 +7,14 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useDebounce } from '@/hooks/core/useDebounce';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import EmptyState from '@/components/shared/EmptyState';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Snowflake, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Snowflake, Search, RefreshCw } from 'lucide-react';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { Input } from '@/components/ui/input';
@@ -46,8 +48,10 @@ export default function ClienteBotijao() {
   const [embrioesSubTab, setEmbrioesSubTab] = useState<'doadora' | 'touro'>('doadora');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   // Hook de cache compartilhado
-  const { data: hubData, isLoading: hubLoading } = useClienteHubData(clienteId);
+  const { data: hubData, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useClienteHubData(clienteId);
 
   // IDs de acasalamento para buscar detalhes dos embriões
   const acasalamentoIds = useMemo(() => {
@@ -91,13 +95,13 @@ export default function ClienteBotijao() {
   // Filtrar touros por busca
   const filteredTouros = useMemo(() => {
     return tourosDoses.filter(t => {
-      if (!searchTerm) return true;
-      const search = searchTerm.toLowerCase();
+      if (!debouncedSearch) return true;
+      const search = debouncedSearch.toLowerCase();
       return t.nome?.toLowerCase().includes(search) ||
              t.registro?.toLowerCase().includes(search) ||
              t.raca?.toLowerCase().includes(search);
     });
-  }, [tourosDoses, searchTerm]);
+  }, [tourosDoses, debouncedSearch]);
 
   // Agrupar embriões por doadora ou touro
   const embrioesAgrupados = useMemo((): EmbriaoAgrupado[] => {
@@ -127,14 +131,32 @@ export default function ClienteBotijao() {
   // Filtrar embriões agrupados por busca
   const filteredEmbrioes = useMemo(() => {
     return embrioesAgrupados.filter(e => {
-      if (!searchTerm) return true;
-      const search = searchTerm.toLowerCase();
+      if (!debouncedSearch) return true;
+      const search = debouncedSearch.toLowerCase();
       return e.nome?.toLowerCase().includes(search);
     });
-  }, [embrioesAgrupados, searchTerm]);
+  }, [embrioesAgrupados, debouncedSearch]);
 
   if (hubLoading) {
     return <LoadingScreen />;
+  }
+
+  if (hubError) {
+    return (
+      <div className="space-y-4 pb-20">
+        <PageHeader title="Meu Botijão" />
+        <EmptyState
+          title="Erro ao carregar botijão"
+          description="Não foi possível carregar as informações. Verifique sua conexão e tente novamente."
+          action={
+            <Button variant="outline" size="sm" onClick={() => refetchHub()}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   return (
@@ -143,7 +165,7 @@ export default function ClienteBotijao() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Tabs premium com CountBadge */}
-        <div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+        <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
           <TabsList className="grid grid-cols-2 h-auto p-0 bg-transparent gap-1.5">
             <TabsTrigger
               value="doses"
@@ -203,7 +225,7 @@ export default function ClienteBotijao() {
             placeholder={activeTab === 'doses' ? 'Buscar touro...' : 'Buscar...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-11 h-11 text-base rounded-xl border-border/60 bg-card shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+            className="pl-11 h-11 text-base rounded-xl border-border/60 glass-panel shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
           />
         </div>
 
@@ -233,7 +255,7 @@ export default function ClienteBotijao() {
               className={cn(
                 'relative flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
                 embrioesSubTab === 'doadora'
-                  ? 'bg-card shadow-sm text-foreground'
+                  ? 'glass-panel shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}
             >
@@ -253,7 +275,7 @@ export default function ClienteBotijao() {
               className={cn(
                 'relative flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
                 embrioesSubTab === 'touro'
-                  ? 'bg-card shadow-sm text-foreground'
+                  ? 'glass-panel shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}
             >

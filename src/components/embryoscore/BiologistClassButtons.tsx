@@ -4,14 +4,14 @@
  * A sugestão da IA é destacada com ring-primary/20.
  * Ao confirmar, chama onClassify(classification).
  * Botão "Desfazer" disponível se a classificação foi feita nos últimos 5 minutos.
+ * Hotkeys: 1-7 para selecionar, Enter para confirmar, Delete/Backspace para Dg.
  */
 
-import { useState } from 'react';
 import type { ClassificacaoEmbriao } from '@/lib/types';
 import { Button } from '@/components/ui/mobile-atoms'; // DS v4
 import { Check, Undo2, Sparkles } from 'lucide-react';
 
-const CLASSES: { value: ClassificacaoEmbriao; label: string; description: string }[] = [
+export const CLASSES: { value: ClassificacaoEmbriao; label: string; description: string }[] = [
   { value: 'BE', label: 'BE', description: 'Excelente' },
   { value: 'BN', label: 'BN', description: 'Bom' },
   { value: 'BX', label: 'BX', description: 'Regular' },
@@ -28,6 +28,10 @@ interface BiologistClassButtonsProps {
   onUndo?: () => void;
   canUndo?: boolean;
   isLoading?: boolean;
+  /** Selected class (controlled from parent for hotkey support) */
+  selected: ClassificacaoEmbriao | null;
+  /** Selection change callback */
+  onSelect: (cls: ClassificacaoEmbriao | null) => void;
 }
 
 export function BiologistClassButtons({
@@ -37,19 +41,20 @@ export function BiologistClassButtons({
   onUndo,
   canUndo,
   isLoading,
+  selected,
+  onSelect,
 }: BiologistClassButtonsProps) {
-  const [selected, setSelected] = useState<ClassificacaoEmbriao | null>(null);
   const isConfirmed = !!currentClassification;
 
   const handleSelect = (cls: ClassificacaoEmbriao) => {
     if (isConfirmed || isLoading) return;
-    setSelected(cls);
+    onSelect(cls);
   };
 
   const handleConfirm = () => {
     if (!selected || isLoading) return;
     onClassify(selected);
-    setSelected(null);
+    onSelect(null);
   };
 
   if (isConfirmed) {
@@ -76,12 +81,13 @@ export function BiologistClassButtons({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Classification grid */}
-      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-        {CLASSES.map((cls) => {
+    <div className="space-y-3">
+      {/* Classification buttons */}
+      <div className="flex flex-wrap gap-2">
+        {CLASSES.map((cls, idx) => {
           const isAiSuggestion = aiSuggestion === cls.value;
           const isSelected = selected === cls.value;
+          const hotkeyLabel = cls.value === 'Dg' ? 'Del' : String(idx + 1);
 
           return (
             <button
@@ -94,20 +100,22 @@ export function BiologistClassButtons({
                 ${isSelected
                   ? 'border-primary bg-primary/20'
                   : isAiSuggestion
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-border/50 bg-muted/20 hover:border-primary/30 hover:bg-muted/40'
+                    ? 'border-primary/30 bg-primary/5 ring-1 ring-primary/20'
+                    : 'border-border glass-panel hover:border-primary/20 hover:bg-muted/40'
                 }
               `}
             >
               <span className={`font-display font-black text-lg tracking-tightest ${isSelected ? 'text-primary' : 'text-foreground'}`}>
                 {cls.label}
               </span>
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mt-1">{cls.description}</span>
-              
-              {isAiSuggestion && !isSelected && (
-                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-sm">
-                  <Sparkles className="w-2.5 h-2.5 text-black" />
-                </div>
+              <span className="text-[10px] text-muted-foreground mt-0.5">{cls.description}</span>
+              <kbd className="mt-1 text-[9px] font-mono text-muted-foreground/60 bg-muted/60 px-1 rounded">
+                {hotkeyLabel}
+              </kbd>
+              {isAiSuggestion && (
+                <span className="absolute -top-1.5 -right-1.5 text-[9px] bg-primary/15 text-primary px-1 rounded-full">
+                  IA
+                </span>
               )}
             </button>
           );
@@ -123,9 +131,10 @@ export function BiologistClassButtons({
           size="lg"
           className="h-14 rounded-xl"
         >
-          <Check className="w-5 h-5 mr-2" />
-          Confirmar {selected} → Próximo
-        </Button>
+          <Check className="w-4 h-4" />
+          Confirmar {selected} → próximo
+          <kbd className="ml-1 text-[10px] font-mono text-white/60 bg-white/10 px-1 rounded">Enter</kbd>
+        </button>
       )}
     </div>
   );

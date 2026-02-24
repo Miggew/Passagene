@@ -6,7 +6,8 @@ import { Mail, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import logoEscrito from '@/assets/logoescrito.svg';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ export default function ForgotPassword() {
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <img src={logoEscrito} alt="PassaGene" className="h-16 w-auto" />
+            <LogoPassagene height={64} variant="premium" />
           </div>
 
           <Card>
@@ -73,7 +74,7 @@ export default function ForgotPassword() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src={logoEscrito} alt="PassaGene" className="h-16 w-auto" />
+          <LogoPassagene height={64} variant="premium" />
         </div>
 
         {/* Card do formulário */}
@@ -108,7 +109,7 @@ export default function ForgotPassword() {
                 size="lg"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  <LoaderDNA size={24} variant="premium" />
                 ) : (
                   <>
                     <Mail className="w-4 h-4" />

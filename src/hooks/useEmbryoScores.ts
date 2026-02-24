@@ -8,7 +8,7 @@
  * Também monitora status da fila de análise.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { EmbryoScore, EmbryoAnalysisQueue } from '@/lib/types';
@@ -84,7 +84,7 @@ export function useAcasalamentoScores(acasalamentoId: string | undefined) {
 export function useEmbryoScoresBatch(embriaoIds: string[]) {
   const queryClient = useQueryClient();
   const realtimeConnected = useRef(false);
-  const idsKey = embriaoIds.sort().join(',');
+  const sortedKey = useMemo(() => [...embriaoIds].sort().join(','), [embriaoIds]);
 
   // Realtime subscription para novos scores
   useEffect(() => {
@@ -104,7 +104,7 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
           if (newScore.embriao_id && embriaoIds.includes(newScore.embriao_id)) {
             // Invalidação otimista: apenas se o dado realmente mudou
             queryClient.invalidateQueries({
-              queryKey: ['embryo-scores-batch', idsKey],
+              queryKey: ['embryo-scores-batch', sortedKey],
             });
           }
         }
@@ -117,10 +117,10 @@ export function useEmbryoScoresBatch(embriaoIds: string[]) {
       supabase.removeChannel(channel);
       realtimeConnected.current = false;
     };
-  }, [idsKey, queryClient]);
+  }, [sortedKey, queryClient, embriaoIds]);
 
   return useQuery<Record<string, EmbryoScore>>({
-    queryKey: ['embryo-scores-batch', idsKey],
+    queryKey: ['embryo-scores-batch', sortedKey],
     queryFn: async () => {
       if (!embriaoIds.length) return {};
 
@@ -286,20 +286,37 @@ export function useRetryAnalysis() {
 
   return useMutation({
     mutationFn: async (queueId: string) => {
-      // Reset do job na fila
+      // Ler retry_count atual antes de incrementar
+      const { data: current } = await supabase
+        .from('embryo_analysis_queue')
+        .select('retry_count')
+        .eq('id', queueId)
+        .single();
+
       const { error: updateError } = await supabase
         .from('embryo_analysis_queue')
-        .update({ status: 'pending', retry_count: 0, error_message: null, started_at: null, completed_at: null })
+        .update({
+          status: 'pending',
+          retry_count: (current?.retry_count || 0) + 1,
+          error_message: null,
+          started_at: null,
+          completed_at: null,
+        })
         .eq('id', queueId);
 
       if (updateError) throw updateError;
 
       // Invocar a Edge Function para processar
-      const { error: fnError } = await supabase.functions.invoke('embryo-analyze', {
+      const { data, error: fnError } = await supabase.functions.invoke('embryo-analyze', {
         body: { queue_id: queueId },
       });
 
-      if (fnError) throw fnError;
+      if (fnError) {
+        console.error('EmbryoScore: Erro na função embryo-analyze (Retry):', fnError);
+        throw fnError;
+      }
+
+      // Retry dispatched successfully
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embryo-analysis-status'] });

@@ -1,81 +1,116 @@
-/**
- * Dashboard AI do Cliente — Resumo Diário do Gene
- */
-
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
-import { useDailySummary } from '@/hooks/cliente/useDailySummary';
-import { useClientePreferences } from '@/hooks/cliente/useClientePreferences';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Maximize2, X, Dna, ChevronRight } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { WeatherWidget } from './widgets/WeatherWidget';
+import { MarketWidget } from './widgets/MarketWidget';
+import { NewsWidget } from './widgets/NewsWidget';
+import { MarketNewsWidget } from './widgets/MarketNewsWidget';
+import { AITeaserWidget } from './widgets/AITeaserWidget';
 
 interface Props {
-  clienteId: string;
+  clienteId?: string;
   clienteNome?: string;
 }
 
-function formatDateBR(date: Date): string {
-  const d = String(date.getDate()).padStart(2, '0');
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  return `${d}/${m}/${date.getFullYear()}`;
-}
+export default function HomeDashboardClienteAI({ clienteNome, clienteId }: Props) {
+  const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
 
-export default function HomeDashboardClienteAI({ clienteId, clienteNome }: Props) {
-  const { data, isLoading, isFetching, error, regenerate } = useDailySummary(clienteId, clienteNome);
-  const { preferences } = useClientePreferences(clienteId);
-
-  const isLargeFont = preferences?.font_size === 'grande';
-  const textSize = isLargeFont ? 'text-xl' : 'text-[17px]';
-  const hoje = new Date();
-
-  // Texto a exibir
-  const hasError = !!error && !data?.summary;
-  const showLoading = isLoading || (isFetching && !data?.summary);
-
-  const errorText = 'Hoje não consegui preparar seu resumo. Mas fique tranquilo, amanhã volto com as novidades! 🐄';
-  const summaryText = hasError ? errorText : (data?.summary || '');
-
-  // Separar por qualquer quebra de linha (simples ou dupla)
-  const paragraphs = summaryText
-    .split(/\n+/)
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
+  // Wrapper para tornar qualquer widget clicável/expansível (2x2 grid style)
+  const WidgetWrapper = ({ id, children, className = '' }: { id: string, children: React.ReactNode, className?: string }) => (
+    <motion.div
+      layoutId={`widget-${id}`}
+      onClick={() => setExpandedWidget(id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedWidget(id); } }}
+      role="button"
+      tabIndex={0}
+      className={`relative cursor-pointer group rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ${className}`}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    >
+      {children}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <Maximize2 className="w-4 h-4 text-white/50" />
+      </div>
+    </motion.div>
+  );
 
   return (
-    <div className="flex flex-col gap-3 flex-1">
-      {/* Header Gene */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1">
-          <p className="text-base font-display font-bold tracking-tight text-foreground">Gene</p>
-          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Seu resumo de hoje</p>
-        </div>
-        <p className="text-[11px] font-mono text-muted-foreground mr-1 opacity-70">{formatDateBR(hoje)}</p>
-        <button
-          onClick={regenerate}
-          disabled={isFetching}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted/50 transition-all active:scale-95 disabled:opacity-40"
-        >
-          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-        </button>
+    <div className="flex flex-col h-full w-full px-1 py-1 overflow-hidden">
+      {/* Mini Banner Genética (Compacto para não gerar scroll) */}
+      <div className="mb-3 shrink-0 px-1">
+        <Link to="/cliente/mercado" className="block">
+          <div className="relative w-full rounded-xl overflow-hidden min-h-[50px] bg-gradient-to-r from-card to-card/50 border border-border flex items-center px-4 py-2 justify-between cursor-pointer hover:border-primary/30 transition-colors">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                <Dna className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Bolsa de Genética</h3>
+                <p className="text-[10px] text-muted-foreground">Compre e venda prenhezes elite</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </div>
+        </Link>
       </div>
 
-      {/* Card do resumo */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex-1 overflow-y-auto">
-        {showLoading ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-10">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Gene está preparando seu resumo...</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {paragraphs.map((p, i) => (
-              <p key={i} className={`${textSize} leading-relaxed text-foreground`}>
-                {p}
-              </p>
-            ))}
+      {/* Grid Cockpit Principal - Elegante e Estruturado */}
+      <div className="flex flex-col gap-4 md:gap-5 flex-1 min-h-0 px-2 pb-4">
+
+        {/* Topo (Largura Total): Teaser Geno AI com Premium Glassmorphism */}
+        <WidgetWrapper id="farm" className="w-full flex-shrink-0 h-[100px] border-none bg-transparent">
+          <AITeaserWidget clienteId={clienteId} compact={true} />
+        </WidgetWrapper>
+
+        {/* Base: Lado a Lado forçado em TODAS as telas (CSS Grid 2 colunas) */}
+        <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 mt-1">
+          {/* Base Esquerda: Fusão Mercado + Notícias */}
+          <WidgetWrapper id="market_news" className="w-full h-full min-h-0 flex flex-col border-none bg-transparent">
+            <MarketNewsWidget compact={true} />
+          </WidgetWrapper>
+
+          {/* Base Direita: Clima Expandido */}
+          <WidgetWrapper id="weather" className="w-full h-full min-h-0 flex flex-col border-none bg-transparent">
+            <WeatherWidget compact={true} />
+          </WidgetWrapper>
+        </div>
+      </div>
+
+      {/* Overlay de Expansão */}
+      <AnimatePresence>
+        {expandedWidget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setExpandedWidget(null)}>
+            <motion.div
+              layoutId={`widget-${expandedWidget}`}
+              className="w-full max-w-4xl h-[80vh] glass-panel rounded-2xl border border-border overflow-hidden relative shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setExpandedWidget(null)}
+                className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors border border-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="h-full p-8 overflow-y-auto custom-scrollbar">
+                <h2 className="text-2xl font-bold text-foreground mb-6">Detalhamento Completo</h2>
+                {expandedWidget === 'farm' && <AITeaserWidget clienteId={clienteId} compact={false} />}
+                {expandedWidget === 'weather' && <WeatherWidget />}
+                {expandedWidget === 'market_news' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <MarketWidget />
+                    <NewsWidget />
+                  </div>
+                )}
+
+                <div className="mt-8 p-4 bg-muted/30 rounded-xl border border-border text-muted-foreground text-sm">
+                  Em breve: Gráficos históricos e relatórios detalhados nesta visualização expandida.
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

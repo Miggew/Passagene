@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="500" height="120">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;800&amp;display=swap');
+      .text {
+        font-family: 'Outfit', sans-serif;
+        font-size: 70px;
+        letter-spacing: -2px; 
+      }
+      .weight-800 { font-weight: 800; }
+      .weight-400 { font-weight: 400; }
+    </style>
+    <clipPath id="c"><circle cx="60.0" cy="60.0" r="60.0"/></clipPath>
+  </defs>
+
+  <!-- PíLULA (120x120) -->
+  <g transform="translate(0, 0)">
+    <circle cx="60.0" cy="60.0" r="60.0" fill="#064e3b"/>
+    <g clip-path="url(#c)">
+      <g transform="translate(60.0,60.0) rotate(-45) scale(1.25) translate(-43.6,-27.0)">
+
+    <circle cx="6.24" cy="51.10" r="2.90" fill="#ffffff"/>
+    <circle cx="18.71" cy="48.07" r="3.09" fill="#ffffff"/>
+    <circle cx="31.18" cy="39.78" r="3.62" fill="#ffffff"/>
+    <circle cx="43.65" cy="28.45" r="4.35" fill="#ffffff"/>
+    <circle cx="56.12" cy="35.43" r="3.62" fill="#09C972"/>
+    <circle cx="68.59" cy="42.66" r="3.09" fill="#09C972"/>
+    <circle cx="81.06" cy="45.30" r="2.90" fill="#09C972"/>
+    <circle cx="6.24" cy="5.80" r="5.80" fill="#09C972"/>
+    <circle cx="18.71" cy="8.45" r="5.60" fill="#09C972"/>
+    <circle cx="31.18" cy="15.67" r="5.07" fill="#09C972"/>
+    <circle cx="43.65" cy="25.55" r="4.35" fill="#09C972"/>
+    <circle cx="56.12" cy="17.12" r="5.07" fill="#ffffff"/>
+    <circle cx="68.59" cy="8.83" r="5.60" fill="#ffffff"/>
+    <circle cx="81.06" cy="5.80" r="5.80" fill="#ffffff"/>
+
+      </g>
+    </g>
+  </g>
+
+  <!-- TEXTO -->
+  <!-- Alinhamento vertical ajustado visualmente para centralizar o texto da fonte Outfit na pílula de 120px -->
+  <text x="136" y="85" class="text" xml:space="preserve">
+    <tspan class="weight-800" fill="#ffffff">Passa</tspan><tspan class="weight-400" fill="#09C972">Gene</tspan>
+  </text>
+</svg>

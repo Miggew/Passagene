@@ -53,10 +53,10 @@ export function VideoUploadButton({
   if (uploading) {
     return (
       <div className="flex items-center justify-center gap-1.5">
-        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center relative">
-          <Loader2 className="w-4 h-4 text-primary animate-spin" />
+        <div className="w-8 h-8 rounded-md bg-green/10 flex items-center justify-center relative glow-green shadow-[0_0_15px_rgba(52,211,153,0.15)]">
+          <Loader2 className="w-4 h-4 text-green animate-spin" />
         </div>
-        <span className="text-xs text-muted-foreground font-medium">{progress}%</span>
+        <span className="text-[10px] text-green font-mono font-bold">{progress}%</span>
       </div>
     );
   }
@@ -89,19 +89,20 @@ export function VideoUploadButton({
     return (
       <div className="flex flex-col items-center gap-0.5">
         <div className="flex items-center gap-1.5">
-          <div className="w-8 h-8 rounded-md bg-emerald-500/15 flex items-center justify-center">
-            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="w-8 h-8 rounded-md bg-green/15 flex items-center justify-center glow-green shadow-[0_0_10px_rgba(52,211,153,0.15)]">
+            <Check className="w-4 h-4 text-green" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="text-[10px] text-green font-bold">
               {videoCount} {videoCount === 1 ? 'video' : 'videos'}
             </span>
           </div>
           <button
             onClick={handleClick}
             disabled={disabled}
-            className="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center hover:bg-green/10 hover:text-green hover:shadow-[0_0_10px_rgba(52,211,153,0.15)] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Adicionar arquivo de video"
+            aria-label="Adicionar arquivo de video"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -130,8 +131,8 @@ export function VideoUploadButton({
         <button
           onClick={handleClick}
           disabled={disabled}
-          className="w-8 h-8 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={disabled ? "Informe a quantidade de embrioes primeiro" : "Enviar arquivo de video"}
+          className="w-8 h-8 rounded-md bg-muted/60 flex items-center justify-center hover:bg-green/10 hover:text-green hover:shadow-[0_0_10px_rgba(52,211,153,0.15)] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Enviar arquivo de video"
         >
           <Video className="w-4 h-4" />
         </button>

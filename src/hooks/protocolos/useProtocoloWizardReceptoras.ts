@@ -9,7 +9,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { validarTransicaoStatus } from '@/lib/receptoraStatus';
-import { getTodayDateString } from '@/lib/utils';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 import type { Receptora } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import type { ReceptoraLocal, ReceptoraComStatus } from './useProtocoloWizardData';
@@ -238,13 +238,13 @@ export function useProtocoloWizardReceptoras({
 
       // Get receptoras from fazenda using view
       const { data: receptorasView, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', fazendaId);
+        .from('receptoras')
+        .select('id')
+        .eq('fazenda_atual_id', fazendaId);
 
       if (viewError) throw viewError;
 
-      const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+      const receptoraIds = receptorasView?.map(r => r.id) || [];
 
       // Check for duplicate brinco
       if (receptoraIds.length > 0) {

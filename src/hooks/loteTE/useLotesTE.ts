@@ -36,16 +36,16 @@ export function useLotesTE<T extends LoteTEBase>({
 
       // 1. Buscar receptoras da fazenda
       const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', fazendaId);
+        .from('receptoras')
+        .select('id')
+        .eq('fazenda_atual_id', fazendaId);
 
       if (viewError) {
-        console.error('Erro ao buscar view:', viewError);
+        console.error('Erro ao buscar receptoras:', viewError);
         throw viewError;
       }
 
-      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
+      const receptoraIds = viewData?.map(v => v.id) || [];
 
       if (receptoraIds.length === 0) {
         setLotesTE([]);

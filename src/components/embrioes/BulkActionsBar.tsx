@@ -18,7 +18,7 @@ export function BulkActionsBar({
 }: BulkActionsBarProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-5 duration-300">
-      <div className="bg-card border-t border-border shadow-lg">
+      <div className="glass-panel border-t border-border shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             {/* Selection info */}

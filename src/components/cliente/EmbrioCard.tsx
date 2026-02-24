@@ -16,6 +16,8 @@ interface EmbrioCardProps {
     nome: string;
     registro?: string;
     count: number;
+    fotoUrl?: string;
+    preco?: number;
   };
   tipo: 'doadora' | 'touro';
   onClick?: () => void;
@@ -29,43 +31,49 @@ export function EmbrioCard({ data, tipo, onClick }: EmbrioCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        'group rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-200 active:scale-[0.98] shadow-sm',
-        onClick && 'cursor-pointer hover:shadow-md hover:border-cyan-500/30'
+        'group rounded-xl border border-border glass-panel overflow-hidden transition-all duration-300',
+        onClick && 'cursor-pointer hover:border-foreground/30 hover:shadow-md'
       )}
     >
-      <div className="flex items-center gap-3">
-        {/* Ícone */}
-        <div className={cn(
-          'w-11 h-11 rounded-lg flex items-center justify-center shrink-0 border',
-          isDoadora
-            ? 'bg-gradient-to-br from-amber-500/20 to-amber-500/5 border-amber-500/15'
-            : 'bg-gradient-to-br from-indigo-500/20 to-indigo-500/5 border-indigo-500/15'
-        )}>
-          <Icon className={cn('w-5 h-5', isDoadora ? 'text-amber-500' : 'text-indigo-500')} />
-        </div>
+      {/* Área da Imagem (mín 40%) */}
+      <div className="relative aspect-[4/3] bg-muted overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#0F1412] to-[#151C1A]">
+        {data.fotoUrl ? (
+          <img src={data.fotoUrl} alt={data.nome} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <Icon className={cn('w-20 h-20 opacity-20', isDoadora ? 'text-amber-500' : 'text-indigo-500')} />
+        )}
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-base truncate">
-            {data.nome || 'Sem nome'}
-          </p>
-          {data.registro && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {data.registro}
-            </p>
-          )}
-        </div>
-
-        {/* Contagem com ícone - Premium */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/15">
-            <div className="flex items-center gap-1.5">
-              <Snowflake className="w-4 h-4 text-cyan-500" />
-              <span className="text-xl font-bold text-cyan-600 dark:text-cyan-400">{data.count}</span>
-            </div>
-            <span className="text-xs text-cyan-600/70 dark:text-cyan-400/70 font-medium">embriões</span>
+        {/* Badge Superior Esquerdo */}
+        <div className="absolute top-2 left-2">
+          <div className="px-2 py-1 rounded-full bg-[#0F1412]/80 backdrop-blur-sm text-white text-xs font-bold flex items-center gap-1.5 border border-border">
+            <Snowflake className="w-3.5 h-3.5 text-cyan-400" />
+            {data.count} Embriões
           </div>
         </div>
+
+        {/* Overlay Inferior (Nome / ID) */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#080B0A]/90 via-[#080B0A]/50 to-transparent p-3 pt-8">
+          <p className="text-white font-bold text-base truncate">{data.nome || 'Lote de Embriões'}</p>
+          {data.registro && (
+            <p className="text-muted-foreground font-mono text-xs mt-0.5 truncate">{data.registro}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Info Inferior */}
+      <div className="p-3">
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-sm text-muted-foreground font-medium">Quantidade:</span>
+          <span className="text-xl font-mono text-cyan-400 font-bold drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">{data.count}</span>
+        </div>
+        {data.preco && (
+          <div className="flex items-center justify-between mt-1 pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Valor unitário a partir de</span>
+            <span className="text-lg font-mono text-gradient-logo font-bold">
+              {data.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

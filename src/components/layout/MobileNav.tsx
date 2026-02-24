@@ -1,245 +1,230 @@
 /**
- * Navegação mobile com barra inferior e menu lateral
+ * Navegação mobile com barra inferior hub-aware.
+ * Clientes: FAB flutuante (Gen.IA).
+ * Não-clientes: barra flat com links diretos para hub home pages (multi-hub) ou hub home + 3 quick routes (single-hub).
  */
 
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/contexts/AuthContext';
+import { Home } from 'lucide-react';
+import { VoiceFAB } from '@/components/ui/VoiceFAB';
 import {
-  Home,
-  Menu,
-  LogOut,
-  Syringe,
-  TestTube,
-  ArrowRightLeft,
-  ThumbsUp,
-  Sparkles,
-  Shield,
-  Snowflake,
-  FileBarChart,
-  ClipboardList,
-  TrendingUp,
-  Dna,
-  Beef,
-  Container,
-} from 'lucide-react';
-import { GenderIcon } from '@/components/icons/GenderIcon';
-import { SpermIcon } from '@/components/icons/SpermIcon';
-import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
-import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import ThemeToggle from '@/components/shared/ThemeToggle';
+  routeIcons,
+  routeLabels,
+  hubIcons,
+  HUB_QUICK_ROUTES,
+  HUB_HOME_ROUTES,
+} from '@/lib/nav-config';
+import type { Hub } from '@/lib/types';
 
-// Mapeamento de ícones por rota
-const routeIcons: Record<string, React.ElementType> = {
-  '/': Home,
-  '/administrativo': Shield,
-  '/doadoras': DonorCowIcon,
-  '/touros': Sparkles,
-  '/lotes-fiv': TestTube,
-  '/embrioes': EmbryoIcon,
-  '/embrioes-congelados': Snowflake,
-  '/doses-semen': SpermIcon,
-  '/protocolos': Syringe,
-  '/aspiracoes': TestTube,
-  '/transferencia': ArrowRightLeft,
-  '/dg': ThumbsUp,
-  '/sexagem': GenderIcon,
-  '/relatorios': FileBarChart,
-  '/relatorios/servicos': ClipboardList,
-  '/relatorios/animais': DonorCowIcon,
-  '/relatorios/material': EmbryoIcon,
-  '/relatorios/producao': TrendingUp,
-  '/genetica': Dna,
-  // Rotas do cliente
-  '/cliente/rebanho': Beef,
-  '/cliente/relatorios': FileBarChart,
-  '/cliente/botijao': Container,
-};
+// ─── Helpers ───────────────────────────────────────────────────────
 
-// Labels das rotas
-const routeLabels: Record<string, string> = {
-  '/': 'Início',
-  '/administrativo': 'Admin',
-  '/doadoras': 'Doadoras',
-  '/touros': 'Touros',
-  '/lotes-fiv': 'Lotes FIV',
-  '/embrioes': 'Embriões',
-  '/embrioes-congelados': 'Congelados',
-  '/doses-semen': 'Doses',
-  '/protocolos': 'Protocolos',
-  '/aspiracoes': 'Aspirações',
-  '/transferencia': 'TE',
-  '/dg': 'DG',
-  '/sexagem': 'Sexagem',
-  '/relatorios': 'Relatórios',
-  '/relatorios/servicos': 'Serviços',
-  '/relatorios/animais': 'Animais',
-  '/relatorios/material': 'Material',
-  '/relatorios/producao': 'Produção',
-  '/genetica': 'Genética',
-  // Rotas do cliente
-  '/cliente/rebanho': 'Rebanho',
-  '/cliente/relatorios': 'Relatórios',
-  '/cliente/botijao': 'Botijão',
-};
+function isRouteActive(pathname: string, path: string) {
+  if (path === '/') return pathname === '/';
+  return pathname === path || pathname.startsWith(path + '/');
+}
 
-// Rotas principais para barra inferior (máximo 5)
-const QUICK_NAV_ROUTES = ['/', '/protocolos', '/transferencia', '/dg'];
+/** Check if a hub is active based on the current pathname */
+function isHubActive(pathname: string, hub: Hub, hubHomeRoute: string) {
+  if (pathname === hubHomeRoute) return true;
+  return hub.routes.some((route) => route !== '/' && isRouteActive(pathname, route));
+}
 
-// Rotas específicas para clientes (4 itens, sem Menu)
-const CLIENTE_NAV_ROUTES = ['/', '/cliente/rebanho', '/cliente/relatorios', '/cliente/botijao'];
+// ─── Bottom Bar Item ───────────────────────────────────────────────
 
-export default function MobileNav() {
-  const location = useLocation();
-  const { isCliente, getHubForRoute, getAccessibleHubs } = usePermissions();
-  const { signOut } = useAuth();
-  const [sheetOpen, setSheetOpen] = useState(false);
+interface BarItemProps {
+  route: string;
+  pathname: string;
+  icon?: React.ElementType;
+  label?: string;
+  isActive?: boolean;
+}
 
-  const currentHub = getHubForRoute(location.pathname);
-  const accessibleHubs = getAccessibleHubs();
-
-  const isRouteActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname === path || location.pathname.startsWith(path + '/');
-  };
-
-  // Rotas rápidas na barra inferior - cliente usa rotas específicas
-  const quickRoutes = isCliente
-    ? CLIENTE_NAV_ROUTES
-    : QUICK_NAV_ROUTES.filter(route => {
-        // Verifica se o usuário tem acesso
-        const hub = getHubForRoute(route);
-        return hub !== null;
-      });
+function BarItem({ route, pathname, icon, label, isActive: forceActive }: BarItemProps) {
+  const Icon = icon || routeIcons[route] || Home;
+  const displayLabel = label || routeLabels[route] || route;
+  const active = forceActive !== undefined ? forceActive : isRouteActive(pathname, route);
 
   return (
-    <>
-      {/* Barra de navegação inferior - apenas mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-around h-20 px-1">
-          {quickRoutes.map((route) => {
-            const Icon = routeIcons[route] || Home;
-            const label = routeLabels[route] || route;
-            const isActive = isRouteActive(route);
-
-            return (
-              <Link
-                key={route}
-                to={route}
-                className={cn(
-                  'flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors',
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground active:text-primary'
-                )}
-              >
-                <Icon className={cn('w-7 h-7 mb-1', isActive && 'text-primary')} />
-                <span className="text-xs font-semibold truncate max-w-full">{label}</span>
-                {isActive && (
-                  <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
-              </Link>
-            );
-          })}
-
-          {/* Botão Menu - apenas para não-clientes */}
-          {!isCliente && (
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-              <SheetTrigger asChild>
-                <button
-                  className={cn(
-                    'flex flex-col items-center justify-center flex-1 h-full py-2 px-1 transition-colors',
-                    'text-muted-foreground active:text-primary'
-                  )}
-                >
-                  <Menu className="w-7 h-7 mb-1" />
-                  <span className="text-xs font-semibold">Menu</span>
-                </button>
-              </SheetTrigger>
-
-              <SheetContent side="right" className="w-80 p-0 flex flex-col">
-                <SheetHeader className="p-5 border-b border-border">
-                  <div className="flex items-center justify-between">
-                    <SheetTitle className="text-left text-xl">Menu</SheetTitle>
-                    <ThemeToggle size="default" />
-                  </div>
-                </SheetHeader>
-
-                <div className="flex-1 overflow-auto">
-                  {/* Hubs e suas rotas */}
-                  {accessibleHubs
-                    .filter(hub => !(hub.routes.length === 1 && hub.routes[0] === '/'))
-                    .map((hub) => (
-                      <div key={hub.code} className="border-b border-border">
-                        <div className="px-5 py-3 bg-muted/50">
-                          <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                            {hub.name}
-                          </span>
-                        </div>
-                        <div className="py-2">
-                          {hub.routes.map((route) => {
-                            const Icon = routeIcons[route] || Home;
-                            const label = routeLabels[route] || route;
-                            const isActive = isRouteActive(route);
-
-                            return (
-                              <Link
-                                key={route}
-                                to={route}
-                                onClick={() => setSheetOpen(false)}
-                                className={cn(
-                                  'flex items-center gap-4 px-5 py-4 transition-colors',
-                                  isActive
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-foreground active:bg-muted'
-                                )}
-                              >
-                                <Icon className="w-6 h-6" />
-                                <span className="text-base font-medium">{label}</span>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-
-                  {/* Link Home */}
-                  <div className="p-3">
-                    <Link
-                      to="/"
-                      onClick={() => setSheetOpen(false)}
-                      className={cn(
-                        'flex items-center gap-4 px-5 py-4 rounded-xl transition-colors',
-                        isRouteActive('/')
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-foreground active:bg-muted'
-                      )}
-                    >
-                      <Home className="w-6 h-6" />
-                      <span className="text-base font-medium">Início</span>
-                    </Link>
-                  </div>
-
-                </div>
-
-                {/* Sair — fixo no rodapé */}
-                <div className="p-3 border-t border-border mt-auto">
-                  <button
-                    onClick={() => { setSheetOpen(false); signOut(); }}
-                    className="flex items-center gap-4 px-5 py-4 rounded-xl w-full text-red-500 active:bg-red-500/10 transition-colors"
-                  >
-                    <LogOut className="w-6 h-6" />
-                    <span className="text-base font-medium">Sair</span>
-                  </button>
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
-        </div>
-      </nav>
-    </>
+    <Link
+      to={route}
+      className={cn(
+        'group flex flex-col items-center justify-center flex-1 h-full py-2 rounded-xl mx-0.5 transition-all relative',
+        active
+          ? 'text-gold'
+          : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      <Icon className={cn('w-5 h-5 mb-1 transition-transform', active ? 'scale-110 text-foreground' : 'text-muted-foreground group-hover:scale-110 group-hover:text-foreground')} />
+      <span className={cn("text-[10px] tracking-tight truncate max-w-[90%]", active ? "font-bold text-foreground" : "font-medium text-muted-foreground group-hover:text-foreground")}>{displayLabel}</span>
+      {active && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-foreground" />}
+    </Link>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Fundo Brutalista + Orgânico (Multi-Hub)
+// ═══════════════════════════════════════════════════════════════════
+
+function CurvedBottomNavBackground() {
+  return (
+    <div className="absolute bottom-0 w-full h-[88px] overflow-hidden pointer-events-none z-0">
+      {/* SVG Background matching tailwind card / brutalist background */}
+      <svg
+        className="absolute bottom-0 w-full h-full text-card drop-shadow-[0_-5px_20px_rgba(0,0,0,0.5)] md:drop-shadow-[0_-5px_20px_rgba(0,0,0,0.15)]"
+        viewBox="0 0 400 88"
+        preserveAspectRatio="none"
+        fill="currentColor"
+      >
+        {/* Smooth organic cutout curve for the FAB. Hard top border line created with a separate path to simulate border-top for Brutalism */}
+        <path d="M0,20 C0,20 120,20 150,20 C165,20 170,55 200,55 C230,55 235,20 250,20 C280,20 400,20 400,20 L400,88 L0,88 Z" />
+        <path d="M0,20 C0,20 120,20 150,20 C165,20 170,55 200,55 C230,55 235,20 250,20 C280,20 400,20 400,20" stroke="hsl(var(--border))" strokeWidth="2" fill="none" />
+      </svg>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ClienteBottomBar — FAB flutuante isolado (Gen.IA)
+// ═══════════════════════════════════════════════════════════════════
+
+function ClienteBottomBar() {
+  const location = useLocation();
+  const isGenIaRoute = isRouteActive(location.pathname, '/genia');
+
+  // Na página Gen.IA, a barra unificada já tem o mic — FAB flutuante é redundante
+  if (isGenIaRoute) return null;
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 pointer-events-auto safe-area-bottom">
+      <VoiceFAB size="lg" />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// StandardBottomBar — links diretos para hub home pages
+// ═══════════════════════════════════════════════════════════════════
+
+function StandardBottomBar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { getAccessibleHubs } = usePermissions();
+
+  const accessibleHubs = getAccessibleHubs();
+
+  // Hubs reais (filtra hub que só tem "/" e "relatorios", pois foi mesclado com escritorio)
+  const realHubs = useMemo(() => {
+    return accessibleHubs.filter(h => !(h.routes.length === 1 && h.routes[0] === '/') && h.code !== 'relatorios');
+  }, [accessibleHubs]);
+
+  const isSingleHub = realHubs.length === 1;
+
+  // Single-hub: hub home + 3 quick routes
+  const singleHubItems = useMemo(() => {
+    if (!isSingleHub) return null;
+
+    const hub = realHubs[0];
+    if (!hub) return null;
+
+    const hubHomeRoute = HUB_HOME_ROUTES[hub.code];
+    const quickRoutes = HUB_QUICK_ROUTES[hub.code]?.slice(0, 3) || [];
+
+    if (!hubHomeRoute) return null;
+
+    return { hub, hubHomeRoute, quickRoutes };
+  }, [isSingleHub, realHubs]);
+
+  const isGenIaRoute = isRouteActive(location.pathname, '/genia');
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-transparent safe-area-bottom pointer-events-none md:bottom-2 md:max-w-3xl md:mx-auto">
+      <CurvedBottomNavBackground />
+
+      {/* FAB Central Global: Consultor IA (Centered in cutout) — escondido na /genia pois a barra unificada já tem mic */}
+      {!isGenIaRoute && (
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-end justify-center pointer-events-auto z-50 transition-all duration-300 bottom-[24px]">
+          <VoiceFAB size="lg" isBrutalistCenter />
+        </div>
+      )}
+
+      {/* Itens de Navegação */}
+      <div className="relative z-10 flex items-center justify-between h-[88px] px-2 pb-2 pointer-events-auto md:px-6">
+        {singleHubItems ? (
+          /* Single-hub: [Hub Home] + [quickRoute[0]] | FAB | [quickRoute[1]] + [quickRoute[2]] */
+          <>
+            <div className="flex h-full flex-1 justify-evenly pt-2 md:justify-end md:gap-8 md:pr-4">
+              <BarItem
+                route={singleHubItems.hubHomeRoute}
+                pathname={location.pathname}
+                icon={hubIcons[singleHubItems.hub.code]}
+                label="Início"
+                isActive={isHubActive(location.pathname, singleHubItems.hub, singleHubItems.hubHomeRoute) && location.pathname === singleHubItems.hubHomeRoute}
+              />
+              {singleHubItems.quickRoutes[0] && (
+                <BarItem route={singleHubItems.quickRoutes[0]} pathname={location.pathname} />
+              )}
+            </div>
+            <div className="w-[84px] shrink-0" /> {/* Espaço para o FAB */}
+            <div className="flex h-full flex-1 justify-evenly pt-2 md:justify-start md:gap-8 md:pl-4">
+              {singleHubItems.quickRoutes.slice(1, 3).map((route) => (
+                <BarItem key={route} route={route} pathname={location.pathname} />
+              ))}
+            </div>
+          </>
+        ) : (
+          /* Multi-hub: direct links to hub home pages */
+          <>
+            <div className="flex h-full flex-1 justify-evenly pt-2 md:justify-end md:gap-6 md:pr-2">
+              {realHubs.slice(0, Math.ceil(realHubs.length / 2)).map((hub) => {
+                const hubHomeRoute = HUB_HOME_ROUTES[hub.code] || hub.routes.find(r => r !== '/') || '/';
+                const active = isHubActive(location.pathname, hub, hubHomeRoute);
+                return (
+                  <BarItem
+                    key={hub.code}
+                    route={hubHomeRoute}
+                    pathname={location.pathname}
+                    icon={hubIcons[hub.code]}
+                    label={hub.name}
+                    isActive={active}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="w-[84px] shrink-0" /> {/* Espaço para o FAB */}
+
+            <div className="flex h-full flex-1 justify-evenly pt-2 md:justify-start md:gap-6 md:pl-2">
+              {realHubs.slice(Math.ceil(realHubs.length / 2)).map((hub) => {
+                const hubHomeRoute = HUB_HOME_ROUTES[hub.code] || hub.routes.find(r => r !== '/') || '/';
+                const active = isHubActive(location.pathname, hub, hubHomeRoute);
+                return (
+                  <BarItem
+                    key={hub.code}
+                    route={hubHomeRoute}
+                    pathname={location.pathname}
+                    icon={hubIcons[hub.code]}
+                    label={hub.name}
+                    isActive={active}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MobileNav — entry point
+// ═══════════════════════════════════════════════════════════════════
+
+export default function MobileNav() {
+  const { isCliente } = usePermissions();
+
+  return isCliente ? <ClienteBottomBar /> : <StandardBottomBar />;
 }

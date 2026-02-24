@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,11 +33,22 @@ import {
   Brain,
   AlertTriangle,
   RefreshCw,
+  Eye,
   ScanSearch,
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
 import { calcularDiaEmbriao } from '@/hooks/embrioes';
 import { Shield } from 'lucide-react';
+
+const STAGE_LABELS: Record<number, string> = {
+  3: 'Mórula Inicial',
+  4: 'Mórula',
+  5: 'Blasto Inicial',
+  6: 'Blastocisto',
+  7: 'Blasto Expandido',
+  8: 'Blasto Eclodido',
+  9: 'Blasto Eclodido Exp.'
+};
 
 interface PacoteEmbrioesTableProps {
   pacote: PacoteEmbrioes;
@@ -73,6 +85,7 @@ export function PacoteEmbrioesTable({
   const [redetectProgress, setRedetectProgress] = useState<{ id: string; step: number; label: string } | null>(null);
   const [redetectedMap, setRedetectedMap] = useState<Map<string, number>>(new Map());
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const retryAnalysis = useRetryAnalysis();
   const cancelAnalysis = useCancelAnalysis();
   const { toast } = useToast();
@@ -160,10 +173,17 @@ export function PacoteEmbrioesTable({
       if (existingJob) {
         queueId = existingJob.id;
         // Resetar job existente para pending (pode estar travado)
-        await supabase
+        const { error: resetError } = await supabase
           .from('embryo_analysis_queue')
-          .update({ status: 'pending', error_message: null, started_at: null, retry_count: 0 })
+          .update({
+            status: 'pending',
+            error_message: null,
+            started_at: null,
+            retry_count: 0,
+            detected_bboxes: [] // Force re-detection logic in Edge Function
+          })
           .eq('id', existingJob.id);
+        if (resetError) { toast({ title: 'Erro ao resetar análise', variant: 'destructive' }); return; }
       } else {
         const { data: queueData, error: queueError } = await supabase
           .from('embryo_analysis_queue')
@@ -172,6 +192,7 @@ export function PacoteEmbrioesTable({
             lote_fiv_acasalamento_id: embriao.lote_fiv_acasalamento_id,
             status: 'pending',
             expected_count: expectedCount,
+            detected_bboxes: [],
           })
           .select('id')
           .single();
@@ -190,15 +211,17 @@ export function PacoteEmbrioesTable({
         if (mediaData.id !== embriao.acasalamento_media_id) {
           updateFields.acasalamento_media_id = mediaData.id;
         }
-        await supabase
+        const { error: linkError } = await supabase
           .from('embrioes')
           .update(updateFields)
           .eq('lote_fiv_acasalamento_id', acasIdForUpdate);
+        if (linkError) { toast({ title: 'Erro ao vincular embriões', variant: 'destructive' }); return; }
       } else {
-        await supabase
+        const { error: linkError } = await supabase
           .from('embrioes')
           .update({ queue_id: queueId })
           .eq('id', embriao.id);
+        if (linkError) { toast({ title: 'Erro ao vincular embrião', variant: 'destructive' }); return; }
       }
 
       // 3. Invocar Edge Function com retry
@@ -206,15 +229,34 @@ export function PacoteEmbrioesTable({
       let invokeOk = false;
       for (let attempt = 0; attempt < 3 && !invokeOk; attempt++) {
         try {
-          const { error: fnError } = await supabase.functions.invoke('embryo-analyze', {
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('embryo-analyze', {
             body: { queue_id: queueId },
           });
-          if (fnError) throw fnError;
+          if (fnError) {
+            // Capturar body real do erro da Edge Function
+            let errorBody = '';
+            try {
+              if (fnError && typeof fnError === 'object' && 'context' in fnError) {
+                const ctx = (fnError as { context: Response }).context;
+                errorBody = await ctx.text();
+              }
+            } catch { /* ignore */ }
+            throw fnError;
+          }
           invokeOk = true;
         } catch (invokeErr) {
-          console.warn(`[Redetect] invoke tentativa ${attempt + 1}/3 falhou:`, invokeErr);
           if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
         }
+      }
+
+      // Se falhou, buscar error_message da fila para diagnóstico
+      if (!invokeOk) {
+        const { data: failedJob } = await supabase
+          .from('embryo_analysis_queue')
+          .select('status, error_message, retry_count')
+          .eq('id', queueId)
+          .maybeSingle();
+        console.error('[Redetect] Estado da fila após falha:', failedJob);
       }
       if (!invokeOk) {
         toast({ title: 'Erro', description: 'Falha ao invocar análise IA após 3 tentativas. Tente novamente.', variant: 'destructive' });
@@ -230,9 +272,13 @@ export function PacoteEmbrioesTable({
       progress(TOTAL_STEPS, 'Análise IA em andamento');
       setTimeout(() => setRedetectProgress(prev => prev?.id === embriao.id ? null : prev), 1500);
       return;
-    } catch (err) {
-      console.error('[Redetect]', err);
-      toast({ title: 'Erro na redetecção', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('[Redetect] Fatal Error:', err);
+      toast({
+        title: 'Erro na redetecção',
+        description: err.message || 'Erro desconhecido ao invocar análise.',
+        variant: 'destructive'
+      });
     } finally {
       setRedetectProgress(prev => {
         if (!prev || prev.id !== embriao.id) return prev;
@@ -380,7 +426,7 @@ export function PacoteEmbrioesTable({
             className="h-8 px-2"
           >
             {todosSelecionadosPagina ? (
-              <CheckSquare className="w-4 h-4 text-primary" />
+              <CheckSquare className="w-4 h-4 text-foreground" />
             ) : (
               <Square className="w-4 h-4 text-muted-foreground" />
             )}
@@ -419,8 +465,8 @@ export function PacoteEmbrioesTable({
               className={`
                 group relative flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border transition-all
                 ${selecionado
-                  ? 'bg-primary-subtle border-primary/30 shadow-sm'
-                  : 'bg-card border-border hover:border-primary/30 hover:shadow-sm'
+                  ? 'bg-muted border-foreground/30 shadow-md'
+                  : 'glass-panel border-border hover:border-foreground/30 hover:shadow-sm'
                 }
               `}
             >
@@ -429,9 +475,10 @@ export function PacoteEmbrioesTable({
                 <button
                   onClick={() => onToggleSelecionarEmbriao(embriao.id)}
                   className="flex-shrink-0 p-1 rounded hover:bg-muted"
+                  aria-label="Selecionar embrião"
                 >
                   {selecionado ? (
-                    <CheckSquare className="w-5 h-5 text-primary" />
+                    <CheckSquare className="w-5 h-5 text-foreground" />
                   ) : (
                     <Square className="w-5 h-5 text-muted-foreground/50 group-hover:text-muted-foreground" />
                   )}
@@ -470,7 +517,9 @@ export function PacoteEmbrioesTable({
               {/* Badges e Status */}
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 {embriao.estrela && (
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" title="Embrião Top" />
+                  <div title="Embrião Top">
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  </div>
                 )}
                 {classificacao ? (
                   <Badge
@@ -489,10 +538,11 @@ export function PacoteEmbrioesTable({
                   <button
                     onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}
                     className="flex items-center gap-0.5"
+                    aria-label="Ver detalhes do score"
                   >
                     <EmbryoScoreBadge score={score} compact />
-                    {classificacao && getDiscrepancy(classificacao, score.embryo_score) && (
-                      <AlertTriangle className="w-3 h-3 text-amber-500" title="Divergência IA vs Biólogo" />
+                    {classificacao && getDiscrepancy(classificacao, score.gemini_classification) && (
+                      <AlertTriangle className="w-3 h-3 text-amber-500" />
                     )}
                   </button>
                 ) : null}
@@ -504,135 +554,20 @@ export function PacoteEmbrioesTable({
                 )}
               </div>
 
-              {/* Menu de ações */}
+              {/* Actions (View Only) */}
               <div className="flex items-center gap-1 sm:ml-2">
-                {/* Botão expandir score (se tiver) */}
                 {score && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}
                     className={`h-8 w-8 p-0 ${expandedScoreId === embriao.id ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-primary hover:bg-primary/5'}`}
-                    title="Ver análise IA"
+                    title="Ver análise detalhada"
+                    aria-label="Ver análise detalhada"
                   >
-                    <Brain className="w-4 h-4" />
+                    <Eye className="w-4 h-4" />
                   </Button>
                 )}
-
-                {/* Ações rápidas visíveis - desabilitadas após despacho */}
-                {!isBloqueado && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onClassificar(embriao)}
-                      className="h-8 w-8 p-0 text-primary hover:text-primary-dark hover:bg-primary-subtle"
-                      title="Classificar"
-                    >
-                      <Tag className="w-4 h-4" />
-                    </Button>
-
-                    {isFresco && classificacao && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onCongelar(embriao)}
-                        className="h-8 w-8 p-0 text-blue-500 hover:text-blue-600 hover:bg-secondary"
-                        title="Congelar"
-                      >
-                        <Snowflake className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {/* Menu dropdown para mais ações */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {score && (
-                      <>
-                        <DropdownMenuItem onClick={() => setExpandedScoreId(expandedScoreId === embriao.id ? null : embriao.id)}>
-                          <Brain className="w-4 h-4 mr-2 text-primary" />
-                          {expandedScoreId === embriao.id ? 'Fechar análise IA' : 'Ver análise IA'}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-
-                    {/* Redetectar IA: disponível quando embrião tem vídeo vinculado */}
-                    {embriao.acasalamento_media_id && (
-                      <DropdownMenuItem
-                        onClick={() => handleRedetect(embriao)}
-                        disabled={redetectProgress?.id === embriao.id}
-                      >
-                        <ScanSearch className={`w-4 h-4 mr-2 text-violet-500 ${redetectProgress?.id === embriao.id ? 'animate-pulse' : ''}`} />
-                        {redetectProgress?.id === embriao.id ? 'Redetectando...' : 'Redetectar IA'}
-                      </DropdownMenuItem>
-                    )}
-
-                    {/* Reanalisar IA: disponível quando análise falhou */}
-                    {embriao.queue_id && analysisStatus?.status === 'failed' && (
-                      <DropdownMenuItem
-                        onClick={() => retryAnalysis.mutate(embriao.queue_id!)}
-                        disabled={retryAnalysis.isPending}
-                      >
-                        <RefreshCw className={`w-4 h-4 mr-2 text-amber-500 ${retryAnalysis.isPending ? 'animate-spin' : ''}`} />
-                        Reanalisar IA
-                      </DropdownMenuItem>
-                    )}
-
-                    {(embriao.acasalamento_media_id || (embriao.queue_id && analysisStatus?.status === 'failed')) && (
-                      <DropdownMenuSeparator />
-                    )}
-
-                    {!isBloqueado && (
-                      <>
-                        <DropdownMenuItem onClick={() => onClassificar(embriao)}>
-                          <Tag className="w-4 h-4 mr-2 text-primary" />
-                          Classificar
-                        </DropdownMenuItem>
-
-                        {isFresco && (
-                          <DropdownMenuItem
-                            onClick={() => onCongelar(embriao)}
-                            disabled={!classificacao}
-                            className={!classificacao ? 'opacity-50' : ''}
-                          >
-                            <Snowflake className="w-4 h-4 mr-2 text-blue-500" />
-                            Congelar
-                            {!classificacao && <span className="ml-auto text-xs text-muted-foreground">Classificar primeiro</span>}
-                          </DropdownMenuItem>
-                        )}
-
-                        {onToggleEstrela && (
-                          <DropdownMenuItem onClick={() => onToggleEstrela(embriao)}>
-                            <Star className={`w-4 h-4 mr-2 ${embriao.estrela ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'}`} />
-                            {embriao.estrela ? 'Remover estrela' : 'Marcar como Top'}
-                          </DropdownMenuItem>
-                        )}
-
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-
-                    <DropdownMenuItem
-                      onClick={() => onDescartar(embriao)}
-                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Descartar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
 
               {/* EmbryoScore expandido */}
@@ -700,8 +635,8 @@ export function PacoteEmbrioesTable({
               className={`
                 rounded-lg border p-3 transition-all
                 ${selecionado
-                  ? 'bg-primary-subtle border-primary/30 shadow-sm'
-                  : 'bg-card border-border'
+                  ? 'bg-muted border-foreground/30 shadow-md'
+                  : 'glass-panel border-border'
                 }
               `}
             >
@@ -713,7 +648,7 @@ export function PacoteEmbrioesTable({
                   className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded hover:bg-muted active:bg-muted/80"
                 >
                   {selecionado ? (
-                    <CheckSquare className="w-5 h-5 text-primary" />
+                    <CheckSquare className="w-5 h-5 text-foreground" />
                   ) : (
                     <Square className="w-5 h-5 text-muted-foreground/50" />
                   )}
@@ -754,7 +689,7 @@ export function PacoteEmbrioesTable({
                     {score ? (
                       <div className="flex items-center gap-1">
                         <EmbryoScoreBadge score={score} compact />
-                        {classificacao && getDiscrepancy(classificacao, score.embryo_score) && (
+                        {classificacao && getDiscrepancy(classificacao, score.gemini_classification) && (
                           <AlertTriangle className="w-3 h-3 text-amber-500" />
                         )}
                       </div>
@@ -765,7 +700,7 @@ export function PacoteEmbrioesTable({
                 {/* Menu ações - 44x44px touch target */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded hover:bg-muted active:bg-muted/80">
+                    <button className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded hover:bg-muted active:bg-muted/80" aria-label="Mais opções">
                       <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
                     </button>
                   </DropdownMenuTrigger>
@@ -778,6 +713,14 @@ export function PacoteEmbrioesTable({
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                       </>
+                    )}
+
+                    {/* Revisar embriões */}
+                    {embriao.queue_id && score && (
+                      <DropdownMenuItem onClick={() => navigate(`/embryoscore/review/${embriao.queue_id}`)}>
+                        <Eye className="w-4 h-4 mr-2 text-green-500" />
+                        Revisar embriões
+                      </DropdownMenuItem>
                     )}
 
                     {/* Redetectar IA */}
@@ -847,18 +790,31 @@ export function PacoteEmbrioesTable({
                 </DropdownMenu>
               </div>
 
-              {/* Linha 2: Info + Status */}
+              {/* Linha 2: Estágio/Grau + Status */}
               <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-                <div className="text-muted-foreground truncate">
-                  {score?.stage || 'Estágio desconhecido'} | {score?.recommendation || 'Sem recomendação'}
+                <div className="text-muted-foreground truncate flex items-center gap-1.5">
+                  {score?.stage_code != null && (
+                    <span>{STAGE_LABELS[score.stage_code] || `Est. ${score.stage_code}`}</span>
+                  )}
+                  {score?.stage_code != null && score?.quality_grade != null && (
+                    <span className="text-muted-foreground/50">·</span>
+                  )}
+                  {score?.quality_grade != null && (
+                    <span>Grau {score.quality_grade}</span>
+                  )}
+                  {!score?.stage_code && !score?.quality_grade && (
+                    <span>{embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}</span>
+                  )}
                 </div>
                 <StatusBadge status={embriao.status_atual} />
               </div>
 
-              {/* Linha 3 (opcional): Cruzamento */}
-              <div className="mt-1 text-xs text-muted-foreground truncate">
-                {embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}
-              </div>
+              {/* Linha 3: Cruzamento (se estágio/grau já mostrados) */}
+              {(score?.stage_code != null || score?.quality_grade != null) && (
+                <div className="mt-1 text-xs text-muted-foreground truncate">
+                  {embriao.doadora_registro || '-'} × {embriao.touro_nome || '-'}
+                </div>
+              )}
 
               {/* Barra de redetecção inline */}
               {redetectProgress?.id === embriao.id && (
@@ -921,6 +877,7 @@ export function PacoteEmbrioesTable({
               onClick={() => onSetPagina(Math.max(1, pagina - 1))}
               disabled={pagina === 1}
               className="h-8 w-8 p-0"
+              aria-label="Anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -959,6 +916,7 @@ export function PacoteEmbrioesTable({
               onClick={() => onSetPagina(Math.min(totalPaginas, pagina + 1))}
               disabled={pagina === totalPaginas}
               className="h-8 w-8 p-0"
+              aria-label="Próximo"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>

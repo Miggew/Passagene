@@ -12,13 +12,13 @@ export default defineConfig({
     svgr(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.svg', 'favicon.png', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'PassaGene - Gestão FIV',
         short_name: 'PassaGene',
         description: 'Sistema de gestão de FIV (Fertilização In Vitro) para gado bovino',
-        theme_color: '#2ECC71',
-        background_color: '#0a0a0a',
+        theme_color: '#1A7A50',
+        background_color: '#080B0A',
         display: 'standalone',
         orientation: 'portrait-primary',
         scope: '/',
@@ -38,6 +38,17 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any maskable',
+          },
+          {
+            src: 'logopassagene.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+          },
+          {
+            src: 'logopassagene.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
             purpose: 'any maskable',
           },
         ],
@@ -79,6 +90,19 @@ export default defineConfig({
   ],
   server: {
     watch: { usePolling: true, interval: 800 },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-recharts': ['recharts'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+        },
+      },
+    },
   },
   resolve: {
     alias: {

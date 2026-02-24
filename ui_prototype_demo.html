@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="antialiased">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - UI Prototyping (Dark/Light & Web/Mobile)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            base: '#09C972',
+                            dark: '#064e3b',
+                            light: '#dcfce7',
+                        },
+                        brutal: {
+                            bg: '#f8f9fa',
+                            card: '#ffffff',
+                            border: '#111827',
+
+                            // Dark mode specific brutal tokens
+                            darkbg: '#0f172a',
+                            darkcard: '#1e293b',
+                            darkborder: '#334155',
+                        }
+                    },
+                    boxShadow: {
+                        'brutal': '4px 4px 0px 0px rgba(17,24,39,1)',
+                        'brutal-sm': '2px 2px 0px 0px rgba(17,24,39,1)',
+                        'brutal-lg': '8px 8px 0px 0px rgba(17,24,39,1)',
+
+                        'brutal-dark': '4px 4px 0px 0px #09C972',
+                        'brutal-dark-lg': '8px 8px 0px 0px rgba(9, 201, 114, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #e2e8f0;
+        }
+
+        /* Gradients */
+        .gradient-organic {
+            background: linear-gradient(135deg, #064e3b 0%, #047857 50%, #09C972 100%);
+        }
+
+        .gradient-organic-dark {
+            background: linear-gradient(135deg, #09C972 0%, #10b981 50%, #047857 100%);
+        }
+
+        /* Light Mode Card */
+        .brutal-card {
+            background: white;
+            border: 2px solid #111827;
+            border-radius: 16px;
+            box-shadow: 4px 4px 0px 0px #111827;
+            transition: all 0.2s;
+        }
+
+        /* Dark Mode Card */
+        .brutal-card-dark {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 16px;
+            /* In dark mode, we use the neon green for the brutalist shadow pop */
+            box-shadow: 4px 4px 0px 0px rgba(9, 201, 114, 0.6);
+            transition: all 0.2s;
+        }
+
+        /* FABs */
+        .fab-ai {
+            width: 64px;
+            height: 64px;
+            background: #09C972;
+            border: 2px solid #111827;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 4px 4px 0px 0px #111827;
+            color: #111827;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 50;
+        }
+
+        .fab-ai-dark {
+            width: 64px;
+            height: 64px;
+            background: #09C972;
+            border: 2px solid #0f172a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 25px rgba(9, 201, 114, 0.4);
+            /* Glow instead of drop shadow */
+            color: #0f172a;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 50;
+        }
+
+        .mobile-preview {
+            width: 390px;
+            height: 844px;
+            border-radius: 40px;
+            border: 8px solid #475569;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body class="p-8 pb-32">
+
+    <div class="max-w-[1200px] mx-auto text-center mb-16">
+        <h1 class="text-4xl font-display font-bold text-gray-900 tracking-tight">O Sistema Completo (Claro / Escuro /
+            Mobile)</h1>
+        <p class="text-gray-600 mt-4 max-w-2xl mx-auto text-lg">Aqui estão as 4 variações principais do sistema Base
+            (Single/Multi Hub, Claro/Escuro, Web/Mobile) aplicando a exata mesma lógica de design.</p>
+    </div>
+
+    <!-- ==========================================
+         CENÁRIO 1: WEB SINGLE-HUB (MODO CLARO)
+         ========================================== -->
+    <div class="max-w-[1000px] mx-auto mb-24 relative">
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <i data-lucide="monitor" class="w-4 h-4"></i>
+            1. Dashboard Web [Modo Claro / Single-Hub]
+        </h2>
+
+        <div
+            class="bg-brutal-bg border-4 border-brutal-border rounded-[32px] overflow-hidden shadow-brutal-lg relative min-h-[600px]">
+            <header
+                class="bg-white border-b-2 border-brutal-border px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+                <div class="flex items-center gap-4">
+                    <!-- Light Logo -->
+                    <svg viewBox="0 0 500 120" width="140" height="34">
+                        <defs>
+                            <clipPath id="c1">
+                                <circle cx="60" cy="60" r="60" />
+                            </clipPath>
+                        </defs>
+                        <circle cx="60" cy="60" r="60" fill="#064e3b" />
+                        <g clip-path="url(#c1)">
+                            <g transform="translate(60,60) rotate(-45) scale(1.25) translate(-43.6,-27)">
+                                <circle cx="6.24" cy="51.1" r="2.9" fill="#fff" />
+                                <circle cx="18.71" cy="48.07" r="3.09" fill="#fff" />
+                                <circle cx="31.18" cy="39.78" r="3.62" fill="#fff" />
+                                <circle cx="43.65" cy="28.45" r="4.35" fill="#fff" />
+                                <circle cx="56.12" cy="35.43" r="3.62" fill="#09c972" />
+                                <circle cx="68.59" cy="42.66" r="3.09" fill="#09c972" />
+                                <circle cx="81.06" cy="45.3" r="2.9" fill="#09c972" />
+                                <circle cx="6.24" cy="5.8" r="5.8" fill="#09c972" />
+                                <circle cx="18.71" cy="8.45" r="5.6" fill="#09c972" />
+                                <circle cx="31.18" cy="15.67" r="5.07" fill="#09c972" />
+                                <circle cx="43.65" cy="25.55" r="4.35" fill="#09c972" />
+                                <circle cx="56.12" cy="17.12" r="5.07" fill="#fff" />
+                                <circle cx="68.59" cy="8.83" r="5.6" fill="#fff" />
+                                <circle cx="81.06" cy="5.8" r="5.8" fill="#fff" />
+                            </g>
+                        </g>
+                        <text x="136" y="85" font-family="Outfit, sans-serif" font-size="70px" letter-spacing="-2px">
+                            <tspan font-weight="800" fill="#064b33">Passa</tspan>
+                            <tspan font-weight="400" fill="#09C972">Gene</tspan>
+                        </text>
+                    </svg>
+                    <div class="h-6 w-0.5 bg-gray-200 mx-2"></div>
+                    <span class="font-display font-semibold text-brand-dark flex items-center gap-2"><i
+                            data-lucide="tractor" class="w-5 h-5"></i> Hub Campo</span>
+                </div>
+            </header>
+
+            <main class="p-8">
+                <div class="brutal-card mb-8 relative p-8 flex items-center justify-between">
+                    <div class="flex items-center gap-6">
+                        <div class="w-2 h-16 rounded-full gradient-organic"></div>
+                        <div>
+                            <h1 class="text-3xl font-display font-bold text-gray-900 tracking-tight">Bom dia, Miguel
+                            </h1>
+                            <p class="text-gray-500 mt-1 font-medium">Acompanhe suas fazendas no Hub Campo.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="brutal-card p-6 flex flex-col justify-between h-32">
+                        <div class="flex items-center justify-between text-gray-500">
+                            <span class="font-bold text-sm uppercase tracking-wider text-brand-dark">Lotes Ativos</span>
+                            <i data-lucide="test-tubes" class="w-5 h-5 text-brand-base"></i>
+                        </div>
+                        <span class="font-display font-bold text-4xl text-gray-900">12</span>
+                    </div>
+                    <div class="brutal-card p-6 flex flex-col justify-between h-32">
+                        <div class="flex items-center justify-between text-gray-500">
+                            <span class="font-bold text-sm uppercase tracking-wider text-brand-dark">Taxa Prenhez</span>
+                            <i data-lucide="percent" class="w-5 h-5 text-brand-base"></i>
+                        </div>
+                        <span class="font-display font-bold text-4xl text-gray-900">48.5%</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Floater FAB -->
+            <div class="absolute bottom-8 right-8 fab-ai hover:rotate-12 group">
+                <i data-lucide="sparkles"
+                    class="w-8 h-8 text-brutal-border group-hover:scale-110 transition-transform"></i>
+            </div>
+            <div
+                class="absolute bottom-12 right-12 w-8 h-8 bg-brand-base rounded-full blur-[30px] opacity-60 z-40 pointer-events-none">
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         CENÁRIO 2: WEB ADMIN (MODO ESCURO)
+         ========================================== -->
+    <div class="max-w-[1000px] mx-auto mb-32 relative">
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <i data-lucide="monitor" class="w-4 h-4"></i>
+            2. Dashboard Web Admin [Modo Escuro / Multi-Hub]
+        </h2>
+
+        <div
+            class="bg-brutal-darkbg border-4 border-brutal-darkborder rounded-[32px] overflow-hidden shadow-[8px_8px_0_0_#334155] relative min-h-[600px]">
+            <!-- Navbar Dark -->
+            <header
+                class="bg-slate-800 border-b-2 border-slate-700 px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+                <div class="flex items-center gap-6">
+                    <!-- Dark Logo -->
+                    <svg viewBox="0 0 500 120" width="140" height="34">
+                        <defs>
+                            <clipPath id="c2">
+                                <circle cx="60" cy="60" r="60" />
+                            </clipPath>
+                        </defs>
+                        <circle cx="60" cy="60" r="60" fill="#064e3b" />
+                        <g clip-path="url(#c2)">
+                            <g transform="translate(60,60) rotate(-45) scale(1.25) translate(-43.6,-27)">
+                                <circle cx="6.24" cy="51.1" r="2.9" fill="#fff" />
+                                <circle cx="18.71" cy="48.07" r="3.09" fill="#fff" />
+                                <circle cx="31.18" cy="39.78" r="3.62" fill="#fff" />
+                                <circle cx="43.65" cy="28.45" r="4.35" fill="#fff" />
+                                <circle cx="56.12" cy="35.43" r="3.62" fill="#09c972" />
+                                <circle cx="68.59" cy="42.66" r="3.09" fill="#09c972" />
+                                <circle cx="81.06" cy="45.3" r="2.9" fill="#09c972" />
+                                <circle cx="6.24" cy="5.8" r="5.8" fill="#09c972" />
+                                <circle cx="18.71" cy="8.45" r="5.6" fill="#09c972" />
+                                <circle cx="31.18" cy="15.67" r="5.07" fill="#09c972" />
+                                <circle cx="43.65" cy="25.55" r="4.35" fill="#09c972" />
+                                <circle cx="56.12" cy="17.12" r="5.07" fill="#fff" />
+                                <circle cx="68.59" cy="8.83" r="5.6" fill="#fff" />
+                                <circle cx="81.06" cy="5.8" r="5.8" fill="#fff" />
+                            </g>
+                        </g>
+                        <text x="136" y="85" font-family="Outfit, sans-serif" font-size="70px" letter-spacing="-2px">
+                            <tspan font-weight="800" fill="#ffffff">Passa</tspan>
+                            <tspan font-weight="400" fill="#09C972">Gene</tspan>
+                        </text>
+                    </svg>
+
+                    <!-- Top Nav Hubs -->
+                    <nav class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
+                        <button
+                            class="px-4 py-1.5 rounded-lg text-sm font-bold bg-slate-700 text-white flex items-center gap-2">
+                            <i data-lucide="tractor" class="w-4 h-4 text-brand-base"></i> Campo
+                        </button>
+                        <button
+                            class="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white flex items-center gap-2">
+                            <i data-lucide="building-2" class="w-4 h-4"></i> Escritório
+                        </button>
+                    </nav>
+                </div>
+            </header>
+
+            <main class="p-8">
+                <div class="brutal-card-dark mb-8 relative p-8 flex items-center justify-between">
+                    <div class="flex items-center gap-6">
+                        <div class="w-2 h-16 rounded-full gradient-organic-dark"></div>
+                        <div>
+                            <h1 class="text-3xl font-display font-bold text-white tracking-tight">Visão Geral Admin</h1>
+                            <p class="text-slate-400 mt-1 font-medium">Controle total de todos os Hubs.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="brutal-card-dark p-6 flex flex-col justify-between h-32">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span class="font-bold text-sm uppercase tracking-wider text-brand-base">Lotes Ativos
+                                (Global)</span>
+                            <i data-lucide="globe" class="w-5 h-5 text-brand-base"></i>
+                        </div>
+                        <span class="font-display font-bold text-4xl text-white">45</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Floater FAB Dark -->
+            <div class="absolute bottom-8 right-8 fab-ai-dark hover:scale-110">
+                <i data-lucide="sparkles" class="w-8 h-8 text-black"></i>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-20 max-w-[900px] mx-auto">
+        <!-- ==========================================
+             CENÁRIO 3: MOBILE SINGLE-HUB (MODO CLARO)
+             ========================================== -->
+        <div class="flex flex-col items-center">
+            <h2 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+                3. Mobile Single [Modo Claro]
+            </h2>
+            <p class="text-gray-500 mb-6 text-center text-sm font-medium">Usuário Comum: Sem barra inferior. FAB da IA
+                Flutuante na tela branca isolada.</p>
+
+            <div class="mobile-preview bg-brutal-bg">
+                <div class="flex-1 p-6 h-full overflow-y-auto pb-32">
+                    <div class="flex items-center justify-between mb-8 mt-4">
+                        <svg viewBox="0 0 500 120" width="120" height="28">
+                            <defs>
+                                <clipPath id="c3">
+                                    <circle cx="60" cy="60" r="60" />
+                                </clipPath>
+                            </defs>
+                            <circle cx="60" cy="60" r="60" fill="#064e3b" />
+                            <g clip-path="url(#c3)">
+                                <g transform="translate(60,60) rotate(-45) scale(1.25) translate(-43.6,-27)">
+                                    <circle cx="6.24" cy="51.1" r="2.9" fill="#fff" />
+                                    <circle cx="18.71" cy="48.07" r="3.09" fill="#fff" />
+                                    <circle cx="31.18" cy="39.78" r="3.62" fill="#fff" />
+                                    <circle cx="43.65" cy="28.45" r="4.35" fill="#fff" />
+                                    <circle cx="56.12" cy="35.43" r="3.62" fill="#09c972" />
+                                    <circle cx="68.59" cy="42.66" r="3.09" fill="#09c972" />
+                                    <circle cx="81.06" cy="45.3" r="2.9" fill="#09c972" />
+                                    <circle cx="6.24" cy="5.8" r="5.8" fill="#09c972" />
+                                    <circle cx="18.71" cy="8.45" r="5.6" fill="#09c972" />
+                                    <circle cx="31.18" cy="15.67" r="5.07" fill="#09c972" />
+                                    <circle cx="43.65" cy="25.55" r="4.35" fill="#09c972" />
+                                    <circle cx="56.12" cy="17.12" r="5.07" fill="#fff" />
+                                    <circle cx="68.59" cy="8.83" r="5.6" fill="#fff" />
+                                    <circle cx="81.06" cy="5.8" r="5.8" fill="#fff" />
+                                </g>
+                            </g>
+                            <text x="136" y="85" font-family="Outfit, sans-serif" font-size="70px"
+                                letter-spacing="-2px">
+                                <tspan font-weight="800" fill="#064b33">Passa</tspan>
+                                <tspan font-weight="400" fill="#09C972">Gene</tspan>
+                            </text>
+                        </svg>
+                        <button
+                            class="w-10 h-10 rounded-full border-2 border-brutal-border flex items-center justify-center">
+                            <i data-lucide="menu" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="brutal-card p-5 mb-5">
+                        <div class="w-2 h-8 rounded-full gradient-organic mb-3"></div>
+                        <h2 class="text-xl font-display font-bold text-gray-900 mb-1">Hub Campo</h2>
+                    </div>
+
+                    <div class="brutal-card p-6 h-32 flex flex-col justify-center">
+                        <span class="font-bold text-xs uppercase text-brand-dark mb-2">Lotes Ativos</span>
+                        <span class="font-display font-bold text-4xl text-gray-900">12</span>
+                    </div>
+                </div>
+
+                <!-- Floating AI FAB ONLY. NO BOTTOM NAV -->
+                <div class="absolute bottom-8 right-6 fab-ai transition-transform shadow-brutal hover:shadow-brutal-sm">
+                    <i data-lucide="sparkles" class="w-7 h-7 text-brutal-border"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             CENÁRIO 4: MOBILE MULTI-HUB (MODO ESCURO)
+             ========================================== -->
+        <div class="flex flex-col items-center">
+            <h2 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+                4. Mobile Admin [Modo Escuro]
+            </h2>
+            <p class="text-gray-500 mb-6 text-center text-sm font-medium">Administrador: Com barra inferior Multi-Hub e
+                recorte orgânico no Dark Mode.</p>
+
+            <div class="mobile-preview bg-slate-900">
+                <div class="flex-1 p-6 h-full overflow-y-auto pb-32">
+                    <div class="flex items-center justify-between mb-8 mt-4">
+                        <svg viewBox="0 0 500 120" width="120" height="28">
+                            <defs>
+                                <clipPath id="c4">
+                                    <circle cx="60" cy="60" r="60" />
+                                </clipPath>
+                            </defs>
+                            <circle cx="60" cy="60" r="60" fill="#064e3b" />
+                            <g clip-path="url(#c4)">
+                                <g transform="translate(60,60) rotate(-45) scale(1.25) translate(-43.6,-27)">
+                                    <circle cx="6.24" cy="51.1" r="2.9" fill="#fff" />
+                                    <circle cx="18.71" cy="48.07" r="3.09" fill="#fff" />
+                                    <circle cx="31.18" cy="39.78" r="3.62" fill="#fff" />
+                                    <circle cx="43.65" cy="28.45" r="4.35" fill="#fff" />
+                                    <circle cx="56.12" cy="35.43" r="3.62" fill="#09c972" />
+                                    <circle cx="68.59" cy="42.66" r="3.09" fill="#09c972" />
+                                    <circle cx="81.06" cy="45.3" r="2.9" fill="#09c972" />
+                                    <circle cx="6.24" cy="5.8" r="5.8" fill="#09c972" />
+                                    <circle cx="18.71" cy="8.45" r="5.6" fill="#09c972" />
+                                    <circle cx="31.18" cy="15.67" r="5.07" fill="#09c972" />
+                                    <circle cx="43.65" cy="25.55" r="4.35" fill="#09c972" />
+                                    <circle cx="56.12" cy="17.12" r="5.07" fill="#fff" />
+                                    <circle cx="68.59" cy="8.83" r="5.6" fill="#fff" />
+                                    <circle cx="81.06" cy="5.8" r="5.8" fill="#fff" />
+                                </g>
+                            </g>
+                            <text x="136" y="85" font-family="Outfit, sans-serif" font-size="70px"
+                                letter-spacing="-2px">
+                                <tspan font-weight="800" fill="#ffffff">Passa</tspan>
+                                <tspan font-weight="400" fill="#09C972">Gene</tspan>
+                            </text>
+                        </svg>
+                        <button
+                            class="w-10 h-10 rounded-full border-2 border-brand-base flex items-center justify-center bg-slate-800">
+                            <span class="text-xs font-bold text-brand-base">MG</span>
+                        </button>
+                    </div>
+
+                    <div class="brutal-card-dark p-5 mb-5 shadow-none pb-8">
+                        <div class="w-2 h-8 rounded-full gradient-organic-dark mb-3"></div>
+                        <h2 class="text-xl font-display font-bold text-white mb-1">Visão Global</h2>
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation -> Multi Hub -->
+                <div class="absolute bottom-0 w-full h-[88px] pointer-events-none z-50">
+                    <svg class="absolute bottom-0 w-full h-full text-slate-800 drop-shadow-[0_-5px_20px_rgba(0,0,0,0.5)]"
+                        viewBox="0 0 400 88" preserveAspectRatio="none" fill="currentColor">
+                        <path
+                            d="M0,20 C0,20 120,20 150,20 C165,20 170,55 200,55 C230,55 235,20 250,20 C280,20 400,20 400,20 L400,88 L0,88 Z" />
+                        <!-- Outline border for brutalism dark -->
+                        <path
+                            d="M0,20 C0,20 120,20 150,20 C165,20 170,55 200,55 C230,55 235,20 250,20 C280,20 400,20 400,20"
+                            stroke="#334155" stroke-width="4" fill="none" />
+                    </svg>
+
+                    <div
+                        class="absolute bottom-0 w-full h-full flex items-center justify-between px-4 pb-2 z-10 pointer-events-auto">
+                        <div class="flex-1 flex justify-evenly items-end h-full pb-3">
+                            <button class="flex flex-col items-center gap-1 text-brand-base relative">
+                                <i data-lucide="tractor" class="w-5 h-5"></i>
+                                <span class="text-[10px] font-bold tracking-tight">Campo</span>
+                            </button>
+                            <button class="flex flex-col items-center gap-1 text-slate-400">
+                                <i data-lucide="building-2" class="w-5 h-5"></i>
+                                <span class="text-[10px] font-medium tracking-tight">Office</span>
+                            </button>
+                        </div>
+                        <div class="w-[80px] shrink-0"></div> <!-- Fab cutout space -->
+                        <div class="flex-1 flex justify-evenly items-end h-full pb-3">
+                            <button class="flex flex-col items-center gap-1 text-slate-400">
+                                <i data-lucide="users" class="w-5 h-5"></i>
+                                <span class="text-[10px] font-medium tracking-tight">Clientes</span>
+                            </button>
+                            <button class="flex flex-col items-center gap-1 text-slate-400">
+                                <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+                                <span class="text-[10px] font-medium tracking-tight">Data</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Cutout FAB -->
+                    <button
+                        class="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 bg-brand-base border-[3px] border-slate-900 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(9,201,114,0.3)] pointer-events-auto">
+                        <i data-lucide="sparkles" class="w-7 h-7 text-black"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script> lucide.createIcons(); </script>
+</body>
+
+</html>

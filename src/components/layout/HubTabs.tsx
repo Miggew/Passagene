@@ -1,20 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Dna, FlaskConical, LogOut } from 'lucide-react';
+import { Building2, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import logoSimples from '@/assets/logosimples.svg';
-import { CowIcon } from '@/components/icons/CowIcon';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import ThemeToggle from '@/components/shared/ThemeToggle';
-
-// Mapeamento de ícones por código do hub
-const hubIcons: Record<string, React.ElementType> = {
-  administrativo: Building2,
-  genetica: Dna,
-  laboratorio: FlaskConical,
-  campo: CowIcon,
-};
+import { hubIcons } from '@/lib/nav-config';
 
 export default function HubTabs() {
   const navigate = useNavigate();
@@ -33,25 +25,21 @@ export default function HubTabs() {
   };
 
   return (
-    <header className="bg-card border-b border-border">
+    <header className="glass-panel border-b border-border">
       <div className="flex items-center justify-between">
         {/* Lado esquerdo: Logo + Tabs */}
         <div className="flex items-center">
-          {/* Logo PassaGene - Volta para Home */}
+          {/* Logo PassaGene Animada - Volta para Home */}
           <button
             onClick={() => navigate('/')}
             className="flex items-center px-4 py-3 hover:bg-muted transition-colors border-r border-border"
             title="PassaGene - Voltar para Home"
           >
-            <img
-              src={logoSimples}
-              alt="PassaGene"
-              className="h-8 w-auto"
-            />
+            <LogoPassagene height={32} showText={false} variant="premium" />
           </button>
 
-          {/* Tabs dos hubs - esconde para clientes */}
-          {!isCliente && (
+          {/* Tabs dos hubs - esconde para clientes ou se houver apenas 1 hub */}
+          {!isCliente && accessibleHubs.length > 1 && (
             <nav className="flex items-center overflow-x-auto">
               {accessibleHubs.map((hub) => {
                 const Icon = hubIcons[hub.code] || Building2;
@@ -62,10 +50,10 @@ export default function HubTabs() {
                     key={hub.code}
                     onClick={() => handleHubClick(hub.code, hub.routes[0])}
                     className={cn(
-                      'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap border-b-2',
+                      'flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap',
                       isActive
-                        ? 'bg-primary/5 text-primary border-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
+                        ? 'bg-primary/5 text-primary border-b-[3px] border-primary font-bold'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted border-b-2 border-transparent'
                     )}
                   >
                     <Icon className={cn('w-4 h-4', isActive && 'text-primary')} />

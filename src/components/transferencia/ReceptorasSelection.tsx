@@ -120,11 +120,12 @@ export default function ReceptorasSelection({
                   e.stopPropagation();
                   onDescartarReceptora();
                 }}
-                className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="h-9 w-9 md:h-7 md:w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                 disabled={submitting}
                 title="Descartar receptora"
+                aria-label="Descartar receptora"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
               </Button>
             ) : null;
 

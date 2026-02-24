@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { GenderIcon } from '@/components/icons/GenderIcon';
 import { supabase } from '@/lib/supabase';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
 import PageHeader from '@/components/shared/PageHeader';
 import DatePickerBR from '@/components/shared/DatePickerBR';
@@ -32,8 +33,15 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Fazenda } from '@/lib/types';
 import { exportRelatorio, pdfConfigs } from '@/lib/exportPdf';
+import { cn } from '@/lib/utils';
+
 
 type TipoServico = 'protocolos' | 'aspiracoes' | 'te' | 'dg' | 'sexagem';
+
+export interface RelatoriosServicosProps {
+  fixedTab?: TipoServico;
+  hideHeader?: boolean;
+}
 
 interface ProtocoloRow {
   id: string;
@@ -66,14 +74,14 @@ interface SessaoRow {
 
 const ITENS_POR_PAGINA = 15;
 
-export default function RelatoriosServicos() {
+export default function RelatoriosServicos({ fixedTab, hideHeader }: RelatoriosServicosProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { clienteIdFilter } = useClienteFilter();
 
-  // Tab ativa (pode vir da URL)
+  // Tab ativa (pode vir da URL ou via prop fixedTab)
   const [tipoServico, setTipoServico] = useState<TipoServico>(
-    (searchParams.get('tipo') as TipoServico) || 'protocolos'
+    fixedTab || (searchParams.get('tipo') as TipoServico) || 'protocolos'
   );
 
   // Filtros
@@ -98,25 +106,30 @@ export default function RelatoriosServicos() {
 
   // Carregar fazendas
   useEffect(() => {
-    loadFazendas();
+    let stale = false;
+    loadFazendas(() => stale);
+    return () => { stale = true; };
   }, [clienteIdFilter]);
 
   // Carregar dados quando filtros mudam
   useEffect(() => {
-    loadData();
+    let stale = false;
+    loadData(() => stale);
     setPaginaAtual(1);
+    return () => { stale = true; };
   }, [tipoServico, filtroFazenda, filtroStatus, filtroDataInicio, filtroDataFim, filtroDataTipo, clienteIdFilter]);
 
-  const loadFazendas = async () => {
+  const loadFazendas = async (isStale?: () => boolean) => {
     let query = supabase.from('fazendas').select('*').order('nome');
     if (clienteIdFilter) {
       query = query.eq('cliente_id', clienteIdFilter);
     }
     const { data } = await query;
+    if (isStale?.()) return;
     setFazendas(data ?? []);
   };
 
-  const loadData = async () => {
+  const loadData = async (isStale?: () => boolean) => {
     setLoading(true);
     try {
       // Obter IDs das fazendas filtradas
@@ -126,34 +139,37 @@ export default function RelatoriosServicos() {
           .from('fazendas')
           .select('id')
           .eq('cliente_id', clienteIdFilter);
+        if (isStale?.()) return;
         fazendaIds = clienteFazendas?.map(f => f.id) ?? [];
       }
 
       switch (tipoServico) {
         case 'protocolos':
-          await loadProtocolos(fazendaIds);
+          await loadProtocolos(fazendaIds, isStale);
           break;
         case 'aspiracoes':
-          await loadAspiracoes(fazendaIds);
+          await loadAspiracoes(fazendaIds, isStale);
           break;
         case 'te':
-          await loadSessoesTe(fazendaIds);
+          await loadSessoesTe(fazendaIds, isStale);
           break;
         case 'dg':
-          await loadSessoesDg(fazendaIds);
+          await loadSessoesDg(fazendaIds, isStale);
           break;
         case 'sexagem':
-          await loadSessoesSexagem(fazendaIds);
+          await loadSessoesSexagem(fazendaIds, isStale);
           break;
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
-      setLoading(false);
+      if (!isStale?.()) {
+        setLoading(false);
+      }
     }
   };
 
-  const loadProtocolos = async (fazendaIds: string[]) => {
+  const loadProtocolos = async (fazendaIds: string[], isStale?: () => boolean) => {
     let query = supabase
       .from('protocolos_sincronizacao')
       .select('id, fazenda_id, data_inicio, responsavel_inicio, status')
@@ -179,6 +195,7 @@ export default function RelatoriosServicos() {
     }
 
     const { data } = await query;
+    if (isStale?.()) return;
     if (!data || data.length === 0) {
       setProtocolos([]);
       return;
@@ -191,6 +208,8 @@ export default function RelatoriosServicos() {
       .select('id, nome')
       .in('id', fazendaIdsUnicos);
 
+    if (isStale?.()) return;
+
     const fazendaNomeMap = new Map(
       (fazendasData || []).map(f => [f.id, f.nome])
     );
@@ -201,6 +220,8 @@ export default function RelatoriosServicos() {
       .from('protocolo_receptoras')
       .select('protocolo_id')
       .in('protocolo_id', protocoloIds);
+
+    if (isStale?.()) return;
 
     const countsMap = new Map<string, number>();
     receptorasCounts?.forEach(r => {
@@ -220,7 +241,7 @@ export default function RelatoriosServicos() {
     );
   };
 
-  const loadAspiracoes = async (fazendaIds: string[]) => {
+  const loadAspiracoes = async (fazendaIds: string[], isStale?: () => boolean) => {
     let query = supabase
       .from('pacotes_aspiracao')
       .select('id, fazenda_id, data_aspiracao, veterinario_responsavel, status')
@@ -243,6 +264,7 @@ export default function RelatoriosServicos() {
     }
 
     const { data } = await query;
+    if (isStale?.()) return;
     if (!data || data.length === 0) {
       setAspiracoes([]);
       return;
@@ -255,6 +277,8 @@ export default function RelatoriosServicos() {
       .select('id, nome')
       .in('id', fazendaIdsUnicos);
 
+    if (isStale?.()) return;
+
     const fazendaNomeMap = new Map(
       (fazendasData || []).map(f => [f.id, f.nome])
     );
@@ -265,6 +289,8 @@ export default function RelatoriosServicos() {
       .from('aspiracoes_doadoras')
       .select('pacote_aspiracao_id')
       .in('pacote_aspiracao_id', pacoteIds);
+
+    if (isStale?.()) return;
 
     const countsMap = new Map<string, number>();
     doadorasCounts?.forEach(d => {
@@ -284,7 +310,7 @@ export default function RelatoriosServicos() {
     );
   };
 
-  const loadSessoesTe = async (fazendaIds: string[]) => {
+  const loadSessoesTe = async (fazendaIds: string[], isStale?: () => boolean) => {
     // Buscar transferências realizadas
     let query = supabase
       .from('transferencias_embrioes')
@@ -305,20 +331,29 @@ export default function RelatoriosServicos() {
     }
 
     const { data: transferencias } = await query;
+    if (isStale?.()) return;
     if (!transferencias || transferencias.length === 0) {
       setSessoesTe([]);
       return;
     }
 
-    // Buscar fazenda das receptoras via view
+    // Buscar fazenda das receptoras direta da tabela
     const receptoraIds = [...new Set(transferencias.map(t => t.receptora_id).filter(Boolean))];
-    const { data: viewData } = await supabase
-      .from('vw_receptoras_fazenda_atual')
-      .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-      .in('receptora_id', receptoraIds);
+    const { data: receptorasData } = await supabase
+      .from('receptoras')
+      .select('id, fazendas!fazenda_atual_id(id, nome)')
+      .in('id', receptoraIds);
+
+    if (isStale?.()) return;
 
     const fazendaMap = new Map(
-      (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
+      (receptorasData || []).map(r => [
+        r.id,
+        {
+          id: (r.fazendas as unknown as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as unknown as { id: string; nome: string } | null)?.nome
+        }
+      ])
     );
 
     // Agrupar transferências por fazenda + data_te + veterinario (sessões virtuais)
@@ -367,7 +402,7 @@ export default function RelatoriosServicos() {
     setSessoesTe(sessoesArray);
   };
 
-  const loadSessoesDg = async (fazendaIds: string[]) => {
+  const loadSessoesDg = async (fazendaIds: string[], isStale?: () => boolean) => {
     // Buscar diagnósticos de gestação (tipo DG)
     let query = supabase
       .from('diagnosticos_gestacao')
@@ -389,20 +424,29 @@ export default function RelatoriosServicos() {
     }
 
     const { data: diagnosticos } = await query;
+    if (isStale?.()) return;
     if (!diagnosticos || diagnosticos.length === 0) {
       setSessoesDg([]);
       return;
     }
 
-    // Buscar fazenda das receptoras via view
+    // Buscar fazenda das receptoras direta da tabela
     const receptoraIds = [...new Set(diagnosticos.map(d => d.receptora_id).filter(Boolean))];
-    const { data: viewData } = await supabase
-      .from('vw_receptoras_fazenda_atual')
-      .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-      .in('receptora_id', receptoraIds);
+    const { data: receptorasData } = await supabase
+      .from('receptoras')
+      .select('id, fazendas!fazenda_atual_id(id, nome)')
+      .in('id', receptoraIds);
+
+    if (isStale?.()) return;
 
     const fazendaMap = new Map(
-      (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
+      (receptorasData || []).map(r => [
+        r.id,
+        {
+          id: (r.fazendas as unknown as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as unknown as { id: string; nome: string } | null)?.nome
+        }
+      ])
     );
 
     // Agrupar diagnósticos por fazenda + data_te + data_diagnostico + veterinario (sessões virtuais)
@@ -453,7 +497,7 @@ export default function RelatoriosServicos() {
     setSessoesDg(sessoesArray);
   };
 
-  const loadSessoesSexagem = async (fazendaIds: string[]) => {
+  const loadSessoesSexagem = async (fazendaIds: string[], isStale?: () => boolean) => {
     // Buscar diagnósticos de sexagem (tipo SEXAGEM)
     let query = supabase
       .from('diagnosticos_gestacao')
@@ -475,20 +519,29 @@ export default function RelatoriosServicos() {
     }
 
     const { data: diagnosticos } = await query;
+    if (isStale?.()) return;
     if (!diagnosticos || diagnosticos.length === 0) {
       setSessoesSexagem([]);
       return;
     }
 
-    // Buscar fazenda das receptoras via view
+    // Buscar fazenda das receptoras direta da tabela
     const receptoraIds = [...new Set(diagnosticos.map(d => d.receptora_id).filter(Boolean))];
-    const { data: viewData } = await supabase
-      .from('vw_receptoras_fazenda_atual')
-      .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-      .in('receptora_id', receptoraIds);
+    const { data: receptorasData } = await supabase
+      .from('receptoras')
+      .select('id, fazendas!fazenda_atual_id(id, nome)')
+      .in('id', receptoraIds);
+
+    if (isStale?.()) return;
 
     const fazendaMap = new Map(
-      (viewData || []).map(v => [v.receptora_id, { id: v.fazenda_id_atual, nome: v.fazenda_nome_atual }])
+      (receptorasData || []).map(r => [
+        r.id,
+        {
+          id: (r.fazendas as unknown as { id: string; nome: string } | null)?.id,
+          nome: (r.fazendas as unknown as { id: string; nome: string } | null)?.nome
+        }
+      ])
     );
 
     // Agrupar diagnósticos por fazenda + data_te + data_diagnostico + veterinario (sessões virtuais)
@@ -701,68 +754,72 @@ export default function RelatoriosServicos() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <PageHeader
-        title="Serviços de Campo"
-        description="Histórico de protocolos, aspirações, transferências e diagnósticos"
-      />
+    <div className={hideHeader ? "space-y-4" : "p-4 md:p-6 space-y-4 md:space-y-6"}>
+      {!hideHeader && (
+        <PageHeader
+          title="Serviços de Campo"
+          description="Histórico de protocolos, aspirações, transferências e diagnósticos"
+        />
+      )}
 
       {/* Tabs de tipo de serviço */}
       <Tabs value={tipoServico} onValueChange={handleTabChange}>
-        {/* Tabs Premium */}
-        <div className="rounded-xl border border-border bg-card p-1.5">
-          <div className="flex gap-1">
-            {[
-              { value: 'protocolos', label: 'Protocolos', icon: Syringe },
-              { value: 'aspiracoes', label: 'Aspirações', icon: TestTube },
-              { value: 'te', label: 'Transferência', icon: ArrowRightLeft },
-              { value: 'dg', label: 'Diagnóstico', icon: ThumbsUp },
-              { value: 'sexagem', label: 'Sexagem', icon: GenderIcon },
-            ].map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => handleTabChange(value)}
-                className={`
+        {/* Tabs Premium (Ocultar se fixedTab for passado) */}
+        {!fixedTab && (
+          <div className="rounded-xl border border-border glass-panel p-1.5">
+            <div className="flex gap-1">
+              {[
+                { value: 'protocolos', label: 'Protocolos', icon: Syringe },
+                { value: 'aspiracoes', label: 'Aspirações', icon: TestTube },
+                { value: 'te', label: 'Transferência', icon: ArrowRightLeft },
+                { value: 'dg', label: 'Diagnóstico', icon: ThumbsUp },
+                { value: 'sexagem', label: 'Sexagem', icon: GenderIcon },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => handleTabChange(value)}
+                  className={`
                   relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
                   text-sm font-medium transition-all duration-200
                   ${tipoServico === value
-                    ? 'bg-muted/80 text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                  }
+                      ? 'bg-muted/80 text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    }
                 `}
-              >
-                {/* Indicador inferior para tab ativa */}
-                {tipoServico === value && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
-                )}
+                >
+                  {/* Indicador inferior para tab ativa */}
+                  {tipoServico === value && (
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
+                  )}
 
-                {/* Ícone com container */}
-                <div className={`
+                  {/* Ícone com container */}
+                  <div className={`
                   flex items-center justify-center w-7 h-7 rounded-md transition-colors
                   ${tipoServico === value
-                    ? 'bg-primary/15'
-                    : 'bg-muted/50'
-                  }
+                      ? 'bg-primary/15'
+                      : 'bg-muted/50'
+                    }
                 `}>
-                  <Icon className={`w-4 h-4 ${tipoServico === value ? 'text-primary' : 'text-muted-foreground'}`} />
-                </div>
+                    <Icon className={`w-4 h-4 ${tipoServico === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </div>
 
-                {/* Label - esconde em mobile */}
-                <span className="hidden sm:inline">{label}</span>
+                  {/* Label - esconde em mobile */}
+                  <span className="hidden sm:inline">{label}</span>
 
-                {/* Badge de contagem */}
-                {tipoServico === value && dadosFiltrados.length > 0 && (
-                  <span className="hidden md:inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold bg-primary/15 text-primary rounded-full">
-                    {dadosFiltrados.length}
-                  </span>
-                )}
-              </button>
-            ))}
+                  {/* Badge de contagem */}
+                  {tipoServico === value && dadosFiltrados.length > 0 && (
+                    <span className="hidden md:inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold bg-primary/15 text-primary rounded-full">
+                      {dadosFiltrados.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Filtros */}
-        <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
+        <div className={cn("rounded-xl border border-border glass-panel overflow-hidden", fixedTab ? "" : "mt-4")}>
           <div className="flex flex-col md:flex-row md:flex-wrap md:items-stretch">
             {/* Grupo: Busca */}
             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-border bg-gradient-to-b from-primary/5 to-transparent">
@@ -897,230 +954,228 @@ export default function RelatoriosServicos() {
         {/* Conteúdo das tabs */}
         <TabsContent value={tipoServico} className="mt-4">
           {loading ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              Carregando...
+            <div className="rounded-xl border border-border glass-panel p-12 text-center text-muted-foreground">
+              <LoadingSpinner />
             </div>
           ) : dadosFiltrados.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+            <div className="rounded-xl border border-border glass-panel p-12 text-center text-muted-foreground">
               Nenhum registro encontrado
             </div>
           ) : (
             <>
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-2">
-              {dadosPaginados.map((row: ProtocoloRow | AspiracaoRow | SessaoRow) => (
-                <div
-                  key={row.id}
-                  onClick={() => handleVerDetalhe(tipoServico, row)}
-                  className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-medium text-foreground truncate">
-                        {row.fazenda_nome}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(
-                            tipoServico === 'protocolos' ? (row as ProtocoloRow).data_inicio :
-                            tipoServico === 'aspiracoes' ? (row as AspiracaoRow).data_aspiracao :
-                            (row as SessaoRow).data
-                          )}
-                        </span>
-                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
-                          {tipoServico === 'protocolos' ? (row as ProtocoloRow).total_receptoras :
-                           tipoServico === 'aspiracoes' ? (row as AspiracaoRow).total_doadoras :
-                           (row as SessaoRow).total_registros}
-                          {' '}{tipoServico === 'protocolos' ? 'rec.' : tipoServico === 'aspiracoes' ? 'doad.' : 'reg.'}
-                        </span>
-                      </div>
-                      {row.veterinario_responsavel && (
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <Stethoscope className="w-3 h-3 text-muted-foreground/60" />
-                          <span className="text-xs text-muted-foreground truncate">{row.veterinario_responsavel}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
-                        getStatusBadge((row as ProtocoloRow | AspiracaoRow).status)
-                      )}
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Mobile Pagination */}
-              {totalPaginas > 1 && (
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
-                    {' '}de{' '}
-                    <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                      disabled={paginaAtual === 1}
-                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                      disabled={paginaAtual === totalPaginas}
-                      className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Próximo
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
-              {/* Header da tabela com gradiente */}
-              <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
-                <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${
-                  tipoServico === 'te' || tipoServico === 'dg' || tipoServico === 'sexagem'
-                    ? 'grid-cols-[2fr_1fr_1.5fr_1fr_0.6fr]'
-                    : 'grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr]'
-                }`}>
-                  <div className="px-4 py-3 flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full bg-primary/40" />
-                    Fazenda
-                  </div>
-                  <div className="px-3 py-3 text-center">Data</div>
-                  <div className="px-3 py-3">Veterinário</div>
-                  <div className="px-3 py-3 text-center">
-                    {tipoServico === 'protocolos' ? 'Recept.' : tipoServico === 'aspiracoes' ? 'Doadoras' : 'Registros'}
-                  </div>
-                  {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
-                    <div className="px-3 py-3 text-center">Status</div>
-                  )}
-                  <div className="px-2 py-3"></div>
-                </div>
-              </div>
-
-              {/* Linhas da tabela */}
-              <div className="divide-y divide-border/50">
-                {dadosPaginados.map((row: ProtocoloRow | AspiracaoRow | SessaoRow, index: number) => (
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {dadosPaginados.map((row: ProtocoloRow | AspiracaoRow | SessaoRow) => (
                   <div
                     key={row.id}
                     onClick={() => handleVerDetalhe(tipoServico, row)}
-                    className={`
-                      group grid gap-0 items-center cursor-pointer transition-all duration-150
-                      hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                      ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
-                      ${tipoServico === 'te' || tipoServico === 'dg' || tipoServico === 'sexagem'
-                        ? 'grid-cols-[2fr_1fr_1.5fr_1fr_0.6fr]'
-                        : 'grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr]'
-                      }
-                    `}
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
                   >
-                    {/* Coluna Fazenda com indicador */}
-                    <div className="px-4 py-3.5 flex items-center gap-3">
-                      <div className="w-0.5 h-8 rounded-full bg-transparent group-hover:bg-primary transition-colors" />
-                      <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                        {row.fazenda_nome}
-                      </span>
-                    </div>
-
-                    {/* Coluna Data */}
-                    <div className="px-3 py-3.5 text-sm text-center text-muted-foreground">
-                      {formatDate(
-                        tipoServico === 'protocolos' ? (row as ProtocoloRow).data_inicio :
-                        tipoServico === 'aspiracoes' ? (row as AspiracaoRow).data_aspiracao :
-                        (row as SessaoRow).data
-                      )}
-                    </div>
-
-                    {/* Coluna Veterinário */}
-                    <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
-                      {row.veterinario_responsavel || '-'}
-                    </div>
-
-                    {/* Coluna Contagem */}
-                    <div className="px-3 py-3.5 flex justify-center">
-                      <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-primary/10 text-primary rounded-md group-hover:bg-primary/20 transition-colors">
-                        {tipoServico === 'protocolos' ? (row as ProtocoloRow).total_receptoras :
-                         tipoServico === 'aspiracoes' ? (row as AspiracaoRow).total_doadoras :
-                         (row as SessaoRow).total_registros}
-                      </span>
-                    </div>
-
-                    {/* Coluna Status (apenas protocolos e aspirações) */}
-                    {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
-                      <div className="px-3 py-3.5 flex justify-center">
-                        {getStatusBadge((row as ProtocoloRow | AspiracaoRow).status)}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-medium text-foreground truncate">
+                          {row.fazenda_nome}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(
+                              tipoServico === 'protocolos' ? (row as ProtocoloRow).data_inicio :
+                                tipoServico === 'aspiracoes' ? (row as AspiracaoRow).data_aspiracao :
+                                  (row as SessaoRow).data
+                            )}
+                          </span>
+                          <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-xs font-semibold bg-primary/10 text-primary rounded-md">
+                            {tipoServico === 'protocolos' ? (row as ProtocoloRow).total_receptoras :
+                              tipoServico === 'aspiracoes' ? (row as AspiracaoRow).total_doadoras :
+                                (row as SessaoRow).total_registros}
+                            {' '}{tipoServico === 'protocolos' ? 'rec.' : tipoServico === 'aspiracoes' ? 'doad.' : 'reg.'}
+                          </span>
+                        </div>
+                        {row.veterinario_responsavel && (
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <Stethoscope className="w-3 h-3 text-muted-foreground/60" />
+                            <span className="text-xs text-muted-foreground truncate">{row.veterinario_responsavel}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-
-                    {/* Coluna Ação */}
-                    <div className="px-2 py-3.5 flex justify-center">
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center bg-transparent group-hover:bg-primary/10 transition-colors">
-                        <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
+                          getStatusBadge((row as ProtocoloRow | AspiracaoRow).status)
+                        )}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
                       </div>
                     </div>
                   </div>
                 ))}
+
+                {/* Mobile Pagination */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                      {' '}de{' '}
+                      <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaAtual === 1}
+                        className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Anterior
+                      </button>
+                      <span className="text-xs text-muted-foreground">{paginaAtual}/{totalPaginas}</span>
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                        className="px-3 h-11 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Próximo
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Paginação Premium */}
-              {totalPaginas > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-muted/30 via-transparent to-muted/30 border-t border-border">
-                  <span className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
-                    {' '}de{' '}
-                    <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
-                      disabled={paginaAtual === 1}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Anterior
-                    </button>
-                    <div className="flex items-center gap-0.5 mx-2">
-                      {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                        let pageNum;
-                        if (totalPaginas <= 5) pageNum = i + 1;
-                        else if (paginaAtual <= 3) pageNum = i + 1;
-                        else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
-                        else pageNum = paginaAtual - 2 + i;
-
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setPaginaAtual(pageNum)}
-                            className={`
-                              w-8 h-8 text-xs font-medium rounded-md transition-all
-                              ${paginaAtual === pageNum
-                                ? 'bg-primary/15 text-primary shadow-sm'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                              }
-                            `}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
+              {/* Desktop Table */}
+              <div className="hidden md:block rounded-xl border border-border glass-panel overflow-hidden">
+                {/* Header da tabela com gradiente */}
+                <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
+                  <div className={`grid gap-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ${tipoServico === 'te' || tipoServico === 'dg' || tipoServico === 'sexagem'
+                    ? 'grid-cols-[2fr_1fr_1.5fr_1fr_0.6fr]'
+                    : 'grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr]'
+                    }`}>
+                    <div className="px-4 py-3 flex items-center gap-2">
+                      <div className="w-1 h-4 rounded-full bg-primary/40" />
+                      Fazenda
                     </div>
-                    <button
-                      onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
-                      disabled={paginaAtual === totalPaginas}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
-                    >
-                      Próximo
-                    </button>
+                    <div className="px-3 py-3 text-center">Data</div>
+                    <div className="px-3 py-3">Veterinário</div>
+                    <div className="px-3 py-3 text-center">
+                      {tipoServico === 'protocolos' ? 'Recept.' : tipoServico === 'aspiracoes' ? 'Doadoras' : 'Registros'}
+                    </div>
+                    {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
+                      <div className="px-3 py-3 text-center">Status</div>
+                    )}
+                    <div className="px-2 py-3"></div>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Linhas da tabela */}
+                <div className="divide-y divide-border/50">
+                  {dadosPaginados.map((row: ProtocoloRow | AspiracaoRow | SessaoRow, index: number) => (
+                    <div
+                      key={row.id}
+                      onClick={() => handleVerDetalhe(tipoServico, row)}
+                      className={`
+                      group grid gap-0 items-center cursor-pointer transition-all duration-150
+                      hover:bg-muted/50
+                      ${tipoServico === 'te' || tipoServico === 'dg' || tipoServico === 'sexagem'
+                          ? 'grid-cols-[2fr_1fr_1.5fr_1fr_0.6fr]'
+                          : 'grid-cols-[2fr_1fr_1.5fr_0.8fr_1fr_0.6fr]'
+                        }
+                    `}
+                    >
+                      {/* Coluna Fazenda com indicador */}
+                      <div className="px-4 py-3.5 flex items-center gap-3">
+                        <div className="w-0.5 h-8 rounded-full bg-transparent group-hover:bg-primary transition-colors" />
+                        <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                          {row.fazenda_nome}
+                        </span>
+                      </div>
+
+                      {/* Coluna Data */}
+                      <div className="px-3 py-3.5 text-sm text-center text-muted-foreground">
+                        {formatDate(
+                          tipoServico === 'protocolos' ? (row as ProtocoloRow).data_inicio :
+                            tipoServico === 'aspiracoes' ? (row as AspiracaoRow).data_aspiracao :
+                              (row as SessaoRow).data
+                        )}
+                      </div>
+
+                      {/* Coluna Veterinário */}
+                      <div className="px-3 py-3.5 text-sm text-muted-foreground truncate">
+                        {row.veterinario_responsavel || '-'}
+                      </div>
+
+                      {/* Coluna Contagem */}
+                      <div className="px-3 py-3.5 flex justify-center">
+                        <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 text-xs font-semibold bg-primary/10 text-primary rounded-md group-hover:bg-primary/20 transition-colors">
+                          {tipoServico === 'protocolos' ? (row as ProtocoloRow).total_receptoras :
+                            tipoServico === 'aspiracoes' ? (row as AspiracaoRow).total_doadoras :
+                              (row as SessaoRow).total_registros}
+                        </span>
+                      </div>
+
+                      {/* Coluna Status (apenas protocolos e aspirações) */}
+                      {(tipoServico === 'protocolos' || tipoServico === 'aspiracoes') && (
+                        <div className="px-3 py-3.5 flex justify-center">
+                          {getStatusBadge((row as ProtocoloRow | AspiracaoRow).status)}
+                        </div>
+                      )}
+
+                      {/* Coluna Ação */}
+                      <div className="px-2 py-3.5 flex justify-center">
+                        <div className="w-8 h-8 rounded-md flex items-center justify-center bg-transparent group-hover:bg-primary/10 transition-colors">
+                          <Eye className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Paginação Premium */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-muted/30 via-transparent to-muted/30 border-t border-border">
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{((paginaAtual - 1) * ITENS_POR_PAGINA) + 1}-{Math.min(paginaAtual * ITENS_POR_PAGINA, dadosFiltrados.length)}</span>
+                      {' '}de{' '}
+                      <span className="font-medium text-foreground">{dadosFiltrados.length}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaAtual === 1}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Anterior
+                      </button>
+                      <div className="flex items-center gap-0.5 mx-2">
+                        {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                          let pageNum;
+                          if (totalPaginas <= 5) pageNum = i + 1;
+                          else if (paginaAtual <= 3) pageNum = i + 1;
+                          else if (paginaAtual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                          else pageNum = paginaAtual - 2 + i;
+
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setPaginaAtual(pageNum)}
+                              className={`
+                              w-8 h-8 text-xs font-medium rounded-md transition-all
+                              ${paginaAtual === pageNum
+                                  ? 'bg-primary/15 text-primary shadow-sm'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }
+                            `}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setPaginaAtual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        Próximo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </TabsContent>

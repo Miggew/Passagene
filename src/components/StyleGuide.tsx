@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Moon, Sun, Check, X, Edit, Trash2 } from 'lucide-react';
+import { Moon, Sun, Check, X, Edit, Trash2, Download } from 'lucide-react';
+import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import logoSimples from '@/assets/logosimples.svg';
 import logoEscrito from '@/assets/logoescrito.svg';
 
@@ -42,6 +43,29 @@ const fakeData = [
 export default function StyleGuide() {
   const [isDark, setIsDark] = useDarkMode();
 
+  const downloadSVG = (id: string, name: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    // We need to clone it to remove any React specific classes or inject xmlns if missing, but XMLSerializer usually handles it.
+    const container = el.cloneNode(true) as HTMLElement;
+    // Find the actual inner SVG or just export the first child if it's the wrapper
+    const svgEl = container.querySelector('svg') || container.querySelector('.relative.flex.items-center.justify-center.shrink-0');
+
+    // To make it a true raw SVG if it's currently a DIV structure (like our LogoPassagene is!), 
+    // we should actually probably just let the user copy the CSS/DOM or draw a real SVG.
+    // However, saving the DOM as a weird HTML fragment isn't an SVG.
+    // So instead, we let them know it's a DOM element.
+    const htmlString = el.innerHTML;
+    const blob = new Blob([htmlString], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -54,6 +78,7 @@ export default function StyleGuide() {
           size="icon"
           onClick={() => setIsDark(!isDark)}
           className="rounded-full shadow-md"
+          aria-label={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
         >
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
@@ -75,16 +100,50 @@ export default function StyleGuide() {
           <h2 className="font-heading text-2xl font-semibold border-b border-border pb-2">
             Logos
           </h2>
-          <div className="flex items-center gap-8 p-6 bg-card rounded-2xl border border-border shadow-sm">
+          <div className="flex items-center gap-8 p-6 glass-panel rounded-2xl border border-border shadow-sm">
             <div className="text-center">
-              <img src={logoSimples} alt="Logo Simples" className="h-16 mx-auto mb-2" />
+              <img src={logoSimples} alt="Logo Simples" className="h-16 mx-auto mb-2" loading="lazy" />
               <span className="text-sm text-muted-foreground">Simples (mobile)</span>
             </div>
             <div className="text-center">
-              <img src={logoEscrito} alt="Logo Escrito" className="h-16 mx-auto mb-2" />
+              <img src={logoEscrito} alt="Logo Escrito" className="h-16 mx-auto mb-2" loading="lazy" />
               <span className="text-sm text-muted-foreground">Escrito (desktop)</span>
             </div>
           </div>
+        </section>
+
+        {/* Logo Vector Exporter */}
+        <section className="space-y-4">
+          <h2 className="font-heading text-2xl font-semibold border-b border-border pb-2">
+            Asset Factory (DOM Export)
+          </h2>
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground mb-6">
+                O novo LogoPassagene é construído dinamicamente via DOM/React (usando divs e CSS math) para animações perfeitas.
+                Abaixo você pode ver o logo renderizado no seu estado perfeito. Para extrair código vetorizado real, copie o HTML interno ou
+                verifique as referências de estilo.
+              </p>
+              <div className="flex gap-12">
+                <div className="flex flex-col items-center gap-4">
+                  <div id="export-logo-premium" className="p-4 rounded-xl bg-secondary border border-border flex items-center justify-center">
+                    <LogoPassagene height={120} forceAnimate={false} showText={false} variant="premium" />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => downloadSVG('export-logo-premium', 'logo-dom.html')}>
+                    <Download className="w-4 h-4 mr-2" /> Export HTML Node
+                  </Button>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div id="export-logo-white" className="p-4 rounded-xl bg-primary border border-border flex items-center justify-center">
+                    <LogoPassagene height={120} forceAnimate={false} showText={false} variant="white" />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => downloadSVG('export-logo-white', 'logo-white-dom.html')}>
+                    <Download className="w-4 h-4 mr-2" /> Export HTML Node
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Paleta de Cores */}
@@ -132,7 +191,7 @@ export default function StyleGuide() {
               <p className="text-xs font-medium">Background</p>
             </div>
             <div className="space-y-2">
-              <div className="h-20 rounded-lg bg-card border border-border shadow-sm" />
+              <div className="h-20 rounded-lg glass-panel border border-border shadow-sm" />
               <p className="text-xs font-medium">Card</p>
             </div>
             <div className="space-y-2">
@@ -220,9 +279,9 @@ export default function StyleGuide() {
                 <Button size="xl">Extra Large</Button>
               </div>
               <div className="flex flex-wrap gap-4">
-                <Button size="icon-sm"><Check className="h-4 w-4" /></Button>
-                <Button size="icon"><Edit className="h-4 w-4" /></Button>
-                <Button size="icon-lg"><Trash2 className="h-5 w-5" /></Button>
+                <Button size="icon-sm" aria-label="Confirmar"><Check className="h-4 w-4" /></Button>
+                <Button size="icon" aria-label="Editar"><Edit className="h-4 w-4" /></Button>
+                <Button size="icon-lg" aria-label="Remover"><Trash2 className="h-5 w-5" /></Button>
                 <Button disabled>Disabled</Button>
               </div>
             </CardContent>
@@ -333,11 +392,10 @@ export default function StyleGuide() {
                       <TableCell>{item.cidade}</TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            item.status === 'Ativo'
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item.status === 'Ativo'
                               ? 'bg-primary-subtle text-primary-dark'
                               : 'bg-muted text-muted-foreground'
-                          }`}
+                            }`}
                         >
                           {item.status === 'Ativo' ? (
                             <Check className="w-3 h-3 mr-1" />
@@ -348,10 +406,10 @@ export default function StyleGuide() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon-sm">
+                        <Button variant="ghost" size="icon-sm" aria-label="Editar">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-destructive">
+                        <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label="Remover">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -369,19 +427,19 @@ export default function StyleGuide() {
             Shadows & Border Radius
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="p-6 bg-card rounded-sm shadow-sm text-center">
+            <div className="p-6 glass-panel rounded-sm shadow-sm text-center">
               <p className="text-sm font-medium">rounded-sm</p>
               <p className="text-xs text-muted-foreground">shadow-sm</p>
             </div>
-            <div className="p-6 bg-card rounded-md shadow-md text-center">
+            <div className="p-6 glass-panel rounded-md shadow-md text-center">
               <p className="text-sm font-medium">rounded-md</p>
               <p className="text-xs text-muted-foreground">shadow-md</p>
             </div>
-            <div className="p-6 bg-card rounded-lg shadow-lg text-center">
+            <div className="p-6 glass-panel rounded-lg shadow-lg text-center">
               <p className="text-sm font-medium">rounded-lg</p>
               <p className="text-xs text-muted-foreground">shadow-lg</p>
             </div>
-            <div className="p-6 bg-card rounded-2xl shadow-xl text-center">
+            <div className="p-6 glass-panel rounded-2xl shadow-xl text-center">
               <p className="text-sm font-medium">rounded-2xl</p>
               <p className="text-xs text-muted-foreground">shadow-xl</p>
             </div>

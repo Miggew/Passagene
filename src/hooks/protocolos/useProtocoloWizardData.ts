@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { validarTransicaoStatus } from '@/lib/receptoraStatus';
-import { getTodayDateString } from '@/lib/utils';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 import type { Fazenda, Receptora } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -194,13 +194,13 @@ export function useProtocoloWizardData(): UseProtocoloWizardDataReturn {
 
       // Use view to filter by current fazenda
       const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id')
-        .eq('fazenda_id_atual', fazendaId);
+        .from('receptoras')
+        .select('id')
+        .eq('fazenda_atual_id', fazendaId);
 
       if (viewError) throw viewError;
 
-      const receptoraIds = viewData?.map(v => v.receptora_id) || [];
+      const receptoraIds = viewData?.map(v => v.id) || [];
 
       if (receptoraIds.length === 0) {
         setAllReceptoras([]);

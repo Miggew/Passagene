@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - DNA Premium Loaders</title>
+    <style>
+        body {
+            background-color: #051F15; /* Dark Green from PassaGene */
+            color: #F7FAF9;
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h2 {
+            font-weight: 300;
+            color: #F7FAF9;
+            margin: 0 0 10px 0;
+        }
+        .header p {
+            color: #999;
+            margin: 0;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            width: 100%;
+            padding: 20px;
+        }
+        .card {
+            background-color: #082F20;
+            border: 1px solid #049357;
+            border-radius: 16px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(4, 147, 87, 0.1);
+        }
+        h3 {
+            margin-top: 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #09C972;
+            margin-bottom: 40px;
+            letter-spacing: 0.5px;
+        }
+
+        /* -------------------------------------
+           1. Dupla Hélice (3D Sine Wave)
+           ------------------------------------- */
+        .dna-helix {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            height: 48px;
+        }
+        .dna-dot {
+            position: relative;
+            width: 8px;
+            height: 48px;
+        }
+        .dna-dot::before, .dna-dot::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #09C972;     /* Verde primário */
+            animation: dna-spin 1.5s ease-in-out infinite;
+        }
+        .dna-dot::after {
+            bottom: 0;
+            background: #049357;     /* Verde escuro */
+            animation: dna-spin-rev 1.5s ease-in-out infinite;
+        }
+        
+        .dna-dot:nth-child(1)::before, .dna-dot:nth-child(1)::after { animation-delay: 0.1s; }
+        .dna-dot:nth-child(2)::before, .dna-dot:nth-child(2)::after { animation-delay: 0.25s; }
+        .dna-dot:nth-child(3)::before, .dna-dot:nth-child(3)::after { animation-delay: 0.4s; }
+        .dna-dot:nth-child(4)::before, .dna-dot:nth-child(4)::after { animation-delay: 0.55s; }
+        .dna-dot:nth-child(5)::before, .dna-dot:nth-child(5)::after { animation-delay: 0.7s; }
+        
+        @keyframes dna-spin {
+            0%   { top: 0;    transform: scale(1);   z-index: 2; opacity: 1;   }
+            50%  { top: 40px; transform: scale(0.5); z-index: 1; opacity: 0.3; }
+            100% { top: 0;    transform: scale(1);   z-index: 2; opacity: 1;   }
+        }
+        @keyframes dna-spin-rev {
+            0%   { bottom: 0;    transform: scale(0.5); z-index: 1; opacity: 0.3; }
+            50%  { bottom: 40px; transform: scale(1);   z-index: 2; opacity: 1;   }
+            100% { bottom: 0;    transform: scale(0.5); z-index: 1; opacity: 0.3; }
+        }
+
+        /* -------------------------------------
+           2. Sequenciador Genético (Data Scan)
+           ------------------------------------- */
+        .sequencer {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            height: 48px;
+        }
+        .sequencer div {
+            width: 4px;
+            background-color: #09C972;
+            border-radius: 2px;
+            animation: sequence 1s ease-in-out infinite alternate;
+        }
+        .sequencer div:nth-child(1) { height: 20px; animation-delay: 0.1s; }
+        .sequencer div:nth-child(2) { height: 48px; animation-delay: 0.2s; }
+        .sequencer div:nth-child(3) { height: 16px; animation-delay: 0.3s; }
+        .sequencer div:nth-child(4) { height: 38px; animation-delay: 0.4s; }
+        .sequencer div:nth-child(5) { height: 28px; animation-delay: 0.5s; background-color: #5EDFA3; }
+        .sequencer div:nth-child(6) { height: 12px; animation-delay: 0.6s; }
+        .sequencer div:nth-child(7) { height: 32px; animation-delay: 0.7s; }
+
+        @keyframes sequence {
+            0%, 100% { transform: scaleY(1); opacity: 0.3; }
+            50% { transform: scaleY(0.4); opacity: 1; box-shadow: 0 0 8px #09C972; }
+        }
+
+        /* -------------------------------------
+           3. Zíper Genético (Replication)
+           ------------------------------------- */
+        .zipper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            height: 48px;
+            justify-content: center;
+        }
+        .zip-link {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+        }
+        .zip-link span {
+            width: 18px;
+            height: 4px;
+            background: #09C972;
+            border-radius: 2px;
+            animation: zip-open 1.5s ease-in-out infinite alternate;
+        }
+        .zip-link span:nth-child(2) {
+            background: #049357;
+            animation: zip-open-r 1.5s ease-in-out infinite alternate;
+        }
+        
+        .zip-link:nth-child(1) span { animation-delay: 0.1s; }
+        .zip-link:nth-child(2) span { animation-delay: 0.3s; }
+        .zip-link:nth-child(3) span { animation-delay: 0.5s; }
+        .zip-link:nth-child(4) span { animation-delay: 0.7s; }
+        .zip-link:nth-child(5) span { animation-delay: 0.9s; }
+
+        @keyframes zip-open {
+            0%, 20% { transform: translateX(0); opacity: 1; }
+            80%, 100% { transform: translateX(-12px); opacity: 0.2; }
+        }
+        @keyframes zip-open-r {
+            0%, 20% { transform: translateX(0); opacity: 1; }
+            80%, 100% { transform: translateX(12px); opacity: 0.2; }
+        }
+
+        /* -------------------------------------
+           4. Radar Neuronal (Pedigree/Conexão)
+           ------------------------------------- */
+        .radar {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .radar-core {
+            position: relative;
+            width: 12px;
+            height: 12px;
+            background: #09C972;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(9, 201, 114, 0.8);
+            z-index: 2;
+        }
+        .radar-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(9, 201, 114, 0.5);
+            border-radius: 50%;
+            animation: sonar 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .radar-ring:nth-child(2) { animation-delay: 1s; }
+
+        @keyframes sonar {
+            0% { width: 12px; height: 12px; opacity: 1; }
+            100% { width: 80px; height: 80px; opacity: 0; border-color: rgba(9, 201, 114, 0); }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Loaders Premium Genéticos</h2>
+        <p>Apenas CSS. Focado em luxo, ciência e genealogia.</p>
+    </div>
+    
+    <div class="container">
+        <div class="card">
+            <h3>1. Dupla Hélice 3D (Minimalista)</h3>
+            <div class="dna-helix">
+                <div class="dna-dot"></div><div class="dna-dot"></div><div class="dna-dot"></div><div class="dna-dot"></div><div class="dna-dot"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>2. Sequenciador (Dados)</h3>
+            <div class="sequencer">
+                <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>3. Zíper Genético (Replicação)</h3>
+            <div class="zipper">
+                <div class="zip-link"><span></span><span></span></div>
+                <div class="zip-link"><span></span><span></span></div>
+                <div class="zip-link"><span></span><span></span></div>
+                <div class="zip-link"><span></span><span></span></div>
+                <div class="zip-link"><span></span><span></span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>4. Radar de Conexão (Genealogia)</h3>
+            <div class="radar">
+                <div class="radar-core"></div>
+                <div class="radar-ring"></div>
+                <div class="radar-ring"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

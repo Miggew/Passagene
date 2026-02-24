@@ -21,13 +21,11 @@ import {
   Cell,
   ReferenceLine,
 } from 'recharts';
-import { TrendingUp, Brain, Info, Eye, Activity } from 'lucide-react';
+import { TrendingUp, Brain, Info, Eye } from 'lucide-react';
 import { getScoreColor } from './EmbryoScoreBadge';
 
 interface CorrelationDataPoint {
   embryo_score: number;
-  morph_score: number;
-  kinetic_score: number;
   classification: string;
   prenhe: boolean;
   resultado_dg: string;
@@ -51,7 +49,7 @@ function useScorePregnancyData() {
       // 1. Buscar todos os scores com embrião
       const { data: scores, error: scoresError } = await supabase
         .from('embryo_scores')
-        .select('embriao_id, embryo_score, morph_score, kinetic_score, classification');
+        .select('embriao_id, embryo_score, classification');
 
       if (scoresError) throw scoresError;
       if (!scores?.length) return [];
@@ -111,8 +109,6 @@ function useScorePregnancyData() {
 
         result.push({
           embryo_score: score.embryo_score,
-          morph_score: score.morph_score || 0,
-          kinetic_score: score.kinetic_score || 0,
           classification: score.classification,
           prenhe,
           resultado_dg: resultado,
@@ -133,7 +129,7 @@ function CustomTooltip({ active, payload }: any) {
   const colors = getScoreColor(data.embryo_score);
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
+    <div className="glass-panel border border-border rounded-lg shadow-lg p-3 text-xs">
       <div className="flex items-center gap-2 mb-1.5">
         <div className={`w-6 h-6 rounded ${colors.bg} flex items-center justify-center`}>
           <span className={`text-xs font-bold ${colors.text}`}>{Math.round(data.embryo_score)}</span>
@@ -141,7 +137,7 @@ function CustomTooltip({ active, payload }: any) {
         <span className="font-semibold text-foreground">{data.identificacao}</span>
       </div>
       <div className="space-y-0.5 text-muted-foreground">
-        <div>IA: {data.classification} (M:{Math.round(data.morph_score)} C:{Math.round(data.kinetic_score)})</div>
+        <div>IA: {data.classification}</div>
         <div>
           DG:{' '}
           <span className={data.prenhe ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold'}>
@@ -156,9 +152,8 @@ function CustomTooltip({ active, payload }: any) {
 export function ScorePregnancyCorrelation() {
   const { data: correlationData = [], isLoading } = useScorePregnancyData();
   const [viewMode, setViewMode] = useState<'scatter' | 'buckets'>('buckets');
-  const [scoreType, setScoreType] = useState<'morph' | 'kinetic'>('morph');
 
-  // Agregar por faixas de score (morph ou kinetic)
+  // Agregar por faixas de score
   const buckets = useMemo<AggregatedBucket[]>(() => {
     const ranges = [
       { faixa: '0-19', min: 0, max: 19 },
@@ -168,10 +163,9 @@ export function ScorePregnancyCorrelation() {
       { faixa: '80-100', min: 80, max: 100 },
     ];
 
-    const key = scoreType === 'morph' ? 'morph_score' : 'kinetic_score';
     return ranges.map(r => {
       const inRange = correlationData.filter(
-        d => d[key] >= r.min && d[key] <= r.max
+        d => d.embryo_score >= r.min && d.embryo_score <= r.max
       );
       const prenhes = inRange.filter(d => d.prenhe).length;
       return {
@@ -181,32 +175,30 @@ export function ScorePregnancyCorrelation() {
         taxa: inRange.length > 0 ? (prenhes / inRange.length) * 100 : 0,
       };
     });
-  }, [correlationData, scoreType]);
+  }, [correlationData]);
 
-  // Estatísticas gerais — morph e kinetic separados
+  // Estatísticas gerais
   const stats = useMemo(() => {
     if (!correlationData.length) return null;
     const prenhes = correlationData.filter(d => d.prenhe);
     const vazias = correlationData.filter(d => !d.prenhe);
 
-    const avg = (arr: CorrelationDataPoint[], key: 'morph_score' | 'kinetic_score') =>
-      arr.length > 0 ? arr.reduce((s, d) => s + d[key], 0) / arr.length : 0;
+    const avg = (arr: CorrelationDataPoint[]) =>
+      arr.length > 0 ? arr.reduce((s, d) => s + d.embryo_score, 0) / arr.length : 0;
 
     return {
       total: correlationData.length,
       prenhes: prenhes.length,
       vazias: vazias.length,
       taxaGeral: (prenhes.length / correlationData.length) * 100,
-      avgMorphPrenhe: avg(prenhes, 'morph_score'),
-      avgMorphVazia: avg(vazias, 'morph_score'),
-      avgKineticPrenhe: avg(prenhes, 'kinetic_score'),
-      avgKineticVazia: avg(vazias, 'kinetic_score'),
+      avgScorePrenhe: avg(prenhes),
+      avgScoreVazia: avg(vazias),
     };
   }, [correlationData]);
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card p-6">
+      <div className="rounded-xl border border-border/60 glass-panel p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-5 bg-muted rounded w-48" />
           <div className="h-[250px] bg-muted/50 rounded-lg" />
@@ -217,7 +209,7 @@ export function ScorePregnancyCorrelation() {
 
   if (!correlationData.length) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/60 glass-panel overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
           <div className="w-1 h-5 rounded-full bg-primary/50" />
           <TrendingUp className="w-4 h-4 text-primary/60" />
@@ -237,7 +229,7 @@ export function ScorePregnancyCorrelation() {
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+    <div className="rounded-xl border border-border/60 glass-panel overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
         <div className="w-1 h-5 rounded-full bg-primary/50" />
@@ -265,55 +257,27 @@ export function ScorePregnancyCorrelation() {
               </div>
             </div>
 
-            {/* Comparação Morph vs Kinetic */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Morfologia */}
-              <div className="rounded-lg border border-border/50 p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Eye className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Morfologia</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-center">
-                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgMorphPrenhe)}</div>
-                    <div className="text-xs text-muted-foreground">Prenhes</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">vs</div>
-                  <div className="text-center">
-                    <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgMorphVazia)}</div>
-                    <div className="text-xs text-muted-foreground">Vazias</div>
-                  </div>
-                  <div className="text-center border-l border-border/50 pl-3">
-                    <div className={`text-sm font-bold ${stats.avgMorphPrenhe - stats.avgMorphVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {stats.avgMorphPrenhe - stats.avgMorphVazia > 0 ? '+' : ''}{Math.round(stats.avgMorphPrenhe - stats.avgMorphVazia)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Diff</div>
-                  </div>
-                </div>
+            {/* Score Comparação */}
+            <div className="rounded-lg border border-border/50 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Eye className="w-3.5 h-3.5 text-primary/60" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Score Médio</span>
               </div>
-
-              {/* Cinética */}
-              <div className="rounded-lg border border-border/50 p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Activity className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cinética</span>
+              <div className="flex items-center justify-between">
+                <div className="text-center">
+                  <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgScorePrenhe)}</div>
+                  <div className="text-[9px] text-muted-foreground">Prenhes</div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-center">
-                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgKineticPrenhe)}</div>
-                    <div className="text-xs text-muted-foreground">Prenhes</div>
+                <div className="text-[10px] text-muted-foreground">vs</div>
+                <div className="text-center">
+                  <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgScoreVazia)}</div>
+                  <div className="text-[9px] text-muted-foreground">Vazias</div>
+                </div>
+                <div className="text-center border-l border-border/50 pl-3">
+                  <div className={`text-sm font-bold ${stats.avgScorePrenhe - stats.avgScoreVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {stats.avgScorePrenhe - stats.avgScoreVazia > 0 ? '+' : ''}{Math.round(stats.avgScorePrenhe - stats.avgScoreVazia)}
                   </div>
-                  <div className="text-xs text-muted-foreground">vs</div>
-                  <div className="text-center">
-                    <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgKineticVazia)}</div>
-                    <div className="text-xs text-muted-foreground">Vazias</div>
-                  </div>
-                  <div className="text-center border-l border-border/50 pl-3">
-                    <div className={`text-sm font-bold ${stats.avgKineticPrenhe - stats.avgKineticVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {stats.avgKineticPrenhe - stats.avgKineticVazia > 0 ? '+' : ''}{Math.round(stats.avgKineticPrenhe - stats.avgKineticVazia)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Diff</div>
-                  </div>
+                  <div className="text-[9px] text-muted-foreground">Diff</div>
                 </div>
               </div>
             </div>
@@ -321,49 +285,24 @@ export function ScorePregnancyCorrelation() {
         )}
 
         {/* Toggles */}
-        <div className="flex items-center gap-3">
-          {/* Score type */}
-          <div className="flex gap-1 rounded-lg border border-border p-0.5">
-            <button
-              onClick={() => setScoreType('morph')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                scoreType === 'morph'
-                  ? 'bg-muted text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Morfologia
-            </button>
-            <button
-              onClick={() => setScoreType('kinetic')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                scoreType === 'kinetic'
-                  ? 'bg-muted text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Cinética
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-3">
           {/* View mode */}
           <div className="flex gap-1 rounded-lg border border-border p-0.5">
             <button
               onClick={() => setViewMode('buckets')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                viewMode === 'buckets'
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${viewMode === 'buckets'
                   ? 'bg-muted text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               Por faixa
             </button>
             <button
               onClick={() => setViewMode('scatter')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                viewMode === 'scatter'
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${viewMode === 'scatter'
                   ? 'bg-muted text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               Scatter
             </button>
@@ -378,11 +317,11 @@ export function ScorePregnancyCorrelation() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                 <XAxis
                   type="number"
-                  dataKey={scoreType === 'morph' ? 'morph_score' : 'kinetic_score'}
+                  dataKey="embryo_score"
                   domain={[0, 100]}
-                  name={scoreType === 'morph' ? 'Morfologia' : 'Cinética'}
+                  name="Score"
                   tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                  label={{ value: scoreType === 'morph' ? 'Nota Morfologia' : 'Nota Cinética', position: 'bottom', offset: 5, style: { fontSize: 10, fill: 'var(--muted-foreground)' } }}
+                  label={{ value: 'Embryo Score', position: 'bottom', offset: 5, style: { fontSize: 10, fill: 'var(--muted-foreground)' } }}
                 />
                 <YAxis
                   type="number"

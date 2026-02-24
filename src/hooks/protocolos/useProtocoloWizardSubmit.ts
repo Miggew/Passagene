@@ -147,15 +147,6 @@ export function useProtocoloWizardSubmit({
       );
 
       if (rpcError) {
-        // Log detalhado para debug
-        console.error('=== ERRO RPC criar_protocolo_passo1_atomico ===');
-        console.error('Code:', rpcError.code);
-        console.error('Message:', rpcError.message);
-        console.error('Details:', rpcError.details);
-        console.error('Hint:', rpcError.hint);
-        console.error('Full error:', JSON.stringify(rpcError, null, 2));
-        console.error('Receptoras enviadas:', receptorasIds);
-
         // Tratar erros específicos do RPC
         if (rpcError.code === '23505' || rpcError.message?.includes('duplicate') || rpcError.message?.includes('unique')) {
           throw new Error('Uma ou mais receptoras já estão em um protocolo ativo. Verifique a seleção.');

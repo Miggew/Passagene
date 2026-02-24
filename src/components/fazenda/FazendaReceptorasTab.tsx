@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ReceptoraComStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -30,7 +31,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import StatusBadge from '@/components/shared/StatusBadge';
 import EmptyState from '@/components/shared/EmptyState';
-import { Plus, Edit, Search, History, ArrowRight, Baby, Filter, X } from 'lucide-react';
+import { Plus, Edit, History, ArrowRight, Baby, Filter, X } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import { formatStatusLabel } from '@/lib/statusLabels';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -153,7 +155,7 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
       <Card>
         <CardContent className="py-8">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <LoaderDNA size={48} variant="premium" />
           </div>
         </CardContent>
       </Card>
@@ -173,13 +175,11 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
                 <Filter className="w-3.5 h-3.5" />
                 <span>Busca</span>
               </div>
-              <div className="relative flex-1 min-w-0 md:min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+              <div className="flex-1 min-w-0 md:min-w-[200px]">
+                <SearchInput
                   placeholder="Buscar por brinco ou nome..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-11 md:h-9"
+                  onChange={setSearchTerm}
                 />
               </div>
             </div>
@@ -229,58 +229,58 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
 
           {/* Botão Nova Receptora */}
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Receptora
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Receptora</DialogTitle>
-              <DialogDescription>
-                Adicionar receptora em {fazendaNome}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="identificacao">Brinco/Identificação *</Label>
-                <Input
-                  id="identificacao"
-                  value={formData.identificacao}
-                  onChange={(e) => setFormData({ ...formData, identificacao: e.target.value })}
-                  placeholder="Ex: 001, A123"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome (opcional)</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  placeholder="Nome da receptora"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Salvando...' : 'Cadastrar'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDialog(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Receptora
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cadastrar Receptora</DialogTitle>
+                <DialogDescription>
+                  Adicionar receptora em {fazendaNome}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="identificacao">Brinco/Identificação *</Label>
+                  <Input
+                    id="identificacao"
+                    value={formData.identificacao}
+                    onChange={(e) => setFormData({ ...formData, identificacao: e.target.value })}
+                    placeholder="Ex: 001, A123"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome (opcional)</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    placeholder="Nome da receptora"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Salvando...' : 'Cadastrar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDialog(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -303,7 +303,7 @@ export function FazendaReceptorasTab({ fazendaId, fazendaNome }: FazendaReceptor
               {/* Mobile: Cards */}
               <div className="md:hidden space-y-3">
                 {filteredReceptoras.map((receptora) => (
-                  <div key={receptora.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={receptora.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <span className="text-base font-medium text-foreground">{receptora.identificacao}</span>

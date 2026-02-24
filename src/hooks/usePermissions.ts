@@ -13,11 +13,32 @@ export function usePermissions() {
     hasAccessToRoute,
   } = useAuth();
 
-  // Retorna os hubs que o usuário tem acesso
+  // Retorna os hubs que o usuário tem acesso (fundindo escritório → campo)
   const getAccessibleHubs = (): Hub[] => {
     if (!permissions) return [];
 
-    return hubs.filter(hub => hasAccessToHub(hub.code));
+    // Usuário com acesso ao antigo "escritorio" ganha acesso ao "campo" automaticamente
+    const hasEscritorioAccess = hasAccessToHub('escritorio');
+
+    const filteredHubs = hubs.filter(hub => {
+      // Esconde o hub "escritorio" — foi absorvido pelo "campo"
+      if (hub.code === 'escritorio') return false;
+      // Se tem acesso ao escritorio, garante acesso ao campo
+      if (hub.code === 'campo' && hasEscritorioAccess) return true;
+      return hasAccessToHub(hub.code);
+    });
+
+    const processedHubs = filteredHubs.map(hub => {
+      const newRoutes = hub.routes
+        .filter(r => !r.startsWith('/relatorios')); // Relatórios é hub separado
+
+      return {
+        ...hub,
+        routes: [...new Set(newRoutes)]
+      };
+    });
+
+    return processedHubs.sort((a, b) => a.display_order - b.display_order);
   };
 
   // Verifica se o usuário é admin

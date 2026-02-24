@@ -115,7 +115,7 @@ export function useSubmitClassification() {
       // 3. Fetch score data for atlas insertion
       const { data: score } = await supabase
         .from('embryo_scores')
-        .select('embedding, kinetic_intensity, kinetic_harmony, kinetic_symmetry, kinetic_stability, kinetic_bg_noise, crop_image_path, motion_map_path, composite_path, knn_classification, knn_confidence')
+        .select('embedding, kinetic_intensity, kinetic_harmony, kinetic_stability, kinetic_bg_noise, crop_image_path, motion_map_path, composite_path, knn_classification, knn_confidence')
         .eq('id', scoreId)
         .single();
 
@@ -143,11 +143,10 @@ export function useSubmitClassification() {
       // 5. Get lab_id (use a constant for now — single lab)
       const labId = '00000000-0000-0000-0000-000000000001';
 
-      // 6. Insert into embryo_references (atlas grows!)
-      const aiSuggestedClass = score.knn_classification || null;
+      // 5. Upsert into embryo_references (atlas grows!)
       const { error: refErr } = await supabase
         .from('embryo_references')
-        .insert({
+        .upsert({
           lab_id: labId,
           lote_fiv_id: loteFivId,
           acasalamento_id: acasalamentoId,
@@ -156,7 +155,6 @@ export function useSubmitClassification() {
           embedding: score.embedding,
           kinetic_intensity: score.kinetic_intensity,
           kinetic_harmony: score.kinetic_harmony,
-          kinetic_symmetry: score.kinetic_symmetry,
           kinetic_stability: score.kinetic_stability,
           kinetic_bg_noise: score.kinetic_bg_noise,
           best_frame_path: score.crop_image_path,
@@ -167,7 +165,7 @@ export function useSubmitClassification() {
           biologist_agreed: aiSuggestedClass ? aiSuggestedClass === classification : null,
           species: 'bovine_real',
           source: 'lab',
-        });
+        }, { onConflict: 'embriao_id' });
 
       if (refErr) {
         console.error('Failed to insert atlas reference:', refErr);
@@ -194,13 +192,14 @@ export function useUndoClassification() {
   return useMutation({
     mutationFn: async ({ scoreId, embriaoId }: UndoClassificationParams) => {
       // 1. Clear biologist classification from score
-      await supabase
+      const { error: clearError } = await supabase
         .from('embryo_scores')
         .update({
           biologist_classification: null,
           biologist_agreed: null,
         })
         .eq('id', scoreId);
+      if (clearError) throw clearError;
 
       // 2. Remove latest reference for this embryo from atlas
       const { data: refs } = await supabase
@@ -216,7 +215,8 @@ export function useUndoClassification() {
         const refAge = Date.now() - new Date(ref.created_at).getTime();
         // Only allow undo within 5 minutes
         if (refAge <= 5 * 60 * 1000) {
-          await supabase.from('embryo_references').delete().eq('id', ref.id);
+          const { error: delError } = await supabase.from('embryo_references').delete().eq('id', ref.id);
+          if (delError) throw delError;
         }
       }
     },

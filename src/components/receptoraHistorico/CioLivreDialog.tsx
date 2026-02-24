@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import DatePickerBR from '@/components/shared/DatePickerBR';
 import StatusBadge from '@/components/shared/StatusBadge';
 import type { Receptora } from '@/lib/types';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 interface CioLivreDialogProps {
   open: boolean;
@@ -40,7 +41,7 @@ export function CioLivreDialog({
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
     if (isOpen) {
-      setCioLivreForm({ data_cio: new Date().toISOString().split('T')[0] });
+      setCioLivreForm({ data_cio: getTodayDateString() });
     }
   };
 

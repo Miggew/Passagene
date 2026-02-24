@@ -244,7 +244,7 @@ export default function TouroDetail() {
         )}
         description={`${formData.registro}${formData.raca ? ` • ${formData.raca}` : ''}`}
         actions={(
-          <Button onClick={() => navigate('/touros')} variant="outline" size="icon">
+          <Button onClick={() => navigate('/touros')} variant="outline" size="icon" aria-label="Voltar">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         )}
@@ -259,6 +259,7 @@ export default function TouroDetail() {
                 src={formData.foto_url}
                 alt={formData.nome}
                 className="max-w-md w-full h-auto rounded-lg shadow-md"
+                loading="lazy"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}

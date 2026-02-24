@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PassaGene Design System v2.0 — Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #09C972;
+    --brand-deep: #049357;
+    --primary-50: #f0f9f4;
+    --primary-100: #daf1e4;
+    --primary-200: #b8e3cb;
+    --primary-300: #89ceaa;
+    --primary-400: #57b584;
+    --primary-500: #3d9e6b;
+    --primary-600: #3a8a5e;
+    --primary-700: #2d6e4a;
+    --primary-800: #27583d;
+    --primary-900: #1e4732;
+    --primary-950: #0d2a1c;
+    --accent-50: #fefce8;
+    --accent-100: #fef9c3;
+    --accent-200: #fef08a;
+    --accent-400: #facc15;
+    --accent-500: #eab308;
+    --accent-600: #ca8a04;
+    --accent-700: #a16207;
+    --success-light: #dcfce7; --success: #22c55e; --success-dark: #16a34a;
+    --danger-light: #fee2e2; --danger: #ef4444; --danger-dark: #dc2626;
+    --warning-light: #fef3c7; --warning: #f59e0b; --warning-dark: #d97706;
+    --info-light: #dbeafe; --info: #3b82f6; --info-dark: #2563eb;
+    --surface-light: #F2FBF7;
+    --surface-dark: #051F15;
+    --card-light: #FFFFFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background: var(--surface-light);
+    color: #1e293b;
+    font-size: 14px;
+    line-height: 1.625;
+  }
+
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* Layout */
+  .page { max-width: 1200px; margin: 0 auto; padding: 48px 32px; }
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.025em;
+    color: var(--primary-800); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title::before {
+    content: ''; width: 4px; height: 28px; border-radius: 4px;
+    background: var(--primary-500);
+  }
+  .section-desc { color: #64748b; margin-bottom: 24px; font-size: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .flex-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .flex-col { display: flex; flex-direction: column; gap: 8px; }
+  .mb-4 { margin-bottom: 16px; }
+  .mb-6 { margin-bottom: 24px; }
+  .subsection { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1e293b; }
+
+  /* Header */
+  .hero {
+    background: var(--primary-950);
+    color: white; padding: 64px 32px; text-align: center; margin-bottom: 48px;
+    border-radius: 24px; position: relative; overflow: hidden;
+  }
+  .hero h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; }
+  .hero h1 span { color: var(--brand); }
+  .hero p { font-size: 16px; opacity: 0.7; }
+
+  /* Color Swatches */
+  .swatch-row { display: flex; gap: 0; border-radius: 12px; overflow: hidden; margin-bottom: 8px; }
+  .swatch {
+    flex: 1; height: 64px; display: flex; align-items: flex-end; padding: 6px 8px;
+    font-size: 10px; font-weight: 600; color: white; position: relative;
+  }
+  .swatch.light-text { color: #1e293b; }
+  .swatch-label { font-size: 10px; opacity: 0.85; }
+  .swatch-hex { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; }
+  .swatch-info { display: flex; flex-direction: column; gap: 1px; }
+
+  .color-card {
+    border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;
+    background: white;
+  }
+  .color-card-swatch { height: 80px; display: flex; align-items: center; justify-content: center; }
+  .color-card-info { padding: 12px; }
+  .color-card-name { font-weight: 700; font-size: 13px; }
+  .color-card-hex { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #64748b; }
+  .color-card-use { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+  /* Surface demo */
+  .surface-demo {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: 16px; overflow: hidden;
+    border: 1px solid #e2e8f0; height: 160px;
+  }
+  .surface-light-demo {
+    background: var(--surface-light); padding: 24px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .surface-dark-demo {
+    background: var(--surface-dark); padding: 24px; color: white;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .surface-card-demo {
+    background: white; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-size: 12px; font-weight: 600; color: #334155;
+  }
+  .surface-card-dark-demo {
+    background: rgba(255,255,255,0.08); border-radius: 8px; padding: 12px;
+    font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8);
+  }
+
+  /* Typography */
+  .type-sample { padding: 16px 0; border-bottom: 1px solid #f1f5f9; }
+  .type-sample:last-child { border-bottom: none; }
+  .type-meta { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 4px; }
+  .type-meta code { font-family: 'JetBrains Mono', monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+
+  /* Spacing */
+  .space-bar {
+    height: 36px; background: var(--primary-100); border: 1px solid var(--primary-200);
+    border-radius: 6px; display: flex; align-items: center; padding-left: 8px;
+    font-size: 11px; font-weight: 600; color: var(--primary-700);
+    transition: all 0.2s;
+  }
+  .space-bar:hover { background: var(--primary-200); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 14px;
+    border-radius: 8px; transition: all 0.2s; position: relative;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-sm { padding: 6px 14px; font-size: 13px; }
+  .btn-md { padding: 10px 20px; }
+  .btn-lg { padding: 12px 24px; font-size: 15px; }
+  .btn-primary { background: var(--primary-600); color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .btn-primary:hover { background: var(--primary-700); box-shadow: 0 4px 12px rgba(61,158,107,0.25); }
+  .btn-secondary { background: white; color: var(--primary-700); border: 1px solid var(--primary-200); }
+  .btn-secondary:hover { background: var(--primary-50); }
+  .btn-accent { background: var(--accent-500); color: white; }
+  .btn-accent:hover { background: var(--accent-600); }
+  .btn-ghost { background: transparent; color: #475569; }
+  .btn-ghost:hover { background: #f1f5f9; }
+  .btn-outline { background: transparent; color: #334155; border: 1px solid #cbd5e1; }
+  .btn-outline:hover { background: #f8fafc; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: var(--danger-dark); }
+
+  /* Cards */
+  .card {
+    background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 20px;
+    transition: all 0.2s;
+  }
+  .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+  .card-accent { border-top: 3px solid var(--primary-500); }
+  .card-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .card-desc { font-size: 13px; color: #64748b; }
+  .card-mobile {
+    background: white; border: 1px solid rgba(226,232,240,0.6); border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04); padding: 14px;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; border-radius: 6px;
+    font-size: 11px; font-weight: 600; padding: 3px 8px;
+    border: 1px solid;
+  }
+  .badge-green { background: rgba(34,197,94,0.1); color: #16a34a; border-color: rgba(34,197,94,0.3); }
+  .badge-red { background: rgba(239,68,68,0.1); color: #dc2626; border-color: rgba(239,68,68,0.3); }
+  .badge-amber { background: rgba(245,158,11,0.1); color: #d97706; border-color: rgba(245,158,11,0.3); }
+  .badge-pink { background: rgba(236,72,153,0.1); color: #db2777; border-color: rgba(236,72,153,0.3); }
+  .badge-blue { background: rgba(59,130,246,0.1); color: #2563eb; border-color: rgba(59,130,246,0.3); }
+  .badge-indigo { background: rgba(99,102,241,0.1); color: #4f46e5; border-color: rgba(99,102,241,0.3); }
+  .badge-purple { background: rgba(168,85,247,0.1); color: #9333ea; border-color: rgba(168,85,247,0.3); }
+  .badge-violet { background: rgba(139,92,246,0.1); color: #7c3aed; border-color: rgba(139,92,246,0.3); }
+  .badge-cyan { background: rgba(6,182,212,0.1); color: #0891b2; border-color: rgba(6,182,212,0.3); }
+  .badge-neutral { background: rgba(100,116,139,0.1); color: #475569; border-color: rgba(100,116,139,0.3); }
+  .badge-primary { background: rgba(61,158,107,0.1); color: var(--primary-600); border-color: rgba(61,158,107,0.3); }
+  .badge-outline { background: transparent; color: #475569; border-color: #cbd5e1; }
+
+  /* Inputs */
+  .input-demo {
+    width: 100%; height: 44px; border: 1.5px solid #cbd5e1; border-radius: 8px;
+    padding: 0 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px;
+    color: #1e293b; background: white; outline: none; transition: all 0.2s;
+  }
+  .input-demo:focus { border-color: var(--primary-400); box-shadow: 0 0 0 2px rgba(61,158,107,0.08); }
+  .input-demo::placeholder { color: #94a3b8; }
+  .input-error { border-color: var(--danger) !important; }
+  .input-error:focus { box-shadow: 0 0 0 2px rgba(239,68,68,0.08) !important; }
+  .input-label { font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px; display: block; }
+  .input-wrapper { position: relative; }
+  .input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+  .input-with-icon { padding-left: 38px; }
+
+  /* Table */
+  .table-container { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; background: white; }
+  .table-demo { width: 100%; border-collapse: collapse; }
+  .table-demo thead th {
+    background: #f8fafc; padding: 10px 16px; text-align: left;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #e2e8f0;
+  }
+  .table-demo tbody tr { transition: background 0.15s; }
+  .table-demo tbody tr:hover { background: var(--primary-50); }
+  .table-demo tbody tr:nth-child(even) { background: #f8fafc; }
+  .table-demo tbody tr:nth-child(even):hover { background: var(--primary-50); }
+  .table-demo tbody td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+
+  /* Alert */
+  .alert {
+    border-radius: 12px; padding: 16px 20px; display: flex; gap: 12px;
+    align-items: flex-start; border-left: 3px solid;
+  }
+  .alert-success { background: var(--success-light); border-left-color: var(--success); }
+  .alert-danger { background: var(--danger-light); border-left-color: var(--danger); }
+  .alert-warning { background: var(--warning-light); border-left-color: var(--warning); }
+  .alert-info { background: var(--info-light); border-left-color: var(--info); }
+  .alert-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; }
+  .alert-title { font-size: 14px; font-weight: 700; }
+  .alert-msg { font-size: 13px; color: #475569; margin-top: 2px; }
+
+  /* Stat Card */
+  .stat-card {
+    background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: all 0.2s; position: relative;
+  }
+  .stat-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+  .stat-icon {
+    position: absolute; top: 16px; right: 16px;
+    width: 40px; height: 40px; background: var(--primary-50); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; color: var(--primary-500);
+  }
+  .stat-label { font-size: 13px; font-weight: 500; color: #64748b; }
+  .stat-value { font-size: 28px; font-weight: 800; letter-spacing: -0.025em; color: #0f172a; margin-top: 4px; }
+  .stat-change { font-size: 12px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+  .stat-up { color: #16a34a; }
+  .stat-down { color: var(--danger); }
+
+  /* Sidebar preview */
+  .sidebar-demo {
+    width: 220px; background: #020617; border-radius: 12px; padding: 16px 0;
+    color: white; overflow: hidden;
+  }
+  .sidebar-logo {
+    padding: 8px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .sidebar-logo-icon {
+    width: 28px; height: 28px; background: var(--brand); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .sidebar-item {
+    padding: 10px 16px; font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.5);
+    display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,0.04); }
+  .sidebar-item.active {
+    background: rgba(61,158,107,0.15); color: white; font-weight: 600;
+    border-left-color: var(--primary-400);
+  }
+  .sidebar-item svg { width: 18px; height: 18px; opacity: 0.7; }
+  .sidebar-item.active svg { opacity: 1; }
+  .sidebar-footer {
+    margin-top: 16px; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-avatar {
+    width: 32px; height: 32px; background: var(--primary-700); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: white;
+  }
+  .sidebar-user-name { font-size: 13px; font-weight: 600; }
+  .sidebar-user-role { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  /* Dark mode preview section */
+  .dark-preview {
+    background: var(--surface-dark); border-radius: 16px; padding: 32px;
+    color: white;
+  }
+  .dark-preview .card {
+    background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.08);
+    color: white;
+  }
+  .dark-preview .card:hover { background: rgba(255,255,255,0.08); }
+  .dark-preview .card-title { color: white; }
+  .dark-preview .card-desc { color: rgba(255,255,255,0.6); }
+  .dark-preview .badge-green { color: #4ade80; }
+  .dark-preview .badge-red { color: #f87171; }
+  .dark-preview .badge-amber { color: #fbbf24; }
+  .dark-preview .badge-violet { color: #a78bfa; }
+  .dark-preview .badge-cyan { color: #22d3ee; }
+  .dark-preview .input-demo {
+    background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12);
+    color: white;
+  }
+  .dark-preview .input-demo::placeholder { color: rgba(255,255,255,0.3); }
+  .dark-preview .btn-secondary {
+    background: rgba(255,255,255,0.06); color: white; border-color: rgba(255,255,255,0.12);
+  }
+
+  /* Navigation row for mobile preview */
+  .mobile-nav-demo {
+    background: white; border-radius: 16px; padding: 12px 0; border: 1px solid #e2e8f0;
+    display: flex; justify-content: space-around; align-items: center; max-width: 375px;
+  }
+  .mobile-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 10px; font-weight: 500; color: #94a3b8; cursor: pointer;
+    min-width: 64px; padding: 4px 0;
+  }
+  .mobile-nav-item.active { color: var(--primary-500); }
+  .mobile-nav-item svg { width: 20px; height: 20px; }
+
+  /* Separator */
+  hr.sep {
+    border: none; border-top: 1px solid #e2e8f0; margin: 48px 0;
+  }
+
+  /* Skeleton demo */
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Empty state */
+  .empty-state {
+    border: 2px dashed #e2e8f0; border-radius: 12px; padding: 40px;
+    text-align: center; color: #94a3b8;
+  }
+  .empty-state svg { width: 40px; height: 40px; margin: 0 auto 12px; opacity: 0.4; }
+  .empty-state-title { font-size: 16px; font-weight: 700; color: #334155; }
+  .empty-state-desc { font-size: 13px; margin-top: 4px; margin-bottom: 16px; }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .hero { padding: 40px 20px; }
+    .hero h1 { font-size: 28px; }
+    .page { padding: 24px 16px; }
+    .nav-sidebar-section { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Passa<span>Gene</span> Design System</h1>
+    <p>v2.0 — Fonte unica de verdade para todas as decisoes visuais</p>
+  </div>
+
+  <!-- ==================== COLORS ==================== -->
+  <div class="section">
+    <div class="section-title">Paleta de Cores</div>
+    <div class="section-desc">Todas as cores do sistema, extraidas da identidade visual da marca.</div>
+
+    <!-- Brand -->
+    <div class="subsection">Brand (Logo Original)</div>
+    <div class="grid-2 mb-6">
+      <div class="color-card">
+        <div class="color-card-swatch" style="background: #09C972;">
+          <span style="color: white; font-weight: 700; font-size: 14px;">#09C972</span>
+        </div>
+        <div class="color-card-info">
+          <div class="color-card-name">Brand</div>
+          <div class="color-card-use">Cor exata da logo — splash, marketing, icone marca</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-card-swatch" style="background: #049357;">
+          <span style="color: white; font-weight: 700; font-size: 14px;">#049357</span>
+        </div>
+        <div class="color-card-info">
+          <div class="color-card-name">Brand Deep</div>
+          <div class="color-card-use">Verde profundo — hovers de destaque, bordas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Primary Scale -->
+    <div class="subsection">Primary (Escala UI)</div>
+    <div class="swatch-row mb-6">
+      <div class="swatch light-text" style="background: #f0f9f4;"><div class="swatch-info"><span class="swatch-label">50</span><span class="swatch-hex mono">#f0f9f4</span></div></div>
+      <div class="swatch light-text" style="background: #daf1e4;"><div class="swatch-info"><span class="swatch-label">100</span><span class="swatch-hex mono">#daf1e4</span></div></div>
+      <div class="swatch light-text" style="background: #b8e3cb;"><div class="swatch-info"><span class="swatch-label">200</span><span class="swatch-hex mono">#b8e3cb</span></div></div>
+      <div class="swatch light-text" style="background: #89ceaa;"><div class="swatch-info"><span class="swatch-label">300</span><span class="swatch-hex mono">#89ceaa</span></div></div>
+      <div class="swatch" style="background: #57b584;"><div class="swatch-info"><span class="swatch-label">400</span><span class="swatch-hex mono">#57b584</span></div></div>
+      <div class="swatch" style="background: #3d9e6b;"><div class="swatch-info"><span class="swatch-label">500</span><span class="swatch-hex mono">#3d9e6b</span></div></div>
+      <div class="swatch" style="background: #3a8a5e;"><div class="swatch-info"><span class="swatch-label">600</span><span class="swatch-hex mono">#3a8a5e</span></div></div>
+      <div class="swatch" style="background: #2d6e4a;"><div class="swatch-info"><span class="swatch-label">700</span><span class="swatch-hex mono">#2d6e4a</span></div></div>
+      <div class="swatch" style="background: #27583d;"><div class="swatch-info"><span class="swatch-label">800</span><span class="swatch-hex mono">#27583d</span></div></div>
+      <div class="swatch" style="background: #1e4732;"><div class="swatch-info"><span class="swatch-label">900</span><span class="swatch-hex mono">#1e4732</span></div></div>
+      <div class="swatch" style="background: #0d2a1c;"><div class="swatch-info"><span class="swatch-label">950</span><span class="swatch-hex mono">#0d2a1c</span></div></div>
+    </div>
+
+    <!-- Accent Scale -->
+    <div class="subsection">Accent (Dourado Ambar)</div>
+    <div class="swatch-row mb-6">
+      <div class="swatch light-text" style="background: #fefce8;"><div class="swatch-info"><span class="swatch-label">50</span><span class="swatch-hex mono">#fefce8</span></div></div>
+      <div class="swatch light-text" style="background: #fef9c3;"><div class="swatch-info"><span class="swatch-label">100</span><span class="swatch-hex mono">#fef9c3</span></div></div>
+      <div class="swatch light-text" style="background: #fef08a;"><div class="swatch-info"><span class="swatch-label">200</span><span class="swatch-hex mono">#fef08a</span></div></div>
+      <div class="swatch light-text" style="background: #facc15;"><div class="swatch-info"><span class="swatch-label">400</span><span class="swatch-hex mono">#facc15</span></div></div>
+      <div class="swatch" style="background: #eab308;"><div class="swatch-info"><span class="swatch-label">500</span><span class="swatch-hex mono">#eab308</span></div></div>
+      <div class="swatch" style="background: #ca8a04;"><div class="swatch-info"><span class="swatch-label">600</span><span class="swatch-hex mono">#ca8a04</span></div></div>
+      <div class="swatch" style="background: #a16207;"><div class="swatch-info"><span class="swatch-label">700</span><span class="swatch-hex mono">#a16207</span></div></div>
+    </div>
+
+    <!-- Semantics -->
+    <div class="subsection">Semanticas</div>
+    <div class="grid-4 mb-6">
+      <div class="color-card">
+        <div class="color-card-swatch" style="background: #22c55e;"><span style="color: white; font-weight: 700;">Success</span></div>
+        <div class="color-card-info"><div class="color-card-hex mono">#22c55e</div><div class="color-card-use">Confirmacoes, aprovacoes</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-card-swatch" style="background: #ef4444;"><span style="color: white; font-weight: 700;">Danger</span></div>
+        <div class="color-card-info"><div class="color-card-hex mono">#ef4444</div><div class="color-card-use">Erros, exclusoes</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-card-swatch" style="background: #f59e0b;"><span style="color: white; font-weight: 700;">Warning</span></div>
+        <div class="color-card-info"><div class="color-card-hex mono">#f59e0b</div><div class="color-card-use">Avisos, prazos</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-card-swatch" style="background: #3b82f6;"><span style="color: white; font-weight: 700;">Info</span></div>
+        <div class="color-card-info"><div class="color-card-hex mono">#3b82f6</div><div class="color-card-use">Informacoes</div></div>
+      </div>
+    </div>
+
+    <!-- Surfaces -->
+    <div class="subsection">Surfaces</div>
+    <div class="surface-demo">
+      <div class="surface-light-demo">
+        <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 8px;">LIGHT MODE — #F2FBF7</div>
+        <div class="surface-card-demo">Card sobre surface light</div>
+      </div>
+      <div class="surface-dark-demo">
+        <div style="font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4); margin-bottom: 8px;">DARK MODE — #051F15</div>
+        <div class="surface-card-dark-demo">Card sobre surface dark</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== STATUS BADGES ==================== -->
+  <div class="section">
+    <div class="section-title">Cores de Status (Negocio)</div>
+    <div class="section-desc">Mapeamento fixo de status para cores, usado em StatusBadge, CountBadge e ResultBadge.</div>
+    <div class="flex-row">
+      <span class="badge badge-red">VAZIA</span>
+      <span class="badge badge-green">PRENHE</span>
+      <span class="badge badge-amber">PRENHE_RETOQUE</span>
+      <span class="badge badge-pink">PRENHE_FEMEA</span>
+      <span class="badge badge-blue">PRENHE_MACHO</span>
+      <span class="badge badge-indigo">PRENHE_2_SEXOS</span>
+      <span class="badge badge-purple">PRENHE_SEM_SEXO</span>
+      <span class="badge badge-violet">SERVIDA</span>
+      <span class="badge badge-violet">UTILIZADA</span>
+      <span class="badge badge-cyan">CONGELADO</span>
+    </div>
+    <div style="margin-top: 16px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; font-size: 12px;">
+      <strong>Padrao CSS universal:</strong> <code class="mono" style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px;">bg-[cor]-500/10 text-[cor]-600 dark:text-[cor]-400 border-[cor]-500/30</code>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== TYPOGRAPHY ==================== -->
+  <div class="section">
+    <div class="section-title">Tipografia</div>
+    <div class="section-desc">Plus Jakarta Sans para tudo, JetBrains Mono para dados.</div>
+
+    <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+      <div class="type-sample">
+        <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.025em;">Page Title — 22px ExtraBold</div>
+        <div class="type-meta"><code>text-[22px] font-extrabold tracking-tight</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 18px; font-weight: 700;">H2 — 18px Bold</div>
+        <div class="type-meta"><code>text-lg font-bold</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 16px; font-weight: 700;">H3 — 16px Bold</div>
+        <div class="type-meta"><code>text-base font-bold</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 14px; font-weight: 600;">H4 / Label — 14px Semibold</div>
+        <div class="type-meta"><code>text-sm font-semibold</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 14px; font-weight: 400;">Body text — 14px Regular. Usado para paragrafos e descricoes gerais do sistema.</div>
+        <div class="type-meta"><code>text-sm</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 13px; font-weight: 500;">Caption — 13px Medium</div>
+        <div class="type-meta"><code>text-[13px] font-medium</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 12px; font-weight: 400;">Small — 12px Regular</div>
+        <div class="type-meta"><code>text-xs</code></div>
+      </div>
+      <div class="type-sample">
+        <div style="font-size: 11px; font-weight: 500;">Tiny — 11px Medium</div>
+        <div class="type-meta"><code>text-[11px] font-medium</code></div>
+      </div>
+      <div class="type-sample">
+        <div class="mono" style="font-size: 14px; font-weight: 500; color: var(--primary-600);">PROT-2026-0042 — Mono Data</div>
+        <div class="type-meta"><code>font-mono text-sm font-medium</code></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== SPACING ==================== -->
+  <div class="section">
+    <div class="section-title">Espacamento</div>
+    <div class="section-desc">Multiplos de 4px. Escala consistente em todo o app.</div>
+
+    <div class="flex-col" style="max-width: 600px;">
+      <div class="space-bar" style="width: 4%;">4px <span style="margin-left: auto; opacity: 0.6;">p-1</span></div>
+      <div class="space-bar" style="width: 12%;">8px <span style="margin-left: auto; opacity: 0.6;">p-2</span></div>
+      <div class="space-bar" style="width: 28%;">16px <span style="margin-left: auto; opacity: 0.6;">p-4</span></div>
+      <div class="space-bar" style="width: 48%;">24px <span style="margin-left: auto; opacity: 0.6;">p-6</span></div>
+      <div class="space-bar" style="width: 68%;">32px <span style="margin-left: auto; opacity: 0.6;">p-8</span></div>
+      <div class="space-bar" style="width: 100%;">48px <span style="margin-left: auto; opacity: 0.6;">p-12</span></div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== BUTTONS ==================== -->
+  <div class="section">
+    <div class="section-title">Botoes</div>
+    <div class="section-desc">shadcn/ui Button — rounded-lg (8px), font-semibold, active:scale-0.98</div>
+
+    <div class="subsection">Variantes</div>
+    <div class="flex-row mb-6">
+      <button class="btn btn-md btn-primary">Primary</button>
+      <button class="btn btn-md btn-secondary">Secondary</button>
+      <button class="btn btn-md btn-accent">Accent</button>
+      <button class="btn btn-md btn-ghost">Ghost</button>
+      <button class="btn btn-md btn-outline">Outline</button>
+      <button class="btn btn-md btn-danger">Danger</button>
+    </div>
+
+    <div class="subsection">Tamanhos</div>
+    <div class="flex-row mb-6">
+      <button class="btn btn-sm btn-primary">Small</button>
+      <button class="btn btn-md btn-primary">Medium</button>
+      <button class="btn btn-lg btn-primary">Large</button>
+    </div>
+
+    <div class="subsection">Com Icone</div>
+    <div class="flex-row">
+      <button class="btn btn-md btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Nova Doadora
+      </button>
+      <button class="btn btn-md btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar
+      </button>
+      <button class="btn btn-md btn-danger">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Excluir
+      </button>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== CARDS ==================== -->
+  <div class="section">
+    <div class="section-title">Cards</div>
+    <div class="section-desc">rounded-xl (12px), shadow-sm, hover com elevacao.</div>
+
+    <div class="grid-3 mb-6">
+      <div class="card">
+        <div class="card-title">Card Padrao</div>
+        <div class="card-desc">Border slate-200, shadow-sm padrao. Hover eleva com shadow-lg e translateY.</div>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">Card Accent</div>
+        <div class="card-desc">Barra solida de 3px no topo com primary-500. Para destaques.</div>
+      </div>
+      <div class="card-mobile">
+        <div class="card-title" style="font-size: 14px;">Card Mobile</div>
+        <div class="card-desc">border-border/60, shadow mais sutil. Padding 14px (p-3.5).</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== BADGES ==================== -->
+  <div class="section">
+    <div class="section-title">Badges</div>
+    <div class="section-desc">rounded-md (6px), text-[11px] font-semibold. Tres componentes: StatusBadge, CountBadge, ResultBadge.</div>
+
+    <div class="subsection">Todas as variantes</div>
+    <div class="flex-row mb-6">
+      <span class="badge badge-primary">Primary</span>
+      <span class="badge badge-green">Success</span>
+      <span class="badge badge-red">Danger</span>
+      <span class="badge badge-amber">Warning</span>
+      <span class="badge badge-blue">Info</span>
+      <span class="badge badge-pink">Pink</span>
+      <span class="badge badge-indigo">Indigo</span>
+      <span class="badge badge-purple">Purple</span>
+      <span class="badge badge-violet">Violet</span>
+      <span class="badge badge-cyan">Cyan</span>
+      <span class="badge badge-neutral">Neutral</span>
+      <span class="badge badge-outline">Outline</span>
+    </div>
+
+    <div class="subsection">Exemplo: StatusBadge em contexto</div>
+    <div class="flex-row">
+      <span class="badge badge-green">PRENHE</span>
+      <span class="badge badge-red">VAZIA</span>
+      <span class="badge badge-amber">RETOQUE</span>
+      <span class="badge badge-pink">FEMEA</span>
+      <span class="badge badge-blue">MACHO</span>
+      <span class="badge badge-cyan">CONGELADO</span>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== INPUTS ==================== -->
+  <div class="section">
+    <div class="section-title">Inputs</div>
+    <div class="section-desc">rounded-lg (8px), h-11 mobile / h-9 desktop, focus ring primary.</div>
+
+    <div class="grid-2">
+      <div>
+        <label class="input-label">Input Padrao</label>
+        <input class="input-demo" type="text" placeholder="Digite o nome da doadora...">
+      </div>
+      <div>
+        <label class="input-label">Com Icone</label>
+        <div class="input-wrapper">
+          <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input class="input-demo input-with-icon" type="text" placeholder="Buscar receptora...">
+        </div>
+      </div>
+      <div>
+        <label class="input-label">Estado de Erro</label>
+        <input class="input-demo input-error" type="text" value="valor invalido" style="color: var(--danger);">
+        <div style="font-size: 12px; color: var(--danger); margin-top: 4px; font-weight: 500;">Campo obrigatorio</div>
+      </div>
+      <div>
+        <label class="input-label">Mono Data</label>
+        <input class="input-demo mono" type="text" value="PROT-2026-0042" style="font-weight: 500; color: var(--primary-600);">
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== TABLE ==================== -->
+  <div class="section">
+    <div class="section-title">Tabelas</div>
+    <div class="section-desc">Container rounded-xl, header slate-50, zebra, hover row primary-50.</div>
+
+    <div class="table-container">
+      <table class="table-demo">
+        <thead>
+          <tr>
+            <th>Protocolo</th>
+            <th>Doadora</th>
+            <th>Data TE</th>
+            <th>Status</th>
+            <th>Embrioes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono" style="font-size: 12px; font-weight: 500; color: var(--primary-600);">PROT-2026-0042</td>
+            <td style="font-weight: 600;">FIV Estrelinha</td>
+            <td>15/02/2026</td>
+            <td><span class="badge badge-green">PRENHE</span></td>
+            <td>12</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size: 12px; font-weight: 500; color: var(--primary-600);">PROT-2026-0041</td>
+            <td style="font-weight: 600;">FIV Bonita</td>
+            <td>12/02/2026</td>
+            <td><span class="badge badge-red">VAZIA</span></td>
+            <td>8</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size: 12px; font-weight: 500; color: var(--primary-600);">PROT-2026-0040</td>
+            <td style="font-weight: 600;">FIV Mimosa</td>
+            <td>10/02/2026</td>
+            <td><span class="badge badge-amber">RETOQUE</span></td>
+            <td>15</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size: 12px; font-weight: 500; color: var(--primary-600);">PROT-2026-0039</td>
+            <td style="font-weight: 600;">FIV Princesa</td>
+            <td>08/02/2026</td>
+            <td><span class="badge badge-cyan">CONGELADO</span></td>
+            <td>6</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== ALERTS ==================== -->
+  <div class="section">
+    <div class="section-title">Alertas</div>
+    <div class="section-desc">rounded-xl, border-left 3px, background semantico.</div>
+
+    <div class="flex-col" style="gap: 12px;">
+      <div class="alert alert-success">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><div class="alert-title" style="color: #16a34a;">Analise concluida!</div><div class="alert-msg">Todos os embrioes foram classificados com sucesso.</div></div>
+      </div>
+      <div class="alert alert-warning">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><div class="alert-title" style="color: #d97706;">Prazo proximo</div><div class="alert-msg">O protocolo PROT-2026-0042 vence em 3 dias.</div></div>
+      </div>
+      <div class="alert alert-danger">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <div><div class="alert-title" style="color: #dc2626;">Tivemos um problema</div><div class="alert-msg">Nao foi possivel salvar os dados. Tente novamente.</div></div>
+      </div>
+      <div class="alert alert-info">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><div class="alert-title" style="color: #2563eb;">Processando</div><div class="alert-msg">A analise esta em andamento. Voce sera notificado ao concluir.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== STAT CARDS ==================== -->
+  <div class="section">
+    <div class="section-title">Stat Cards (Dashboard)</div>
+    <div class="section-desc">Label + valor grande + variacao. Grid 4/2/1 cols responsivo.</div>
+
+    <div class="grid-4">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="stat-label">Receptoras Ativas</div>
+        <div class="stat-value">248</div>
+        <div class="stat-change stat-up">&#9650; 12% vs mes anterior</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="stat-label">Embrioes Produzidos</div>
+        <div class="stat-value">1.842</div>
+        <div class="stat-change stat-up">&#9650; 8%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="stat-label">Taxa de Prenhez</div>
+        <div class="stat-value">62%</div>
+        <div class="stat-change stat-down">&#9660; 3%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div class="stat-label">Aspiracoes Mes</div>
+        <div class="stat-value">34</div>
+        <div class="stat-change stat-up">&#9650; 21%</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <div class="section nav-sidebar-section">
+    <div class="section-title">Navegacao</div>
+    <div class="section-desc">Sidebar desktop (slate-950) + bottom nav mobile (hub-aware).</div>
+
+    <div style="display: flex; gap: 32px; align-items: flex-start;">
+      <!-- Sidebar -->
+      <div class="sidebar-demo">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">P</div>
+          PassaGene
+        </div>
+        <div class="sidebar-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </div>
+        <div class="sidebar-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+          Reproducao
+        </div>
+        <div class="sidebar-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44H2.5A2.5 2.5 0 0 1 2 17.5V7a5 5 0 0 1 5-5h2.5z"/></svg>
+          Analise IA
+        </div>
+        <div class="sidebar-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+          Relatorios
+        </div>
+        <div class="sidebar-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Clientes
+        </div>
+        <div class="sidebar-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Configuracoes
+        </div>
+        <div class="sidebar-footer">
+          <div class="sidebar-avatar">MF</div>
+          <div>
+            <div class="sidebar-user-name">Miguel F.</div>
+            <div class="sidebar-user-role">Administrador</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Nav -->
+      <div style="flex: 1;">
+        <div class="subsection">Mobile Bottom Nav (hub-aware)</div>
+        <div class="mobile-nav-demo">
+          <div class="mobile-nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Home
+          </div>
+          <div class="mobile-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+            Reproducao
+          </div>
+          <div class="mobile-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+            Relatorios
+          </div>
+          <div class="mobile-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            Menu
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== DARK MODE ==================== -->
+  <div class="section">
+    <div class="section-title">Dark Mode</div>
+    <div class="section-desc">Background #051F15 (nunca preto puro). CSS variables para tudo.</div>
+
+    <div class="dark-preview">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+        <div class="card">
+          <div class="card-title">Card em Dark Mode</div>
+          <div class="card-desc">Background rgba(255,255,255,0.06), border sutil.</div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <span class="badge badge-green">PRENHE</span>
+            <span class="badge badge-red">VAZIA</span>
+            <span class="badge badge-amber">RETOQUE</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Formulario Dark</div>
+          <div class="card-desc" style="margin-bottom: 12px;">Inputs adaptam automaticamente.</div>
+          <input class="input-demo" placeholder="Buscar..." style="height: 36px; font-size: 13px;">
+          <div style="margin-top: 12px;">
+            <button class="btn btn-sm btn-primary">Salvar</button>
+            <button class="btn btn-sm btn-secondary" style="margin-left: 8px;">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <div style="font-size: 12px; color: rgba(255,255,255,0.4); text-align: center;">
+        muted-foreground ≥70% lightness &bull; nunca hardcodar cores &bull; usar CSS variables
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== LOADING / EMPTY ==================== -->
+  <div class="section">
+    <div class="section-title">Loading & Empty States</div>
+    <div class="section-desc">Skeletons do shadcn/ui, spinner cor text-primary, empty state com borda tracejada.</div>
+
+    <div class="grid-2">
+      <!-- Skeleton -->
+      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px;">
+        <div class="subsection" style="font-size: 14px;">Skeleton Loading</div>
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div class="skeleton" style="width: 40px; height: 40px; border-radius: 50%;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton" style="width: 60%; height: 14px; margin-bottom: 8px;"></div>
+            <div class="skeleton" style="width: 40%; height: 10px;"></div>
+          </div>
+        </div>
+        <div class="skeleton" style="width: 100%; height: 12px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="width: 100%; height: 12px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="width: 75%; height: 12px;"></div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display: block;"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <div class="empty-state-title">Nenhuma receptora encontrada</div>
+        <div class="empty-state-desc">Selecione uma fazenda ou ajuste os filtros de busca.</div>
+        <button class="btn btn-sm btn-primary">Nova Receptora</button>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ==================== REGRAS ==================== -->
+  <div class="section">
+    <div class="section-title">Regras Gerais</div>
+
+    <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 12px;">NUNCA</div>
+          <ul style="list-style: none; padding: 0; font-size: 13px; line-height: 2;">
+            <li style="color: #64748b;">&#10005; Cores inline <code class="mono" style="background:#fee2e2; padding: 1px 4px; border-radius: 3px; font-size: 11px;">style={{ color: "..." }}</code></li>
+            <li style="color: #64748b;">&#10005; Emojis no app</li>
+            <li style="color: #64748b;">&#10005; Cantos vivos <code class="mono" style="background:#fee2e2; padding: 1px 4px; border-radius: 3px; font-size: 11px;">rounded-none</code></li>
+            <li style="color: #64748b;">&#10005; Gradients / degrades de qualquer tipo</li>
+            <li style="color: #64748b;">&#10005; Cores hardcoded por modo (dark/light)</li>
+            <li style="color: #64748b;">&#10005; <code class="mono" style="background:#fee2e2; padding: 1px 4px; border-radius: 3px; font-size: 11px;">text-green-600</code> direto (usar <code class="mono" style="background:#dcfce7; padding: 1px 4px; border-radius: 3px; font-size: 11px;">text-primary</code>)</li>
+          </ul>
+        </div>
+        <div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--success); margin-bottom: 12px;">SEMPRE</div>
+          <ul style="list-style: none; padding: 0; font-size: 13px; line-height: 2;">
+            <li style="color: #64748b;">&#10003; Classes Tailwind para cores</li>
+            <li style="color: #64748b;">&#10003; Lucide React icons</li>
+            <li style="color: #64748b;">&#10003; Espacamento em multiplos de 4px</li>
+            <li style="color: #64748b;">&#10003; Textos em Portugues do Brasil</li>
+            <li style="color: #64748b;">&#10003; shadcn/ui como base</li>
+            <li style="color: #64748b;">&#10003; CSS variables para dark mode</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align: center; padding: 32px 0; color: #94a3b8; font-size: 12px;">
+    PassaGene Design System v2.0 — Gerado em Fevereiro 2026
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import type { Embriao, HistoricoEmbriao, Cliente } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import type { EmbrioCompleto, PacoteEmbrioes } from './useEmbrioesData';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 // Helper function to register history
 const registrarHistorico = async (
@@ -128,7 +129,7 @@ export function useEmbrioesActions({
   onSuccess,
 }: UseEmbrioesActionsProps): UseEmbrioesActionsReturn {
   const { toast } = useToast();
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = getTodayDateString();
 
   // Selection state
   const [embrioesSelecionados, setEmbrioesSelecionados] = useState<Set<string>>(new Set());

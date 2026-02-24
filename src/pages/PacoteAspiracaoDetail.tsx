@@ -38,7 +38,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import CountBadge from '@/components/shared/CountBadge';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { DataTable } from '@/components/shared/DataTable';
 import { ArrowLeft, Plus, Lock, Edit } from 'lucide-react';
 
@@ -49,6 +49,8 @@ import {
   useCreateDoadoraForm,
   useEditAspiracaoForm,
 } from '@/hooks/aspiracoes';
+import type { AddDoadoraFormData } from '@/hooks/aspiracoes/useAddDoadoraForm';
+import type { EditAspiracaoFormData } from '@/hooks/aspiracoes/useEditAspiracaoForm';
 
 export default function PacoteAspiracaoDetail() {
   const { id } = useParams();
@@ -524,7 +526,7 @@ export default function PacoteAspiracaoDetail() {
 
                       <OocitosCountingForm
                         data={addDoadoraHook.formData}
-                        onChange={(field, value) => addDoadoraHook.updateField(field as any, value)}
+                        onChange={(field, value) => addDoadoraHook.updateField(field as keyof AddDoadoraFormData, value)}
                       />
 
                       <div className="space-y-2">
@@ -603,7 +605,7 @@ export default function PacoteAspiracaoDetail() {
 
                       <OocitosCountingForm
                         data={addDoadoraHook.formData}
-                        onChange={(field, value) => addDoadoraHook.updateField(field as any, value)}
+                        onChange={(field, value) => addDoadoraHook.updateField(field as keyof AddDoadoraFormData, value)}
                       />
 
                       <div className="space-y-2">
@@ -669,7 +671,7 @@ export default function PacoteAspiracaoDetail() {
               {/* Mobile card layout */}
               <div className="md:hidden space-y-2">
                 {aspiracoes.map((row, index) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs text-muted-foreground shrink-0">{index + 1}.</span>
@@ -769,6 +771,7 @@ export default function PacoteAspiracaoDetail() {
                       size="sm"
                       className="h-7 w-7 p-0"
                       onClick={() => editAspiracaoHook.openEdit(row)}
+                      aria-label="Editar"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -812,7 +815,7 @@ export default function PacoteAspiracaoDetail() {
 
             <OocitosCountingForm
               data={editAspiracaoHook.formData}
-              onChange={(field, value) => editAspiracaoHook.updateField(field as any, value)}
+              onChange={(field, value) => editAspiracaoHook.updateField(field as keyof EditAspiracaoFormData, value)}
             />
 
             <div className="space-y-2">

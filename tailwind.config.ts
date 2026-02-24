@@ -16,8 +16,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["Outfit", "sans-serif"],
-        sans: ["Source Sans 3", "sans-serif"],
+        sans: ["Outfit", "system-ui", "sans-serif"],
+        heading: ["Outfit", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       fontSize: {
@@ -54,11 +54,117 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
+        // Cores Orgânicas Biotech do app
+        "bg-primary": "var(--bg-primary)",
+        "bg-card": "var(--bg-card)",
+        "bg-card-hover": "var(--bg-card-hover)",
+        "bg-subtle": "var(--bg-subtle)",
+        "bg-warm": "var(--bg-warm)",
+        "border-default": "var(--border-default)",
+        "border-active": "var(--border-active)",
+        "border-gold": "var(--border-gold)",
+        "text-primary": "var(--text-primary)",
+        "text-secondary": "var(--text-secondary)",
+        "text-muted": "var(--text-muted)",
+        green: {
+          DEFAULT: "var(--green)",
+          dim: "var(--green-dim)",
+        },
+        gold: {
+          DEFAULT: "var(--gold)",
+          light: "var(--gold-light)",
+          dim: "var(--gold-dim)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
+        info: "var(--info)",
       },
+      // Border radius dos design tokens (Organic Builder)
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        none: "0",
+        sm: "var(--radius-sm)", // 6px
+        DEFAULT: "var(--radius-md)", // 10px
+        md: "var(--radius-md)", // 10px
+        lg: "var(--radius-lg)", // 14px
+        xl: "var(--radius-xl)", // 20px
+        "2xl": "1.5rem",
+        "3xl": "2rem",
+        full: "9999px",
+      },
+      // Sombras Brutalistas + Glow Orgânico
+      boxShadow: {
+        sm: "0 1px 3px rgba(9, 201, 114, 0.08)",
+        DEFAULT: "0 4px 12px rgba(9, 201, 114, 0.12)",
+        md: "0 4px 12px rgba(9, 201, 114, 0.12)",
+        lg: "0 8px 24px rgba(4, 147, 87, 0.15)",
+        xl: "0 12px 32px rgba(4, 147, 87, 0.18)",
+        'brutal': '4px 4px 0px 0px var(--brutal-shadow-color)',
+        'brutal-sm': '2px 2px 0px 0px var(--brutal-shadow-color)',
+        'brutal-lg': '8px 8px 0px 0px var(--brutal-shadow-color)',
+        'brutal-dark': '4px 4px 0px 0px #09C972',
+        'brutal-dark-lg': '8px 8px 0px 0px rgba(9, 201, 114, 0.4)',
+        'glow': '0 0 20px rgba(9, 201, 114, 0.4)',
+      },
+      keyframes: {
+        "accordion-down": {
+          from: {
+            height: "0",
+          },
+          to: {
+            height: "var(--radix-accordion-content-height)",
+          },
+        },
+        "accordion-up": {
+          from: {
+            height: "var(--radix-accordion-content-height)",
+          },
+          to: {
+            height: "0",
+          },
+        },
+        "mitosis-left": {
+          "0%, 100%": { transform: "translateX(0) scale(1.1)", opacity: "0.9" },
+          "50%": { transform: "translateX(-120%) scale(0.6)", opacity: "0.4" },
+        },
+        "mitosis-right": {
+          "0%, 100%": { transform: "translateX(0) scale(1.1)", opacity: "0.9" },
+          "50%": { transform: "translateX(120%) scale(0.6)", opacity: "0.4" },
+        },
+        "bio-breathe": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.05)" },
+        },
+        "dna-spin": {
+          "0%": { top: "0", transform: "scale(1)", zIndex: "2", opacity: "1" },
+          "50%": { top: "100%", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
+          "100%": { top: "0", transform: "scale(1)", zIndex: "2", opacity: "1" },
+        },
+        "dna-spin-rev": {
+          "0%": { bottom: "0", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
+          "50%": { bottom: "100%", transform: "scale(1)", zIndex: "2", opacity: "1" },
+          "100%": { bottom: "0", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "mitosis-left": "mitosis-left 1.6s ease-in-out infinite",
+        "mitosis-right": "mitosis-right 1.6s ease-in-out infinite",
+        "bio-breathe": "bio-breathe 3s ease-in-out infinite",
+        "bio-breathe-fast": "bio-breathe 2s ease-in-out infinite",
+        "dna-spin": "dna-spin 1.5s ease-in-out infinite",
+        "dna-spin-rev": "dna-spin-rev 1.5s ease-in-out infinite",
       },
       letterSpacing: {
         tightest: '-0.045em',

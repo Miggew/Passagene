@@ -99,16 +99,16 @@ function loadSettings() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      return { ...DEFAULT_SETTINGS, ...saved };
+      return { ...MICROSCOPE_PRESET, ...saved };
     }
-  } catch (e) {}
-  return { ...DEFAULT_SETTINGS };
+  } catch (e) { }
+  return { ...MICROSCOPE_PRESET };
 }
 
 function saveSettings(settings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // ─── MIME TYPE DETECTION ───
@@ -170,15 +170,17 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
   };
 
   const resetDefaults = () => {
-    setSettings({ ...DEFAULT_SETTINGS });
+    setSettings({ ...MICROSCOPE_PRESET });
   };
 
   // ─── Camera detection ───
   useEffect(() => {
+    let cancelled = false;
     async function detectCameras() {
       try {
         const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
         tempStream.getTracks().forEach((t) => t.stop());
+        if (cancelled) return;
         const devs = await navigator.mediaDevices.enumerateDevices();
         const cams = devs.filter((d) => d.kind === "videoinput");
 
@@ -186,14 +188,17 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
           cams.map(async (cam, i) => {
             let facing = "unknown";
             let capabilities = {};
+            let s;
             try {
-              const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
+              s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
               const track = s.getVideoTracks()[0];
               const st = track.getSettings();
               capabilities = track.getCapabilities?.() || {};
               facing = st.facingMode || "unknown";
               track.stop();
-            } catch (e) {}
+            } catch {
+              s?.getTracks().forEach((t) => t.stop());
+            }
 
             const rawLabel = cam.label || "";
             let friendlyLabel = rawLabel;
@@ -223,22 +228,26 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
           return b.maxWidth - a.maxWidth;
         });
 
+        if (cancelled) return;
         setDevices(enriched);
         if (enriched.length > 0 && !selectedDevice) {
           const rear = enriched.find((d) => d.facing === "environment");
           setSelectedDevice(rear ? rear.deviceId : enriched[0].deviceId);
         }
-      } catch (e) {
+      } catch {
+        if (cancelled) return;
         const devs = await navigator.mediaDevices.enumerateDevices();
         const cams = devs.filter((d) => d.kind === "videoinput").map((d, i) => ({
           deviceId: d.deviceId, label: d.label, friendlyLabel: d.label || `Câmera ${i + 1}`,
           facing: "unknown", maxWidth: 0, maxHeight: 0, hasZoom: false, hasTorch: false,
         }));
+        if (cancelled) return;
         setDevices(cams);
         if (cams.length > 0 && !selectedDevice) setSelectedDevice(cams[0].deviceId);
       }
     }
     detectCameras();
+    return () => { cancelled = true; };
   }, []);
 
   // ─── Open camera ───
@@ -477,12 +486,12 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
   const applyZoom = async (val) => {
     setZoom(val);
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch (e) {}
+    if (track) try { await track.applyConstraints({ advanced: [{ zoom: val }] }); } catch (e) { }
   };
 
   const toggleTorch = async () => {
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) try { await track.applyConstraints({ advanced: [{ torch: !torch }] }); setTorch(!torch); } catch (e) {}
+    if (track) try { await track.applyConstraints({ advanced: [{ torch: !torch }] }); setTorch(!torch); } catch (e) { }
   };
 
   // ─── Recording ───
@@ -653,7 +662,7 @@ export default function EmbryoCamera({ onVideoConfirmed, onClose }) {
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: P.warn, marginBottom: 3 }}>Ajustar no microscópio</div>
               <div style={{ fontSize: 10, color: P.textDim, lineHeight: 1.5 }}>
-                <strong style={{ color: P.text }}>White Balance</strong> — ajustar diretamente na iluminação do microscópio (referência: 4000K)<br/>
+                <strong style={{ color: P.text }}>White Balance</strong> — ajustar diretamente na iluminação do microscópio (referência: 4000K)<br />
                 <strong style={{ color: P.text }}>Foco</strong> — ajustar pelo micrométrico do microscópio, não pelo celular
               </div>
             </div>

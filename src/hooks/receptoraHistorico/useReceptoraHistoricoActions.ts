@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Receptora } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 export interface UseReceptoraHistoricoActionsProps {
   receptora: Receptora | null;
@@ -30,7 +31,7 @@ export function useReceptoraHistoricoActions({
   const [submitting, setSubmitting] = useState(false);
   const [showCioLivreDialog, setShowCioLivreDialog] = useState(false);
   const [cioLivreForm, setCioLivreForm] = useState({
-    data_cio: new Date().toISOString().split('T')[0],
+    data_cio: getTodayDateString(),
   });
 
   const handleRegistrarCioLivre = async () => {
@@ -47,12 +48,12 @@ export function useReceptoraHistoricoActions({
     let fazendaId = receptora.fazenda_atual_id;
     if (!fazendaId) {
       const { data: fazendaAtualData, error: fazendaAtualError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('fazenda_id_atual')
-        .eq('receptora_id', receptora.id)
+        .from('receptoras')
+        .select('fazenda_atual_id')
+        .eq('id', receptora.id)
         .limit(1);
       if (!fazendaAtualError && fazendaAtualData && fazendaAtualData.length > 0) {
-        fazendaId = fazendaAtualData[0]?.fazenda_id_atual || undefined;
+        fazendaId = fazendaAtualData[0]?.fazenda_atual_id || undefined;
       }
     }
     if (!fazendaId) {

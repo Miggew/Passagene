@@ -185,6 +185,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Auth: JWT is validated by Supabase gateway automatically
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+
     const body: DailySummaryRequest = await req.json();
 
     // Validação básica
@@ -196,7 +199,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // Supabase client com service_role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -224,7 +226,7 @@ Deno.serve(async (req: Request) => {
     const userPrompt = formatUserPrompt(body);
 
     // Chamar Gemini Flash
-    const modelName = 'gemini-2.0-flash';
+    const modelName = 'gemini-2.5-flash-lite';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
 
     const controller = new AbortController();

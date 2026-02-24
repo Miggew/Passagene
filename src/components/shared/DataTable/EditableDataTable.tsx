@@ -229,6 +229,7 @@ export function EditableDataTable<T>({
                     size="sm"
                     onClick={() => onRemoveRow?.(index)}
                     className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label="Remover linha"
                   >
                     <X className="w-3.5 h-3.5" />
                   </Button>
@@ -251,7 +252,7 @@ export function EditableDataTable<T>({
         return (
           <div
             key={id}
-            className="p-3 rounded-lg border border-border bg-card"
+            className="p-3 rounded-lg border border-border glass-panel"
           >
             {/* Header do card */}
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
@@ -272,6 +273,7 @@ export function EditableDataTable<T>({
                   size="sm"
                   onClick={() => onRemoveRow?.(index)}
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  aria-label="Remover linha"
                 >
                   <X className="w-4 h-4" />
                 </Button>

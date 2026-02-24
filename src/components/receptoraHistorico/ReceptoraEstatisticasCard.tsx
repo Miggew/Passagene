@@ -29,7 +29,7 @@ export function ReceptoraEstatisticasCard({ estatisticas }: ReceptoraEstatistica
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-lg border border-border glass-panel p-3">
       <div className="grid grid-cols-4 gap-2">
         {stats.map((stat, index) => (
           <div key={index} className="text-center">

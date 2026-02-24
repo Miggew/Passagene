@@ -17,6 +17,8 @@ interface TouroCardProps {
     raca?: string;
     totalDoses: number;
     tipos?: string[];
+    fotoUrl?: string;
+    preco?: number;
   };
   onClick?: () => void;
 }
@@ -26,54 +28,68 @@ export function TouroCard({ data, onClick }: TouroCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        'group rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-200 active:scale-[0.98] shadow-sm',
-        onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30'
+        'group rounded-xl border border-border glass-panel overflow-hidden transition-all duration-300',
+        onClick && 'cursor-pointer hover:border-foreground/30 hover:shadow-md'
       )}
     >
-      <div className="flex items-center gap-3">
-        {/* Ícone */}
-        <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-indigo-500/20 to-indigo-500/5 border border-indigo-500/15 flex items-center justify-center shrink-0">
-          <SpermIcon className="w-5 h-5 text-indigo-500" />
+      {/* Área da Imagem */}
+      <div className="relative aspect-[4/3] bg-muted overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#0F1412] to-[#151C1A]">
+        {data.fotoUrl ? (
+          <img src={data.fotoUrl} alt={data.nome} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <SpermIcon className="w-24 h-24 opacity-20 text-indigo-500" />
+        )}
+
+        {/* Badge Superior Esquerdo */}
+        <div className="absolute top-2 left-2 flex gap-2">
+          <div className="px-2 py-1 rounded-full bg-[#0F1412]/80 backdrop-blur-sm text-white text-xs font-bold border border-border">
+            Touro
+          </div>
+          {data.raca && (
+            <div className="px-2 py-1 rounded-full bg-[#0F1412]/80 backdrop-blur-sm text-white/80 text-xs font-medium border border-border">
+              {data.raca}
+            </div>
+          )}
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-base truncate">
-            {data.nome || 'Sem nome'}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            {data.registro && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Hash className="w-3 h-3 opacity-60" />
-                {data.registro}
-              </span>
-            )}
-            {data.raca && (
-              <span className="text-xs text-muted-foreground/70 truncate">
-                {data.raca}
-              </span>
-            )}
-          </div>
+        {/* Overlay Inferior */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#080B0A]/90 via-[#080B0A]/50 to-transparent p-3 pt-8">
+          <p className="text-white font-bold text-base truncate">{data.nome || 'Sem nome'}</p>
+          {data.registro && (
+            <p className="text-muted-foreground font-mono text-xs mt-0.5 truncate flex items-center gap-1">
+              <Hash className="w-3 h-3" />
+              {data.registro}
+            </p>
+          )}
         </div>
+      </div>
 
-        {/* Quantidade com CountBadge - Premium */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          {/* Container de doses destacado */}
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/15">
-            <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{data.totalDoses}</span>
-            <span className="text-xs text-indigo-600/70 dark:text-indigo-400/70 font-medium">doses</span>
+      {/* Info Inferior */}
+      <div className="p-3">
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Doses Disponíveis</span>
+            <span className="text-2xl font-mono text-cyan-400 font-bold drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">{data.totalDoses}</span>
           </div>
-          {/* Tipos com badges */}
           {data.tipos && data.tipos.length > 0 && (
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col items-end gap-1.5">
               {data.tipos.slice(0, 2).map((tipo, i) => (
-                <span key={i} className="text-xs px-1.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground font-medium">
+                <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-bg-subtle text-text-muted font-medium border border-border-default">
                   {tipo}
                 </span>
               ))}
             </div>
           )}
         </div>
+
+        {data.preco && (
+          <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Dose a partir de</span>
+            <span className="text-lg font-mono text-gradient-logo font-bold">
+              {data.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

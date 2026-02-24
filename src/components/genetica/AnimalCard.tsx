@@ -87,15 +87,16 @@ export function AnimalCard({
   return (
     <div
       onClick={handleClick}
-      className="group rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden hover:border-primary/40 hover:shadow-glow transition-all duration-500 cursor-pointer"
+      className="group rounded-xl border border-border glass-panel overflow-hidden hover:border-foreground/30 hover:shadow-md transition-all duration-300 cursor-pointer"
     >
       {/* Imagem com badge de destaque */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {foto ? (
           <img
             src={foto}
-            alt={displayNome || ''}
-            className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700"
+            alt={displayNome}
+            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
@@ -105,16 +106,36 @@ export function AnimalCard({
 
         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
           {destaque && (
-            <div className="px-2.5 py-1 rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center gap-1 shadow-lg uppercase tracking-wider">
+            <div className="px-2 py-1 rounded-full bg-foreground text-background text-xs font-bold flex items-center gap-1 shadow-sm">
               <Star className="w-3 h-3 fill-current" />
               Destaque
             </div>
           )}
+          {estoque !== undefined && estoque > 0 && (
+            <div className="px-2 py-1 rounded-full bg-green text-[#080B0A] glow-green text-xs font-bold flex items-center gap-1 shadow-md">
+              <Package className="w-3 h-3" />
+              {estoque} {estoqueLabel}
+            </div>
+          )}
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-          <p className="text-white font-display font-bold tracking-tight truncate">{displayNome}</p>
-          <p className="text-white/60 font-mono text-[10px] truncate uppercase tracking-widest">{registro}</p>
+        {/* Badge de tipo */}
+        <div className="absolute top-2 left-2">
+          <Badge
+            variant="outline"
+            className={`text-xs backdrop-blur-sm ${tipo === 'doadora'
+              ? 'bg-pink-500/80 text-white border-pink-400'
+              : 'bg-blue-500/80 text-white border-blue-400'
+              }`}
+          >
+            {tipo === 'doadora' ? 'Doadora' : 'Touro'}
+          </Badge>
+        </div>
+
+        {/* Overlay com nome */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#080B0A]/90 via-[#080B0A]/50 to-transparent p-3 pt-8">
+          <p className="text-white font-bold truncate text-base">{displayNome}</p>
+          <p className="text-muted-foreground font-mono text-xs truncate mt-0.5">{registro}</p>
         </div>
       </div>
 
@@ -130,15 +151,41 @@ export function AnimalCard({
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-border/30">
-          <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest flex items-center gap-1">
-            <MapPin className="w-3 h-3" />
-            {fazendaNome || 'Haras Passatempo'}
-          </span>
+        {/* Genealogia resumida */}
+        {(paiNome || maeNome) && (
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            {paiNome && (
+              <p className="truncate">
+                <span className="font-medium text-foreground">Pai:</span> {paiNome}
+              </p>
+            )}
+            {maeNome && (
+              <p className="truncate">
+                <span className="font-medium text-foreground">Mãe:</span> {maeNome}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Preço e ação */}
+        <div className="flex items-center justify-between pt-3 border-t border-border">
+          <div>
+            {preco ? (
+              <>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {tipo === 'doadora' ? 'Embrião' : 'Dose'} a partir de
+                </p>
+                <p className="text-xl font-mono font-bold text-gradient-logo">
+                  {preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-bold text-muted-foreground">Consultar</p>
+            )}
+          </div>
           <Button
             size="sm"
-            variant="ghost"
-            className="h-8 px-3 text-[10px] font-mono uppercase tracking-widest text-primary hover:bg-primary/10"
+            className="btn-primary-gold border-0"
           >
             Detalhes
           </Button>

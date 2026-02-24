@@ -124,13 +124,15 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
   const [proximosServicos, setProximosServicos] = useState<ProximoServico[]>([]);
 
   useEffect(() => {
-    if (clienteId) loadData();
+    let stale = false;
+    if (clienteId) loadData(() => stale);
+    return () => { stale = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clienteId]);
 
   // ===== LOAD DATA =====
 
-  const loadData = async () => {
+  const loadData = async (isStale: () => boolean) => {
     try {
       setLoading(true);
 
@@ -139,6 +141,8 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .select('id, nome')
         .eq('cliente_id', clienteId);
 
+      if (isStale()) return;
+
       const fazendaIds = fazendas?.map(f => f.id) || [];
       const fazendaNomeMap = new Map<string, string>();
       fazendas?.forEach(f => fazendaNomeMap.set(f.id, f.nome));
@@ -146,17 +150,21 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
       if (fazendaIds.length === 0) { setLoading(false); return; }
 
       const { data: receptorasView } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual')
-        .in('fazenda_id_atual', fazendaIds);
+        .from('receptoras')
+        .select('id, fazenda_atual_id')
+        .in('fazenda_atual_id', fazendaIds);
 
-      const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+      if (isStale()) return;
+
+      const receptoraIds = receptorasView?.map(r => r.id) || [];
       if (receptoraIds.length === 0) { setLoading(false); return; }
 
       const { data: receptorasData } = await supabase
         .from('receptoras')
         .select('id, status_reprodutivo, data_provavel_parto')
         .in('id', receptoraIds);
+
+      if (isStale()) return;
 
       const totais: ReceptorasData = { total: 0, prenhes: 0, servidas: 0, protocoladas: 0, vazias: 0 };
       receptorasData?.forEach(r => {
@@ -170,31 +178,35 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
       setReceptoras(totais);
 
       const receptoraFazendaMap = new Map<string, string>();
-      receptorasView?.forEach(r => receptoraFazendaMap.set(r.receptora_id, r.fazenda_id_atual));
+      receptorasView?.forEach(r => {
+        if (r.fazenda_atual_id) receptoraFazendaMap.set(r.id, r.fazenda_atual_id);
+      });
 
       await Promise.all([
-        loadUltimaTE(receptoraFazendaMap, fazendaNomeMap),
-        loadUltimoDG(receptoraIds, receptoraFazendaMap),
-        loadUltimaSexagem(receptoraIds, receptoraFazendaMap),
-        loadUltimaAspiracao(fazendaIds),
-        loadProximosServicos(receptorasData || []),
+        loadUltimaTE(receptoraFazendaMap, fazendaNomeMap, isStale),
+        loadUltimoDG(receptoraIds, receptoraFazendaMap, isStale),
+        loadUltimaSexagem(receptoraIds, receptoraFazendaMap, isStale),
+        loadUltimaAspiracao(fazendaIds, isStale),
+        loadProximosServicos(receptorasData || [], isStale),
       ]);
 
     } catch (error) {
+      if (isStale()) return;
       toast({
         title: 'Erro ao carregar dados',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
 
   // ===== PRÓXIMOS SERVIÇOS (semáforo) =====
 
   const loadProximosServicos = async (
-    receptorasData: Array<{ id: string; status_reprodutivo: string | null; data_provavel_parto: string | null }>
+    receptorasData: Array<{ id: string; status_reprodutivo: string | null; data_provavel_parto: string | null }>,
+    isStale: () => boolean
   ) => {
     try {
       const hoje = new Date();
@@ -219,6 +231,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
           .select('receptora_id, data_te')
           .in('receptora_id', needTE)
           .order('data_te', { ascending: false });
+        if (isStale()) return;
         tes?.forEach(te => {
           if (!teDateMap.has(te.receptora_id)) teDateMap.set(te.receptora_id, te.data_te);
         });
@@ -235,12 +248,16 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
           .select('receptora_id, protocolo_id')
           .in('receptora_id', needProt);
 
+        if (isStale()) return;
+
         if (links && links.length > 0) {
           const protIds = [...new Set(links.map(l => l.protocolo_id))];
           const { data: prots } = await supabase
             .from('protocolos_sincronizacao')
             .select('id, data_inicio, passo2_data')
             .in('id', protIds);
+
+          if (isStale()) return;
 
           if (prots) {
             const pm = new Map(prots.map(p => [p.id, p]));
@@ -269,6 +286,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
           .select('receptora_id, protocolo_id')
           .in('receptora_id', needProtIds)
           .eq('status', 'UTILIZADA');
+        if (isStale()) return;
         protLinks?.forEach(l => {
           if (!receptoraProtMap.has(l.receptora_id)) {
             receptoraProtMap.set(l.receptora_id, l.protocolo_id);
@@ -388,6 +406,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
 
       // Ordenar por urgência (menor diasMaisUrgente = mais urgente)
       servicos.sort((a, b) => a.diasMaisUrgente - b.diasMaisUrgente);
+      if (isStale()) return;
       setProximosServicos(servicos);
     } catch (error) {
       console.error('Erro ao carregar próximos serviços:', error);
@@ -396,7 +415,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
 
   // ===== ÚLTIMOS SERVIÇOS =====
 
-  const loadUltimaTE = async (receptoraFazendaMap: Map<string, string>, fazendaNomeMap: Map<string, string>) => {
+  const loadUltimaTE = async (receptoraFazendaMap: Map<string, string>, fazendaNomeMap: Map<string, string>, isStale: () => boolean) => {
     try {
       const fazendaIds = [...new Set(receptoraFazendaMap.values())];
       if (fazendaIds.length === 0) return;
@@ -407,6 +426,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .in('fazenda_id', fazendaIds)
         .order('data_inicio', { ascending: false });
 
+      if (isStale()) return;
       if (!protocolos || protocolos.length === 0) return;
 
       const ultimoProtocoloPorFazenda = new Map<string, { id: string; data: string }>();
@@ -427,6 +447,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .select('receptora_id, status, protocolo_id')
         .in('protocolo_id', protocoloIds);
 
+      if (isStale()) return;
       if (!prData || prData.length === 0) return;
 
       const totalSincronizadas = prData.length;
@@ -454,13 +475,14 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
           servidas: d.serv,
         });
       }
+      if (isStale()) return;
       setTeDetalhes(detalhes);
     } catch (error) {
       console.error('Erro ao carregar última TE:', error);
     }
   };
 
-  const loadUltimoDG = async (receptoraIds: string[], receptoraFazendaMap: Map<string, string>) => {
+  const loadUltimoDG = async (receptoraIds: string[], receptoraFazendaMap: Map<string, string>, isStale: () => boolean) => {
     try {
       const { data: dgs } = await supabase
         .from('diagnosticos_gestacao')
@@ -469,6 +491,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .eq('tipo_diagnostico', 'DG')
         .order('data_diagnostico', { ascending: false });
 
+      if (isStale()) return;
       if (!dgs || dgs.length === 0) return;
 
       const grupos = new Map<string, typeof dgs>();
@@ -498,13 +521,14 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         prenhes += p;
       }
 
+      if (isStale()) return;
       setUltimoDG({ total, prenhes });
     } catch (error) {
       console.error('Erro ao carregar último DG:', error);
     }
   };
 
-  const loadUltimaSexagem = async (receptoraIds: string[], receptoraFazendaMap: Map<string, string>) => {
+  const loadUltimaSexagem = async (receptoraIds: string[], receptoraFazendaMap: Map<string, string>, isStale: () => boolean) => {
     try {
       const { data: sexagens } = await supabase
         .from('diagnosticos_gestacao')
@@ -513,6 +537,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .eq('tipo_diagnostico', 'SEXAGEM')
         .order('data_diagnostico', { ascending: false });
 
+      if (isStale()) return;
       if (!sexagens || sexagens.length === 0) return;
 
       const grupos = new Map<string, typeof sexagens>();
@@ -543,13 +568,14 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         perdas += info.items.filter(s => s.resultado === 'VAZIA' || s.sexagem === 'VAZIA').length;
       }
 
+      if (isStale()) return;
       setUltimaSexagem({ total, femeas, machos, perdas });
     } catch (error) {
       console.error('Erro ao carregar última sexagem:', error);
     }
   };
 
-  const loadUltimaAspiracao = async (fazendaIds: string[]) => {
+  const loadUltimaAspiracao = async (fazendaIds: string[], isStale: () => boolean) => {
     try {
       if (fazendaIds.length === 0) return;
 
@@ -559,6 +585,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .in('fazenda_id', fazendaIds)
         .order('data_aspiracao', { ascending: false });
 
+      if (isStale()) return;
       if (!pacotes || pacotes.length === 0) return;
 
       const ultimoPorFazenda = new Map<string, { id: string }>();
@@ -575,6 +602,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         .select('doadora_id, viaveis, pacote_aspiracao_id')
         .in('pacote_aspiracao_id', pacoteIds);
 
+      if (isStale()) return;
       if (!aspDoadoras || aspDoadoras.length === 0) return;
 
       const totalDoadoras = new Set(aspDoadoras.map(a => a.doadora_id)).size;
@@ -690,7 +718,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
       })()}
 
       {/* ── B: MEU REBANHO ── */}
-      <div className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+      <div className="rounded-xl border border-border glass-panel px-4 py-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/15 flex items-center justify-center">
             <Beef className="w-5 h-5 text-primary" />
@@ -732,7 +760,7 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
             <div className="w-1 h-5 rounded-full bg-primary/50" />
             <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Últimos Resultados</span>
           </div>
-          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm flex-1">
+          <div className="rounded-xl border border-border glass-panel overflow-hidden shadow-sm flex-1">
             {quadrosServico.map((q, idx) => {
               const cores = colorMap[q.color];
               const Icon = q.icon;

@@ -33,7 +33,7 @@ export function ReceptoraAdminHistoricoCard({ historicoAdmin }: ReceptoraAdminHi
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="rounded-lg border border-border glass-panel overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border-b border-border">
         <Settings className="w-3.5 h-3.5 text-muted-foreground" />

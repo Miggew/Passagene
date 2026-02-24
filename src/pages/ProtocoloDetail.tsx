@@ -53,7 +53,8 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
 import { formatStatusLabel } from '@/lib/statusLabels';
 import { ArrowLeft, Plus, UserPlus, CheckCircle, Lock, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 
@@ -235,7 +236,7 @@ export default function ProtocoloDetail() {
         description={isPasso1Aberto ? 'Gerenciar receptoras do 1º passo' : 'Protocolo finalizado'}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigate('/protocolos')}>
+            <Button variant="outline" size="icon" onClick={() => navigate('/protocolos')} aria-label="Voltar">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             {isPasso1Aberto && (
@@ -285,13 +286,13 @@ export default function ProtocoloDetail() {
                               >
                                 {addReceptoraHook.formData.receptora_id
                                   ? (() => {
-                                      const selected = receptorasDisponiveis.find(
-                                        (r) => r.id === addReceptoraHook.formData.receptora_id
-                                      );
-                                      return selected
-                                        ? `${selected.identificacao}${selected.nome ? ` - ${selected.nome}` : ''}`
-                                        : 'Selecione uma receptora...';
-                                    })()
+                                    const selected = receptorasDisponiveis.find(
+                                      (r) => r.id === addReceptoraHook.formData.receptora_id
+                                    );
+                                    return selected
+                                      ? `${selected.identificacao}${selected.nome ? ` - ${selected.nome}` : ''}`
+                                      : 'Selecione uma receptora...';
+                                  })()
                                   : 'Selecione uma receptora...'}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                               </Button>
@@ -522,7 +523,7 @@ export default function ProtocoloDetail() {
               {/* Mobile: Cards */}
               <div className="md:hidden space-y-3">
                 {receptoras.map((r) => (
-                  <div key={r.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={r.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-base font-medium text-foreground">{r.identificacao}</span>
                       <Badge variant="secondary">

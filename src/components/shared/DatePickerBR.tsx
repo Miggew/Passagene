@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
-import { cn, normalizeDateForDB } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { normalizeDateForDB } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -49,6 +50,16 @@ function DatePickerBR({
     if (before) return { before };
     if (after) return { after };
     return undefined;
+  }, [min, max]);
+
+  const hojeDesabilitado = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = isoToLocalDate(min || '');
+    const maxDate = isoToLocalDate(max || '');
+    if (minDate && today < minDate) return true;
+    if (maxDate && today > maxDate) return true;
+    return false;
   }, [min, max]);
 
   return (
@@ -100,6 +111,22 @@ function DatePickerBR({
             day_disabled: 'text-muted-foreground opacity-50',
           }}
         />
+        <div className="border-t border-border px-2 py-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => {
+              const hoje = normalizeDateForDB(new Date()) || '';
+              onChange(hoje);
+              setOpen(false);
+            }}
+            type="button"
+            disabled={hojeDesabilitado}
+          >
+            Hoje
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );

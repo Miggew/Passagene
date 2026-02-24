@@ -298,15 +298,15 @@ export default function AdminCatalogoTab() {
 
   const filteredAnimals = formTipo === 'doadora'
     ? doadoras.filter(d =>
-        !searchAnimal ||
-        d.nome?.toLowerCase().includes(searchAnimal.toLowerCase()) ||
-        d.registro.toLowerCase().includes(searchAnimal.toLowerCase())
-      )
+      !searchAnimal ||
+      d.nome?.toLowerCase().includes(searchAnimal.toLowerCase()) ||
+      d.registro.toLowerCase().includes(searchAnimal.toLowerCase())
+    )
     : touros.filter(t =>
-        !searchAnimal ||
-        t.nome?.toLowerCase().includes(searchAnimal.toLowerCase()) ||
-        t.registro.toLowerCase().includes(searchAnimal.toLowerCase())
-      );
+      !searchAnimal ||
+      t.nome?.toLowerCase().includes(searchAnimal.toLowerCase()) ||
+      t.registro.toLowerCase().includes(searchAnimal.toLowerCase())
+    );
 
   if (loading) {
     return (
@@ -336,7 +336,7 @@ export default function AdminCatalogoTab() {
 
       {/* Lista de itens */}
       {items.length > 0 ? (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border glass-panel overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-muted/80 via-muted/60 to-muted/80 border-b border-border">
             <div className="grid grid-cols-[2fr_1fr_1fr_0.8fr_0.8fr_0.6fr] text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -357,7 +357,7 @@ export default function AdminCatalogoTab() {
             {items.map((item, index) => (
               <div
                 key={item.id}
-                className={`group grid grid-cols-[2fr_1fr_1fr_0.8fr_0.8fr_0.6fr] items-center transition-all duration-150 hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}`}
+                className="group grid grid-cols-[2fr_1fr_1fr_0.8fr_0.8fr_0.6fr] items-center transition-all duration-150 hover:bg-muted/50"
               >
                 {/* Animal */}
                 <div className="px-4 py-3 flex items-center gap-3">
@@ -405,6 +405,7 @@ export default function AdminCatalogoTab() {
                   <button
                     onClick={() => toggleDestaque(item)}
                     className={`p-1.5 rounded-md transition-colors ${item.destaque ? 'bg-amber-500/20 text-amber-500' : 'bg-muted text-muted-foreground hover:text-amber-500'}`}
+                    aria-label="Favoritar"
                   >
                     <Star className={`w-4 h-4 ${item.destaque ? 'fill-current' : ''}`} />
                   </button>
@@ -423,12 +424,14 @@ export default function AdminCatalogoTab() {
                   <button
                     onClick={() => openEditDialog(item)}
                     className="p-1.5 rounded-md bg-transparent hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Editar"
                   >
                     <SquarePen className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(item)}
                     className="p-1.5 rounded-md bg-transparent hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
+                    aria-label="Excluir"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

@@ -36,7 +36,7 @@ export interface UseTransferenciaHandlersProps {
   setShowRelatorioDialog: React.Dispatch<React.SetStateAction<boolean>>;
   setIsVisualizacaoApenas: React.Dispatch<React.SetStateAction<boolean>>;
   resetFiltros: () => void;
-  loadPacotes: () => Promise<void>;
+  loadPacotes: () => Promise<any>;
   loadEmbrioesCongelados: () => Promise<void>;
   recarregarReceptoras: (fazendaId: string, sessaoOverride?: { contagem: Record<string, number>; info: Record<string, ReceptoraSincronizada> }) => Promise<void>;
   encerrarSessaoNoBanco: (fazendaId?: string) => Promise<void>;
@@ -101,10 +101,11 @@ export function useTransferenciaHandlers({
         const utilizadas = todasReceptoras.filter(r => r.status === 'UTILIZADA');
         const novoStatus = utilizadas.length > 0 ? 'EM_TE' : 'FECHADO';
 
-        await supabase
+        const { error: statusError } = await supabase
           .from('protocolos_sincronizacao')
           .update({ status: novoStatus })
           .eq('id', protocoloId);
+        if (statusError) throw statusError;
       }
     } catch (error) {
       console.error('Erro ao verificar status do protocolo:', error);
@@ -176,10 +177,11 @@ export function useTransferenciaHandlers({
       // Para CIO LIVRE: NÃO mudar status (ela mantém o status anterior - pode ser PRENHE, etc)
       // O cio livre foi apenas um evento de observação que não se confirmou
       if (formData.receptora_id && origemReceptora !== 'CIO_LIVRE') {
-        await supabase
+        const { error: recError } = await supabase
           .from('receptoras')
           .update({ status_reprodutivo: 'VAZIA' })
           .eq('id', formData.receptora_id);
+        if (recError) { toast({ title: 'Erro ao atualizar status da receptora', variant: 'destructive' }); throw recError; }
       }
 
       toast({
@@ -207,7 +209,7 @@ export function useTransferenciaHandlers({
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const requerPacote = origemEmbriao === 'PACOTE';
+    const requerPacote = origemEmbriao === 'FRESCO';
 
     if (!formData.embriao_id) {
       toast({
@@ -326,10 +328,11 @@ export function useTransferenciaHandlers({
         setTransferenciasIdsSessao(prev => [...prev, teData[0].id]);
       }
 
-      await supabase
+      const { error: embriaoError } = await supabase
         .from('embrioes')
         .update({ status_atual: 'TRANSFERIDO' })
         .eq('id', formData.embriao_id);
+      if (embriaoError) { toast({ title: 'Erro ao marcar embrião como transferido', variant: 'destructive' }); throw embriaoError; }
 
       if (formData.protocolo_receptora_id) {
         setTransferenciasSessao(prev => {

@@ -5,18 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Re-export date utilities for backward compatibility
-// All date operations should use @/lib/dateUtils directly
+// Date utilities should be imported directly from @/lib/dateUtils
 export {
-  DATE_YYYY_MM_DD,
   formatDateBR as formatDate,
-  formatDateBR as formatDateString,
-  todayISO as getTodayDateString,
+  formatDateTimeBR as formatDateTime,
   addDays,
   diffDays,
+  parseDateBRtoISO,
+  todayISO,
+  todayBR,
+  formatRelativeDate,
   extractDateOnly,
   normalizeDateForDB,
   getDayOfWeekName,
+  formatDateBR as formatDateString,
+  todayISO as getTodayDateString
 } from './dateUtils';
 
 /** Retorna a cor de fundo Tailwind para qualidade (1=vermelho, 2=amarelo, 3=verde) */

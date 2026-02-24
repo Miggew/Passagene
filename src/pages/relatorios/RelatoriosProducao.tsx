@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Search, X, Eye, Calendar, TrendingUp, Activity, Percent, FileText, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
 import PageHeader from '@/components/shared/PageHeader';
 import DatePickerBR from '@/components/shared/DatePickerBR';
@@ -212,7 +213,7 @@ export default function RelatoriosProducao() {
           id: l.id,
           codigo: l.codigo,
           data_abertura: l.data_abertura,
-          fazenda_nome: (pacote?.fazendas as any)?.nome ?? 'N/A',
+          fazenda_nome: (pacote?.fazendas as unknown as { nome: string } | null)?.nome ?? 'N/A',
           total_oocitos: totalOocitos,
           total_embrioes: totalEmbrioes,
           taxa_sucesso: taxaSucesso,
@@ -239,26 +240,26 @@ export default function RelatoriosProducao() {
       // Total de aspirações
       clienteIdFilter && fazendaIds.length > 0
         ? supabase
-            .from('pacotes_aspiracao')
-            .select('id', { count: 'exact' })
-            .in('fazenda_id', fazendaIds)
-            .gte('data_aspiracao', dataLimiteStr)
+          .from('pacotes_aspiracao')
+          .select('id', { count: 'exact' })
+          .in('fazenda_id', fazendaIds)
+          .gte('data_aspiracao', dataLimiteStr)
         : supabase
-            .from('pacotes_aspiracao')
-            .select('id', { count: 'exact' })
-            .gte('data_aspiracao', dataLimiteStr),
+          .from('pacotes_aspiracao')
+          .select('id', { count: 'exact' })
+          .gte('data_aspiracao', dataLimiteStr),
 
       // Total de protocolos
       clienteIdFilter && fazendaIds.length > 0
         ? supabase
-            .from('protocolos_sincronizacao')
-            .select('id', { count: 'exact' })
-            .in('fazenda_id', fazendaIds)
-            .gte('data_inicio', dataLimiteStr)
+          .from('protocolos_sincronizacao')
+          .select('id', { count: 'exact' })
+          .in('fazenda_id', fazendaIds)
+          .gte('data_inicio', dataLimiteStr)
         : supabase
-            .from('protocolos_sincronizacao')
-            .select('id', { count: 'exact' })
-            .gte('data_inicio', dataLimiteStr),
+          .from('protocolos_sincronizacao')
+          .select('id', { count: 'exact' })
+          .gte('data_inicio', dataLimiteStr),
     ]);
 
     // Calcular totais de oócitos e embriões
@@ -367,7 +368,7 @@ export default function RelatoriosProducao() {
       ? `${filtroDataInicio ? formatDate(filtroDataInicio) : '...'} a ${filtroDataFim ? formatDate(filtroDataFim) : '...'}`
       : undefined;
 
-    exportRelatorio('lotesFiv', dadosFiltrados, {
+    exportRelatorio('lotesFiv', dadosFiltrados as unknown as Record<string, unknown>[], {
       fazenda: fazendaNome,
       periodo,
     });
@@ -480,7 +481,7 @@ export default function RelatoriosProducao() {
       </div>
 
       {/* Filtros */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border glass-panel p-4">
         <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
           {/* Busca */}
           <div className="relative w-full md:flex-1 md:min-w-[200px] md:max-w-[280px]">
@@ -576,7 +577,7 @@ export default function RelatoriosProducao() {
         </CardHeader>
         <CardContent className="pt-0">
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+            <LoadingSpinner />
           ) : dadosFiltrados.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Nenhum lote encontrado
@@ -589,7 +590,7 @@ export default function RelatoriosProducao() {
                   <div
                     key={row.id}
                     onClick={() => navigate(`/lotes-fiv/${row.id}`)}
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/30 cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -659,7 +660,7 @@ export default function RelatoriosProducao() {
                     <div className="px-3 py-3 flex justify-center">{getTaxaBadge(row.taxa_sucesso)}</div>
                     <div className="px-3 py-3 flex justify-center">{getStatusBadge(row.status)}</div>
                     <div className="px-2 py-3 flex justify-center">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Visualizar">
                         <Eye className="w-4 h-4" />
                       </Button>
                     </div>

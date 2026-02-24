@@ -4,11 +4,9 @@
  */
 
 import { useEffect } from 'react';
-import {
-  useLotesFIVListData,
-  useLotesFIVDetailData,
-  useLotesFIVHistoricoData,
-} from './lotesFiv';
+import { useLotesFIVListData } from './lotesFiv/useLotesFIVListData';
+import { useLotesFIVDetailData } from './lotesFiv/useLotesFIVDetailData';
+import { useLotesFIVHistoricoData } from './lotesFiv/useLotesFIVHistoricoData';
 
 interface UseLotesFIVDataProps {
   id?: string;

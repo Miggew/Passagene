@@ -6,7 +6,7 @@
 import { useState, useCallback } from 'react';
 import { RelatorioTransferenciaItem } from '@/lib/types/transferenciaEmbrioes';
 
-export type OrigemEmbriao = 'PACOTE' | 'CONGELADO';
+export type OrigemEmbriao = 'FRESCO' | 'CONGELADO';
 
 export interface TransferenciaFiltersState {
   origemEmbriao: OrigemEmbriao;
@@ -23,7 +23,7 @@ export interface TransferenciaRelatorioState {
 }
 
 const INITIAL_FILTERS: TransferenciaFiltersState = {
-  origemEmbriao: 'PACOTE',
+  origemEmbriao: 'FRESCO',
   filtroClienteId: '',
   filtroRaca: '',
   dataPasso2: '',
@@ -99,7 +99,7 @@ export function useTransferenciaEmbrioesFilters() {
     data_passo2?: string;
     embrioes_page?: number;
   }) => {
-    setOrigemEmbriao(sessao.origem_embriao === 'CONGELADO' ? 'CONGELADO' : 'PACOTE');
+    setOrigemEmbriao(sessao.origem_embriao === 'CONGELADO' ? 'CONGELADO' : 'FRESCO');
     setFiltroClienteId(sessao.filtro_cliente_id || '');
     setFiltroRaca(sessao.filtro_raca || '');
     setDataPasso2(sessao.data_passo2 || new Date().toISOString().split('T')[0]);

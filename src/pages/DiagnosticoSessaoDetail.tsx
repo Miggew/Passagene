@@ -17,7 +17,8 @@ import EmptyState from '@/components/shared/EmptyState';
 import CountBadge, { getTaxaVariant } from '@/components/shared/CountBadge';
 import ResultBadge from '@/components/shared/ResultBadge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import { DataTable } from '@/components/shared/DataTable';
 
 interface ReceptoraDG {
@@ -124,13 +125,13 @@ export default function DiagnosticoSessaoDetail() {
       );
 
       // 3. Buscar fazendas das receptoras
-      const { data: viewData } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_nome_atual')
-        .in('receptora_id', receptoraIds);
+      const { data: receptorasFazendaData } = await supabase
+        .from('receptoras')
+        .select('id, fazendas!fazenda_atual_id(nome)')
+        .in('id', receptoraIds);
 
       const fazendaMap = new Map(
-        (viewData || []).map(v => [v.receptora_id, v.fazenda_nome_atual])
+        (receptorasFazendaData || []).map(v => [v.id, (v.fazendas as { nome: string } | null)?.nome])
       );
 
       // 4. Filtrar por fazenda e montar lista
@@ -365,16 +366,14 @@ export default function DiagnosticoSessaoDetail() {
             </div>
 
             {/* Busca */}
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+            <div className="w-full md:w-64">
+              <SearchInput
                 placeholder="Buscar brinco ou nome..."
                 value={filtroBusca}
-                onChange={(e) => {
-                  setFiltroBusca(e.target.value);
+                onChange={(val) => {
+                  setFiltroBusca(val);
                   setPaginaAtual(1);
                 }}
-                className="pl-9 h-11 md:h-9"
               />
             </div>
           </div>
@@ -392,7 +391,7 @@ export default function DiagnosticoSessaoDetail() {
               {/* Mobile card layout */}
               <div className="md:hidden space-y-2">
                 {receptorasPaginadas.map((row, index) => (
-                  <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                  <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs text-muted-foreground shrink-0">

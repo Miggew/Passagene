@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 // Hooks
 import {
@@ -136,7 +137,7 @@ export default function Embrioes() {
   }, [selectedFazendaDestinoId, loadData]);
 
   // Toggle pacote expansion
-  const toggleExpandirPacote = (pacoteId: string) => {
+  const toggleExpandirPacote = useCallback((pacoteId: string) => {
     setPacotesExpandidos((prev) => {
       const next = new Set(prev);
       if (next.has(pacoteId)) {
@@ -146,10 +147,10 @@ export default function Embrioes() {
       }
       return next;
     });
-  };
+  }, []);
 
   // Selection helpers
-  const toggleSelecionarEmbriao = (embriaoId: string) => {
+  const toggleSelecionarEmbriao = useCallback((embriaoId: string) => {
     setEmbrioesSelecionados((prev) => {
       const next = new Set(prev);
       if (next.has(embriaoId)) {
@@ -160,9 +161,9 @@ export default function Embrioes() {
       setShowAcoesEmMassa(next.size > 0);
       return next;
     });
-  };
+  }, []);
 
-  const selecionarTodosDaPagina = (embrioesPagina: EmbrioCompleto[]) => {
+  const selecionarTodosDaPagina = useCallback((embrioesPagina: EmbrioCompleto[]) => {
     setEmbrioesSelecionados((prev) => {
       const next = new Set(prev);
       const todosSelecionados = embrioesPagina.every((e) => next.has(e.id));
@@ -174,13 +175,13 @@ export default function Embrioes() {
       setShowAcoesEmMassa(next.size > 0);
       return next;
     });
-  };
+  }, []);
 
   // Pagination helpers
-  const getPaginaPacote = (pacoteId: string) => paginasPacotes[pacoteId] ?? 1;
-  const setPaginaPacote = (pacoteId: string, pagina: number) => {
+  const getPaginaPacote = useCallback((pacoteId: string) => paginasPacotes[pacoteId] ?? 1, [paginasPacotes]);
+  const setPaginaPacote = useCallback((pacoteId: string, pagina: number) => {
     setPaginasPacotes((prev) => ({ ...prev, [pacoteId]: pagina }));
-  };
+  }, []);
 
   // Handle classification (saves to pending)
   const handleClassificar = () => {
@@ -252,14 +253,14 @@ export default function Embrioes() {
     }
 
     try {
-      const dataClassificacao = new Date().toISOString().split('T')[0];
+      const dataClassificacao = getTodayDateString();
       const embrioesPendentes = pacote.embrioes.filter((embriao) => {
         const classificacaoAtual = getClassificacaoAtual(embriao);
         return classificacaoAtual && classificacaoAtual !== (embriao.classificacao || '').trim();
       });
 
       if (embrioesPendentes.length > 0) {
-        await Promise.all(
+        const results = await Promise.all(
           embrioesPendentes.map((embriao) =>
             supabase
               .from('embrioes')
@@ -270,12 +271,15 @@ export default function Embrioes() {
               .eq('id', embriao.id)
           )
         );
+        const failed = results.find(r => r.error);
+        if (failed?.error) { toast({ title: 'Erro ao classificar embriões', variant: 'destructive' }); throw failed.error; }
       }
 
-      await supabase
+      const { error: loteError } = await supabase
         .from('lotes_fiv')
         .update({ disponivel_para_transferencia: true })
         .eq('id', pacote.lote_fiv_id);
+      if (loteError) { toast({ title: 'Erro ao liberar lote para TE', variant: 'destructive' }); throw loteError; }
 
       toast({
         title: 'Pacote despachado',
@@ -310,7 +314,7 @@ export default function Embrioes() {
       />
 
       {/* Filter bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-4 rounded-lg border border-border shadow-sm">
         <div className="flex items-center gap-3">
           <Label htmlFor="fazenda_destino" className="text-sm font-medium whitespace-nowrap">
             Fazenda Destino:
@@ -390,7 +394,7 @@ export default function Embrioes() {
                 }
                 setEmbrioesSelecionados(new Set([embriao.id]));
                 setCongelarData({
-                  data_congelamento: new Date().toISOString().split('T')[0],
+                  data_congelamento: getTodayDateString(),
                   localizacao_atual: '',
                   cliente_id: '',
                 });
@@ -399,7 +403,7 @@ export default function Embrioes() {
               onDescartar={(embriao) => {
                 setEmbrioesSelecionados(new Set([embriao.id]));
                 setDescartarData({
-                  data_descarte: new Date().toISOString().split('T')[0],
+                  data_descarte: getTodayDateString(),
                   observacoes: '',
                 });
                 setShowDescartarDialog(true);
@@ -466,7 +470,7 @@ export default function Embrioes() {
             }
 
             setCongelarData({
-              data_congelamento: new Date().toISOString().split('T')[0],
+              data_congelamento: getTodayDateString(),
               localizacao_atual: '',
               cliente_id: '',
             });
@@ -474,7 +478,7 @@ export default function Embrioes() {
           }}
           onDescartar={() => {
             setDescartarData({
-              data_descarte: new Date().toISOString().split('T')[0],
+              data_descarte: getTodayDateString(),
               observacoes: '',
             });
             setShowDescartarDialog(true);

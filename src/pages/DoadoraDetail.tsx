@@ -31,11 +31,20 @@ import EmptyState from '@/components/shared/EmptyState';
 import CountBadge from '@/components/shared/CountBadge';
 import { DataTable } from '@/components/shared/DataTable';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
-import { ArrowLeft, Save, Star, Gem, History, Edit, ChevronDown } from 'lucide-react';
+import { formatDateBR as formatDate } from '@/lib/dateUtils';
+import { ArrowLeft, Save, Star, Gem, History, Edit, ChevronDown, Dna, ShoppingBag } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import GenealogiaTree, { type GenealogiaData } from '@/components/shared/GenealogiaTree';
 import { usePermissions } from '@/hooks/usePermissions';
+
+interface CatalogoInfo {
+  catalogo_id: string;
+  preco: number | null;
+  preco_negociavel: boolean;
+  destaque: boolean;
+  foto_principal: string | null;
+  embrioes_disponiveis: number;
+}
 
 export default function DoadoraDetail() {
   const { id } = useParams();
@@ -49,6 +58,7 @@ export default function DoadoraDetail() {
   const [aspiracoes, setAspiracoes] = useState<AspiracaoDoadora[]>([]);
   const [activeTab, setActiveTab] = useState('historico');
   const [genealogiaOpen, setGenealogiaOpen] = useState(false);
+  const [catalogInfo, setCatalogInfo] = useState<CatalogoInfo | null>(null);
 
   const racasPredefinidas = ['Holandesa', 'Jersey', 'Gir', 'Girolando'];
   const [racaSelecionada, setRacaSelecionada] = useState<string>('');
@@ -130,6 +140,15 @@ export default function DoadoraDetail() {
       if (!aspiracoesError) {
         setAspiracoes(aspiracoesData || []);
       }
+
+      // Carregar dados do catálogo genético (se existir)
+      const { data: catData } = await supabase
+        .from('vw_catalogo_doadoras')
+        .select('catalogo_id, preco, preco_negociavel, destaque, foto_principal, embrioes_disponiveis')
+        .eq('doadora_id', id)
+        .maybeSingle();
+
+      setCatalogInfo(catData || null);
 
       // Processar raça
       const raca = doadoraData.raca || '';
@@ -332,6 +351,64 @@ export default function DoadoraDetail() {
         </div>
       </div>
 
+      {/* Banner Catálogo Genético (se doadora está no catálogo) */}
+      {catalogInfo && (
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="flex items-stretch gap-0">
+              {/* Foto do catálogo */}
+              {catalogInfo.foto_principal ? (
+                <img
+                  src={catalogInfo.foto_principal}
+                  alt={doadora.nome || doadora.registro}
+                  className="w-24 h-24 md:w-32 md:h-32 object-cover shrink-0 bg-muted"
+                />
+              ) : doadora.foto_url ? (
+                <img
+                  src={doadora.foto_url}
+                  alt={doadora.nome || doadora.registro}
+                  className="w-24 h-24 md:w-32 md:h-32 object-cover shrink-0 bg-muted"
+                />
+              ) : null}
+
+              {/* Info do catálogo */}
+              <div className="flex flex-col justify-center gap-2 px-4 py-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-primary/10 text-primary text-[10px] font-bold">
+                    <Dna className="w-3 h-3 mr-1" />
+                    No Catálogo
+                  </Badge>
+                  {catalogInfo.destaque && (
+                    <Badge className="bg-amber-500/10 text-amber-700 text-[10px] font-bold">
+                      <Star className="w-3 h-3 mr-1 fill-amber-500" />
+                      Destaque
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 flex-wrap">
+                  {catalogInfo.preco ? (
+                    <span className="text-lg font-black text-primary">
+                      R$ {catalogInfo.preco.toLocaleString('pt-BR')}
+                      {catalogInfo.preco_negociavel && (
+                        <span className="text-[10px] font-medium text-muted-foreground ml-1">negociável</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground">Preço sob consulta</span>
+                  )}
+                  {catalogInfo.embrioes_disponiveis > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                      <ShoppingBag className="w-3 h-3 text-emerald-700" />
+                      <span className="text-xs font-bold text-emerald-700">{catalogInfo.embrioes_disponiveis} embriões</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Card principal com informações + estatísticas */}
       <Card>
         <CardContent className="pt-4 pb-4">
@@ -418,7 +495,7 @@ export default function DoadoraDetail() {
 
       {/* Tabs: Histórico e Edição (edição oculta para clientes) */}
       {!isCliente ? (
-        <div className="rounded-xl border border-border bg-card p-1.5">
+        <div className="rounded-xl border border-border glass-panel p-1.5">
           <div className="flex gap-1">
             <button
               onClick={() => setActiveTab('historico')}
@@ -493,7 +570,7 @@ export default function DoadoraDetail() {
                 {/* Mobile: Cards */}
                 <div className="md:hidden space-y-3">
                   {aspiracoes.map((asp) => (
-                    <div key={asp.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                    <div key={asp.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-foreground">{formatDate(asp.data_aspiracao)}</span>
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
@@ -560,8 +637,7 @@ export default function DoadoraDetail() {
                         key={asp.id}
                         className={`
                           group grid grid-cols-[90px_50px_60px_45px_45px_45px_45px_1fr_1fr] items-center transition-all duration-150
-                          hover:bg-gradient-to-r hover:from-primary/5 hover:via-transparent hover:to-transparent
-                          ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'}
+                          hover:bg-muted/50
                         `}
                       >
                         {/* Data */}

@@ -65,18 +65,22 @@ export function PlatePanorama({
         const pulse = Math.sin(timestamp / 300) * 0.3 + 0.7;
         const pulseRadius = MARKER_RADIUS + 6 * pulse;
         ctx.arc(cx, cy, pulseRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(46, 204, 113, ${0.4 * pulse})`;
+        ctx.strokeStyle = `rgba(52, 211, 153, ${0.4 * pulse})`;
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // solid circle
         ctx.beginPath();
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = '#34d399'; // DS v4 emerald
+        ctx.fillStyle = '#34D399'; // --green
         ctx.fill();
-        ctx.strokeStyle = '#022c22'; // DS v4 deep dark
+        ctx.strokeStyle = '#047857'; // emerald-700
         ctx.lineWidth = 2.5;
+        // Organic Glow na borda
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#34D399';
         ctx.stroke();
+        ctx.shadowBlur = 0; // reset
 
         // Number (white, bold)
         ctx.fillStyle = '#022c22';
@@ -89,13 +93,13 @@ export function PlatePanorama({
         ctx.arc(cx, cy, MARKER_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(52, 211, 153, 0.25)';
         ctx.fill();
-        ctx.strokeStyle = '#34d399';
+        ctx.strokeStyle = '#34D399';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Checkmark
-        ctx.fillStyle = '#34d399';
-        ctx.font = 'bold 14px Source Sans 3, sans-serif';
+        ctx.fillStyle = '#34D399';
+        ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('✓', cx, cy);
@@ -210,11 +214,11 @@ export function PlatePanorama({
         <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">
           <span className="inline-block w-2.5 h-2.5 rounded-full border border-white/20" /> Pendente
         </span>
-        <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-primary/80">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary/20 border border-primary/40" /> Classificado
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green/25 border border-green" /> Classificado
         </span>
-        <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-primary">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary border-2 border-primary-dark" /> Ativo
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green border-2 border-emerald-700 glow-green shadow-[0_0_8px_rgba(52,211,153,0.3)]" /> Ativo
         </span>
       </div>
     </div>

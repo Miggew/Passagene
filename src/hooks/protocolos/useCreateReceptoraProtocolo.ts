@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { ProtocoloSincronizacao } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { isReceptoraDisponivel, getReceptoraIndisponivelMotivo } from '@/lib/receptoraStatus';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 
 interface UseCreateReceptoraProtocoloProps {
   protocoloId: string | undefined;
@@ -204,13 +205,14 @@ export function useCreateReceptoraProtocolo({
           .insert([{
             receptora_id: novaReceptora.id,
             fazenda_id: protocolo.fazenda_id,
-            data_inicio: new Date().toISOString().split('T')[0],
+            data_inicio: getTodayDateString(),
             data_fim: null,
           }]);
 
         if (historicoError) {
           if (historicoError.message?.includes('brinco') || historicoError.code === 'P0001') {
-            await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+            const { error: cleanupErr } = await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+            if (cleanupErr) console.warn('[CreateReceptora] Falha ao limpar receptora órfã:', cleanupErr.message);
             throw new Error('Já existe uma receptora com esse brinco nesta fazenda.');
           }
           throw historicoError;
@@ -227,7 +229,8 @@ export function useCreateReceptoraProtocolo({
         .maybeSingle();
 
       if (!historicoVerificado) {
-        await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        const { error: cleanupErr } = await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        if (cleanupErr) console.warn('[CreateReceptora] Falha ao limpar receptora órfã:', cleanupErr.message);
         toast({
           title: 'Erro ao criar receptora',
           description: 'Não foi possível vincular a receptora à fazenda.',
@@ -249,7 +252,8 @@ export function useCreateReceptoraProtocolo({
         }]);
 
       if (protocoloError) {
-        await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        const { error: cleanupErr } = await supabase.from('receptoras').delete().eq('id', novaReceptora.id);
+        if (cleanupErr) console.warn('[CreateReceptora] Falha ao limpar receptora órfã:', cleanupErr.message);
         if (protocoloError.code === '23505') {
           toast({
             title: 'Receptora já está no protocolo',

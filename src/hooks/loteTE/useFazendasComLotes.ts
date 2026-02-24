@@ -41,14 +41,15 @@ export function useFazendasComLotes({
         return;
       }
 
-      // 2. Buscar receptoras da view
+      // 2. Buscar receptoras que estão em alguma fazenda
       const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual');
+        .from('receptoras')
+        .select('id, fazenda_atual_id')
+        .not('fazenda_atual_id', 'is', null);
 
       if (viewError) throw viewError;
 
-      const receptoraIds = [...new Set((viewData || []).map(v => v.receptora_id).filter(Boolean))];
+      const receptoraIds = [...new Set((viewData || []).map(v => v.id).filter(Boolean))];
 
       if (receptoraIds.length === 0) {
         // Retorna todas as fazendas mesmo sem receptoras
@@ -107,8 +108,8 @@ export function useFazendasComLotes({
       // 5. Mapear receptora -> fazenda
       const receptoraFazendaMap = new Map(
         (viewData || [])
-          .filter(v => v.receptora_id && v.fazenda_id_atual)
-          .map(v => [v.receptora_id, v.fazenda_id_atual])
+          .filter(v => v.id && v.fazenda_atual_id)
+          .map(v => [v.id, v.fazenda_atual_id])
       );
 
       // 6. Identificar fazendas que têm receptoras com o status desejado E com TE realizada

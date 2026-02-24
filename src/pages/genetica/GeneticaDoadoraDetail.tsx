@@ -101,12 +101,13 @@ export default function GeneticaDoadoraDetail() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Lado esquerdo: Foto */}
         <div className="space-y-4">
-          <div className="rounded-xl border border-border overflow-hidden bg-card">
+          <div className="rounded-xl border border-border overflow-hidden glass-panel">
             {foto ? (
               <img
                 src={foto}
                 alt={displayNome}
                 className="w-full aspect-[4/3] object-cover"
+                loading="lazy"
               />
             ) : (
               <div className="w-full aspect-[4/3] bg-muted flex items-center justify-center">
@@ -127,6 +128,7 @@ export default function GeneticaDoadoraDetail() {
                     src={fotoUrl}
                     alt={`${displayNome} - Foto ${index + 1}`}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 </div>
               ))}
@@ -137,7 +139,7 @@ export default function GeneticaDoadoraDetail() {
         {/* Lado direito: Informações */}
         <div className="space-y-6">
           {/* Card de informações */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-xl border border-border glass-panel p-6 space-y-4">
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-pink-600 border-pink-500/30">
                 <CowIcon className="w-3 h-3 mr-1" />
@@ -219,7 +221,7 @@ export default function GeneticaDoadoraDetail() {
           </div>
 
           {/* Genealogia */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-xl border border-border glass-panel overflow-hidden">
             <div className="px-4 py-3 border-b border-border bg-gradient-to-r from-muted/50 to-transparent">
               <h3 className="font-semibold text-sm flex items-center gap-2">
                 <Dna className="w-4 h-4 text-primary" />
@@ -236,7 +238,7 @@ export default function GeneticaDoadoraDetail() {
 
           {/* Genealogia texto / Link ABCZ */}
           {doadora.genealogia_texto && (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border glass-panel p-4">
               <p className="text-sm text-muted-foreground whitespace-pre-line">
                 {doadora.genealogia_texto}
               </p>

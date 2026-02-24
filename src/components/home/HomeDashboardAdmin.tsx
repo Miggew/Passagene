@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users,
-  Home,
+  Home as HomeIcon,
   Baby,
   Activity,
   UserCheck,
@@ -26,7 +27,7 @@ interface KPIData {
   lotesAbertos: number;
 }
 
-export function HomeDashboardAdmin() {
+export default function HomeDashboardAdmin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KPIData>({
@@ -81,8 +82,8 @@ export function HomeDashboardAdmin() {
         protocolosAbertos: protocolosRes.count || 0,
         lotesAbertos: lotesRes.count || 0,
       });
-    } catch (error) {
-      console.error('[HomeDashboardAdmin] Erro ao carregar dados:', error);
+    } catch {
+      toast.error('Erro ao carregar dados do dashboard');
     } finally {
       setLoading(false);
     }
@@ -107,7 +108,7 @@ export function HomeDashboardAdmin() {
 
   const kpiCards = [
     { label: 'Clientes', value: kpis.totalClientes, icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { label: 'Fazendas', value: kpis.totalFazendas, icon: Home, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { label: 'Fazendas', value: kpis.totalFazendas, icon: HomeIcon, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     { label: 'Usuários', value: `${kpis.usuariosAtivos}/${kpis.totalUsuarios}`, icon: UserCheck, color: 'text-violet-500', bg: 'bg-violet-500/10' },
     { label: 'Receptoras', value: kpis.totalReceptoras, icon: Activity, color: 'text-pink-500', bg: 'bg-pink-500/10' },
     { label: 'Doadoras', value: kpis.totalDoadoras, icon: Activity, color: 'text-amber-500', bg: 'bg-amber-500/10' },
@@ -124,7 +125,7 @@ export function HomeDashboardAdmin() {
   return (
     <div className="space-y-4">
       {/* KPIs Premium - Grid Compacto */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-2xl border-2 border-border glass-panel overflow-hidden shadow-brutal-sm">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y lg:divide-y-0 divide-border/50">
           {kpiCards.map((kpi) => (
             <div
@@ -151,7 +152,7 @@ export function HomeDashboardAdmin() {
           <button
             key={item.label}
             onClick={() => navigate(item.href)}
-            className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/5 hover:to-transparent transition-all group text-left shadow-sm"
+            className="flex items-center gap-3 p-3 rounded-2xl border-2 border-border shadow-brutal-sm glass-panel hover:border-primary/50 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all group text-left hover:-translate-y-0.5 hover:shadow-none"
           >
             <div className={`w-10 h-10 rounded-lg ${item.bg} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}>
               <item.icon className={`w-5 h-5 ${item.color}`} />

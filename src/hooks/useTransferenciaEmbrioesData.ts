@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { getTodayDateString } from '@/lib/utils';
+import { todayISO as getTodayDateString } from '@/lib/dateUtils';
 import {
   Fazenda,
   Cliente,
@@ -295,12 +295,12 @@ export function useTransferenciaEmbrioesData({
       }
 
       const { data: viewData, error: viewError } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('fazenda_id_atual')
-        .in('receptora_id', receptoraIds);
+        .from('receptoras')
+        .select('fazenda_atual_id')
+        .in('id', receptoraIds);
       if (viewError) throw viewError;
 
-      const fazendaIds = [...new Set((viewData || []).map(v => v.fazenda_id_atual).filter(Boolean))];
+      const fazendaIds = [...new Set((viewData || []).map(v => v.fazenda_atual_id).filter(Boolean))];
       if (fazendaIds.length === 0) {
         setFazendas([]);
         setLoading(false);
@@ -309,7 +309,7 @@ export function useTransferenciaEmbrioesData({
 
       const { data: fazendasData, error: fazendasError } = await supabase
         .from('fazendas')
-        .select('id, nome')
+        .select('id, nome, cliente_id, cliente:clientes(nome)')
         .in('id', fazendaIds)
         .order('nome', { ascending: true });
       if (fazendasError) throw fazendasError;
@@ -744,13 +744,13 @@ export function useTransferenciaEmbrioesData({
 
         if (receptoraIds.length > 0) {
           const { data: viewData, error: viewError } = await supabase
-            .from('vw_receptoras_fazenda_atual')
-            .select('receptora_id')
-            .in('receptora_id', receptoraIds)
-            .eq('fazenda_id_atual', fazendaId);
+            .from('receptoras')
+            .select('id')
+            .in('id', receptoraIds)
+            .eq('fazenda_atual_id', fazendaId);
           if (viewError) throw viewError;
 
-          const receptoraIdsNaFazenda = new Set((viewData || []).map(v => v.receptora_id).filter(Boolean));
+          const receptoraIdsNaFazenda = new Set((viewData || []).map(v => v.id).filter(Boolean));
           const statusFiltrado = statusViewSafe.filter(s => receptoraIdsNaFazenda.has(s.receptora_id));
           const receptoraIdsFiltradas = [...new Set(statusFiltrado.map(s => s.receptora_id).filter(Boolean))];
 

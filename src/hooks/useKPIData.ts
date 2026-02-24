@@ -351,16 +351,16 @@ export function useKPIData({ periodo, fazendaId, clienteId }: UseKPIDataParams) 
     const receptoraFazendaMap = new Map<string, { fazenda_id: string; fazenda_nome: string }>();
 
     for (const chunk of receptoraChunks) {
-      const { data: viewData } = await supabase
-        .from('vw_receptoras_fazenda_atual')
-        .select('receptora_id, fazenda_id_atual, fazenda_nome_atual')
-        .in('receptora_id', chunk);
+      const { data: receptoras } = await supabase
+        .from('receptoras')
+        .select('id, fazenda_atual_id, fazendas(nome)')
+        .in('id', chunk);
 
-      viewData?.forEach(v => {
-        if (v.fazenda_id_atual) {
-          receptoraFazendaMap.set(v.receptora_id, {
-            fazenda_id: v.fazenda_id_atual,
-            fazenda_nome: v.fazenda_nome_atual || 'Sem nome',
+      receptoras?.forEach(r => {
+        if (r.fazenda_atual_id && r.fazendas) {
+          receptoraFazendaMap.set(r.id, {
+            fazenda_id: r.fazenda_atual_id,
+            fazenda_nome: ((r.fazendas as unknown) as { nome: string }).nome || 'Sem nome',
           });
         }
       });

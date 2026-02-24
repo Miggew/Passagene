@@ -12,7 +12,7 @@ interface ReceptoraInfoCardProps {
 
 export function ReceptoraInfoCard({ receptora }: ReceptoraInfoCardProps) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-lg border border-border glass-panel p-3">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10">
           <CowIcon className="w-4 h-4 text-primary" />

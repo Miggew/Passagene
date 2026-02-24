@@ -65,7 +65,7 @@ export default function Administrativo() {
       />
 
       {/* Tabs Premium */}
-      <div className="rounded-xl border border-border bg-card p-1.5">
+      <div className="rounded-2xl border-2 border-border glass-panel p-1.5 shadow-brutal-sm overflow-x-auto">
         <div className="flex gap-1">
           {visibleTabs.map(({ value, label, icon: Icon }) => {
             const isActive = activeTab === value;
@@ -75,7 +75,7 @@ export default function Administrativo() {
                 key={value}
                 onClick={() => handleTabChange(value)}
                 className={`
-                  relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                  relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
                   text-sm font-medium transition-all duration-200
                   ${isActive
                     ? 'bg-muted/80 text-foreground shadow-sm'

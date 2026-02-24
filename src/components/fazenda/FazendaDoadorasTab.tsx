@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { Doadora } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -32,7 +33,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/shared/EmptyState';
 import DoadoraHistoricoAspiracoes from '@/components/shared/DoadoraHistoricoAspiracoes';
-import { Plus, Pencil, Search, History, Star, Gem, Filter, X } from 'lucide-react';
+import { Plus, Pencil, History, Star, Gem, Filter } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -219,7 +221,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
       <Card>
         <CardContent className="py-8">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <LoaderDNA size={48} variant="premium" />
           </div>
         </CardContent>
       </Card>
@@ -237,103 +239,91 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative flex-1 min-w-0 md:min-w-[250px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+            <div className="flex-1 min-w-0 md:min-w-[250px]">
+              <SearchInput
                 placeholder="Buscar por nome ou registro..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-11 md:h-9"
+                onChange={setSearchTerm}
               />
             </div>
-            {searchTerm && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSearchTerm('')}
-                className="h-11 md:h-9"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
           </div>
 
           {/* Botão Nova Doadora */}
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Doadora
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Cadastrar Doadora</DialogTitle>
-              <DialogDescription>
-                Adicionar doadora em {fazendaNome}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="registro">Registro *</Label>
-                <Input
-                  id="registro"
-                  value={formData.registro}
-                  onChange={(e) => setFormData({ ...formData, registro: e.target.value })}
-                  placeholder="Registro da doadora"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="raca">Raca *</Label>
-                <Select value={racaSelecionada} onValueChange={handleRacaChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a raca" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {racasPredefinidas.map((raca) => (
-                      <SelectItem key={raca} value={raca}>
-                        {raca}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="Outra">Outra</SelectItem>
-                  </SelectContent>
-                </Select>
-                {racaSelecionada === 'Outra' && (
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Doadora
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Cadastrar Doadora</DialogTitle>
+                <DialogDescription>
+                  Adicionar doadora em {fazendaNome}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="registro">Registro *</Label>
                   <Input
-                    id="raca_custom"
-                    value={formData.racaCustom}
-                    onChange={(e) =>
-                      setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })
-                    }
-                    placeholder="Digite a raca"
-                    className="mt-2"
+                    id="registro"
+                    value={formData.registro}
+                    onChange={(e) => setFormData({ ...formData, registro: e.target.value })}
+                    placeholder="Registro da doadora"
                     required
                   />
-                )}
-              </div>
+                </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Salvando...' : 'Criar Doadora'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDialog(false)}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label htmlFor="raca">Raca *</Label>
+                  <Select value={racaSelecionada} onValueChange={handleRacaChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a raca" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {racasPredefinidas.map((raca) => (
+                        <SelectItem key={raca} value={raca}>
+                          {raca}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="Outra">Outra</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {racaSelecionada === 'Outra' && (
+                    <Input
+                      id="raca_custom"
+                      value={formData.racaCustom}
+                      onChange={(e) =>
+                        setFormData({ ...formData, racaCustom: e.target.value, raca: e.target.value })
+                      }
+                      placeholder="Digite a raca"
+                      className="mt-2"
+                      required
+                    />
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Salvando...' : 'Criar Doadora'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDialog(false)}
+                    disabled={submitting}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -358,7 +348,7 @@ export function FazendaDoadorasTab({ fazendaId, fazendaNome }: FazendaDoadorasTa
                 {filteredDoadoras.map((doadora) => (
                   <div
                     key={doadora.id}
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 cursor-pointer active:bg-muted/50"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 cursor-pointer active:bg-muted/50"
                     onClick={() => navigate(`/doadoras/${doadora.id}`)}
                   >
                     <div className="flex items-center justify-between mb-2">

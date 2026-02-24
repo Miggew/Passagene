@@ -41,7 +41,7 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
 
   if (historico.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-lg border border-border glass-panel p-4">
         <div className="flex items-center gap-2 mb-3">
           <History className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Linha do Tempo</span>
@@ -55,7 +55,7 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border/50 shadow-sm glass-panel overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b border-border">
         <div className="flex items-center gap-2">
@@ -66,19 +66,28 @@ export function ReceptoraTimelineTable({ historico }: ReceptoraTimelineTableProp
       </div>
 
       {/* Cards expansíveis */}
-      <div className="divide-y divide-border/50 max-h-[350px] overflow-y-auto">
+      <div className="divide-y divide-border/50 max-h-[350px] overflow-y-auto overflow-x-hidden">
         {historico.map((item, index) => {
           const isExpanded = expandedIndex === index;
+          // Zíper Dupla Hélice: Pares vêm da esquerda, Ímpares vêm da direita
+          const slideClass = index % 2 === 0 ? 'animate-dna-left' : 'animate-dna-right';
 
           return (
             <div
               key={index}
               onClick={() => toggleExpand(index)}
               className={cn(
-                'px-3 py-2.5 transition-all duration-200 cursor-pointer hover:bg-muted/30',
-                isExpanded && 'bg-muted/20'
+                'px-4 py-3 transition-colors duration-300 cursor-pointer hover:bg-muted/30 hover:translate-x-1 relative group opacity-0',
+                isExpanded && 'bg-primary/5 border-l-2 border-primary',
+                slideClass
               )}
+              style={{ animationDelay: `${index * 150}ms` }}
             >
+              {/* Conector de DNA dinâmico (visível no hover/ativo) */}
+              <div className={cn(
+                "absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary/40 to-transparent opacity-0 transition-opacity duration-300",
+                isExpanded ? "opacity-100" : "group-hover:opacity-50"
+              )} />
               {/* Linha principal - sempre visível */}
               <div className="flex items-center gap-3">
                 {/* Data */}

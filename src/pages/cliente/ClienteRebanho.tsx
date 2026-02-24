@@ -8,13 +8,15 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useDebounce } from '@/hooks/core/useDebounce';
 import { usePermissions } from '@/hooks/usePermissions';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import EmptyState from '@/components/shared/EmptyState';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Beef, Search, MapPin, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Beef, Search, MapPin, Filter, RefreshCw } from 'lucide-react';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { ReceptoraCard } from '@/components/cliente/ReceptoraCard';
 import { DoadoraCard } from '@/components/cliente/DoadoraCard';
@@ -55,6 +57,8 @@ export default function ClienteRebanho() {
   const [filtroFazenda, setFiltroFazenda] = useState<string>('todas');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   // Aplicar filtro baseado no parâmetro "etapa" da URL
   useEffect(() => {
     const etapa = searchParams.get('etapa');
@@ -75,12 +79,14 @@ export default function ClienteRebanho() {
           break;
       }
       // Limpar o parâmetro da URL após aplicar o filtro
-      setSearchParams({});
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('etapa');
+      setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
   // Hook de cache compartilhado
-  const { data: hubData, isLoading: hubLoading } = useClienteHubData(clienteId);
+  const { data: hubData, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useClienteHubData(clienteId);
 
   // IDs das receptoras prenhes para buscar cruzamentos
   const prenhesIds = useMemo(() => {
@@ -167,31 +173,49 @@ export default function ClienteRebanho() {
       }
 
       // Filtro de busca (apenas por identificação/brinco)
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
+      if (debouncedSearch) {
+        const search = debouncedSearch.toLowerCase();
         return r.identificacao?.toLowerCase().includes(search);
       }
       return true;
     });
-  }, [receptoras, filtroFazenda, statusFilter, searchTerm]);
+  }, [receptoras, filtroFazenda, statusFilter, debouncedSearch]);
 
   // Filtrar doadoras
   const filteredDoadoras = useMemo(() => {
     return doadoras.filter(d => {
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
+      if (debouncedSearch) {
+        const search = debouncedSearch.toLowerCase();
         return d.nome?.toLowerCase().includes(search) ||
                d.registro?.toLowerCase().includes(search) ||
                d.raca?.toLowerCase().includes(search);
       }
       return true;
     });
-  }, [doadoras, searchTerm]);
+  }, [doadoras, debouncedSearch]);
 
   const fazendas = hubData?.fazendas || [];
 
   if (hubLoading) {
     return <LoadingScreen />;
+  }
+
+  if (hubError) {
+    return (
+      <div className="space-y-4 pb-20">
+        <PageHeader title="Meu Rebanho" />
+        <EmptyState
+          title="Erro ao carregar rebanho"
+          description="Não foi possível carregar as informações. Verifique sua conexão e tente novamente."
+          action={
+            <Button variant="outline" size="sm" onClick={() => refetchHub()}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   return (
@@ -201,10 +225,11 @@ export default function ClienteRebanho() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Tabs premium com CountBadge */}
         {counts.totalDoadoras > 0 ? (
-          <div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+          <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
             <TabsList className="grid grid-cols-2 h-auto p-0 bg-transparent gap-1.5">
               <TabsTrigger
                 value="receptoras"
+                aria-label={`Receptoras — ${counts.totalReceptoras} animais`}
                 className={cn(
                   'relative h-12 gap-2 rounded-lg font-medium transition-all duration-200',
                   'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -228,6 +253,7 @@ export default function ClienteRebanho() {
               </TabsTrigger>
               <TabsTrigger
                 value="doadoras"
+                aria-label={`Doadoras — ${counts.totalDoadoras} animais`}
                 className={cn(
                   'relative h-12 gap-2 rounded-lg font-medium transition-all duration-200',
                   'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
@@ -252,7 +278,7 @@ export default function ClienteRebanho() {
             </TabsList>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/60 bg-card p-1.5 shadow-sm">
+          <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
             <div className="h-12 px-4 rounded-lg bg-muted/80 shadow-sm flex items-center justify-center gap-2">
               <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center border border-primary/20">
                 <Beef className="w-4 h-4 text-primary" />
@@ -272,7 +298,7 @@ export default function ClienteRebanho() {
             placeholder={activeTab === 'receptoras' ? 'Buscar por brinco...' : 'Buscar por nome ou registro...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-11 h-11 text-base rounded-xl border-border/60 bg-card shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+            className="pl-11 h-11 text-base rounded-xl border-border/60 glass-panel shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
           />
         </div>
 
@@ -282,7 +308,7 @@ export default function ClienteRebanho() {
           <div className="flex gap-2">
             {fazendas.length > 1 && (
               <Select value={filtroFazenda} onValueChange={setFiltroFazenda}>
-                <SelectTrigger className="flex-1 h-10 rounded-xl border-border/60 bg-card shadow-sm">
+                <SelectTrigger className="flex-1 h-10 rounded-xl border-border/60 glass-panel shadow-sm">
                   <div className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-primary/70" />
                     <SelectValue placeholder="Todas fazendas" />
@@ -298,7 +324,7 @@ export default function ClienteRebanho() {
             )}
 
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className={cn('h-10 rounded-xl border-border/60 bg-card shadow-sm', fazendas.length > 1 ? 'flex-1' : 'w-full')}>
+              <SelectTrigger className={cn('h-10 rounded-xl border-border/60 glass-panel shadow-sm', fazendas.length > 1 ? 'flex-1' : 'w-full')}>
                 <div className="flex items-center gap-1.5">
                   <Filter className="w-3.5 h-3.5 text-primary/70" />
                   <SelectValue placeholder="Todas" />
@@ -318,7 +344,12 @@ export default function ClienteRebanho() {
           {filteredReceptoras.length === 0 ? (
             <EmptyState
               title="Nenhuma receptora"
-              description={searchTerm ? 'Nenhuma receptora encontrada para a busca' : 'Você ainda não possui receptoras cadastradas'}
+              description={(searchTerm || statusFilter !== 'todas' || filtroFazenda !== 'todas') ? 'Nenhuma receptora encontrada para os filtros aplicados' : 'Você ainda não possui receptoras cadastradas'}
+              action={(searchTerm || statusFilter !== 'todas' || filtroFazenda !== 'todas') ? (
+                <Button variant="outline" size="sm" onClick={() => { setSearchTerm(''); setStatusFilter('todas'); setFiltroFazenda('todas'); }}>
+                  Limpar filtros
+                </Button>
+              ) : undefined}
             />
           ) : (
             <div className="space-y-2.5">
@@ -339,7 +370,12 @@ export default function ClienteRebanho() {
             {filteredDoadoras.length === 0 ? (
               <EmptyState
                 title="Nenhuma doadora"
-                description="Nenhuma doadora encontrada para a busca"
+                description={searchTerm ? 'Nenhuma doadora encontrada para a busca' : 'Você ainda não possui doadoras cadastradas'}
+                action={searchTerm ? (
+                  <Button variant="outline" size="sm" onClick={() => setSearchTerm('')}>
+                    Limpar busca
+                  </Button>
+                ) : undefined}
               />
             ) : (
               <div className="space-y-2.5">

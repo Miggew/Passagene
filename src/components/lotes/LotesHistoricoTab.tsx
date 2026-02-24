@@ -150,6 +150,7 @@ export function LotesHistoricoTab({
                   setFiltroHistoricoFazendaBusca('');
                   setShowFazendaBuscaHistorico(false);
                 }}
+                aria-label="Limpar filtro"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -214,15 +215,20 @@ export function LotesHistoricoTab({
               (historicoPage - 1) * HISTORICO_PAGE_SIZE,
               historicoPage * HISTORICO_PAGE_SIZE
             )
-            .map((lote) => (
-              <LoteHistoricoCard
+            .map((lote, index) => (
+              <div
                 key={lote.id}
-                lote={lote}
-                isExpanded={loteExpandido === lote.id}
-                detalhes={loteExpandido === lote.id ? detalhesLoteExpandido : null}
-                loadingDetalhes={loadingDetalhes && loteExpandido === lote.id}
-                onExpandir={() => onExpandirLote(lote.id)}
-              />
+                className="animate-in fade-in slide-in-from-bottom-4 transition-all duration-500 hover:translate-x-1"
+                style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
+              >
+                <LoteHistoricoCard
+                  lote={lote}
+                  isExpanded={loteExpandido === lote.id}
+                  detalhes={loteExpandido === lote.id ? detalhesLoteExpandido : null}
+                  loadingDetalhes={loadingDetalhes && loteExpandido === lote.id}
+                  onExpandir={() => onExpandirLote(lote.id)}
+                />
+              </div>
             ))}
 
           {/* Paginação */}
@@ -273,7 +279,7 @@ function LoteHistoricoCard({
   onExpandir,
 }: LoteHistoricoCardProps) {
   return (
-    <Card className="border-l-4 border-l-slate-400">
+    <Card className="border-l-[3px] border-l-primary/60 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">

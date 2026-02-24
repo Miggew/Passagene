@@ -74,7 +74,7 @@ export function HorizontalBarChart({
     const item = payload[0].payload as BarDataItem;
 
     return (
-      <div className="bg-popover border border-border rounded-lg shadow-lg p-3 min-w-[180px]">
+      <div className="glass-panel border border-border rounded-lg shadow-lg p-3 min-w-[180px]">
         <p className="font-medium text-sm text-foreground mb-2">{item.nome}</p>
         <div className="space-y-1">
           <div className="flex items-center justify-between text-sm">

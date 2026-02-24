@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { EmbriaoComRelacionamentos, DoseSemenComTouro } from '@/lib/types';
+import type { EmbriaoComRelacionamentos } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -31,7 +31,8 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Eye, Snowflake, Download, Filter, Users, Dna, X } from 'lucide-react';
+import { Eye, Snowflake, Download, Filter, X } from 'lucide-react';
+import SearchInput from '@/components/shared/SearchInput';
 
 interface Cliente {
   id: string;
@@ -123,7 +124,7 @@ export default function EmbrioesCongelados() {
         classSet.add(embriao.classificacao);
       }
 
-      const acasalamento = embriao.acasalamento as any;
+      const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
 
@@ -146,7 +147,7 @@ export default function EmbrioesCongelados() {
   // Filtrar embriões
   const filteredEmbrioes = useMemo(() => {
     return embrioes.filter((embriao) => {
-      const acasalamento = embriao.acasalamento as any;
+      const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
 
@@ -209,7 +210,7 @@ export default function EmbrioesCongelados() {
   const handleExportCSV = () => {
     const headers = ['Identificação', 'Cliente', 'Classificação', 'Doadora', 'Touro', 'Raça', 'Data Cong.', 'Localização'];
     const rows = filteredEmbrioes.map((embriao) => {
-      const acasalamento = embriao.acasalamento as any;
+      const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
       return [
@@ -243,7 +244,7 @@ export default function EmbrioesCongelados() {
   };
 
   const DialogDetalheContent = ({ embriao }: { embriao: EmbriaoCongelado }) => {
-    const acasalamento = embriao.acasalamento as any;
+    const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
     const dose = acasalamento?.dose_semen;
     const touro = dose?.touro;
     const aspiracao = acasalamento?.aspiracao;
@@ -414,13 +415,11 @@ export default function EmbrioesCongelados() {
               <Filter className="w-3.5 h-3.5" />
               <span>Busca</span>
             </div>
-            <div className="relative w-full md:w-auto md:flex-1 md:min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+            <div className="w-full md:w-auto md:flex-1 md:min-w-[200px]">
+              <SearchInput
                 placeholder="Buscar embrião..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-11 md:h-9"
+                onChange={setSearchTerm}
               />
             </div>
           </div>
@@ -540,7 +539,7 @@ export default function EmbrioesCongelados() {
               />
             ) : (
               filteredEmbrioes.map((embriao) => {
-                const acasalamento = embriao.acasalamento as any;
+                const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
                 const doadora = acasalamento?.aspiracao?.doadora;
                 const touro = acasalamento?.dose_semen?.touro;
                 const raca = doadora?.raca || touro?.raca;
@@ -548,7 +547,7 @@ export default function EmbrioesCongelados() {
                 return (
                   <div
                     key={embriao.id}
-                    className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5 active:bg-muted/50"
+                    className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5 active:bg-muted/50"
                     onClick={() => setEmbriaoDetalhe(embriao)}
                   >
                     <div className="flex items-center justify-between mb-1.5">
@@ -614,7 +613,7 @@ export default function EmbrioesCongelados() {
                 </TableHeader>
                 <TableBody>
                   {filteredEmbrioes.map((embriao) => {
-                    const acasalamento = embriao.acasalamento as any;
+                    const acasalamento = embriao.acasalamento as { aspiracao?: { doadora?: { id?: string; registro?: string; nome?: string; raca?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string; raca?: string }; central?: string; partida?: string; raca_touro?: string }; lote_fiv?: { codigo?: string } } | null;
                     const doadora = acasalamento?.aspiracao?.doadora;
                     const touro = acasalamento?.dose_semen?.touro;
                     const raca = doadora?.raca || touro?.raca;

@@ -5,12 +5,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { usePagination } from '@/hooks/core/usePagination';
 import { supabase } from '@/lib/supabase';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingScreen from '@/components/shared/LoadingScreen';
 import { useClienteHubData } from '@/hooks/cliente';
+import { Button } from '@/components/ui/button';
+import EmptyState from '@/components/shared/EmptyState';
 import {
   Stethoscope,
   ScanSearch,
@@ -24,6 +27,7 @@ import {
   ClipboardList,
   X,
   MapPin,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
@@ -101,6 +105,7 @@ export default function ClienteRelatorios() {
   const { clienteId } = usePermissions();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Filtros
@@ -188,6 +193,25 @@ export default function ClienteRelatorios() {
     return filtered;
   }, [atividades, tipoFiltro, fazendaFiltro, periodoFiltro, mostrarApenasUltimo, idsFixos]);
 
+  // Paginação
+  const {
+    paginatedData,
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    hasNextPage,
+    hasPrevPage,
+    startIndex,
+    endIndex,
+    resetPage,
+  } = usePagination(atividadesFiltradas, { pageSize: 15 });
+
+  // Reset page quando filtros mudam
+  useEffect(() => {
+    resetPage();
+  }, [tipoFiltro, fazendaFiltro, periodoFiltro, resetPage]);
+
   // ============ CARREGAMENTO ============
 
   const loadAtividades = async () => {
@@ -258,10 +282,10 @@ export default function ClienteRelatorios() {
       const descartesTE: { receptora_id: string; motivo: string; data: string; fazenda_id: string }[] = [];
       if (ultimosProtocolosResult.data) {
         for (const protocolo of ultimosProtocolosResult.data) {
-          const receptorasProtocolo = (protocolo.protocolo_receptoras as any[]) || [];
+          const receptorasProtocolo = (protocolo.protocolo_receptoras as { receptora_id: string; status: string; motivo_inapta?: string }[]) || [];
           const dataTE = protocolo.passo2_data || protocolo.data_inicio;
           for (const pr of receptorasProtocolo) {
-            if (pr.status === 'INAPTA' && pr.motivo_inapta && pr.motivo_inapta.toLowerCase().includes('te')) {
+            if (pr.status === 'INAPTA' && pr.motivo_inapta && (/\bTE\b/.test(pr.motivo_inapta) || pr.motivo_inapta.startsWith('Descartada no menu de TE'))) {
               descartesTE.push({
                 receptora_id: pr.receptora_id,
                 motivo: pr.motivo_inapta,
@@ -442,7 +466,7 @@ export default function ClienteRelatorios() {
               fazenda_nome: fazendaNomeMap.get(asp.fazenda_id) || 'Fazenda',
               detalhes: doadorasAsp.map(a => ({
                 id: a.doadora_id,
-                identificacao: (a.doadoras as any)?.nome || (a.doadoras as any)?.registro || 'Sem ID',
+                identificacao: (a.doadoras as { nome?: string; registro?: string } | null)?.nome || (a.doadoras as { nome?: string; registro?: string } | null)?.registro || 'Sem ID',
                 resultado: `${a.viaveis || 0} oócitos`,
               })),
             });
@@ -453,7 +477,7 @@ export default function ClienteRelatorios() {
       // Processar Protocolos
       if (ultimosProtocolosResult.data && ultimosProtocolosResult.data.length > 0) {
         for (const p of ultimosProtocolosResult.data) {
-          const receptorasProtocolo = (p.protocolo_receptoras as any[]) || [];
+          const receptorasProtocolo = (p.protocolo_receptoras as { receptora_id: string; status: string; motivo_inapta?: string }[]) || [];
           if (receptorasProtocolo.length > 0) {
             const dataReferencia = p.passo2_data ? new Date(p.passo2_data) : new Date(p.data_inicio);
             const sincronizadas = receptorasProtocolo.length;
@@ -475,8 +499,8 @@ export default function ClienteRelatorios() {
               protocolo_id: p.id,
               data_passo1: new Date(p.data_inicio),
               data_passo2: p.passo2_data ? new Date(p.passo2_data) : undefined,
-              veterinario_passo1: (p as any).responsavel_inicio || undefined,
-              veterinario_passo2: (p as any).passo2_tecnico_responsavel || undefined,
+              veterinario_passo1: (p as { responsavel_inicio?: string }).responsavel_inicio || undefined,
+              veterinario_passo2: (p as { passo2_tecnico_responsavel?: string }).passo2_tecnico_responsavel || undefined,
               sincronizadas,
               servidas,
               descartadas: descartadasCount,
@@ -488,10 +512,12 @@ export default function ClienteRelatorios() {
       atividadesData.sort((a, b) => b.data.getTime() - a.data.getTime());
       setAtividades(atividadesData);
 
-    } catch (error) {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(msg);
       toast({
         title: 'Erro ao carregar relatórios',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        description: msg,
         variant: 'destructive',
       });
     } finally {
@@ -585,6 +611,24 @@ export default function ClienteRelatorios() {
     return <LoadingScreen />;
   }
 
+  if (error) {
+    return (
+      <div className="space-y-4 pb-24">
+        <PageHeader title="Relatórios" />
+        <EmptyState
+          title="Erro ao carregar relatórios"
+          description={error}
+          action={
+            <Button variant="outline" size="sm" onClick={() => { setError(null); loadAtividades(); }}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-24">
       <PageHeader title="Relatórios" />
@@ -609,7 +653,7 @@ export default function ClienteRelatorios() {
 
       {/* ========== FILTROS (3 Selects) ========== */}
       <div className={cn(
-        "rounded-xl border border-border bg-card p-3 space-y-3",
+        "rounded-xl border border-border glass-panel p-3 space-y-3",
         mostrarApenasUltimo && "hidden"
       )}>
 
@@ -680,26 +724,56 @@ export default function ClienteRelatorios() {
           <div className="flex items-center gap-2">
             <div className="w-1 h-5 rounded-full bg-primary/50" />
             <h2 className="text-sm font-semibold text-foreground">
-              {atividadesFiltradas.length} {atividadesFiltradas.length === 1 ? 'relatório' : 'relatórios'}
+              {atividadesFiltradas.length > 15
+                ? `${startIndex + 1}–${endIndex} de ${atividadesFiltradas.length} relatórios`
+                : `${atividadesFiltradas.length} ${atividadesFiltradas.length === 1 ? 'relatório' : 'relatórios'}`
+              }
             </h2>
           </div>
         </div>
 
         {atividadesFiltradas.length === 0 ? (
-          <div className="rounded-xl border border-border/60 bg-card p-8 text-center">
+          <div className="rounded-xl border border-border/60 glass-panel p-8 text-center">
             <p className="text-sm text-muted-foreground">Nenhum relatório encontrado.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {atividadesFiltradas.map((atividade, index) => (
+            {paginatedData.map((atividade, index) => (
               <RelatorioCard
-                key={`${atividade.tipo}-${atividade.fazenda_id}-${index}`}
+                key={`${atividade.tipo}-${atividade.fazenda_id}-${startIndex + index}`}
                 atividade={atividade}
-                expanded={expandedSection === `ativ-${index}`}
-                onToggle={() => toggleSection(`ativ-${index}`)}
+                expanded={expandedSection === `ativ-${startIndex + index}`}
+                onToggle={() => toggleSection(`ativ-${startIndex + index}`)}
                 onNavigate={navigate}
               />
             ))}
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={!hasPrevPage}
+                  className="h-8 text-xs"
+                >
+                  Anterior
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {currentPage} de {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={!hasNextPage}
+                  className="h-8 text-xs"
+                >
+                  Próximo
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -768,11 +842,11 @@ function RelatorioCard({ atividade, expanded, onToggle, onNavigate }: RelatorioC
 
   return (
     <div className={cn(
-      'rounded-xl border border-border/60 bg-card overflow-hidden transition-all duration-200 shadow-sm',
+      'rounded-xl border border-border/60 glass-panel overflow-hidden transition-all duration-200 shadow-sm',
       expanded && 'shadow-md border-primary/30'
     )}>
       {/* Header do card */}
-      <div onClick={onToggle} className="flex items-center gap-3 p-3.5 cursor-pointer hover:bg-muted/30 transition-colors">
+      <div onClick={onToggle} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} aria-expanded={expanded} aria-label={`${config.label} — ${atividade.fazenda_nome} — ${format(atividade.data, "dd/MM/yy", { locale: ptBR })}`} className="flex items-center gap-3 p-3.5 cursor-pointer hover:bg-muted/30 transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none rounded-xl">
         <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center border shrink-0', colors.iconBg)}>
           <Icon className={cn('w-5 h-5', colors.iconText)} />
         </div>
@@ -881,9 +955,9 @@ function RelatorioCard({ atividade, expanded, onToggle, onNavigate }: RelatorioC
 
           {/* Lista de detalhes */}
           <div className="border-l-2 border-primary/30 pl-3 space-y-0.5 max-h-[320px] overflow-y-auto">
-            {atividade.detalhes.map((det, i) => (
+            {atividade.detalhes.map((det) => (
               <div
-                key={i}
+                key={det.id}
                 onClick={() => {
                   if (atividade.tipo === 'aspiracao') {
                     onNavigate(`/doadoras/${det.id}`);

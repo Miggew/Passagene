@@ -77,6 +77,7 @@ export default function ClassificacoesCicloInline({
             className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
             onClick={() => onChangeCiclando(null)}
             type="button"
+            aria-label="Limpar ciclando"
           >
             <X className="w-3 h-3" />
           </Button>
@@ -121,6 +122,7 @@ export default function ClassificacoesCicloInline({
             className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
             onClick={() => onChangeQualidade(null)}
             type="button"
+            aria-label="Limpar qualidade"
           >
             <X className="w-3 h-3" />
           </Button>

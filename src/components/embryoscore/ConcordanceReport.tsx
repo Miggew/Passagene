@@ -88,7 +88,7 @@ export function ConcordanceReport() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border glass-panel overflow-hidden">
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Brain className="w-5 h-5" />
@@ -101,7 +101,7 @@ export function ConcordanceReport() {
 
   if (!scores || scores.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border glass-panel overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
           <div className="w-1 h-5 rounded-full bg-primary/50" />
           <h2 className="text-sm font-semibold text-foreground">Concordância com Biólogo</h2>
@@ -125,7 +125,7 @@ export function ConcordanceReport() {
   const showAlert = concordancePercent < 70;
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border glass-panel overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
         <div className="w-1 h-5 rounded-full bg-primary/50" />

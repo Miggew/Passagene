@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatStatusLabel } from '@/lib/statusLabels';
+import { todayISO as getTodayDateString, addDays } from '@/lib/dateUtils';
 import { getGoogleMapsUrl, getGoogleMapsSearchUrl } from '@/lib/coordinates';
 import type { Fazenda } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,6 @@ import {
   Phone,
   ClipboardList,
   AlertCircle,
-  Dna,
 } from 'lucide-react';
 import { FazendaReceptorasTab } from '@/components/fazenda/FazendaReceptorasTab';
 import { FazendaDoadorasTab } from '@/components/fazenda/FazendaDoadorasTab';
@@ -99,16 +99,17 @@ export default function FazendaDetail() {
       // 1. Carregar fazenda e cliente em paralelo
       const [fazendaResult, receptorasViewResult] = await Promise.all([
         supabase.from('fazendas').select('*, cliente:clientes(nome)').eq('id', id).single(),
-        supabase.from('vw_receptoras_fazenda_atual').select('receptora_id').eq('fazenda_id_atual', id),
+        supabase.from('receptoras').select('id').eq('fazenda_atual_id', id),
       ]);
 
       if (fazendaResult.error) throw fazendaResult.error;
 
       const fazendaData = fazendaResult.data;
       setFazenda(fazendaData);
-      setClienteNome((fazendaData.cliente as any)?.nome || '');
+      setClienteNome((fazendaData.cliente as { nome: string } | null)?.nome || '');
 
-      const receptoraIds = receptorasViewResult.data?.map(v => v.receptora_id) || [];
+      const receptoraIds = (receptorasViewResult.data || []).map(r => r.id);
+      const receptorasDaFazenda = new Set(receptoraIds);
 
       // 2. Carregar dados em paralelo
       const [
@@ -128,9 +129,9 @@ export default function FazendaDetail() {
         // Receptoras
         receptoraIds.length > 0
           ? supabase
-              .from('receptoras')
-              .select('id, status_reprodutivo, data_provavel_parto')
-              .in('id', receptoraIds)
+            .from('receptoras')
+            .select('id, status_reprodutivo, data_provavel_parto')
+            .in('id', receptoraIds)
           : Promise.resolve({ data: [], error: null }),
 
         // Doadoras
@@ -144,7 +145,7 @@ export default function FazendaDetail() {
           .from('aspiracoes_doadoras')
           .select('id, total_oocitos')
           .eq('fazenda_id', id)
-          .gte('data_aspiracao', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+          .gte('data_aspiracao', addDays(getTodayDateString(), -30)),
 
         // Animais nascidos (últimos 50)
         supabase
@@ -320,7 +321,7 @@ export default function FazendaDetail() {
         title={fazenda.nome}
         description={`Cliente: ${clienteNome}`}
         actions={
-          <Button variant="outline" size="icon" onClick={() => navigate('/fazendas')}>
+          <Button variant="outline" size="icon" onClick={() => navigate('/fazendas')} aria-label="Voltar">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         }
@@ -565,67 +566,67 @@ export default function FazendaDetail() {
                 />
               ) : (
                 <>
-                {/* Mobile: Cards */}
-                <div className="md:hidden space-y-3">
-                  {animaisNascidos.map(animal => (
-                    <div key={animal.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-foreground">{formatDate(animal.data_nascimento)}</span>
-                        <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
-                          {animal.sexo === 'FEMEA' ? 'Fêmea' : animal.sexo === 'MACHO' ? 'Macho' : '?'}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                        {animal.raca && (
+                  {/* Mobile: Cards */}
+                  <div className="md:hidden space-y-3">
+                    {animaisNascidos.map(animal => (
+                      <div key={animal.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-foreground">{formatDate(animal.data_nascimento)}</span>
+                          <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
+                            {animal.sexo === 'FEMEA' ? 'Fêmea' : animal.sexo === 'MACHO' ? 'Macho' : '?'}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                          {animal.raca && (
+                            <div>
+                              <span className="text-[10px] text-muted-foreground uppercase">Raça</span>
+                              <span className="block text-foreground">{animal.raca}</span>
+                            </div>
+                          )}
                           <div>
-                            <span className="text-[10px] text-muted-foreground uppercase">Raça</span>
-                            <span className="block text-foreground">{animal.raca}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase">Receptora</span>
+                            <span className="block text-foreground">{animal.receptora_brinco || '-'}</span>
                           </div>
-                        )}
-                        <div>
-                          <span className="text-[10px] text-muted-foreground uppercase">Receptora</span>
-                          <span className="block text-foreground">{animal.receptora_brinco || '-'}</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-[10px] text-muted-foreground uppercase">Doadora x Touro</span>
-                          <span className="block text-foreground">{animal.doadora || '?'} x {animal.touro || '?'}</span>
+                          <div className="col-span-2">
+                            <span className="text-[10px] text-muted-foreground uppercase">Doadora x Touro</span>
+                            <span className="block text-foreground">{animal.doadora || '?'} x {animal.touro || '?'}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                {/* Desktop: Table */}
-                <div className="hidden md:block">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Sexo</TableHead>
-                        <TableHead>Raça</TableHead>
-                        <TableHead>Receptora</TableHead>
-                        <TableHead>Doadora x Touro</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {animaisNascidos.map(animal => (
-                        <TableRow key={animal.id}>
-                          <TableCell>{formatDate(animal.data_nascimento)}</TableCell>
-                          <TableCell>
-                            <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
-                              {animal.sexo === 'FEMEA' ? 'F' : animal.sexo === 'MACHO' ? 'M' : '?'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{animal.raca || '-'}</TableCell>
-                          <TableCell>{animal.receptora_brinco || '-'}</TableCell>
-                          <TableCell className="text-sm">
-                            {animal.doadora || '?'} x {animal.touro || '?'}
-                          </TableCell>
+                  {/* Desktop: Table */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Sexo</TableHead>
+                          <TableHead>Raça</TableHead>
+                          <TableHead>Receptora</TableHead>
+                          <TableHead>Doadora x Touro</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {animaisNascidos.map(animal => (
+                          <TableRow key={animal.id}>
+                            <TableCell>{formatDate(animal.data_nascimento)}</TableCell>
+                            <TableCell>
+                              <Badge variant={animal.sexo === 'FEMEA' ? 'default' : 'secondary'}>
+                                {animal.sexo === 'FEMEA' ? 'F' : animal.sexo === 'MACHO' ? 'M' : '?'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{animal.raca || '-'}</TableCell>
+                            <TableCell>{animal.receptora_brinco || '-'}</TableCell>
+                            <TableCell className="text-sm">
+                              {animal.doadora || '?'} x {animal.touro || '?'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </>
               )}
             </CardContent>

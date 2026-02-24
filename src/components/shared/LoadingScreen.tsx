@@ -6,7 +6,7 @@
  */
 
 import { cn } from '@/lib/utils';
-import LogoSimples from '@/assets/logosimples.svg';
+import { LoaderDNA } from '@/components/ui/LoaderDNA';
 
 interface LoadingScreenProps {
   /** Texto opcional abaixo da logo */
@@ -19,11 +19,7 @@ interface LoadingScreenProps {
   className?: string;
 }
 
-const sizeMap = {
-  sm: 'w-12 h-12',
-  md: 'w-20 h-20',
-  lg: 'w-28 h-28',
-};
+const sizeMap = { sm: 48, md: 80, lg: 112 };
 
 export default function LoadingScreen({
   text,
@@ -37,37 +33,22 @@ export default function LoadingScreen({
         'flex flex-col items-center justify-center gap-4',
         fullScreen
           ? 'fixed inset-0 bg-background/95 backdrop-blur-sm z-50'
-          : 'min-h-[calc(100dvh-180px)]', // Altura padrão para centralizar na área visível
+          : 'min-h-[calc(100dvh-180px)]',
         className
       )}
     >
-      {/* Logo com animação de pulso */}
-      <div className="relative">
-        {/* Círculo de fundo com pulso */}
-        <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" style={{ animationDuration: '2s' }} />
-        <div className="absolute inset-0 rounded-full bg-primary/5 animate-pulse" />
-
-        {/* Logo */}
-        <div className={cn(
-          'relative rounded-full bg-card border border-border/50 shadow-lg p-4 flex items-center justify-center',
-          'animate-pulse',
-          sizeMap[size]
-        )}
-        style={{ animationDuration: '1.5s' }}
-        >
-          <img
-            src={LogoSimples}
-            alt="PassaGene"
-            className="w-full h-full object-contain"
-          />
-        </div>
-      </div>
+      <LoaderDNA
+        size={sizeMap[size]}
+        variant="premium"
+      />
 
       {/* Texto opcional */}
       {text && (
-        <p className="text-sm text-muted-foreground animate-pulse">
-          {text}
-        </p>
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <p className="text-sm font-medium text-primary tracking-wide animate-pulse">
+            {text}
+          </p>
+        </div>
       )}
     </div>
   );
@@ -78,15 +59,9 @@ export default function LoadingScreen({
  */
 export function LoadingInline({ text = 'Carregando...' }: { text?: string }) {
   return (
-    <div className="flex items-center justify-center gap-3 py-8">
-      <div className="w-8 h-8 rounded-full bg-card border border-border/50 shadow p-1.5 animate-pulse">
-        <img
-          src={LogoSimples}
-          alt="PassaGene"
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <span className="text-sm text-muted-foreground">{text}</span>
+    <div className="flex items-center justify-center gap-4 py-8">
+      <LoaderDNA size={32} variant="premium" />
+      <span className="text-sm font-medium text-muted-foreground">{text}</span>
     </div>
   );
 }

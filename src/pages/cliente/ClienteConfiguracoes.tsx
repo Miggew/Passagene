@@ -10,6 +10,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useClienteHubData } from '@/hooks/cliente/useClienteHubData';
 import { useClientePreferences } from '@/hooks/cliente/useClientePreferences';
 import LoadingScreen from '@/components/shared/LoadingScreen';
+import EmptyState from '@/components/shared/EmptyState';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,
@@ -44,10 +46,32 @@ export default function ClienteConfiguracoes() {
   const { signOut } = useAuth();
   const { theme, setTheme } = useTheme();
 
-  const { data: hubData, isLoading: hubLoading } = useClienteHubData(clienteId);
+  const { data: hubData, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useClienteHubData(clienteId);
   const { preferences, isLoading: prefsLoading, updatePreference } = useClientePreferences(clienteId);
 
   if (hubLoading || prefsLoading) return <LoadingScreen />;
+
+  if (hubError) {
+    return (
+      <div className="space-y-4 pb-24">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="w-9 h-9 rounded-lg flex items-center justify-center bg-muted/50 hover:bg-muted border border-border/50 transition-all">
+            <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <h1 className="text-lg font-bold text-foreground">Configurações</h1>
+        </div>
+        <EmptyState
+          title="Erro ao carregar configurações"
+          description="Não foi possível carregar as informações. Verifique sua conexão e tente novamente."
+          action={
+            <Button variant="outline" size="sm" onClick={() => refetchHub()}>
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   const fazendas = hubData?.fazendas || [];
   const iniciais = (profile?.nome || 'U')
@@ -290,7 +314,7 @@ export default function ClienteConfiguracoes() {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+    <div className="rounded-xl border border-border/60 glass-panel p-4 shadow-sm">
       {children}
     </div>
   );

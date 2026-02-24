@@ -5,8 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { DoseSemen, Doadora, Cliente } from '@/lib/types';
+import { DoseSemen, DoseSemenComTouro, Doadora, Cliente } from '@/lib/types';
 import {
   LoteFIVComNomes,
   AcasalamentoComNomes,
@@ -42,7 +41,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Lock, X, Users, FileText, Package, Plus, ChevronDown, Video } from 'lucide-react';
+import { ArrowLeft, X, Users, FileText, Package, Plus, ChevronDown, Video, Info, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { VideoUploadButton, LoteScoreDashboard } from '@/components/embryoscore';
 import { cn, formatDate, extractDateOnly, addDays, diffDays, formatDateString, getDayOfWeekName, getTodayDateString } from '@/lib/utils';
 import { getDiaCultivo } from '@/lib/lotesFivUtils';
@@ -51,8 +51,8 @@ interface LoteDetailViewProps {
   lote: LoteFIVComNomes;
   acasalamentos: AcasalamentoComNomes[];
   aspiracoesDisponiveis: AspiracaoComOocitosDisponiveis[];
-  dosesDisponiveis: DoseSemen[];
-  dosesDisponiveisNoLote: DoseSemen[];
+  dosesDisponiveis: DoseSemenComTouro[];
+  dosesDisponiveisNoLote: DoseSemenComTouro[];
   doadoras: Doadora[];
   clientes: Cliente[];
   historicoDespachos: HistoricoDespacho[];
@@ -246,7 +246,8 @@ export function LoteDetailView({
       {/* Header */}
       <div className="flex items-center gap-3 md:gap-4">
         <Button variant="ghost" size="sm" onClick={handleBackClick} className="shrink-0">
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          <span className="hidden sm:inline">Voltar</span>
         </Button>
         <div className="min-w-0">
           <h1 className="text-xl md:text-3xl font-bold text-foreground">Detalhes do Lote FIV</h1>
@@ -334,15 +335,19 @@ export function LoteDetailView({
 
           {/* Alerta D6 */}
           {lote.status === 'ABERTO' && diaAtual === 7 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-blue-800 font-medium">
-                  📊 Este lote está no D6 ({getNomeDiaDetalhe(6)}). Você pode preencher a quantidade de embriões (prévia) e gerar um relatório.
-                </p>
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span className="text-blue-800 dark:text-blue-200 font-medium text-sm sm:text-base leading-relaxed">
+                    Este lote está no D6 ({getNomeDiaDetalhe(6)}). Você pode preencher a quantidade de embriões (prévia) e gerar um relatório.
+                  </span>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowRelatorioDialog(true)}
+                  className="w-full sm:w-auto shrink-0 bg-white dark:bg-background border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Gerar Relatório de Prévia
@@ -353,16 +358,19 @@ export function LoteDetailView({
 
           {/* Alerta D7/D8 */}
           {((lote.status === 'ABERTO' && (diaAtual === 8 || diaAtual === 9)) || (lote.status === 'FECHADO' && diaAtual === 9)) && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-orange-800 font-medium">
-                  ⚠️ Este lote está no {diaAtual === 8 ? 'D7' : 'D8'} ({getNomeDiaDetalhe(diaAtual === 8 ? 7 : 8)}). {diaAtual === 8 ? 'Informe a quantidade de embriões para cada acasalamento e despache os embriões.' : 'Período de emergência (D8). Você pode adicionar novos acasalamentos e despachar os embriões imediatamente.'}
-                </p>
+            <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/50 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0" />
+                  <span className="font-medium text-orange-800 dark:text-orange-200 text-sm sm:text-base leading-relaxed">
+                    Este lote está no {diaAtual === 8 ? 'D7' : 'D8'} ({getNomeDiaDetalhe(diaAtual === 8 ? 7 : 8)}). {diaAtual === 8 ? 'Informe a quantidade de embriões para cada acasalamento e despache os embriões.' : 'Período de emergência (D8). Você pode adicionar novos acasalamentos e despachar os embriões imediatamente.'}
+                  </span>
+                </div>
                 <Button
-                  variant="default"
                   size="sm"
                   onClick={onDespacharEmbrioes}
                   disabled={submitting}
+                  className="w-full sm:w-auto shrink-0 bg-orange-600 hover:bg-orange-700 text-white shadow-sm"
                 >
                   <Package className="w-4 h-4 mr-2" />
                   {submitting ? 'Despachando...' : 'Despachar Todos os Embriões'}
@@ -384,7 +392,7 @@ export function LoteDetailView({
       {/* Tabela de acasalamentos */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
               Acasalamentos ({acasalamentos.length})
@@ -393,6 +401,7 @@ export function LoteDetailView({
               <Button
                 size="sm"
                 onClick={() => setShowAddAcasalamento(true)}
+                className="w-full sm:w-auto shrink-0"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Acasalamento
@@ -439,7 +448,7 @@ export function LoteDetailView({
                   return (
                     <div
                       key={acasalamento.id}
-                      className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden"
+                      className="rounded-xl border border-border/60 glass-panel shadow-sm overflow-hidden"
                     >
                       {/* Header do card - sempre visível */}
                       <button
@@ -595,7 +604,7 @@ export function LoteDetailView({
                               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                                 Observações
                               </label>
-                              <p className="text-sm text-muted-foreground mt-0.5">{acasalamento.observacoes}</p>
+                              <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap break-words">{acasalamento.observacoes}</p>
                             </div>
                           )}
                         </div>
@@ -718,7 +727,7 @@ export function LoteDetailView({
                               {percentual}%
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">
+                          <TableCell className="max-w-[200px] whitespace-pre-wrap break-words">
                             {acasalamento.observacoes || '-'}
                           </TableCell>
                         </TableRow>

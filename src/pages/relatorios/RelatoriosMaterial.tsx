@@ -17,6 +17,7 @@ import { EmbryoIcon } from '@/components/icons/EmbryoIcon';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { supabase } from '@/lib/supabase';
 import { useClienteFilter } from '@/hooks/useClienteFilter';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import PageHeader from '@/components/shared/PageHeader';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -169,10 +170,10 @@ export default function RelatoriosMaterial() {
     const groupMap = new Map<string, EmbriaoRow>();
 
     data?.forEach(e => {
-      const acasalamento = e.acasalamento as any;
+      const acasalamento = e.acasalamento as { aspiracao?: { doadora?: { registro?: string; nome?: string } }; dose_semen?: { touro?: { id?: string; registro?: string; nome?: string } } } | null;
       const doadora = acasalamento?.aspiracao?.doadora;
       const touro = acasalamento?.dose_semen?.touro;
-      const cliente = e.cliente as any;
+      const cliente = e.cliente as { nome?: string } | null;
 
       // Agrupar por cliente + doadora + touro + classificação
       const groupKey = `${e.cliente_id}-${doadora?.id || 'sem'}-${touro?.id || 'sem'}-${e.classificacao || 'sem'}`;
@@ -408,7 +409,7 @@ export default function RelatoriosMaterial() {
         </TabsList>
 
         {/* Filtros */}
-        <div className="rounded-xl border border-border bg-card p-4 mt-4">
+        <div className="rounded-xl border border-border glass-panel p-4 mt-4">
           <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
             {/* Busca */}
             <div className="relative w-full md:flex-1 md:min-w-[200px] md:max-w-[280px]">
@@ -488,6 +489,7 @@ export default function RelatoriosMaterial() {
                 size="sm"
                 onClick={handleLimparFiltros}
                 className="h-11 md:h-9"
+                aria-label="Limpar filtros"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -527,7 +529,7 @@ export default function RelatoriosMaterial() {
             </CardHeader>
             <CardContent className="pt-0">
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+                <LoadingSpinner />
               ) : dadosFiltrados.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Nenhum registro encontrado
@@ -538,7 +540,7 @@ export default function RelatoriosMaterial() {
                   {tipoMaterial === 'embrioes' && (
                     <div className="md:hidden space-y-2">
                       {dadosPaginados.map((row: EmbriaoRow) => (
-                        <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                        <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-base font-medium text-foreground truncate">
@@ -587,11 +589,10 @@ export default function RelatoriosMaterial() {
                       {dadosPaginados.map((row: EmbriaoRow) => (
                         <div
                           key={row.id}
-                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${
-                            clienteIdFilter
-                              ? 'grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
-                              : 'grid-cols-[1.5fr_1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
-                          }`}
+                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${clienteIdFilter
+                            ? 'grid-cols-[1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
+                            : 'grid-cols-[1.5fr_1.2fr_1.2fr_0.7fr_0.7fr_1fr_0.7fr]'
+                            }`}
                         >
                           {!clienteIdFilter && (
                             <div className="px-4 py-3 text-sm truncate">{row.cliente_nome}</div>
@@ -620,7 +621,7 @@ export default function RelatoriosMaterial() {
                   {tipoMaterial === 'semen' && (
                     <div className="md:hidden space-y-2">
                       {dadosPaginados.map((row: DoseSemenRow) => (
-                        <div key={row.id} className="rounded-xl border border-border/60 bg-card shadow-sm p-3.5">
+                        <div key={row.id} className="rounded-xl border border-border/60 glass-panel shadow-sm p-3.5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-base font-medium text-foreground truncate">
@@ -654,11 +655,10 @@ export default function RelatoriosMaterial() {
                   {/* Desktop Table - Doses de Sêmen */}
                   {tipoMaterial === 'semen' && (
                     <div className="hidden md:block rounded-lg border border-border overflow-hidden">
-                      <div className={`grid gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide ${
-                        clienteIdFilter
-                          ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
-                          : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
-                      }`}>
+                      <div className={`grid gap-0 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide ${clienteIdFilter
+                        ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
+                        : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
+                        }`}>
                         {!clienteIdFilter && <div className="px-4 py-3">Cliente</div>}
                         <div className={`px-3 py-3 ${clienteIdFilter ? 'px-4' : ''}`}>Touro</div>
                         <div className="px-3 py-3 text-center">Tipo</div>
@@ -669,11 +669,10 @@ export default function RelatoriosMaterial() {
                       {dadosPaginados.map((row: DoseSemenRow) => (
                         <div
                           key={row.id}
-                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${
-                            clienteIdFilter
-                              ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
-                              : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
-                          }`}
+                          className={`grid gap-0 items-center border-t border-border hover:bg-muted/30 ${clienteIdFilter
+                            ? 'grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr]'
+                            : 'grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_0.8fr]'
+                            }`}
                         >
                           {!clienteIdFilter && (
                             <div className="px-4 py-3 text-sm truncate">{row.cliente_nome}</div>

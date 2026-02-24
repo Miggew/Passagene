@@ -67,12 +67,12 @@ export function AnimalFilters({ onFilter, racas = [], placeholder = 'Buscar por 
               <div className="w-1 h-5 rounded-full bg-blue-500/40" />
               <span className="text-xs font-medium text-muted-foreground">Raça</span>
             </div>
-            <Select value={raca} onValueChange={setRaca}>
+            <Select value={raca || "todas"} onValueChange={(val) => setRaca(val === "todas" ? "" : val)}>
               <SelectTrigger className="h-10 bg-background">
                 <SelectValue placeholder="Todas" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="todas">Todas</SelectItem>
                 {racas.map((r) => (
                   <SelectItem key={r} value={r}>
                     {r}

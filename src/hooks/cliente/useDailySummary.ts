@@ -96,25 +96,27 @@ async function collectDashboardData(
     };
   }
 
-  // Receptoras via view
+  // Receptoras ativas nas fazendas
   const { data: receptorasView } = await supabase
-    .from('vw_receptoras_fazenda_atual')
-    .select('receptora_id, fazenda_id_atual')
-    .in('fazenda_id_atual', fazendaIds);
+    .from('receptoras')
+    .select('id, fazenda_atual_id')
+    .in('fazenda_atual_id', fazendaIds);
 
-  const receptoraIds = receptorasView?.map(r => r.receptora_id) || [];
+  const receptoraIds = receptorasView?.map(r => r.id) || [];
 
   const { data: receptorasData } = receptoraIds.length > 0
     ? await supabase
-        .from('receptoras')
-        .select('id, status_reprodutivo, data_provavel_parto')
-        .in('id', receptoraIds)
+      .from('receptoras')
+      .select('id, status_reprodutivo, data_provavel_parto')
+      .in('id', receptoraIds)
     : { data: [] as Array<{ id: string; status_reprodutivo: string | null; data_provavel_parto: string | null }> };
 
   // Contagem de receptoras
   const totais = { total: 0, prenhes: 0, servidas: 0, protocoladas: 0, vazias: 0 };
   const receptoraFazendaMap = new Map<string, string>();
-  receptorasView?.forEach(r => receptoraFazendaMap.set(r.receptora_id, r.fazenda_id_atual));
+  receptorasView?.forEach(r => {
+    if (r.fazenda_atual_id) receptoraFazendaMap.set(r.id, r.fazenda_atual_id);
+  });
 
   receptorasData?.forEach(r => {
     totais.total++;
@@ -128,10 +130,12 @@ async function collectDashboardData(
   // Fazendas com contagem de receptoras
   const fazendaReceptoraCount = new Map<string, number>();
   receptorasView?.forEach(r => {
-    fazendaReceptoraCount.set(
-      r.fazenda_id_atual,
-      (fazendaReceptoraCount.get(r.fazenda_id_atual) || 0) + 1
-    );
+    if (r.fazenda_atual_id) {
+      fazendaReceptoraCount.set(
+        r.fazenda_atual_id,
+        (fazendaReceptoraCount.get(r.fazenda_atual_id) || 0) + 1
+      );
+    }
   });
   const fazendaList = (fazendas || []).map(f => ({
     nome: f.nome,
@@ -617,13 +621,17 @@ export function useDailySummary(clienteId: string | undefined, clienteNome?: str
     queryClient.setQueryData(queryKey, undefined);
     // Deletar cache do banco
     if (clienteId) {
-      supabase
-        .from('cliente_daily_summaries')
-        .delete()
-        .eq('cliente_id', clienteId)
-        .eq('summary_date', todayStr)
-        .then(() => {})
-        .catch(() => {});
+      (async () => {
+        try {
+          await supabase
+            .from('cliente_daily_summaries')
+            .delete()
+            .eq('cliente_id', clienteId)
+            .eq('summary_date', todayStr);
+        } catch {
+          // Ignore
+        }
+      })();
     }
     skipCacheRef.current = true;
     query.refetch();
