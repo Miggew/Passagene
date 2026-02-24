@@ -55,7 +55,7 @@ export function LoteScoreDashboard({ loteFivId, totalEmbrioes }: LoteScoreDashbo
   });
 
   // Detect if any score is v2
-  const hasV2 = scores.some(s => s.combined_classification != null);
+  const hasV2 = scores.some(s => s.combined_classification != null || s.embedding != null || s.knn_votes != null);
 
   if (hasV2) {
     return <V2Dashboard scores={scores} totalEmbrioes={totalEmbrioes} />;
@@ -139,7 +139,7 @@ function V2Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
                   style={{ width: `${Math.max(pct, 3)}%` }}
                 />
               </div>
-              <span className="text-[10px] text-muted-foreground w-14 text-right">{count} ({pct}%)</span>
+              <span className="text-xs text-muted-foreground w-14 text-right">{count} ({pct}%)</span>
             </div>
           );
         })}
@@ -219,19 +219,19 @@ function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
       <div className="flex items-center justify-between">
         <div className="text-center">
           <div className="text-3xl font-bold text-primary">{stats.avgScore}</div>
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Média</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider">Média</span>
         </div>
         <div className="flex gap-4">
           <div className="text-center">
             <span className="text-lg font-semibold">{stats.avgMorph}</span>
-            <div className="text-[10px] text-muted-foreground">Morfologia</div>
+            <div className="text-xs text-muted-foreground">Morfologia</div>
           </div>
           <div className="text-center">
             <div className="flex items-center gap-1 justify-center">
               <Activity className="w-3 h-3 text-muted-foreground" />
               <span className="text-lg font-semibold">{stats.avgKinetic}</span>
             </div>
-            <div className="text-[10px] text-muted-foreground">Cinética</div>
+            <div className="text-xs text-muted-foreground">Cinética</div>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@ function V1Dashboard({ scores, totalEmbrioes }: { scores: EmbryoScore[]; totalEm
           if (bar.count === 0) return null;
           return (
             <div key={bar.label} className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-16 text-right">{bar.label}</span>
+              <span className="text-xs text-muted-foreground w-16 text-right">{bar.label}</span>
               <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${bar.color}`}

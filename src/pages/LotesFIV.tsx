@@ -527,6 +527,7 @@ export default function LotesFIV() {
         throw new Error('Validação falhou');
       }
 
+      // Validação prévia de estoque (leitura) — a baixa real é atômica via RPC
       const { data: doseAtual, error: doseAtualError } = await supabase
         .from('doses_semen')
         .select('id, quantidade')
@@ -568,12 +569,12 @@ export default function LotesFIV() {
         throw error;
       }
 
-      const novaQuantidade = quantidadeDisponivel - quantidadeFracionada;
-      const { error: doseUpdateError } = await supabase
-        .from('doses_semen')
-        .update({ quantidade: novaQuantidade })
-        .eq('id', doseAtual?.id || '');
-      if (doseUpdateError) throw doseUpdateError;
+      // Baixa atômica via RPC (SELECT FOR UPDATE + CHECK >= 0 no banco)
+      const { error: rpcError } = await supabase.rpc('decrementar_estoque_semen', {
+        p_dose_id: doseAtual?.id,
+        p_quantidade: quantidadeFracionada,
+      });
+      if (rpcError) throw rpcError;
 
       toast({
         title: 'Acasalamento adicionado',
@@ -867,10 +868,15 @@ export default function LotesFIV() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              {/* Fazenda nome */}
+                              {/* Cliente / Fazenda */}
+                              {lote.cliente_nome && (
+                                <div className="text-[11px] text-muted-foreground truncate mb-0.5">
+                                  {lote.cliente_nome}
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-sm font-medium text-foreground truncate">
-                                  {lote.pacote_nome}
+                                  {lote.pacote_nome || '-'}
                                 </span>
                               </div>
 
@@ -920,6 +926,7 @@ export default function LotesFIV() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Aspiração</TableHead>
+                          <TableHead>Cliente / Fazenda</TableHead>
                           <TableHead>Fazendas Destino</TableHead>
                           <TableHead>Dia do Cultivo</TableHead>
                           <TableHead>Acasalamentos</TableHead>
@@ -931,6 +938,17 @@ export default function LotesFIV() {
                           <TableRow key={lote.id}>
                             <TableCell>
                               {lote.pacote_data && formatDate(lote.pacote_data)} - {lote.pacote_nome}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {lote.cliente_nome && (
+                                  <span className="font-medium text-foreground">{lote.cliente_nome}</span>
+                                )}
+                                {lote.cliente_nome && lote.pacote_nome && (
+                                  <span className="text-muted-foreground"> / </span>
+                                )}
+                                <span className="text-muted-foreground">{lote.pacote_nome || '-'}</span>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">

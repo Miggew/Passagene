@@ -76,7 +76,7 @@ STRICT EXCLUSION:
 - DEBRIS: Small dark specks.
 - SHADOWS: Large patches near edges.
 
-Return EXACTLY ${expected_count || 10} bounding boxes [ymin, xmin, ymax, xmax] in JSON.`;
+There are UP TO ${expected_count || 10} embryos in this image. Return bounding boxes [ymin, xmin, ymax, xmax] in JSON ONLY for clear, undeniable embryos (spherical morulas or blastocysts). It is STRICTLY FORBIDDEN to flag air bubbles, debris, or empty fluid just to meet the expected count. Precision is paramount. It is perfectly acceptable and expected to return fewer boxes than ${expected_count || 10} if the structures are not unambiguously clear.`;
 
     const geminiResp = await fetch(geminiUrl, {
       method: 'POST',

@@ -117,7 +117,7 @@ export function ScoreRemapping({ scores, embrioes, onClose }: ScoreRemappingProp
                   </div>
                   <div className="min-w-0">
                     <div className={`text-xs font-medium ${colors.text}`}>{score.classification}</div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {score.position_description || `Embrião ${index + 1}`}
                     </div>
                   </div>

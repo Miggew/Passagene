@@ -75,7 +75,9 @@ const CLASS_BADGE_COLORS: Record<string, { bg: string; text: string; ring: strin
 
 export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgeProps) {
   // v2: Show class badge if combined_classification exists
-  const isV2 = score.combined_classification != null;
+  const isV2 = score.combined_classification != null
+    || score.embedding != null
+    || score.knn_votes != null;
 
   if (isV2) {
     const cls = score.biologist_classification || score.combined_classification || '?';
@@ -88,7 +90,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md ${clsColors.bg} ring-1 ${clsColors.ring}`}
           title={`Classe: ${cls}${confidence ? ` (${confidence})` : ''}`}
         >
-          <span className={`text-[10px] font-bold font-mono ${clsColors.text}`}>{cls}</span>
+          <span className={`text-xs font-bold font-mono ${clsColors.text}`}>{cls}</span>
         </div>
       );
     }
@@ -101,7 +103,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
         <Brain className={`w-3 h-3 ${clsColors.text}`} />
         <span className={`text-xs font-bold font-mono ${clsColors.text}`}>{cls}</span>
         {confidence && (
-          <span className={`text-[10px] ${clsColors.text} opacity-70`}>{confidence}</span>
+          <span className={`text-xs ${clsColors.text} opacity-70`}>{confidence}</span>
         )}
       </div>
     );
@@ -117,7 +119,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
         title={`EmbryoScore: ${score.embryo_score} — ${score.classification} (${getConfidenceLabel(score.confidence)})`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-        <span className={`text-[10px] font-bold ${colors.text}`}>
+        <span className={`text-xs font-bold ${colors.text}`}>
           {Math.round(score.embryo_score)}
         </span>
       </div>
@@ -133,7 +135,7 @@ export function EmbryoScoreBadge({ score, compact = false }: EmbryoScoreBadgePro
       <span className={`text-xs font-bold ${colors.text}`}>
         {Math.round(score.embryo_score)}
       </span>
-      <span className={`text-[10px] ${colors.text} opacity-70`}>
+      <span className={`text-xs ${colors.text} opacity-70`}>
         {score.classification}
       </span>
     </div>
@@ -173,7 +175,7 @@ export function EmbryoScoreProcessing({
       className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ring-1 ${
         isPending
           ? 'bg-amber-500/10 ring-amber-500/20'
-          : 'bg-blue-500/10 ring-blue-500/20 animate-pulse'
+          : 'bg-blue-500/10 ring-blue-500/20'
       }`}
       title={`Status: ${isPending ? 'Aguardando na fila' : 'Processando com Gemini IA'}${retryLabel}${elapsed ? ` — ${elapsed}` : ''}`}
     >
@@ -182,13 +184,13 @@ export function EmbryoScoreProcessing({
       ) : (
         <Brain className="w-3 h-3 text-blue-500" />
       )}
-      <span className={`text-[10px] font-medium ${
+      <span className={`text-xs font-medium ${
         isPending ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'
       }`}>
         {label}
       </span>
       {elapsed && (
-        <span className="text-[10px] text-blue-500/70">{elapsed}</span>
+        <span className="text-xs text-blue-500/70">{elapsed}</span>
       )}
     </div>
   );
@@ -210,9 +212,9 @@ export function EmbryoScoreError({ message, retryCount }: { message?: string; re
       title={`${message || 'Falha na análise'}${retryLabel}`}
     >
       <Brain className="w-3 h-3 text-red-500" />
-      <span className="text-[10px] text-red-600 dark:text-red-400 font-medium">Falha IA</span>
+      <span className="text-xs text-red-600 dark:text-red-400 font-medium">Falha IA</span>
       {retryCount != null && retryCount >= 3 && (
-        <span className="text-[10px] text-red-500/60">max</span>
+        <span className="text-xs text-red-500/60">max</span>
       )}
     </div>
   );
@@ -270,14 +272,14 @@ export function EmbryoAnalysisBar({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Brain className="w-3 h-3 text-red-500" />
-            <span className="text-[10px] text-red-600 dark:text-red-400 font-medium">
+            <span className="text-xs text-red-600 dark:text-red-400 font-medium">
               Falha IA{retryLabel}
             </span>
           </div>
           {onRetry && (
             <button
               onClick={onRetry}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 transition-colors"
             >
               <RefreshCw className="w-3 h-3" />
               Reanalisar
@@ -312,9 +314,9 @@ export function EmbryoAnalysisBar({
           {isPending ? (
             <Clock className="w-3 h-3 text-amber-500" />
           ) : (
-            <Brain className="w-3 h-3 text-blue-500 animate-pulse" />
+            <Brain className="w-3 h-3 text-blue-500" />
           )}
-          <span className={`text-[10px] font-medium ${
+          <span className={`text-xs font-medium ${
             isPending
               ? 'text-amber-600 dark:text-amber-400'
               : 'text-blue-600 dark:text-blue-400'
@@ -324,12 +326,12 @@ export function EmbryoAnalysisBar({
         </div>
         <div className="flex items-center gap-2">
           {elapsed && (
-            <span className="text-[10px] text-blue-500/70">{elapsed}</span>
+            <span className="text-xs text-blue-500/70">{elapsed}</span>
           )}
           {onCancel && (
             <button
               onClick={onCancel}
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 bg-muted/50 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 bg-muted/50 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
               title="Cancelar análise"
             >
               <X className="w-3 h-3" />

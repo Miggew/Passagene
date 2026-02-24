@@ -89,7 +89,7 @@ export function TransferRankingCard({ scores, embrioes = [] }: TransferRankingCa
               <div className={`text-lg font-bold ${getScoreColor(score.embryo_score)}`}>
                 {score.embryo_score}
               </div>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {score.transfer_recommendation === 'priority' ? 'Prioridade' :
                  score.transfer_recommendation === 'recommended' ? 'Recomendado' :
                  score.transfer_recommendation === 'conditional' ? 'Condicional' :

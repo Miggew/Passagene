@@ -65,7 +65,7 @@ export function EmbryoHighlightFrame({ score, className = '' }: EmbryoHighlightF
   }
 
   // v2: Show class badge instead of numeric score
-  const isV2 = score.combined_classification != null;
+  const isV2 = score.combined_classification != null || score.embedding != null || score.knn_votes != null;
   const badgeLabel = isV2
     ? score.combined_classification
     : String(Math.round(score.embryo_score));

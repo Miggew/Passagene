@@ -56,7 +56,7 @@ export function VideoUploadButton({
         <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center relative">
           <Loader2 className="w-4 h-4 text-primary animate-spin" />
         </div>
-        <span className="text-[10px] text-muted-foreground font-medium">{progress}%</span>
+        <span className="text-xs text-muted-foreground font-medium">{progress}%</span>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export function VideoUploadButton({
         >
           <AlertCircle className="w-4 h-4 text-red-500" />
         </button>
-        <span className="text-[9px] text-red-500">Tentar</span>
+        <span className="text-xs text-red-500">Tentar</span>
         <input
           ref={inputRef}
           type="file"
@@ -93,7 +93,7 @@ export function VideoUploadButton({
             <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
               {videoCount} {videoCount === 1 ? 'video' : 'videos'}
             </span>
           </div>
@@ -142,7 +142,7 @@ export function VideoUploadButton({
           onRecordingComplete={onUploadComplete}
         />
       </div>
-      <span className="text-[9px] text-muted-foreground">Filmar</span>
+      <span className="text-xs text-muted-foreground">Filmar</span>
       <input
         ref={inputRef}
         type="file"

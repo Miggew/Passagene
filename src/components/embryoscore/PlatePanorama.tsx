@@ -199,7 +199,7 @@ export function PlatePanorama({
   }
 
   return (
-    <div className="rounded-xl border border-border/50 overflow-hidden bg-black/40 shadow-glow">
+    <div className="rounded-xl border border-border/50 overflow-hidden bg-black/40">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
@@ -207,13 +207,13 @@ export function PlatePanorama({
         style={{ display: 'block' }}
       />
       <div className="flex items-center gap-6 px-4 py-2 bg-card/80 backdrop-blur-sm border-t border-border/30">
-        <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
+        <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">
           <span className="inline-block w-2.5 h-2.5 rounded-full border border-white/20" /> Pendente
         </span>
-        <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-primary/80">
+        <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-primary/80">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary/20 border border-primary/40" /> Classificado
         </span>
-        <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-widest text-primary">
+        <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-primary">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary border-2 border-primary-dark" /> Ativo
         </span>
       </div>

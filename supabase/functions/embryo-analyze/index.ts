@@ -1,7 +1,12 @@
 /**
- * Edge Function: embryo-analyze (v2.3)
+ * Edge Function: embryo-analyze (v2.4)
  *
  * Pipeline DINOv2 + KNN + MLP com Pareamento Geográfico (X,Y)
+ *
+ * v2.4 Changelog:
+ *  - KNN matching via match_embryos RPC → preenche combined_classification,
+ *    knn_votes, knn_confidence, combined_source, combined_confidence
+ *  - Frontend V2 mode agora ativado (antes combined_classification era sempre NULL)
  *
  * v2.3 Changelog:
  *  - Client Supabase no escopo superior (fix ReferenceError no catch)
@@ -49,6 +54,128 @@ interface DINOv2Result {
 
 function base64ToBuffer(b64: string): Uint8Array {
   return Uint8Array.from(atob(b64), (c: string) => c.charCodeAt(0));
+}
+
+interface KNNMatch {
+  id: string;
+  classification: string;
+  similarity: number;
+  species: string;
+  kinetic_intensity: number | null;
+  kinetic_harmony: number | null;
+  pregnancy_result: boolean | null;
+  best_frame_path: string | null;
+  motion_map_path: string | null;
+}
+
+interface CombinedResult {
+  knn_classification: string | null;
+  knn_confidence: number | null;
+  knn_votes: Record<string, number> | null;
+  knn_neighbor_ids: string[] | null;
+  knn_real_bovine_count: number;
+  combined_classification: string;
+  combined_source: 'knn' | 'knn_mlp_agree' | 'knn_mlp_disagree' | 'mlp_only' | 'insufficient';
+  combined_confidence: number;
+}
+
+/**
+ * Computa classificação combinada a partir de KNN + MLP.
+ * Lógica:
+ *  - Se KNN tem ≥3 vizinhos: voto majoritário = knn_classification
+ *  - Se MLP e KNN concordam: combined_source = 'knn_mlp_agree', confiança +10
+ *  - Se discordam: combined_source = 'knn_mlp_disagree', prevalece KNN
+ *  - Se KNN insuficiente mas MLP existe: combined_source = 'mlp_only'
+ *  - Senão: combined_source = 'insufficient'
+ */
+function computeCombinedClassification(
+  neighbors: KNNMatch[],
+  mlpResult?: { classification: string; confidence: number; probabilities: Record<string, number> } | null,
+): CombinedResult {
+  const MIN_NEIGHBORS = 3;
+  const realBovineCount = neighbors.filter(n => n.species === 'bovine_real').length;
+
+  // KNN votes
+  const votes: Record<string, number> = {};
+  for (const n of neighbors) {
+    votes[n.classification] = (votes[n.classification] || 0) + 1;
+  }
+
+  let knnClass: string | null = null;
+  let knnConf: number | null = null;
+  const knnIds = neighbors.map(n => n.id);
+
+  if (neighbors.length >= MIN_NEIGHBORS) {
+    // Voto majoritário
+    const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+    knnClass = sorted[0][0];
+    knnConf = Math.round((sorted[0][1] / neighbors.length) * 100);
+  }
+
+  const mlpClass = mlpResult?.classification ?? null;
+  const mlpConf = mlpResult?.confidence ?? 0;
+
+  // Determinar classificação combinada
+  if (knnClass && mlpClass) {
+    if (knnClass === mlpClass) {
+      return {
+        knn_classification: knnClass,
+        knn_confidence: knnConf,
+        knn_votes: votes,
+        knn_neighbor_ids: knnIds,
+        knn_real_bovine_count: realBovineCount,
+        combined_classification: knnClass,
+        combined_source: 'knn_mlp_agree',
+        combined_confidence: Math.min(99, (knnConf || 0) + 10),
+      };
+    } else {
+      // Discordam — prevalece KNN mas sinaliza divergência
+      return {
+        knn_classification: knnClass,
+        knn_confidence: knnConf,
+        knn_votes: votes,
+        knn_neighbor_ids: knnIds,
+        knn_real_bovine_count: realBovineCount,
+        combined_classification: knnClass,
+        combined_source: 'knn_mlp_disagree',
+        combined_confidence: Math.max(knnConf || 0, mlpConf) - 10,
+      };
+    }
+  } else if (knnClass) {
+    return {
+      knn_classification: knnClass,
+      knn_confidence: knnConf,
+      knn_votes: votes,
+      knn_neighbor_ids: knnIds,
+      knn_real_bovine_count: realBovineCount,
+      combined_classification: knnClass,
+      combined_source: 'knn',
+      combined_confidence: knnConf || 50,
+    };
+  } else if (mlpClass) {
+    return {
+      knn_classification: null,
+      knn_confidence: null,
+      knn_votes: Object.keys(votes).length > 0 ? votes : null,
+      knn_neighbor_ids: knnIds.length > 0 ? knnIds : null,
+      knn_real_bovine_count: realBovineCount,
+      combined_classification: mlpClass,
+      combined_source: 'mlp_only',
+      combined_confidence: mlpConf,
+    };
+  }
+
+  // Insuficiente — nem KNN nem MLP
+  return {
+    knn_classification: null,
+    knn_confidence: null,
+    knn_votes: Object.keys(votes).length > 0 ? votes : null,
+    knn_neighbor_ids: knnIds.length > 0 ? knnIds : null,
+    knn_real_bovine_count: realBovineCount,
+    combined_classification: mlpClass || 'ND',
+    combined_source: 'insufficient',
+    combined_confidence: 0,
+  };
 }
 
 function mapToLegacyClassification(confidence: number): string {
@@ -118,7 +245,7 @@ Deno.serve(async (req: Request) => {
         const frame_base64 = frameData.frame_base64;
 
         // 4b. Chamar embryo-detect com o frame extraído
-        const detResp = await fetch(Deno.env.get('SUPABASE_FUNCTIONS_URL') + '/embryo-detect', {
+        const detResp = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/embryo-detect`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -133,7 +260,22 @@ Deno.serve(async (req: Request) => {
         await supabase.from('embryo_analysis_queue').update({ detected_bboxes: detectedBboxes }).eq('id', queue_id);
     }
 
-    if (detectedBboxes.length === 0) throw new Error('No embryos detected after retry');
+    if (detectedBboxes.length === 0) {
+      // Graceful exit: IA funcionou mas não encontrou embriões claros
+      const elapsed = Date.now() - startTime;
+      await supabase.from('embryo_analysis_queue').update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        error_message: 'Nenhum embrião claro detectado na imagem.',
+      }).eq('id', queue_id);
+      console.log(`[Analyze] 0 embriões detectados — finalizado em ${elapsed}ms`);
+      return new Response(JSON.stringify({
+        success: true,
+        saved: 0,
+        elapsed_ms: elapsed,
+        message: 'Nenhum embrião claro detectado.',
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // 5. Extração de Crops (Usando coordenadas validadas)
     console.log(`[Analyze] Extraindo ${detectedBboxes.length} crops`);
@@ -172,7 +314,7 @@ Deno.serve(async (req: Request) => {
         }
     }
 
-    // 7. Salvamento com Pareamento Geográfico e Gatekeeper
+    // 7. Salvamento com Pareamento Geográfico, KNN e Gatekeeper
     const basePath = `${job.lote_fiv_acasalamento_id}/${queue_id}`;
     const scoresToInsert = [];
 
@@ -197,12 +339,35 @@ Deno.serve(async (req: Request) => {
         const embriao = (closestEmb && minDist < 15) ? closestEmb : embrioesNoBanco[embIdx];
         if (!embriao) continue;
 
+        if (minDist >= 15 && closestEmb) {
+            console.log(`[Analyze] Geo-match #${embIdx}: dist=${minDist.toFixed(1)}% > 15%, fallback para índice`);
+        }
+
         const confidence = result.mlp_classification?.confidence || 50;
+
+        // ── v2.4: KNN Matching via match_embryos RPC ──
+        let combined: CombinedResult;
+        try {
+            const { data: knnNeighbors } = await supabase.rpc('match_embryos', {
+                query_embedding: result.embedding,
+                match_count: 10,
+                min_similarity: 0.60,
+            });
+            combined = computeCombinedClassification(
+                (knnNeighbors || []) as KNNMatch[],
+                result.mlp_classification ?? null,
+            );
+            console.log(`[KNN] #${embIdx}: ${combined.combined_source} → ${combined.combined_classification} (${combined.combined_confidence}%, ${(knnNeighbors || []).length} vizinhos, ${combined.knn_real_bovine_count} reais)`);
+        } catch (knnErr) {
+            console.error(`[KNN] Falha #${embIdx}:`, knnErr);
+            // Fallback: usa só MLP se disponível
+            combined = computeCombinedClassification([], result.mlp_classification ?? null);
+        }
 
         // Upload Imagem Principal (best frame)
         await supabase.storage.from('embryoscore').upload(`${basePath}/emb_${embIdx}.jpg`, base64ToBuffer(result.best_frame_b64), { contentType: 'image/jpeg', upsert: true });
 
-        // ── FIX #2a: Upload Motion Map ao Storage ──
+        // Upload Motion Map ao Storage
         let motionMapPath: string | null = null;
         if (result.motion_map_b64) {
             motionMapPath = `${basePath}/motion_${embIdx}.jpg`;
@@ -213,7 +378,7 @@ Deno.serve(async (req: Request) => {
             );
         }
 
-        // ── FIX #2b: Upload Composite (morfologia + cinética lado a lado) ao Storage ──
+        // Upload Composite (morfologia + cinética lado a lado) ao Storage
         let compositePath: string | null = null;
         if (result.composite_b64) {
             compositePath = `${basePath}/composite_${embIdx}.jpg`;
@@ -224,7 +389,7 @@ Deno.serve(async (req: Request) => {
             );
         }
 
-        // ── FIX #2c: Payload completo — V1 (legado mantido) + V2 (todos os campos DINOv2) ──
+        // Payload completo — V1 (legado mantido) + V2 (KNN + DINOv2 + MLP)
         scoresToInsert.push({
             // ── Campos V1 (legado, mantidos para compatibilidade) ──
             embriao_id: embriao.id,
@@ -239,7 +404,7 @@ Deno.serve(async (req: Request) => {
             bbox_x_percent: bbox.x_percent,
             bbox_y_percent: bbox.y_percent,
             texture_score: tScore,
-            reasoning: `DINOv2+Híbrido (Dist: ${minDist.toFixed(1)}%)`,
+            reasoning: `DINOv2+KNN (Dist: ${minDist.toFixed(1)}%, Src: ${combined.combined_source})`,
             model_used: 'dinov2_vitb14',
 
             // ── V2: Embedding (vector 768d para pgvector) ──
@@ -260,6 +425,16 @@ Deno.serve(async (req: Request) => {
             mlp_classification: result.mlp_classification?.classification ?? null,
             mlp_confidence: result.mlp_classification?.confidence ?? null,
             mlp_probabilities: result.mlp_classification?.probabilities ?? null,
+
+            // ── V2: KNN + Combined (NOVO em v2.4) ──
+            knn_classification: combined.knn_classification,
+            knn_confidence: combined.knn_confidence,
+            knn_votes: combined.knn_votes,
+            knn_neighbor_ids: combined.knn_neighbor_ids,
+            knn_real_bovine_count: combined.knn_real_bovine_count,
+            combined_classification: combined.combined_classification,
+            combined_source: combined.combined_source,
+            combined_confidence: combined.combined_confidence,
         });
 
         // Atualizar coordenadas para o próximo match ser perfeito

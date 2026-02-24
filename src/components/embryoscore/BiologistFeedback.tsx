@@ -72,6 +72,9 @@ export function BiologistFeedback({ score }: BiologistFeedbackProps) {
           biologo_nota: data.biologo_nota,
           biologo_estagio: data.biologo_estagio,
           biologo_descricao_erros: data.biologo_descricao_erros,
+          // V2 training columns — retroalimenta o Atlas KNN
+          biologist_agreed: concorda,
+          biologist_classification: score.knn_classification ?? null,
         })
         .eq('id', score.id);
 
@@ -116,12 +119,12 @@ export function BiologistFeedback({ score }: BiologistFeedbackProps) {
             <span className="text-xs font-medium text-foreground">
               Biólogo: {score.biologo_score}/100
             </span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               (IA deu {aiScore})
             </span>
           </div>
           {(score.biologo_descricao_erros && score.biologo_descricao_erros.length > 0 || score.biologo_nota) && (
-            <div className="mt-0.5 text-[10px] text-muted-foreground truncate">
+            <div className="mt-0.5 text-xs text-muted-foreground truncate">
               {score.biologo_descricao_erros && score.biologo_descricao_erros.length > 0 && (
                 <span>Erros: {score.biologo_descricao_erros.join(', ')}</span>
               )}
@@ -133,7 +136,7 @@ export function BiologistFeedback({ score }: BiologistFeedbackProps) {
         </div>
         <button
           onClick={() => setEditing(true)}
-          className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+          className="shrink-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5"
         >
           <Pencil className="w-3 h-3" />
           Editar

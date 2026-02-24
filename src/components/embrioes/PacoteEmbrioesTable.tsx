@@ -35,6 +35,8 @@ import {
   ScanSearch,
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
+import { calcularDiaEmbriao } from '@/hooks/embrioes';
+import { Shield } from 'lucide-react';
 
 interface PacoteEmbrioesTableProps {
   pacote: PacoteEmbrioes;
@@ -242,6 +244,11 @@ export function PacoteEmbrioesTable({
 
   // Após despacho, só permite descarte
   const jaFoiDespachado = pacote.disponivel_para_transferencia === true;
+
+  // Trava biológica D8: embriões não podem ser processados após D8
+  const diaDesenvolvimento = calcularDiaEmbriao(pacote.data_fecundacao);
+  const isD9Plus = diaDesenvolvimento !== null && diaDesenvolvimento > 8;
+  const isBloqueado = jaFoiDespachado || isD9Plus;
   const embrioesOrdenados = [...pacote.embrioes].sort((a, b) => {
     const idA = a.identificacao || '';
     const idB = b.identificacao || '';
@@ -353,6 +360,16 @@ export function PacoteEmbrioesTable({
 
   return (
     <div className="space-y-3">
+      {/* Alerta D9+ — Trava Biológica */}
+      {isD9Plus && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30">
+          <Shield className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+          <span className="text-xs font-semibold text-red-600 dark:text-red-400">
+            Lote D{diaDesenvolvimento}+ (Bloqueado) — Ações de classificação e congelamento desabilitadas após D8.
+          </span>
+        </div>
+      )}
+
       {/* Header com seleção e paginação */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-border">
         <div className="flex items-center gap-3">
@@ -503,7 +520,7 @@ export function PacoteEmbrioesTable({
                 )}
 
                 {/* Ações rápidas visíveis - desabilitadas após despacho */}
-                {!jaFoiDespachado && (
+                {!isBloqueado && (
                   <>
                     <Button
                       variant="ghost"
@@ -577,7 +594,7 @@ export function PacoteEmbrioesTable({
                       <DropdownMenuSeparator />
                     )}
 
-                    {!jaFoiDespachado && (
+                    {!isBloqueado && (
                       <>
                         <DropdownMenuItem onClick={() => onClassificar(embriao)}>
                           <Tag className="w-4 h-4 mr-2 text-primary" />
@@ -789,7 +806,7 @@ export function PacoteEmbrioesTable({
                       <DropdownMenuSeparator />
                     )}
 
-                    {!jaFoiDespachado && (
+                    {!isBloqueado && (
                       <>
                         <DropdownMenuItem onClick={() => onClassificar(embriao)}>
                           <Tag className="w-4 h-4 mr-2 text-primary" />

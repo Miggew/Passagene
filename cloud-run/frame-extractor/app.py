@@ -51,14 +51,28 @@ def extract_frame():
 
         for pos in [position, 0.25, 0.1]:
             seek_time = max(0.1, duration * pos)
-            frame_bytes = _extract_frame_ffmpeg(tmp_path, seek_time)
-            if frame_bytes and not _is_black_frame(frame_bytes):
-                img = Image.open(io.BytesIO(frame_bytes))
-                b64 = base64.b64encode(frame_bytes).decode("ascii")
+
+            # Burst de 5 frames ao redor do timestamp alvo
+            offsets = [-0.2, -0.1, 0.0, 0.1, 0.2]
+            candidates = []
+
+            for offset in offsets:
+                t = max(0.1, min(duration - 0.1, seek_time + offset))
+                frame_bytes = _extract_frame_ffmpeg(tmp_path, t)
+                if frame_bytes and not _is_black_frame(frame_bytes):
+                    score = _compute_focus_score(frame_bytes)
+                    candidates.append((frame_bytes, score))
+
+            if candidates:
+                # Seleciona o frame matematicamente mais nítido
+                best_bytes, best_score = max(candidates, key=lambda c: c[1])
+                img = Image.open(io.BytesIO(best_bytes))
+                b64 = base64.b64encode(best_bytes).decode("ascii")
                 return jsonify({
                     "frame_base64": b64,
                     "width": img.width,
                     "height": img.height,
+                    "focus_score": round(best_score, 2),
                 })
 
         return jsonify({"error": "Todos os frames extraídos estão pretos"}), 422
@@ -356,6 +370,18 @@ def analyze_activity():
         return jsonify({"error": str(e)}), 500
 
 # Helpers
+def _compute_focus_score(frame_bytes: bytes) -> float:
+    """Variância do Laplaciano — métrica matemática de nitidez."""
+    try:
+        np_arr = np.frombuffer(frame_bytes, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            return 0.0
+        return float(cv2.Laplacian(img, cv2.CV_64F).var())
+    except:
+        return 0.0
+
+
 def _get_duration(path: str) -> float:
     try:
         res = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)

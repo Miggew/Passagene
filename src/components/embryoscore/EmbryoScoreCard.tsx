@@ -56,7 +56,9 @@ const CLASS_COLORS: Record<string, string> = {
 
 export function EmbryoScoreCard({ score, allScores, defaultExpanded = false, classificacaoManual }: EmbryoScoreCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const isV2 = score.combined_classification != null;
+  const isV2 = score.combined_classification != null
+    || score.embedding != null
+    || score.knn_votes != null;
 
   return (
     <div className={`rounded-lg border border-border/60 overflow-hidden transition-all ${expanded ? 'shadow-sm' : ''}`}>
@@ -104,7 +106,7 @@ function V2Header({ score }: { score: EmbryoScore }) {
       <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
         <span className={`font-mono text-sm font-bold leading-none ${clsColor}`}>{cls}</span>
         {score.combined_confidence != null && (
-          <span className="text-[8px] text-muted-foreground leading-none mt-0.5">
+          <span className="text-xs text-muted-foreground leading-none mt-0.5">
             {score.combined_confidence}%
           </span>
         )}
@@ -115,17 +117,17 @@ function V2Header({ score }: { score: EmbryoScore }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-sm font-semibold ${clsColor}`}>{cls}</span>
           {score.biologist_classification && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-primary">
+            <span className="inline-flex items-center gap-0.5 text-xs text-primary">
               <Check className="w-3 h-3" /> Biólogo
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {sourceInfo.icon} {sourceInfo.label}
           </span>
           {score.knn_real_bovine_count != null && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               · {score.knn_real_bovine_count} refs reais
             </span>
           )}
@@ -154,7 +156,7 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
           <div className="flex items-center gap-2 mb-2">
             <Brain className="w-3.5 h-3.5 text-primary/60" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Votação KNN</span>
-            <span className="text-[10px] text-muted-foreground ml-auto">{totalVotes} vizinhos</span>
+            <span className="text-xs text-muted-foreground ml-auto">{totalVotes} vizinhos</span>
           </div>
           <div className="space-y-1.5 pl-5">
             {sortedVotes.map(([cls, count]) => {
@@ -168,7 +170,7 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground w-12 text-right">{count} ({pct}%)</span>
+                  <span className="text-xs text-muted-foreground w-12 text-right">{count} ({pct}%)</span>
                 </div>
               );
             })}
@@ -190,12 +192,12 @@ function V2Details({ score, allScores }: { score: EmbryoScore; allScores?: Embry
       {/* Insufficient / mlp_only notes */}
       {source === 'insufficient' && (
         <div className="text-xs text-muted-foreground italic px-2">
-          Atlas em construção ({score.knn_real_bovine_count || 0} referências reais).
+          Atlas em construção{score.knn_real_bovine_count != null ? ` (${score.knn_real_bovine_count} referências reais)` : ''}.
         </div>
       )}
       {source === 'mlp_only' && (
         <div className="text-xs text-muted-foreground italic px-2">
-          {score.knn_real_bovine_count || 0} referências reais — classificação baseada no classificador treinado.
+          {score.knn_real_bovine_count != null ? `${score.knn_real_bovine_count} referências reais — ` : ''}Classificação baseada no classificador treinado.
         </div>
       )}
 
@@ -237,7 +239,7 @@ function KineticMetric({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
   return (
     <div className="min-w-0">
-      <span className="text-[10px] text-muted-foreground">{label}: </span>
+      <span className="text-xs text-muted-foreground">{label}: </span>
       <span className="text-[11px] font-semibold text-foreground">{pct}%</span>
     </div>
   );
@@ -256,14 +258,14 @@ function V1Header({ score }: { score: EmbryoScore }) {
           <span className={`text-sm font-bold leading-none ${morphColors.text}`}>
             {Math.round(score.morph_score ?? score.embryo_score)}
           </span>
-          <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Morfo</span>
+          <span className="text-xs text-muted-foreground leading-none mt-0.5">Morfo</span>
         </div>
         {kineticColors && score.kinetic_score != null && (
           <div className={`w-10 h-10 rounded-lg ${kineticColors.bg} flex flex-col items-center justify-center`}>
             <span className={`text-sm font-bold leading-none ${kineticColors.text}`}>
               {Math.round(score.kinetic_score)}
             </span>
-            <span className="text-[8px] text-muted-foreground leading-none mt-0.5">Cinét</span>
+            <span className="text-xs text-muted-foreground leading-none mt-0.5">Cinét</span>
           </div>
         )}
       </div>
@@ -280,11 +282,11 @@ function V1Header({ score }: { score: EmbryoScore }) {
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           {score.transfer_recommendation && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+            <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
               {score.transfer_recommendation}
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             <Shield className="w-3 h-3 inline -mt-0.5 mr-0.5" />
             {score.confidence}
           </span>
@@ -370,7 +372,7 @@ function V1Details({ score, allScores, classificacaoManual }: { score: EmbryoSco
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <span className="text-[10px] text-muted-foreground">{label}: </span>
+      <span className="text-xs text-muted-foreground">{label}: </span>
       <span className="text-[11px] text-foreground">{value}</span>
     </div>
   );

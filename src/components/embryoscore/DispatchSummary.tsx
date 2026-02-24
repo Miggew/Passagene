@@ -10,7 +10,7 @@ import { Check, Brain, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/mobile-atoms';
 
 const CLASS_COLORS: Record<string, string> = {
-  BE: 'bg-primary shadow-[0_0_8px_rgba(52,211,153,0.4)]',
+  BE: 'bg-primary',
   BN: 'bg-primary/80',
   BX: 'bg-amber-500',
   BL: 'bg-blue-500',
@@ -57,7 +57,7 @@ export function DispatchSummary({
     : 0;
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-card/50 backdrop-blur-md p-6 space-y-6 shadow-glow">
+    <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -66,13 +66,13 @@ export function DispatchSummary({
           </div>
           <div>
             <h3 className="text-base font-display font-bold tracking-tight text-foreground">Resumo do Despacho</h3>
-            <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground opacity-70">
+            <p className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground opacity-70">
               {totalClassified} embriões validados
             </p>
           </div>
         </div>
         
-        <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono text-[10px] font-bold uppercase tracking-widest">
+        <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono text-xs font-bold uppercase tracking-widest">
           Consenso: {concordancePercent}%
         </div>
       </div>
@@ -90,7 +90,7 @@ export function DispatchSummary({
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <span className="font-mono text-[10px] font-bold text-muted-foreground w-12 text-right tracking-tighter">
+              <span className="font-mono text-xs font-bold text-muted-foreground w-12 text-right tracking-tighter">
                 {count} ({pct}%)
               </span>
             </div>
@@ -100,9 +100,9 @@ export function DispatchSummary({
 
       {/* Atlas maturity */}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/5 border border-primary/10">
-        <Brain className="w-4 h-4 text-primary animate-pulse" />
+        <Brain className="w-4 h-4 text-primary" />
         <div className="flex-1">
-          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">Maturidade da IA</p>
+          <p className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">Maturidade da IA</p>
           <p className="text-[11px] font-sans text-foreground mt-0.5">
             <b>{atlasTotal.toLocaleString()}</b> referências no atlas (<b>{atlasBovineReal.toLocaleString()}</b> bovinas reais)
           </p>
@@ -115,7 +115,7 @@ export function DispatchSummary({
         loading={isLoading}
         fullWidth
         size="lg"
-        className="h-14 rounded-xl shadow-glow shadow-primary/30 font-display font-bold text-base tracking-tight"
+        className="h-14 rounded-xl font-display font-bold text-base tracking-tight"
       >
         <Check className="w-5 h-5 mr-2" />
         Confirmar Despacho do Lote

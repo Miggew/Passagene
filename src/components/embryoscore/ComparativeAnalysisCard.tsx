@@ -65,15 +65,15 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-2 rounded-lg bg-muted/30">
             <div className="text-lg font-bold text-foreground">{Math.round(avgScore)}</div>
-            <div className="text-[10px] text-muted-foreground">Score Médio</div>
+            <div className="text-xs text-muted-foreground">Score Médio</div>
           </div>
           <div className="text-center p-2 rounded-lg bg-muted/30">
             <div className="text-lg font-bold text-foreground">{Math.round(avgMorph)}</div>
-            <div className="text-[10px] text-muted-foreground">Morfo Médio</div>
+            <div className="text-xs text-muted-foreground">Morfo Médio</div>
           </div>
           <div className="text-center p-2 rounded-lg bg-muted/30">
             <div className="text-lg font-bold text-foreground">{Math.round(avgKinetic)}</div>
-            <div className="text-[10px] text-muted-foreground">Cinét Médio</div>
+            <div className="text-xs text-muted-foreground">Cinét Médio</div>
           </div>
         </div>
 
@@ -112,7 +112,7 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
                     <span className={`text-sm font-medium ${isFirst ? colors.text : 'text-foreground'} truncate block`}>
                       {identificacao}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {score.classification} · {getRecommendationLabel(score.transfer_recommendation)}
                     </span>
                   </div>
@@ -122,7 +122,7 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
                     <div className={`text-sm font-bold ${colors.text}`}>
                       {Math.round(score.embryo_score)}
                     </div>
-                    <div className="text-[9px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       M:{Math.round(score.morph_score || 0)} C:{Math.round(score.kinetic_score || 0)}
                     </div>
                   </div>
@@ -144,7 +144,7 @@ export function ComparativeAnalysisCard({ scores, embriaoIdentificacoes = {} }: 
             {Object.entries(distribution).map(([classification, count]) => (
               <span
                 key={classification}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
               >
                 {count}× {classification}
               </span>

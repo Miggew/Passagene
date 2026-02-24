@@ -136,7 +136,7 @@ function CustomTooltip({ active, payload }: any) {
     <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
       <div className="flex items-center gap-2 mb-1.5">
         <div className={`w-6 h-6 rounded ${colors.bg} flex items-center justify-center`}>
-          <span className={`text-[10px] font-bold ${colors.text}`}>{Math.round(data.embryo_score)}</span>
+          <span className={`text-xs font-bold ${colors.text}`}>{Math.round(data.embryo_score)}</span>
         </div>
         <span className="font-semibold text-foreground">{data.identificacao}</span>
       </div>
@@ -253,15 +253,15 @@ export function ScorePregnancyCorrelation() {
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-2 rounded-lg bg-muted/30">
                 <div className="text-lg font-bold text-foreground">{stats.total}</div>
-                <div className="text-[10px] text-muted-foreground">Total analisados</div>
+                <div className="text-xs text-muted-foreground">Total analisados</div>
               </div>
               <div className="text-center p-2 rounded-lg bg-emerald-500/10">
                 <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{stats.taxaGeral.toFixed(1)}%</div>
-                <div className="text-[10px] text-muted-foreground">Taxa prenhez geral</div>
+                <div className="text-xs text-muted-foreground">Taxa prenhez geral</div>
               </div>
               <div className="text-center p-2 rounded-lg bg-muted/30">
                 <div className="text-lg font-bold text-foreground">{stats.prenhes}/{stats.vazias}</div>
-                <div className="text-[10px] text-muted-foreground">Prenhes / Vazias</div>
+                <div className="text-xs text-muted-foreground">Prenhes / Vazias</div>
               </div>
             </div>
 
@@ -271,23 +271,23 @@ export function ScorePregnancyCorrelation() {
               <div className="rounded-lg border border-border/50 p-3">
                 <div className="flex items-center gap-1.5 mb-2">
                   <Eye className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Morfologia</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Morfologia</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="text-center">
                     <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgMorphPrenhe)}</div>
-                    <div className="text-[9px] text-muted-foreground">Prenhes</div>
+                    <div className="text-xs text-muted-foreground">Prenhes</div>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">vs</div>
+                  <div className="text-xs text-muted-foreground">vs</div>
                   <div className="text-center">
                     <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgMorphVazia)}</div>
-                    <div className="text-[9px] text-muted-foreground">Vazias</div>
+                    <div className="text-xs text-muted-foreground">Vazias</div>
                   </div>
                   <div className="text-center border-l border-border/50 pl-3">
                     <div className={`text-sm font-bold ${stats.avgMorphPrenhe - stats.avgMorphVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {stats.avgMorphPrenhe - stats.avgMorphVazia > 0 ? '+' : ''}{Math.round(stats.avgMorphPrenhe - stats.avgMorphVazia)}
                     </div>
-                    <div className="text-[9px] text-muted-foreground">Diff</div>
+                    <div className="text-xs text-muted-foreground">Diff</div>
                   </div>
                 </div>
               </div>
@@ -296,23 +296,23 @@ export function ScorePregnancyCorrelation() {
               <div className="rounded-lg border border-border/50 p-3">
                 <div className="flex items-center gap-1.5 mb-2">
                   <Activity className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Cinética</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cinética</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="text-center">
                     <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{Math.round(stats.avgKineticPrenhe)}</div>
-                    <div className="text-[9px] text-muted-foreground">Prenhes</div>
+                    <div className="text-xs text-muted-foreground">Prenhes</div>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">vs</div>
+                  <div className="text-xs text-muted-foreground">vs</div>
                   <div className="text-center">
                     <div className="text-sm font-bold text-red-700 dark:text-red-400">{Math.round(stats.avgKineticVazia)}</div>
-                    <div className="text-[9px] text-muted-foreground">Vazias</div>
+                    <div className="text-xs text-muted-foreground">Vazias</div>
                   </div>
                   <div className="text-center border-l border-border/50 pl-3">
                     <div className={`text-sm font-bold ${stats.avgKineticPrenhe - stats.avgKineticVazia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {stats.avgKineticPrenhe - stats.avgKineticVazia > 0 ? '+' : ''}{Math.round(stats.avgKineticPrenhe - stats.avgKineticVazia)}
                     </div>
-                    <div className="text-[9px] text-muted-foreground">Diff</div>
+                    <div className="text-xs text-muted-foreground">Diff</div>
                   </div>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export function ScorePregnancyCorrelation() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {bucket.prenhes} prenhes / {bucket.total} total
                       </span>
                     </div>
@@ -442,11 +442,11 @@ export function ScorePregnancyCorrelation() {
         {/* Legenda */}
         <div className="flex items-center gap-4 pt-2 border-t border-border/30">
           <Brain className="w-3.5 h-3.5 text-muted-foreground" />
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             Prenhe
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-red-500" />
             Vazia
           </div>

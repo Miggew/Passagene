@@ -55,7 +55,7 @@ export function BiologistClassButtons({
   if (isConfirmed) {
     return (
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 shadow-glow">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20">
           <Check className="w-4 h-4 text-primary" />
           <span className="font-display font-black text-xl text-primary tracking-tightest">{currentClassification}</span>
         </div>
@@ -65,7 +65,7 @@ export function BiologistClassButtons({
             size="sm"
             onClick={onUndo}
             disabled={isLoading}
-            className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
           >
             <Undo2 className="w-3.5 h-3.5 mr-1.5" />
             Desfazer
@@ -92,9 +92,9 @@ export function BiologistClassButtons({
                 relative flex flex-col items-center justify-center rounded-xl p-3 h-auto
                 border transition-all duration-300 disabled:opacity-50 active:scale-95
                 ${isSelected
-                  ? 'border-primary bg-primary/20 shadow-glow'
+                  ? 'border-primary bg-primary/20'
                   : isAiSuggestion
-                    ? 'border-primary/40 bg-primary/5 shadow-[inset_0_0_12px_rgba(52,211,153,0.1)]'
+                    ? 'border-primary/40 bg-primary/5'
                     : 'border-border/50 bg-muted/20 hover:border-primary/30 hover:bg-muted/40'
                 }
               `}
@@ -102,10 +102,10 @@ export function BiologistClassButtons({
               <span className={`font-display font-black text-lg tracking-tightest ${isSelected ? 'text-primary' : 'text-foreground'}`}>
                 {cls.label}
               </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-muted-foreground mt-1">{cls.description}</span>
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mt-1">{cls.description}</span>
               
               {isAiSuggestion && !isSelected && (
-                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-lg animate-bounce">
+                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-sm">
                   <Sparkles className="w-2.5 h-2.5 text-black" />
                 </div>
               )}
@@ -121,7 +121,7 @@ export function BiologistClassButtons({
           loading={isLoading} 
           fullWidth
           size="lg"
-          className="shadow-glow shadow-primary/30 h-14 rounded-xl"
+          className="h-14 rounded-xl"
         >
           <Check className="w-5 h-5 mr-2" />
           Confirmar {selected} → Próximo

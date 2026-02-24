@@ -51,10 +51,10 @@ export function useLotesFIVListData(): UseLotesFIVListDataReturn {
 
       if (pacotesError) throw pacotesError;
 
-      // Load fazendas
+      // Load fazendas (com cliente_id para rastreabilidade)
       const { data: fazendasData, error: fazendasError } = await supabase
         .from('fazendas')
-        .select('id, nome')
+        .select('id, nome, cliente_id')
         .order('nome', { ascending: true });
 
       if (fazendasError) throw fazendasError;
@@ -71,6 +71,8 @@ export function useLotesFIVListData(): UseLotesFIVListDataReturn {
       }
 
       const fazendasMap = new Map(fazendasData?.map((f) => [f.id, f.nome]));
+      const clientesMap = new Map(clientesData?.map((c) => [c.id, c.nome]));
+      const fazendaClienteMap = new Map(fazendasData?.map((f) => [f.id, f.cliente_id]));
       const fazendasDestinoPorPacote = new Map<string, string[]>();
       const quantidadePorPacote = new Map<string, number>();
 
@@ -201,10 +203,16 @@ export function useLotesFIVListData(): UseLotesFIVListDataReturn {
         const hojeStr = getTodayDateString();
         const diaAtual = dataAspiracaoStr ? Math.max(0, diffDays(dataAspiracaoStr, hojeStr)) : 0;
 
+        // Rastreabilidade: fazenda → cliente
+        const fazendaId = pacote?.fazenda_id;
+        const clienteId = fazendaId ? fazendaClienteMap.get(fazendaId) : undefined;
+        const clienteNome = clienteId ? clientesMap.get(clienteId) : undefined;
+
         return {
           ...l,
           pacote_nome: pacote?.fazenda_nome,
           pacote_data: pacote?.data_aspiracao,
+          cliente_nome: clienteNome,
           fazendas_destino_nomes: fazendasDestinoPorLote.get(l.id) || [],
           quantidade_acasalamentos: quantidadeAcasalamentosPorLote.get(l.id) || 0,
           dia_atual: diaAtual,
