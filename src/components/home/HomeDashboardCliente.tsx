@@ -658,11 +658,12 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
     return `/cliente/relatorios?expandir=ultimo&tipo=protocolo${ids ? `&ids=${ids}` : ''}`;
   };
 
+  // V7: Core mappings using Architectural Green and Refined Gold for hierarchy
   const colorMap: Record<string, { icon: string; borderL: string }> = {
-    violet: { icon: 'text-violet-500', borderL: 'border-l-violet-500' },
-    emerald: { icon: 'text-emerald-500', borderL: 'border-l-emerald-500' },
-    pink: { icon: 'text-pink-500', borderL: 'border-l-pink-500' },
-    amber: { icon: 'text-amber-500', borderL: 'border-l-amber-500' },
+    violet: { icon: 'text-gold', borderL: 'glow-line-gold' },      // High priority/Premium
+    emerald: { icon: 'text-green', borderL: 'glow-line-green' },   // Standard structural success
+    pink: { icon: 'text-green', borderL: 'glow-line-green' },      // Standard structural success
+    amber: { icon: 'text-gold', borderL: 'glow-line-gold' },       // Attention/Action
   };
 
   // Timing text para o card de destaque
@@ -688,92 +689,115 @@ export default function HomeDashboardCliente({ clienteId }: Props) {
         const Icon = config.icon;
         const timing = getTimingText(destaque);
 
+        const isUrgente = destaque.tipo === 'parto' || destaque.diasMaisUrgente <= 0;
+        const cardGlow = isUrgente ? 'glow-line-gold from-[var(--gold-dim)]' : 'glow-line-green from-[var(--green-dim)]';
+        const circleBg = isUrgente ? 'bg-[var(--gold-dim)]' : 'bg-[var(--green-dim)]';
+        const iconContainer = isUrgente ? 'border-[var(--gold-glow)] group-hover:border-[#F5A82B]' : 'border-[var(--green-glow)] group-hover:border-[#10B981]';
+        const textColor = isUrgente ? 'text-gold' : 'text-green';
+        const btnClass = isUrgente ? 'btn-primary-gold' : 'btn-primary-green';
+
         return (
           <div
             onClick={() => navigate(getServicoRota(destaque))}
-            className={`rounded-xl border-l-4 ${cor.border.replace('border-', 'border-l-')} border border-border ${cor.bg} px-4 py-4 shadow-sm cursor-pointer group hover:shadow-md transition-all`}
+            className={`rounded-xl px-5 py-5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] cursor-pointer group hover:shadow-[0_12px_32px_-4px_rgba(0,0,0,0.6)] transition-all bg-gradient-to-r ${cardGlow} to-transparent border border-white/5 relative overflow-hidden`}
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Clock className={`w-4 h-4 ${cor.text}`} />
-              <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Próximo Serviço</span>
+            <div className={`absolute top-0 right-0 w-32 h-32 ${circleBg} rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none`}></div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${textColor}`}>Ação Prioritária</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 rounded-lg ${cor.iconBg} flex items-center justify-center shrink-0`}>
-                <Icon className={`w-5 h-5 ${cor.text}`} />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 relative z-10">
+              <div className={`w-12 h-12 rounded-lg bg-black/40 border flex items-center justify-center shrink-0 shadow-[inset_0_1px_rgba(255,255,255,0.05)] transition-colors ${iconContainer}`}>
+                <Icon className={`w-6 h-6 ${textColor}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xl font-bold leading-tight">{config.label}</p>
-                <p className="text-base text-muted-foreground">
+                <p className="text-xl font-bold leading-tight text-text-primary mb-1">{config.label}</p>
+                <p className="text-sm text-text-secondary">
                   {destaque.total} receptora{destaque.total !== 1 ? 's' : ''}
-                  {destaque.prontas > 0 && ` · ${destaque.prontas} pronta${destaque.prontas !== 1 ? 's' : ''}`}
+                  {destaque.prontas > 0 && <span className="text-text-primary font-medium"> · {destaque.prontas} pronta{destaque.prontas !== 1 ? 's' : ''}</span>}
                 </p>
               </div>
-              <div className="text-right shrink-0">
-                <span className={`text-3xl font-bold ${cor.text}`}>{timing.valor}</span>
-                <p className="text-sm text-muted-foreground">{timing.detalhe}</p>
+              <div className="sm:text-right shrink-0 mt-2 sm:mt-0 flex gap-4 items-center">
+                <div className="text-right">
+                  <span className={`text-2xl font-medium ${textColor}`}>{timing.valor}</span>
+                  <p className="text-[11px] text-text-muted uppercase tracking-widest mt-0.5">{timing.detalhe}</p>
+                </div>
+                <button className={`text-sm font-semibold py-2.5 px-5 rounded-md ${btnClass}`}>
+                  Processar Lote
+                </button>
               </div>
             </div>
           </div>
         );
       })()}
 
-      {/* ── B: MEU REBANHO ── */}
-      <div className="rounded-xl border border-border glass-panel px-4 py-4 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/15 flex items-center justify-center">
-            <Beef className="w-5 h-5 text-primary" />
-          </div>
-          <span className="text-lg font-bold">Meu Rebanho</span>
-          <span className="ml-auto text-lg font-semibold text-primary">{taxaPrenhez}%</span>
-          <span className="text-sm text-muted-foreground -ml-1">prenhez</span>
-        </div>
-
-        {/* Número hero */}
-        <div className="flex justify-center mb-3">
-          <div className="text-center">
-            <span className="text-4xl font-bold text-foreground">{receptoras.total}</span>
-            <p className="text-sm text-muted-foreground">receptoras</p>
-          </div>
-        </div>
-
-        {/* Grid 2×2 de status */}
-        <div className="grid grid-cols-2 gap-3">
-          {([
-            { v: receptoras.prenhes, l: 'prenhes', c: 'text-green-600 dark:text-green-400', dot: 'bg-green-500' },
-            { v: receptoras.servidas, l: 'servidas', c: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
-            { v: receptoras.protocoladas, l: 'protocoladas', c: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
-            { v: receptoras.vazias, l: 'vazias', c: 'text-red-500 dark:text-red-400', dot: 'bg-red-500' },
-          ] as const).map((s, i) => (
-            <div key={i} className="flex items-center gap-2.5 rounded-lg bg-muted/30 px-3 py-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${s.dot} shrink-0`} />
-              <span className={`text-2xl font-bold leading-none ${s.c}`}>{s.v}</span>
-              <span className="text-sm text-muted-foreground">{s.l}</span>
+      {/* ── B: MEU REBANHO (V7 High-tech Minimalist) ── */}
+      <div className="flex flex-col mt-2">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted mb-3">Panorama Geral</h2>
+        <div className="rounded-xl glass-panel p-6 shadow-sm flex-1 flex flex-col justify-between group">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded border border-border bg-bg-subtle flex items-center justify-center">
+                <Beef className="w-4 h-4 text-text-secondary" />
+              </div>
+              <span className="text-sm font-medium text-text-primary">Receptoras</span>
             </div>
-          ))}
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-semibold text-green">{taxaPrenhez}%</span>
+              <span className="text-[11px] text-text-muted uppercase tracking-widest">Sucesso</span>
+            </div>
+          </div>
+
+          {/* Número hero ultracontrast */}
+          <div className="flex justify-center mb-8">
+            <div className="text-center">
+              <span className="text-7xl font-light text-text-primary tracking-tight leading-none">{receptoras.total}</span>
+            </div>
+          </div>
+
+          {/* Grid Minimalista V7 com blocos */}
+          <div className="grid grid-cols-2 gap-3 pt-6 border-t border-border mt-2">
+            {[
+              { v: receptoras.prenhes, l: 'prenhes', dot: 'bg-green shadow-[0_0_8px_rgba(16,185,129,0.8)]', vcolor: 'text-text-primary' },
+              { v: receptoras.servidas, l: 'servidas', dot: 'bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]', vcolor: 'text-text-primary' },
+              { v: receptoras.protocoladas, l: 'protocoladas', dot: 'bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.5)]', vcolor: 'text-text-primary' },
+              { v: receptoras.vazias, l: 'vazias', dot: 'bg-zinc-600', vcolor: 'text-text-muted' },
+            ].map((s, i) => (
+              <div key={i} className="flex items-center gap-3 bg-bg-hover border border-border/50 rounded-lg px-4 py-3">
+                <span className={`w-2 h-2 rounded-full ${s.dot} shrink-0`}></span>
+                <span className={`text-xl font-bold ${s.vcolor} leading-none`}>{s.v}</span>
+                <span className="text-xs text-text-secondary uppercase tracking-wider">{s.l}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── C: ÚLTIMOS RESULTADOS (linhas tappable 56px, flex-1 para preencher) ── */}
+      {/* ── C: ÚLTIMOS RESULTADOS (V7 Tappable Lists) ── */}
       {quadrosServico.length > 0 && (
-        <div className="flex flex-col gap-1.5 flex-1">
-          <div className="flex items-center gap-2 px-0.5">
-            <div className="w-1 h-5 rounded-full bg-primary/50" />
-            <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Últimos Resultados</span>
-          </div>
-          <div className="rounded-xl border border-border glass-panel overflow-hidden shadow-sm flex-1">
+        <div className="flex flex-col gap-3 flex-1 mt-2">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted mb-0 flex items-center justify-between">
+            Últimos Registros
+          </h2>
+          <div className="rounded-xl glass-panel overflow-hidden border-0 shadow-none bg-transparent">
             {quadrosServico.map((q, idx) => {
-              const cores = colorMap[q.color];
+              const cores = colorMap[q.color] || { icon: 'text-text-muted', borderL: '' };
               const Icon = q.icon;
+              const bgBox = q.color === 'violet' || q.color === 'amber' ? 'bg-[var(--gold-dim)] border-[var(--gold-glow)]' : 'bg-[var(--green-dim)] border-[var(--green-glow)]';
+
               return (
                 <div
                   key={q.key}
                   onClick={() => navigate(q.rota)}
-                  className={`flex items-center gap-3 px-4 min-h-[56px] cursor-pointer group hover:bg-muted/40 transition-colors border-l-[3px] ${cores.borderL} ${idx > 0 ? 'border-t border-border/50' : ''}`}
+                  className={`flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.02] transition-colors group ${cores.borderL} ${idx < quadrosServico.length - 1 ? 'border-b border-border/50' : ''}`}
                 >
-                  <Icon className={`w-5 h-5 ${cores.icon} shrink-0`} />
-                  <span className="text-base font-bold">{q.titulo}</span>
-                  <span className="text-sm text-muted-foreground truncate">{q.linha}</span>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary ml-auto shrink-0 transition-colors" />
+                  <div className={`w-8 h-8 rounded border ${bgBox} flex items-center justify-center shrink-0`}>
+                    <Icon className={`w-4 h-4 ${cores.icon} shrink-0`} />
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <span className="text-sm font-medium text-text-primary">{q.titulo}</span>
+                    <span className="text-xs text-text-secondary font-mono truncate mt-0.5">{q.linha}</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-text-muted/40 group-hover:text-text-primary ml-auto shrink-0 transition-colors" />
                 </div>
               );
             })}

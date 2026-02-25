@@ -207,23 +207,21 @@ export function useLotesFIVDetailData({
 
       setDataAspiracao(pacoteData.data_aspiracao);
 
-      const { data: fazendaOrigemData, error: fazendaOrigemError } = await supabase
-        .from('fazendas')
-        .select('nome')
-        .eq('id', pacoteData.fazenda_id)
-        .single();
+      // Queries independentes em paralelo: fazenda origem, fazendas destino, acasalamentos, embriões
+      const [fazendaOrigemResult, fazendasDestinoResult, acasalamentosResult, embrioesResult] = await Promise.all([
+        supabase.from('fazendas').select('nome').eq('id', pacoteData.fazenda_id).single(),
+        supabase.from('pacotes_aspiracao_fazendas_destino').select('fazenda_destino_id').eq('pacote_aspiracao_id', pacoteData.id),
+        supabase.from('lote_fiv_acasalamentos').select('*').eq('lote_fiv_id', loteId).order('created_at', { ascending: true }),
+        supabase.from('embrioes').select('lote_fiv_acasalamento_id').eq('lote_fiv_id', loteId),
+      ]);
 
-      if (fazendaOrigemError) {
+      if (fazendaOrigemResult.error) {
         setFazendaOrigemNome('');
       } else {
-        setFazendaOrigemNome(fazendaOrigemData?.nome || '');
+        setFazendaOrigemNome(fazendaOrigemResult.data?.nome || '');
       }
 
-      const { data: fazendasDestinoData } = await supabase
-        .from('pacotes_aspiracao_fazendas_destino')
-        .select('fazenda_destino_id')
-        .eq('pacote_aspiracao_id', pacoteData.id);
-
+      const fazendasDestinoData = fazendasDestinoResult.data;
       let fazendaDestinoIdsArray: string[] = [];
       if (!fazendasDestinoData || fazendasDestinoData.length === 0) {
         if (pacoteData.fazenda_destino_id) {
@@ -260,21 +258,23 @@ export function useLotesFIVDetailData({
         setFazendasDestinoNomes([]);
       }
 
-      const { data: acasalamentosData, error: acasalamentosError } = await supabase
-        .from('lote_fiv_acasalamentos')
-        .select('*')
-        .eq('lote_fiv_id', loteId)
-        .order('created_at', { ascending: true });
+      const acasalamentosData = acasalamentosResult.data;
+      if (acasalamentosResult.error) throw acasalamentosResult.error;
 
-      if (acasalamentosError) throw acasalamentosError;
-
+      // Queries dependentes dos acasalamentos — em paralelo entre si
       const aspiracaoIds = acasalamentosData?.map((a) => a.aspiracao_doadora_id) || [];
-      const { data: aspiracoesData, error: aspiracoesError } = await supabase
-        .from('aspiracoes_doadoras')
-        .select('id, doadora_id, viaveis')
-        .in('id', aspiracaoIds);
+      const doseIds = [...new Set(acasalamentosData?.map((a) => a.dose_semen_id) || [])];
 
-      if (aspiracoesError) throw aspiracoesError;
+      const [aspiracoesResult, dosesResult2] = await Promise.all([
+        supabase.from('aspiracoes_doadoras').select('id, doadora_id, viaveis').in('id', aspiracaoIds),
+        supabase.from('doses_semen').select(`id, touro_id, touro:touros(id, nome, registro, raca)`).in('id', doseIds),
+      ]);
+
+      if (aspiracoesResult.error) throw aspiracoesResult.error;
+      if (dosesResult2.error) throw dosesResult2.error;
+
+      const aspiracoesData = aspiracoesResult.data;
+      const dosesData = dosesResult2.data;
 
       const doadoraIds = [...new Set(aspiracoesData?.map((a) => a.doadora_id) || [])];
       const { data: doadorasData, error: doadorasError } = await supabase
@@ -284,22 +284,12 @@ export function useLotesFIVDetailData({
 
       if (doadorasError) throw doadorasError;
 
-      const doseIds = [...new Set(acasalamentosData?.map((a) => a.dose_semen_id) || [])];
-      const { data: dosesData, error: dosesError } = await supabase
-        .from('doses_semen')
-        .select(`id, touro_id, touro:touros(id, nome, registro, raca)`)
-        .in('id', doseIds);
-
-      if (dosesError) throw dosesError;
-
       const doadorasMap = new Map(doadorasData?.map((d) => [d.id, d]));
       const dosesMap = new Map(dosesData?.map((d) => [d.id, d]));
       const aspiracoesMap = new Map(aspiracoesData?.map((a) => [a.id, a]));
 
-      const { data: embrioesData, error: embrioesError } = await supabase
-        .from('embrioes')
-        .select('lote_fiv_acasalamento_id')
-        .eq('lote_fiv_id', loteId);
+      const embrioesData = embrioesResult.data;
+      const embrioesError = embrioesResult.error;
 
       const quantidadeEmbrioesPorAcasalamento = new Map<string, number>();
       if (!embrioesError && embrioesData) {
@@ -382,40 +372,24 @@ export function useLotesFIVDetailData({
         }
       }
 
-      // Load doses disponíveis
-      const { data: dosesDisponiveisData, error: dosesDisponiveisError } = await supabase
-        .from('doses_semen')
-        .select(`id, touro_id, cliente_id, tipo_semen, quantidade, touro:touros(id, nome, registro, raca)`)
-        .order('created_at', { ascending: false });
+      // Load doses disponíveis, clientes, e histórico em paralelo
+      const [dosesDisponiveisResult, clientesResult, _historicoResult] = await Promise.all([
+        supabase.from('doses_semen')
+          .select(`id, touro_id, cliente_id, tipo_semen, quantidade, touro:touros(id, nome, registro, raca)`)
+          .order('created_at', { ascending: false }),
+        supabase.from('clientes').select('id, nome').order('nome', { ascending: true }),
+        loadHistoricoDespachos(loteId),
+      ]);
 
-      if (dosesDisponiveisError) {
+      if (dosesDisponiveisResult.error) {
         setDosesDisponiveis([]);
       } else {
-        try {
-          const dosesSelecionadas = loteData?.doses_selecionadas as string[] | undefined;
-          if (dosesSelecionadas && Array.isArray(dosesSelecionadas) && dosesSelecionadas.length > 0) {
-            setDosesDisponiveis(
-              (dosesDisponiveisData || []).filter((d) => dosesSelecionadas.includes(d.id))
-            );
-          } else {
-            setDosesDisponiveis(dosesDisponiveisData || []);
-          }
-        } catch {
-          setDosesDisponiveis(dosesDisponiveisData || []);
-        }
+        setDosesDisponiveis(dosesDisponiveisResult.data || []);
       }
 
-      // Load clientes
-      const { data: clientesData, error: clientesError } = await supabase
-        .from('clientes')
-        .select('id, nome')
-        .order('nome', { ascending: true });
-
-      if (!clientesError) {
-        setClientes(clientesData || []);
+      if (!clientesResult.error) {
+        setClientes(clientesResult.data || []);
       }
-
-      await loadHistoricoDespachos(loteId);
 
     } catch (error) {
       handleError(error, 'Erro ao carregar detalhes do lote');

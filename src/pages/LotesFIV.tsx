@@ -231,22 +231,31 @@ export default function LotesFIV() {
         return;
       }
 
-      const acasalamentosComQuantidade = acasalamentos.filter(ac => {
-        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || '0');
-        return quantidade > 0;
-      });
+      // Quantidade agora é por vídeo (mediaId), não por acasalamento
+      // Calcular total por acasalamento somando as quantidades de cada vídeo
+      const totalPorAcasalamento: { [acId: string]: number } = {};
+      for (const ac of acasalamentos) {
+        const mediaIds = videoMediaIds[ac.id] || [];
+        let total = 0;
+        for (const mediaId of mediaIds) {
+          total += parseInt(editQuantidadeEmbrioes[mediaId] || '0');
+        }
+        totalPorAcasalamento[ac.id] = total;
+      }
+
+      const acasalamentosComQuantidade = acasalamentos.filter(ac => totalPorAcasalamento[ac.id] > 0);
 
       if (acasalamentosComQuantidade.length === 0) {
         toast({
           title: 'Nenhum embrião para despachar',
-          description: 'Preencha a quantidade de embriões em pelo menos um acasalamento antes de despachar.',
+          description: 'Preencha a quantidade de embriões em pelo menos um vídeo antes de despachar.',
           variant: 'destructive',
         });
         return;
       }
 
       for (const ac of acasalamentosComQuantidade) {
-        const quantidade = parseInt(editQuantidadeEmbrioes[ac.id] || '0');
+        const quantidade = totalPorAcasalamento[ac.id];
         const quantidadeOocitos = ac.quantidade_oocitos ?? 0;
         // Usa clivados como limite se preenchido, senão usa oócitos
         const clivadosEditado = editClivados[ac.id];
@@ -259,7 +268,7 @@ export default function LotesFIV() {
           const tipoLimite = clivadosNumero > 0 ? 'clivados (D3)' : 'oócitos';
           toast({
             title: 'Validação de quantidade',
-            description: `O acasalamento da doadora "${doadoraNome}" possui ${quantidade} embriões, mas o limite de ${tipoLimite} é ${limiteEmbrioes}. A quantidade de embriões não pode exceder esse limite.`,
+            description: `O acasalamento da doadora "${doadoraNome}" possui ${quantidade} embriões (soma dos vídeos), mas o limite de ${tipoLimite} é ${limiteEmbrioes}. A quantidade de embriões não pode exceder esse limite.`,
             variant: 'destructive',
           });
           return;
@@ -334,6 +343,7 @@ export default function LotesFIV() {
       const embrioesParaCriar: Array<{
         lote_fiv_id: string;
         lote_fiv_acasalamento_id: string;
+        acasalamento_media_id?: string;
         status_atual: string;
         identificacao: string;
       }> = [];
@@ -341,133 +351,129 @@ export default function LotesFIV() {
 
       let contadorEmbriao = 0;
       for (const acasalamento of acasalamentosComQuantidade) {
-        const quantidade = parseInt(editQuantidadeEmbrioes[acasalamento.id] || acasalamento.quantidade_embrioes?.toString() || '0');
+        const mediaIds = videoMediaIds[acasalamento.id] || [];
+        let totalAcasalamento = 0;
 
-        if (quantidade > 0) {
-          for (let i = 0; i < quantidade; i++) {
+        for (const mediaId of mediaIds) {
+          const qtd = parseInt(editQuantidadeEmbrioes[mediaId] || '0');
+          if (qtd <= 0) continue;
+
+          for (let i = 0; i < qtd; i++) {
             const numeroStr = String(proximoNumero + contadorEmbriao).padStart(3, '0');
-            const embriao = {
+            embrioesParaCriar.push({
               lote_fiv_id: selectedLote.id,
               lote_fiv_acasalamento_id: acasalamento.id,
+              acasalamento_media_id: mediaId,
               status_atual: 'FRESCO',
               identificacao: `${prefixoIdentificacao}-${numeroStr}`,
-            };
-
-            embrioesParaCriar.push(embriao);
+            });
             contadorEmbriao++;
           }
+          totalAcasalamento += qtd;
+        }
 
+        if (totalAcasalamento > 0) {
           acasalamentosDespachados.push({
             acasalamento_id: acasalamento.id,
-            quantidade,
+            quantidade: totalAcasalamento,
             doadora: acasalamento.doadora_registro || acasalamento.doadora_nome,
             dose: acasalamento.dose_nome,
           });
         }
       }
 
-      // Guardar IDs dos embriões criados por acasalamento (para vincular media_id apenas nos novos)
-      const embrioesIdsPorAcasalamento: { [acasalamentoId: string]: string[] } = {};
+      // Guardar IDs dos embriões criados por media (para vincular queue_id por vídeo)
+      const embrioesIdsPorMedia: { [mediaId: string]: string[] } = {};
 
       if (embrioesParaCriar.length > 0) {
         const { data: embrioesInseridos, error: embrioesError } = await supabase
           .from('embrioes')
           .insert(embrioesParaCriar)
-          .select('id, lote_fiv_acasalamento_id');
+          .select('id, acasalamento_media_id');
 
         if (embrioesError) {
           throw embrioesError;
         }
 
-        // Agrupar IDs por acasalamento
+        // Agrupar IDs por acasalamento_media_id
         if (embrioesInseridos) {
           for (const emb of embrioesInseridos) {
-            const acId = emb.lote_fiv_acasalamento_id;
-            if (!embrioesIdsPorAcasalamento[acId]) {
-              embrioesIdsPorAcasalamento[acId] = [];
+            const mId = emb.acasalamento_media_id;
+            if (!mId) continue;
+            if (!embrioesIdsPorMedia[mId]) {
+              embrioesIdsPorMedia[mId] = [];
             }
-            embrioesIdsPorAcasalamento[acId].push(emb.id);
+            embrioesIdsPorMedia[mId].push(emb.id);
           }
         }
       }
 
-      // EmbryoScore: vincular vídeos aos embriões e criar jobs de análise (server-side detection)
+      // EmbryoScore: 1 job por vídeo (não por acasalamento)
       // Falhas aqui NÃO bloqueiam o despacho
       const queueIds: string[] = [];
       for (const ac of acasalamentosDespachados) {
         const mediaIds = videoMediaIds[ac.acasalamento_id];
         if (!mediaIds?.length) continue;
 
-        const novosEmbrioesIds = embrioesIdsPorAcasalamento[ac.acasalamento_id] || [];
-        const mediaId = mediaIds[mediaIds.length - 1]; // Vídeo mais recente
+        for (const mediaId of mediaIds) {
+          const novosEmbrioesIds = embrioesIdsPorMedia[mediaId] || [];
+          if (!novosEmbrioesIds.length) continue;
 
-        try {
-          // 1. Verificar que o registro de mídia existe
-          const { data: mediaExists } = await supabase
-            .from('acasalamento_embrioes_media')
-            .select('id')
-            .eq('id', mediaId)
-            .maybeSingle();
-
-          if (!mediaExists) {
-            continue;
-          }
-
-          // 2. Vincular media_id aos embriões
-          if (novosEmbrioesIds.length > 0) {
-            const { error: mediaLinkError } = await supabase
-              .from('embrioes')
-              .update({ acasalamento_media_id: mediaId })
-              .in('id', novosEmbrioesIds);
-            if (mediaLinkError) { /* non-blocking */ }
-          }
-
-          // 3. Deduplicação: verificar se já existe job pending/processing para este media+acasalamento
-          const { data: existingJob } = await supabase
-            .from('embryo_analysis_queue')
-            .select('id')
-            .eq('media_id', mediaId)
-            .eq('lote_fiv_acasalamento_id', ac.acasalamento_id)
-            .in('status', ['pending', 'processing'])
-            .maybeSingle();
-
-          let queueId: string | null = null;
-
-          if (existingJob) {
-            // Reusar job existente — vincular novos embriões e re-invocar
-            queueId = existingJob.id;
-          } else {
-            // 4. Criar job de análise (sem bboxes/crops — detecção será server-side)
-            const { data: queueData, error: queueError } = await supabase
-              .from('embryo_analysis_queue')
-              .insert({
-                media_id: mediaId,
-                lote_fiv_acasalamento_id: ac.acasalamento_id,
-                status: 'pending',
-                expected_count: novosEmbrioesIds.length,
-              })
+          try {
+            // 1. Verificar que o registro de mídia existe
+            const { data: mediaExists } = await supabase
+              .from('acasalamento_embrioes_media')
               .select('id')
-              .single();
+              .eq('id', mediaId)
+              .maybeSingle();
 
-            if (queueError) { /* non-blocking */ }
-            queueId = queueData?.id || null;
-          }
+            if (!mediaExists) continue;
 
-          // 5. Vincular queue_id a TODOS os embriões do acasalamento
-          if (queueId) {
-            const { error: queueLinkError } = await supabase
-              .from('embrioes')
-              .update({ queue_id: queueId })
-              .eq('lote_fiv_acasalamento_id', ac.acasalamento_id);
-            if (queueLinkError) { /* non-blocking */ }
-          }
+            // 2. Deduplicação: verificar se já existe job pending/processing para este vídeo
+            const { data: existingJob } = await supabase
+              .from('embryo_analysis_queue')
+              .select('id')
+              .eq('media_id', mediaId)
+              .in('status', ['pending', 'processing'])
+              .maybeSingle();
 
-          // 6. Disparar análise no Cloud Run (não-bloqueante)
-          if (queueId) {
-            queueIds.push(queueId);
-            triggerAnalysis(queueId).catch(() => { /* non-blocking */ });
-          }
-        } catch { /* non-blocking */ }
+            let queueId: string | null = null;
+
+            if (existingJob) {
+              queueId = existingJob.id;
+            } else {
+              // 3. Criar job de análise para ESTE vídeo
+              const { data: queueData, error: queueError } = await supabase
+                .from('embryo_analysis_queue')
+                .insert({
+                  media_id: mediaId,
+                  lote_fiv_acasalamento_id: ac.acasalamento_id,
+                  status: 'pending',
+                  expected_count: novosEmbrioesIds.length,
+                })
+                .select('id')
+                .single();
+
+              if (queueError) { /* non-blocking */ }
+              queueId = queueData?.id || null;
+            }
+
+            // 4. Vincular queue_id APENAS aos embriões deste vídeo
+            if (queueId) {
+              const { error: queueLinkError } = await supabase
+                .from('embrioes')
+                .update({ queue_id: queueId })
+                .in('id', novosEmbrioesIds);
+              if (queueLinkError) { /* non-blocking */ }
+            }
+
+            // 5. Disparar análise no Cloud Run (não-bloqueante)
+            if (queueId) {
+              queueIds.push(queueId);
+              triggerAnalysis(queueId).catch(() => { /* non-blocking */ });
+            }
+          } catch { /* non-blocking */ }
+        }
       }
 
       // Limpar vídeos após despacho
@@ -814,7 +820,7 @@ export default function LotesFIV() {
                 Dia do Cultivo
               </label>
               <Select
-                value={filtroDiaCultivo || undefined}
+                value={filtroDiaCultivo}
                 onValueChange={(value) => setFiltroDiaCultivo(value || '')}
               >
                 <SelectTrigger id="filtro-dia-cultivo" className="h-9">

@@ -116,24 +116,43 @@ export function useBancadaJobs() {
         classified_count: embryoCountMap[j.id]?.classified || 0,
       }));
     },
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      const jobs = query.state.data;
+      if (!jobs) return 5000;
+      const hasActive = jobs.some(j => j.status === 'pending' || j.status === 'processing');
+      return hasActive ? 5000 : false;
+    },
   });
+}
+
+export interface BancadaPlateScore {
+  id: string;
+  gemini_classification: string | null;
+  gemini_reasoning: string | null;
+  crop_image_path: string | null;
+  motion_map_path: string | null;
+  kinetic_intensity: number | null;
+  kinetic_harmony: number | null;
+  kinetic_stability: number | null;
+  biologist_classification: string | null;
+  combined_classification: string | null;
+  combined_confidence: number | null;
+  combined_source: string | null;
+  knn_votes: Record<string, number> | null;
+  stage_code: number | null;
+  quality_grade: number | null;
+  visual_features: Record<string, any> | null;
+  ai_confidence: number | null;
+  knn_real_bovine_count: number | null;
+  mlp_classification: string | null;
+  mlp_confidence: number | null;
 }
 
 export interface BancadaPlateEmbryo {
   id: string;
   identificacao?: string;
   classificacao?: string;
-  score?: {
-    gemini_classification: string | null;
-    gemini_reasoning: string | null;
-    crop_image_path: string | null;
-    motion_map_path: string | null;
-    kinetic_intensity: number | null;
-    kinetic_harmony: number | null;
-    kinetic_stability: number | null;
-    biologist_classification: string | null;
-  } | null;
+  score?: BancadaPlateScore | null;
 }
 
 export function useBancadaPlate(queueId: string | null) {
@@ -160,14 +179,14 @@ export function useBancadaPlate(queueId: string | null) {
         .from('embrioes')
         .select('id, identificacao, classificacao')
         .eq('queue_id', queueId)
-        .order('id');
+        .order('identificacao');
 
       // 3. Scores
       const embryoIds = (embryos || []).map((e) => e.id);
       const { data: scores } = embryoIds.length > 0
         ? await supabase
             .from('embryo_scores')
-            .select('embriao_id, gemini_classification, gemini_reasoning, crop_image_path, motion_map_path, kinetic_intensity, kinetic_harmony, kinetic_stability, biologist_classification')
+            .select('id, embriao_id, gemini_classification, gemini_reasoning, crop_image_path, motion_map_path, kinetic_intensity, kinetic_harmony, kinetic_stability, biologist_classification, combined_classification, combined_confidence, combined_source, knn_votes, stage_code, quality_grade, visual_features, ai_confidence, knn_real_bovine_count, mlp_classification, mlp_confidence')
             .in('embriao_id', embryoIds)
             .eq('is_current', true)
         : { data: [] };
@@ -185,6 +204,9 @@ export function useBancadaPlate(queueId: string | null) {
         })),
       };
     },
-    refetchInterval: 3000,
+    refetchInterval: (query) => {
+      const status = query.state.data?.job?.status;
+      return (status === 'pending' || status === 'processing') ? 3000 : false;
+    },
   });
 }

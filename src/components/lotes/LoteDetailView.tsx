@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DoseSemen, DoseSemenComTouro, Doadora, Cliente } from '@/lib/types';
+import { DoseSemenComTouro, Doadora, Cliente } from '@/lib/types';
 import {
   LoteFIVComNomes,
   AcasalamentoComNomes,
@@ -41,7 +41,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, X, Users, FileText, Package, Plus, ChevronDown, Video, Info, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Users, FileText, Package, Plus, ChevronDown, Video, Info, AlertTriangle } from 'lucide-react';
+import { DoseSemenCombobox } from '@/components/shared/DoseSemenCombobox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { VideoUploadButton, LoteScoreDashboard } from '@/components/embryoscore';
 import { cn, formatDate, extractDateOnly, addDays, diffDays, formatDateString, getDayOfWeekName, getTodayDateString } from '@/lib/utils';
@@ -551,52 +552,62 @@ export function LoteDetailView({
                                 <p className="text-sm font-medium mt-1">{clivadosNumero > 0 ? clivadosNumero : '-'}</p>
                               )}
                             </div>
-
-                            {/* Embriões */}
-                            <div>
-                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                Embriões
-                              </label>
-                              {lote.status === 'ABERTO' && diaAtual >= 7 ? (
-                                <div className="mt-1">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    max={limiteEmbrioes}
-                                    className="h-10 text-center"
-                                    value={editQuantidadeEmbrioes[acasalamento.id] ?? ''}
-                                    onChange={(e) => onUpdateQuantidadeEmbrioes(acasalamento.id, e.target.value)}
-                                    placeholder="0"
-                                  />
-                                  {embrioesDespachados > 0 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium mt-1">
-                                      Despachados {embrioesDespachados}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="text-sm font-medium mt-1">{embrioesDespachados}</p>
-                              )}
-                            </div>
                           </div>
 
-                          {/* Vídeo upload */}
+                          {/* Vídeo upload + Embriões por vídeo */}
                           {lote.status === 'ABERTO' && diaAtual >= 7 && (
-                            <div>
-                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                Vídeo EmbryoScore
-                              </label>
-                              <div className="mt-1 flex items-center gap-2">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                  Vídeos e Embriões
+                                </label>
                                 <VideoUploadButton
                                   acasalamentoId={acasalamento.id}
                                   loteFivId={lote.id}
-                                  disabled={quantidadeEmbrioes <= 0}
+                                  disabled={false}
                                   videoCount={videoMediaIds[acasalamento.id]?.length ?? 0}
                                   onUploadComplete={(acId, mediaId) => onVideoUploadComplete?.(acId, mediaId)}
                                 />
                               </div>
+                              {(videoMediaIds[acasalamento.id]?.length ?? 0) > 0 ? (
+                                <div className="space-y-2">
+                                  {videoMediaIds[acasalamento.id].map((mediaId, vIdx) => (
+                                    <div key={mediaId} className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-[70px]">
+                                        <Video className="w-3.5 h-3.5 text-primary" />
+                                        <span>Vídeo {vIdx + 1}</span>
+                                      </div>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max={limiteEmbrioes}
+                                        className="h-9 text-center flex-1"
+                                        value={editQuantidadeEmbrioes[mediaId] ?? ''}
+                                        onChange={(e) => onUpdateQuantidadeEmbrioes(mediaId, e.target.value)}
+                                        placeholder="0"
+                                      />
+                                      <span className="text-xs text-muted-foreground">embr.</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic">Envie vídeo(s) primeiro</p>
+                              )}
+                              {embrioesDespachados > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium">
+                                  Despachados {embrioesDespachados}
+                                </span>
+                              )}
                             </div>
                           )}
+                          {lote.status !== 'ABERTO' || diaAtual < 7 ? (
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                Embriões
+                              </label>
+                              <p className="text-sm font-medium mt-1">{embrioesDespachados}</p>
+                            </div>
+                          ) : null}
 
                           {/* Observações */}
                           {acasalamento.observacoes && (
@@ -692,15 +703,27 @@ export function LoteDetailView({
                           <TableCell className="text-center">
                             {lote.status === 'ABERTO' && diaAtual >= 7 ? (
                               <div className="flex flex-col items-center gap-1.5">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max={limiteEmbrioes}
-                                  className="w-20 text-center"
-                                  value={editQuantidadeEmbrioes[acasalamento.id] ?? ''}
-                                  onChange={(e) => onUpdateQuantidadeEmbrioes(acasalamento.id, e.target.value)}
-                                  placeholder="0"
-                                />
+                                {(videoMediaIds[acasalamento.id]?.length ?? 0) > 0 ? (
+                                  videoMediaIds[acasalamento.id].map((mediaId, vIdx) => (
+                                    <div key={mediaId} className="flex items-center gap-1.5">
+                                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                                        <Video className="w-3 h-3 text-primary" />
+                                        {vIdx + 1}:
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max={limiteEmbrioes}
+                                        className="w-16 text-center h-8 text-sm"
+                                        value={editQuantidadeEmbrioes[mediaId] ?? ''}
+                                        onChange={(e) => onUpdateQuantidadeEmbrioes(mediaId, e.target.value)}
+                                        placeholder="0"
+                                      />
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground italic">Sem vídeo</span>
+                                )}
                                 {embrioesDespachados > 0 && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium">
                                     Despachados {embrioesDespachados}
@@ -716,7 +739,7 @@ export function LoteDetailView({
                               <VideoUploadButton
                                 acasalamentoId={acasalamento.id}
                                 loteFivId={lote.id}
-                                disabled={quantidadeEmbrioes <= 0}
+                                disabled={false}
                                 videoCount={videoMediaIds[acasalamento.id]?.length ?? 0}
                                 onUploadComplete={(acId, mediaId) => onVideoUploadComplete?.(acId, mediaId)}
                               />
@@ -817,26 +840,14 @@ export function LoteDetailView({
 
             <div className="space-y-2">
               <Label>Dose de Sêmen *</Label>
-              <Select
+              <DoseSemenCombobox
+                doses={dosesDisponiveisNoLote.length > 0 ? dosesDisponiveisNoLote : dosesDisponiveis}
+                clientes={clientes}
                 value={acasalamentoForm.dose_semen_id}
                 onValueChange={(value) => setAcasalamentoForm({ ...acasalamentoForm, dose_semen_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a dose" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(dosesDisponiveisNoLote.length > 0 ? dosesDisponiveisNoLote : dosesDisponiveis).map((dose) => {
-                    const cliente = clientes.find((c) => c.id === dose.cliente_id);
-                    return (
-                      <SelectItem key={dose.id} value={dose.id}>
-                        {dose.touro?.nome || 'Touro desconhecido'}
-                        {dose.touro?.registro && ` (${dose.touro.registro})`}
-                        {cliente && ` - ${cliente.nome}`}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                recentDoseIds={acasalamentos.map((a) => a.dose_semen_id).filter(Boolean)}
+                placeholder="Buscar touro ou cliente..."
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

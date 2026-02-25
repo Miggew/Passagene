@@ -191,7 +191,7 @@ export function useEmbryoAnalysisStatusBatch(acasalamentoIds: string[]) {
   const validIds = [...new Set(acasalamentoIds.filter(Boolean))];
   const cacheKey = validIds.sort().join(',');
 
-  return useQuery<Record<string, EmbryoAnalysisQueue>>({
+  return useQuery<Record<string, EmbryoAnalysisQueue[]>>({
     queryKey: ['embryo-analysis-status-batch', cacheKey],
     queryFn: async () => {
       if (!validIds.length) return {};
@@ -204,12 +204,12 @@ export function useEmbryoAnalysisStatusBatch(acasalamentoIds: string[]) {
 
       if (error) throw error;
 
-      // Agrupar por acasalamento_id — pegar apenas o mais recente de cada
-      const map: Record<string, EmbryoAnalysisQueue> = {};
+      // Agrupar por acasalamento — TODOS os jobs (não apenas o mais recente)
+      const map: Record<string, EmbryoAnalysisQueue[]> = {};
       for (const item of (data || [])) {
-        if (!map[item.lote_fiv_acasalamento_id]) {
-          map[item.lote_fiv_acasalamento_id] = item as EmbryoAnalysisQueue;
-        }
+        const key = item.lote_fiv_acasalamento_id;
+        if (!map[key]) map[key] = [];
+        map[key].push(item as EmbryoAnalysisQueue);
       }
       return map;
     },
@@ -218,12 +218,26 @@ export function useEmbryoAnalysisStatusBatch(acasalamentoIds: string[]) {
       const statusMap = query.state.data;
       if (!statusMap) return 3000;
       const hasActive = Object.values(statusMap).some(
-        (q) => q.status === 'pending' || q.status === 'processing'
+        (jobs) => jobs.some(q => q.status === 'pending' || q.status === 'processing')
       );
       return hasActive ? 3000 : false;
     },
     staleTime: 5_000,
   });
+}
+
+/**
+ * Helper: dado o array de jobs de um acasalamento, retorna o "status efetivo".
+ * Se qualquer job está ativo (pending/processing), retorna esse job.
+ * Senão retorna o mais recente (primeiro do array, já ordenado desc).
+ */
+export function getEffectiveAnalysisStatus(jobs: EmbryoAnalysisQueue[] | undefined): EmbryoAnalysisQueue | undefined {
+  if (!jobs?.length) return undefined;
+  // Priorizar job ativo
+  const active = jobs.find(j => j.status === 'pending' || j.status === 'processing');
+  if (active) return active;
+  // Senão, o mais recente (já está primeiro pois ordered desc)
+  return jobs[0];
 }
 
 /**
@@ -270,8 +284,8 @@ export function useGlobalAnalysisQueue() {
 
       return { pending, processing, total: pending + processing, oldestStartedAt, newestExpectedCount };
     },
-    refetchInterval: 10_000,
-    staleTime: 5_000,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
   });
 }
 

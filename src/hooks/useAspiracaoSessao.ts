@@ -16,6 +16,9 @@ export function useAspiracaoSessao() {
     const [submitting, setSubmitting] = useState(false);
     const [showRestaurarDialog, setShowRestaurarDialog] = useState(false);
 
+    // Ref-based lock to prevent double-submission (synchronous, not batched like useState)
+    const submittingRef = useRef(false);
+
     // Form Data
     const [formData, setFormData] = useState({
         fazenda_id: '',
@@ -124,6 +127,10 @@ export function useAspiracaoSessao() {
     };
 
     const handleFinalizar = async () => {
+        // Synchronous lock — prevents double-click (React state is async/batched)
+        if (submittingRef.current) return;
+        submittingRef.current = true;
+
         try {
             setSubmitting(true);
 
@@ -226,6 +233,7 @@ export function useAspiracaoSessao() {
             });
         } finally {
             setSubmitting(false);
+            submittingRef.current = false;
         }
     };
 

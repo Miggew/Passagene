@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
   EmbryoScoreCard,
   getDiscrepancy,
 } from '@/components/embryoscore';
-import { useEmbryoScoresBatch, useEmbryoAnalysisStatusBatch, useRetryAnalysis, useCancelAnalysis } from '@/hooks/useEmbryoScores';
+import { useEmbryoScoresBatch, useEmbryoAnalysisStatusBatch, getEffectiveAnalysisStatus, useRetryAnalysis, useCancelAnalysis } from '@/hooks/useEmbryoScores';
 import { supabase } from '@/lib/supabase';
 import { triggerAnalysis } from '@/hooks/useAnalyzeEmbryo';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +38,7 @@ import {
   ScanSearch,
 } from 'lucide-react';
 import type { EmbrioCompleto, PacoteEmbrioes } from '@/hooks/embrioes';
+import type { EmbryoAnalysisQueue } from '@/lib/types';
 
 const STAGE_LABELS: Record<number, string> = {
   3: 'Mórula Inicial',
@@ -143,14 +144,14 @@ export function PacoteEmbrioesTable({
         return;
       }
 
-      // Buscar expected count (irmãos no acasalamento)
-      const acasId = mediaData.lote_fiv_acasalamento_id || embriao.lote_fiv_acasalamento_id;
+      // Buscar expected count (irmãos do MESMO VÍDEO, não do acasalamento inteiro)
+      const mediaId = mediaData.id;
       let expectedCount = 1;
-      if (acasId) {
+      {
         const { count } = await supabase
           .from('embrioes')
           .select('*', { count: 'exact', head: true })
-          .eq('lote_fiv_acasalamento_id', acasId);
+          .eq('acasalamento_media_id', mediaId);
         if (count && count > 0) expectedCount = count;
       }
 
@@ -203,9 +204,8 @@ export function PacoteEmbrioesTable({
         queueId = queueData.id;
       }
 
-      // Vincular TODOS os embriões do acasalamento ao queue_id (matching por índice na Edge Function)
-      const acasIdForUpdate = mediaData.lote_fiv_acasalamento_id || embriao.lote_fiv_acasalamento_id;
-      if (acasIdForUpdate) {
+      // Vincular embriões DESTE VÍDEO ao queue_id (por acasalamento_media_id)
+      {
         const updateFields: Record<string, unknown> = { queue_id: queueId };
         if (mediaData.id !== embriao.acasalamento_media_id) {
           updateFields.acasalamento_media_id = mediaData.id;
@@ -213,14 +213,8 @@ export function PacoteEmbrioesTable({
         const { error: linkError } = await supabase
           .from('embrioes')
           .update(updateFields)
-          .eq('lote_fiv_acasalamento_id', acasIdForUpdate);
+          .eq('acasalamento_media_id', mediaId);
         if (linkError) { toast({ title: 'Erro ao vincular embriões', variant: 'destructive' }); return; }
-      } else {
-        const { error: linkError } = await supabase
-          .from('embrioes')
-          .update({ queue_id: queueId })
-          .eq('id', embriao.id);
-        if (linkError) { toast({ title: 'Erro ao vincular embrião', variant: 'destructive' }); return; }
       }
 
       // 3. Invocar análise no Cloud Run (com retry embutido)
@@ -319,7 +313,17 @@ export function PacoteEmbrioesTable({
   const acasalamentoIdsWithoutScore = embrioesOrdenados
     .filter(e => e.lote_fiv_acasalamento_id && !getEffectiveScore(e.id))
     .map(e => e.lote_fiv_acasalamento_id!);
-  const { data: analysisStatusMap = {} } = useEmbryoAnalysisStatusBatch(acasalamentoIdsWithoutScore);
+  const { data: analysisStatusMapRaw = {} } = useEmbryoAnalysisStatusBatch(acasalamentoIdsWithoutScore);
+
+  // Derive effective status per acasalamento (active job or most recent)
+  const analysisStatusMap = useMemo(() => {
+    const map: Record<string, EmbryoAnalysisQueue> = {};
+    for (const [acasId, jobs] of Object.entries(analysisStatusMapRaw)) {
+      const effective = getEffectiveAnalysisStatus(jobs);
+      if (effective) map[acasId] = effective;
+    }
+    return map;
+  }, [analysisStatusMapRaw]);
 
   // Quando qualquer análise completa, forçar refetch dos scores
   const prevStatusRef = useRef<Record<string, string>>({});

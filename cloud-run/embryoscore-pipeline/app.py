@@ -1,5 +1,5 @@
 """
-EmbryoScore Pipeline v7 — Unified Cloud Run Service
+EmbryoScore Pipeline v8 — Streaming Architecture
 
 POST /analyze          — Full pipeline: detect + kinetics + DINOv2 + Gemini + Storage
 POST /ocr              — OCR de relatórios de campo via Gemini 2.0 Flash Vision
@@ -12,6 +12,7 @@ DINOv2 via ONNX Runtime (~15MB) instead of PyTorch (~800MB).
 """
 
 import base64
+import collections
 import gc
 import io
 import json
@@ -34,13 +35,14 @@ from PIL import Image
 
 # Lazy imports for heavy libs
 genai = None
+_cached_gemini_key = None
 ort_session = None
 supabase_client = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="embryoscore-pipeline-v7")
+app = FastAPI(title="embryoscore-pipeline-v8")
 
 # ─── CORS ────────────────────────────────────────────────
 app.add_middleware(
@@ -61,7 +63,8 @@ FRAME_COUNT = 40
 KINETIC_FPS = 8
 OUTPUT_SIZE = 400
 MAX_FRAME_HEIGHT = 720          # Downscale to 720p max to save memory
-MAX_SAMPLED_FRAMES = 120        # Cap sampled frames (~15s at 8fps)
+MAX_SAMPLED_FRAMES = 120        # Sampled frames (~15s at 8fps)
+MAX_WIDTH = 1920                # Max width to prevent OOM with 4K+ videos
 ONNX_MODEL_PATH = "dinov2_vits14.onnx"
 
 # ─── Lazy Loading ────────────────────────────────────────
@@ -80,18 +83,24 @@ def _ensure_onnx():
 
 
 def _ensure_gemini(api_key: str):
-    global genai
-    if genai is not None:
-        return
+    global genai, _cached_gemini_key
+    if genai is not None and _cached_gemini_key == api_key:
+        return  # Same key, reuse
     import google.generativeai as _genai
     _genai.configure(api_key=api_key)
     genai = _genai
+    _cached_gemini_key = api_key
     logger.info("Gemini API configured.")
 
 
+_sb_cache = {}
+
 def _get_supabase(url: str, key: str):
-    from supabase import create_client
-    return create_client(url, key)
+    cache_key = f"{url}:{key[:8]}"
+    if cache_key not in _sb_cache:
+        from supabase import create_client
+        _sb_cache[cache_key] = create_client(url, key)
+    return _sb_cache[cache_key]
 
 
 # ─── API Key Auth ────────────────────────────────────────
@@ -148,7 +157,7 @@ def _update_progress(sb, job_id: str, message: str):
 def health():
     return {
         "status": "ok",
-        "service": "embryoscore-pipeline-v6",
+        "service": "embryoscore-pipeline-v8",
         "onnx_available": os.path.exists(ONNX_MODEL_PATH),
     }
 
@@ -208,6 +217,345 @@ async def extract_frame(req: ExtractFrameRequest):
             os.remove(tmp_path)
 
 
+# ═══════════════════════════════════════════════════════════
+# STREAMING ACCUMULATOR — O(1) memory per frame
+# ═══════════════════════════════════════════════════════════
+
+
+class _StreamingAccumulator:
+    """Processes video frames one at a time. Eliminates storing all frames in memory."""
+
+    def __init__(self, bboxes, vid_w, vid_h, fps, gap):
+        self.bboxes = bboxes
+        self.vid_w = vid_w
+        self.vid_h = vid_h
+        self.fps = fps
+        self.gap = gap
+        self.frame_count = 0
+
+        # Sliding window (last gap+1 gray frames for diffs)
+        self.gray_window = collections.deque(maxlen=gap + 1)
+
+        # Cumulative heatmap (incremented on each diff)
+        self.cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
+
+        # Background mask (everything outside embryo regions)
+        all_mask = np.zeros((vid_h, vid_w), dtype=np.uint8)
+        for bbox in bboxes:
+            bcx = int(bbox.get("x_percent", 50) / 100 * vid_w)
+            bcy = int(bbox.get("y_percent", 50) / 100 * vid_h)
+            bbw = int(bbox.get("width_percent", 10) / 100 * vid_w)
+            bbh = int(bbox.get("height_percent", 10) / 100 * vid_h)
+            br = max(bbw, bbh) // 2
+            cv2.circle(all_mask, (bcx, bcy), int(br * 1.3), 255, -1)
+
+        self.bg_indices = all_mask == 0
+        self.bg_pixel_count = int(np.sum(self.bg_indices))
+
+        # Background Welford's accumulators
+        self.bg_n = 0
+        self.bg_mean = None
+        self.bg_m2 = None
+        self.bg_timeline = []
+
+        # Per-embryo accumulators
+        self.embryo_accs = []
+        for bbox in bboxes:
+            cx = int(bbox["x_percent"] / 100 * vid_w)
+            cy = int(bbox["y_percent"] / 100 * vid_h)
+            bw = int(bbox["width_percent"] / 100 * vid_w)
+            bh = int(bbox["height_percent"] / 100 * vid_h)
+            radius = max(bw, bh) // 2
+
+            # Full embryo mask
+            mask = np.zeros((vid_h, vid_w), dtype=np.uint8)
+            cv2.circle(mask, (cx, cy), radius, 255, -1)
+            mask_indices = mask > 0
+
+            # Core mask (inner half)
+            inner_mask = np.zeros((vid_h, vid_w), dtype=np.uint8)
+            cv2.circle(inner_mask, (cx, cy), max(1, radius // 2), 255, -1)
+            inner_idx = inner_mask > 0
+
+            # Periphery mask
+            outer_mask = mask.copy()
+            outer_mask[inner_idx] = 0
+            outer_idx = outer_mask > 0
+
+            # Crop bounds
+            padding_ratio = 0.20
+            size = max(bw, bh)
+            padded = int(size * (1 + padding_ratio * 2))
+            half = padded // 2
+            crop_left = max(0, cx - half)
+            crop_top = max(0, cy - half)
+            crop_right = min(vid_w, cx + half)
+            crop_bottom = min(vid_h, cy + half)
+
+            self.embryo_accs.append({
+                "cx": cx, "cy": cy, "radius": radius,
+                "mask": mask, "mask_indices": mask_indices,
+                "inner_idx": inner_idx, "outer_idx": outer_idx,
+                "inner_count": int(np.sum(inner_idx)),
+                "outer_count": int(np.sum(outer_idx)),
+                # Welford's for full activity
+                "act_n": 0, "act_mean": None, "act_m2": None,
+                # Welford's for core
+                "core_n": 0, "core_mean": None, "core_m2": None,
+                # Welford's for periphery
+                "peri_n": 0, "peri_mean": None, "peri_m2": None,
+                # Mean intensity accumulator (for NSD)
+                "intensity_sum": 0.0, "intensity_count": 0,
+                # Diff timeline
+                "emb_timeline": [],
+                # Best crop tracking
+                "crop_left": crop_left, "crop_top": crop_top,
+                "crop_right": crop_right, "crop_bottom": crop_bottom,
+                "best_sharpness": -1.0, "best_crop": None,
+            })
+
+    def process_frame(self, color_frame):
+        """Called once per sampled frame."""
+        gray = cv2.cvtColor(color_frame, cv2.COLOR_BGR2GRAY)
+
+        # 1. APPEND to sliding window FIRST (critical order!)
+        self.gray_window.append(gray)
+
+        # 2. Compute diff only when window is full
+        if len(self.gray_window) == self.gap + 1:
+            diff = cv2.absdiff(self.gray_window[0], self.gray_window[-1])
+            self.cumulative_heat += diff.astype(np.float64)
+
+            # Background diff timeline
+            if self.bg_pixel_count > 100:
+                bg_diff_mean = float(np.mean(diff[self.bg_indices].astype(np.float32)))
+                self.bg_timeline.append(bg_diff_mean)
+
+            # Per-embryo diff timeline
+            for acc in self.embryo_accs:
+                emb_diff = float(np.mean(diff[acc["mask_indices"]].astype(np.float32)))
+                acc["emb_timeline"].append(emb_diff)
+
+        # 3. Background Welford's
+        if self.bg_pixel_count > 100:
+            pixels = gray[self.bg_indices].astype(np.float32)
+            self.bg_n += 1
+            if self.bg_mean is None:
+                self.bg_mean = pixels.copy()
+                self.bg_m2 = np.zeros_like(pixels)
+            else:
+                delta = pixels - self.bg_mean
+                self.bg_mean += delta / self.bg_n
+                delta2 = pixels - self.bg_mean
+                self.bg_m2 += delta * delta2
+
+        # 4. Per-embryo Welford's + best crop
+        for acc in self.embryo_accs:
+            # Full activity Welford's
+            pixels = gray[acc["mask_indices"]].astype(np.float32)
+            acc["act_n"] += 1
+            if acc["act_mean"] is None:
+                acc["act_mean"] = pixels.copy()
+                acc["act_m2"] = np.zeros_like(pixels)
+            else:
+                d = pixels - acc["act_mean"]
+                acc["act_mean"] += d / acc["act_n"]
+                d2 = pixels - acc["act_mean"]
+                acc["act_m2"] += d * d2
+
+            # Accumulate intensity for NSD
+            acc["intensity_sum"] += float(np.mean(pixels))
+            acc["intensity_count"] += 1
+
+            # Core Welford's
+            if acc["inner_count"] > 0:
+                core_pix = gray[acc["inner_idx"]].astype(np.float32)
+                acc["core_n"] += 1
+                if acc["core_mean"] is None:
+                    acc["core_mean"] = core_pix.copy()
+                    acc["core_m2"] = np.zeros_like(core_pix)
+                else:
+                    d = core_pix - acc["core_mean"]
+                    acc["core_mean"] += d / acc["core_n"]
+                    d2 = core_pix - acc["core_mean"]
+                    acc["core_m2"] += d * d2
+
+            # Periphery Welford's
+            if acc["outer_count"] > 0:
+                peri_pix = gray[acc["outer_idx"]].astype(np.float32)
+                acc["peri_n"] += 1
+                if acc["peri_mean"] is None:
+                    acc["peri_mean"] = peri_pix.copy()
+                    acc["peri_m2"] = np.zeros_like(peri_pix)
+                else:
+                    d = peri_pix - acc["peri_mean"]
+                    acc["peri_mean"] += d / acc["peri_n"]
+                    d2 = peri_pix - acc["peri_mean"]
+                    acc["peri_m2"] += d * d2
+
+            # Best crop (highest Laplacian sharpness)
+            cl, ct = acc["crop_left"], acc["crop_top"]
+            cr, cb = acc["crop_right"], acc["crop_bottom"]
+            crop = color_frame[ct:cb, cl:cr]
+            if crop.size > 0:
+                crop_resized = cv2.resize(
+                    crop, (OUTPUT_SIZE, OUTPUT_SIZE), interpolation=cv2.INTER_LANCZOS4)
+                gray_crop = cv2.cvtColor(crop_resized, cv2.COLOR_BGR2GRAY)
+                sharpness = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
+                if sharpness > acc["best_sharpness"]:
+                    acc["best_sharpness"] = sharpness
+                    acc["best_crop"] = crop_resized
+
+        self.frame_count += 1
+
+    def finalize(self):
+        """Extract final results. Called once after all frames."""
+        # Background std
+        bg_std = 0.0
+        if self.bg_n > 1 and self.bg_m2 is not None:
+            variance = self.bg_m2 / (self.bg_n - 1)  # Sample variance
+            bg_std = float(np.mean(np.sqrt(variance)))
+            del self.bg_mean, self.bg_m2
+            self.bg_mean = None
+            self.bg_m2 = None
+
+        results = []
+        for i, acc in enumerate(self.embryo_accs):
+            results.append(self._finalize_embryo(i, acc, bg_std))
+
+        return results, bg_std
+
+    def _finalize_embryo(self, idx, acc, bg_std):
+        """Compute final metrics for one embryo."""
+        activity_score = 0
+        nsd = 0.0
+        anr = 0.0
+
+        if acc["act_n"] >= 2 and acc["act_m2"] is not None:
+            # Population variance to match np.std(axis=0) behavior
+            variance = acc["act_m2"] / acc["act_n"]
+            pixel_std = np.sqrt(variance)
+            mean_std = float(np.mean(pixel_std))
+            compensated_std = max(0.0, mean_std - bg_std)
+            activity_score = int(min(100, max(0, compensated_std * 100 / 15)))
+
+            # NSD
+            mean_intensity = acc["intensity_sum"] / max(acc["intensity_count"], 1)
+            nsd = round(compensated_std / max(mean_intensity, 1.0), 6)
+            # ANR
+            anr = round(compensated_std / max(bg_std, 0.5), 3)
+
+        # Core and periphery activity
+        core_activity = 0
+        if acc["core_n"] >= 2 and acc["core_m2"] is not None:
+            core_var = acc["core_m2"] / acc["core_n"]
+            core_raw = float(np.mean(np.sqrt(core_var)))
+            core_activity = int(min(100, max(0, max(0.0, core_raw - bg_std) * 100 / 15)))
+
+        periphery_activity = 0
+        if acc["peri_n"] >= 2 and acc["peri_m2"] is not None:
+            peri_var = acc["peri_m2"] / acc["peri_n"]
+            peri_raw = float(np.mean(np.sqrt(peri_var)))
+            periphery_activity = int(min(100, max(0, max(0.0, peri_raw - bg_std) * 100 / 15)))
+
+        # Peak zone
+        if core_activity > periphery_activity * 1.5 and core_activity > 5:
+            peak_zone = "core"
+        elif periphery_activity > core_activity * 1.5 and periphery_activity > 5:
+            peak_zone = "periphery"
+        else:
+            peak_zone = "uniform"
+
+        # Timeline (compensated)
+        raw_timeline = []
+        for j, emb_diff in enumerate(acc["emb_timeline"]):
+            bg_diff = self.bg_timeline[j] if j < len(self.bg_timeline) else 0.0
+            raw_timeline.append(max(0.0, emb_diff - bg_diff))
+
+        timeline_norm = [int(min(100, max(0, v * 100 / 15))) for v in raw_timeline]
+        temporal_variability = round(float(np.std(raw_timeline)), 2) if len(raw_timeline) > 1 else 0.0
+
+        # Temporal pattern
+        temporal_pattern = "stable"
+        if len(raw_timeline) >= 3:
+            x = np.arange(len(raw_timeline), dtype=np.float64)
+            slope = float(np.polyfit(x, raw_timeline, 1)[0])
+            mean_tl = float(np.mean(raw_timeline))
+            rel_slope = slope / max(mean_tl, 0.01)
+            if rel_slope > 0.08:
+                temporal_pattern = "increasing"
+            elif rel_slope < -0.08:
+                temporal_pattern = "decreasing"
+            elif temporal_variability > 2.0:
+                temporal_pattern = "irregular"
+
+        # Symmetry (quadrant analysis)
+        cx, cy = acc["cx"], acc["cy"]
+        vid_h, vid_w = self.vid_h, self.vid_w
+        mask = acc["mask"]
+        quads = []
+        for y_sl, x_sl in [
+            (slice(0, cy), slice(0, cx)),
+            (slice(0, cy), slice(cx, vid_w)),
+            (slice(cy, vid_h), slice(0, cx)),
+            (slice(cy, vid_h), slice(cx, vid_w)),
+        ]:
+            q_mask = np.zeros((vid_h, vid_w), dtype=np.uint8)
+            q_mask[y_sl, x_sl] = mask[y_sl, x_sl]
+            quads.append(float(np.sum(self.cumulative_heat[q_mask > 0])))
+
+        total_q = sum(quads)
+        activity_symmetry = 1.0
+        focal_activity_detected = False
+        if total_q > 0:
+            mean_q = float(np.mean(quads))
+            std_q = float(np.std(quads))
+            activity_symmetry = round(max(0.0, min(1.0, 1.0 - std_q / max(mean_q, 0.01))), 2)
+            focal_activity_detected = max(quads) / total_q > 0.50
+
+        kinetic_profile = {
+            "core_activity": core_activity,
+            "periphery_activity": periphery_activity,
+            "peak_zone": peak_zone,
+            "temporal_pattern": temporal_pattern,
+            "activity_timeline": timeline_norm,
+            "temporal_variability": temporal_variability,
+            "activity_symmetry": activity_symmetry,
+            "focal_activity_detected": focal_activity_detected,
+        }
+
+        # Heatmap crop
+        cl, ct = acc["crop_left"], acc["crop_top"]
+        cr, cb = acc["crop_right"], acc["crop_bottom"]
+        heat_crop = self.cumulative_heat[ct:cb, cl:cr]
+        if heat_crop.max() > 0:
+            heat_norm = (heat_crop / heat_crop.max() * 255).astype(np.uint8)
+        else:
+            heat_norm = np.zeros_like(heat_crop, dtype=np.uint8)
+        heat_colored = cv2.applyColorMap(
+            cv2.resize(heat_norm, (OUTPUT_SIZE, OUTPUT_SIZE), interpolation=cv2.INTER_LANCZOS4),
+            cv2.COLORMAP_JET)
+
+        # Free heavy per-embryo arrays
+        acc["act_mean"] = None
+        acc["act_m2"] = None
+        acc["core_mean"] = None
+        acc["core_m2"] = None
+        acc["peri_mean"] = None
+        acc["peri_m2"] = None
+
+        return {
+            "index": idx,
+            "activity_score": activity_score,
+            "nsd": nsd,
+            "anr": anr,
+            "bg_std": bg_std,
+            "kinetic_profile": kinetic_profile,
+            "best_crop": acc["best_crop"],
+            "heat_colored": heat_colored,
+        }
+
+
 # ─── Main Pipeline ───────────────────────────────────────
 
 @app.post("/analyze")
@@ -247,32 +595,59 @@ async def analyze(req: AnalyzeRequest, request: Request = None):
     # If queue_id mode (no video_url), resolve everything from DB
     if req.queue_id and not req.video_url:
         try:
-            # 1. Check job status (idempotency)
+            # 1. Atomic claim (prevents duplicate processing across instances)
+            claim_result = sb.table('embryo_analysis_queue').update({
+                'status': 'processing',
+                'started_at': datetime.utcnow().isoformat(),
+                'error_message': None,
+                'progress_message': 'Iniciando análise...',
+            }).eq('id', req.queue_id).eq('status', 'pending').execute()
+
+            if not claim_result.data:
+                # Job not in 'pending' state — check why
+                job_check = sb.table('embryo_analysis_queue').select(
+                    'status, started_at'
+                ).eq('id', req.queue_id).single().execute()
+                if not job_check.data:
+                    raise HTTPException(404, f"Job not found: {req.queue_id}")
+                status = job_check.data['status']
+                if status == 'completed':
+                    return {"message": "Already completed", "queue_id": req.queue_id}
+                if status == 'processing':
+                    started = job_check.data.get('started_at')
+                    if started:
+                        elapsed = time.time() - datetime.fromisoformat(
+                            started.replace('Z', '+00:00')
+                        ).timestamp()
+                        if elapsed < 300:
+                            return {"message": "Already processing by another instance", "queue_id": req.queue_id}
+                    # Stale (>5 min) — reclaim
+                    logger.warning(f"Job {req.queue_id} appears stale, reclaiming...")
+                    sb.table('embryo_analysis_queue').update({
+                        'status': 'processing',
+                        'started_at': datetime.utcnow().isoformat(),
+                        'progress_message': 'Reprocessando (timeout anterior)...',
+                    }).eq('id', req.queue_id).execute()
+                elif status == 'failed':
+                    sb.table('embryo_analysis_queue').update({
+                        'status': 'processing',
+                        'started_at': datetime.utcnow().isoformat(),
+                        'error_message': None,
+                        'progress_message': 'Reprocessando...',
+                    }).eq('id', req.queue_id).execute()
+                else:
+                    raise HTTPException(409, f"Job in unexpected state: {status}")
+
+            logger.info(f"Job {req.queue_id} claimed successfully")
+
+            # 2. Read job details
             job_resp = sb.table('embryo_analysis_queue').select(
-                'status, started_at, media_id, lote_fiv_acasalamento_id, '
+                'media_id, lote_fiv_acasalamento_id, '
                 'expected_count, manual_bboxes, embryo_offset'
             ).eq('id', req.queue_id).single().execute()
             job = job_resp.data
             if not job:
                 raise HTTPException(404, f"Job not found: {req.queue_id}")
-
-            # Idempotency: skip if already processing (< 5min) or completed
-            if job['status'] == 'processing' and job.get('started_at'):
-                elapsed = time.time() - datetime.fromisoformat(
-                    job['started_at'].replace('Z', '+00:00')
-                ).timestamp()
-                if elapsed < 300:
-                    return {"message": "Job already processing", "queue_id": req.queue_id}
-            if job['status'] == 'completed':
-                return {"message": "Job already completed", "queue_id": req.queue_id}
-
-            # 2. Mark as processing
-            sb.table('embryo_analysis_queue').update({
-                'status': 'processing',
-                'started_at': datetime.utcnow().isoformat(),
-                'error_message': None,
-                'progress_message': 'Iniciando análise...',
-            }).eq('id', req.queue_id).execute()
 
             # 3. Get media path
             media_resp = sb.table('acasalamento_embrioes_media').select(
@@ -287,27 +662,51 @@ async def analyze(req: AnalyzeRequest, request: Request = None):
             signed = sb.storage.from_('embryo-videos').create_signed_url(
                 media['arquivo_path'], 3600
             )
-            if not signed or not signed.get('signedURL'):
-                raise HTTPException(500, f"Failed to generate signed URL")
-            video_url = signed['signedURL']
+            # Handle both camelCase (v1) and snake_case (v2) responses
+            video_url = None
+            if signed:
+                video_url = signed.get('signedURL') or signed.get('signed_url') or signed.get('signedUrl')
+            if not video_url:
+                raise HTTPException(500, f"Failed to generate signed URL for {media['arquivo_path']}")
 
-            # 5. Get config (prompt, model)
-            config_resp = sb.table('embryo_score_config').select(
-                'calibration_prompt, model_name'
-            ).limit(1).maybe_single().execute()
-            config = config_resp.data if config_resp.data else {}
+            # 5. Get config (prompt, model) — non-critical, use defaults on failure
+            config = {}
+            try:
+                config_rows = sb.table('embryo_score_config').select(
+                    'calibration_prompt, model_name'
+                ).limit(1).execute()
+                if config_rows.data and len(config_rows.data) > 0:
+                    config = config_rows.data[0]
+            except Exception as cfg_err:
+                logger.warning(f"Could not load embryo_score_config (using defaults): {cfg_err}")
 
-            # 6. Get Gemini API key from secrets table (fallback to env var)
-            secret_resp = sb.table('embryo_score_secrets').select(
-                'gemini_api_key'
-            ).limit(1).maybe_single().execute()
-            if secret_resp.data and secret_resp.data.get('gemini_api_key'):
-                gemini_key = secret_resp.data['gemini_api_key']
+            # 6. Get Gemini API key from secrets table (fallback to env var) — non-critical
+            try:
+                secret_rows = sb.table('embryo_score_secrets').select(
+                    'gemini_api_key'
+                ).limit(1).execute()
+                if secret_rows.data and len(secret_rows.data) > 0:
+                    key_val = secret_rows.data[0].get('gemini_api_key')
+                    if key_val:
+                        gemini_key = key_val
+            except Exception as sec_err:
+                logger.warning(f"Could not load embryo_score_secrets (using env var): {sec_err}")
 
             # Populate req fields for the rest of the pipeline
             req.video_url = video_url
             req.job_id = req.queue_id
             req.expected_count = job.get('expected_count') or 0
+            # Fallback: if expected_count is 0, count embryos linked to this job
+            if req.expected_count == 0:
+                try:
+                    ec_resp = sb.table('embrioes').select('id', count='exact', head=True).eq(
+                        'queue_id', req.queue_id
+                    ).execute()
+                    if ec_resp.count and ec_resp.count > 0:
+                        req.expected_count = ec_resp.count
+                        logger.info(f"expected_count fallback from DB: {req.expected_count}")
+                except Exception as ec_err:
+                    logger.warning(f"expected_count fallback query failed: {ec_err}")
             req.bboxes = job.get('manual_bboxes') or None
             req.gemini_api_key = gemini_key
             req.supabase_url = sb_url
@@ -363,52 +762,31 @@ async def analyze(req: AnalyzeRequest, request: Request = None):
             cap.release()
             raise HTTPException(422, "Video has no frames")
 
-        # Downscale factor for memory safety (720p max)
-        if orig_h > MAX_FRAME_HEIGHT:
-            scale = MAX_FRAME_HEIGHT / orig_h
+        # Downscale factor for memory safety (720p max, 1920px wide max)
+        if orig_h > MAX_FRAME_HEIGHT or orig_w > MAX_WIDTH:
+            scale = min(MAX_FRAME_HEIGHT / orig_h, MAX_WIDTH / orig_w)
             vid_w = int(orig_w * scale)
-            vid_h = MAX_FRAME_HEIGHT
+            vid_h = int(orig_h * scale)
             logger.info(f"Downscaling {orig_w}x{orig_h} → {vid_w}x{vid_h} (scale={scale:.2f})")
         else:
             vid_w, vid_h = orig_w, orig_h
             scale = 1.0
 
-        # 2. Extract frames
-        # 2a. Uniform sampling at KINETIC_FPS for kinetics
-        sample_interval = max(1, round(video_fps / KINETIC_FPS))
-        sampled_indices = list(range(0, total_frames, sample_interval))
-        # Cap total frames to limit memory
-        if len(sampled_indices) > MAX_SAMPLED_FRAMES:
-            step = len(sampled_indices) / MAX_SAMPLED_FRAMES
-            sampled_indices = [sampled_indices[int(i * step)] for i in range(MAX_SAMPLED_FRAMES)]
-            logger.info(f"Capped sampled frames to {MAX_SAMPLED_FRAMES}")
-
-        color_frames = []
-        gray_frames = []
-        for idx in sampled_indices:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ret, frame = cap.read()
-            if not ret:
-                break
-            # Downscale if needed
-            if scale < 1.0:
-                frame = cv2.resize(frame, (vid_w, vid_h), interpolation=cv2.INTER_AREA)
-            color_frames.append(frame)
-            gray_frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
-
-        cap.release()
-        logger.info(f"Extracted {len(color_frames)} frames at {vid_w}x{vid_h} "
-                     f"(~{len(color_frames) * vid_w * vid_h * 4 / 1024 / 1024:.0f}MB in RAM)")
-
-        if len(color_frames) < 2:
-            raise HTTPException(422, "Too few frames extracted")
-
-        # Detection frame = middle
-        det_idx = len(color_frames) // 2
-        det_frame = color_frames[det_idx]
-
-        # 3. Detect embryos (use biologist-provided bboxes if available)
+        # 2. PASS 1 — Detection (single frame from middle)
         _update_progress(sb, effective_job_id, "Detectando embriões...")
+        det_frame_idx = total_frames // 2
+        cap.set(cv2.CAP_PROP_POS_FRAMES, det_frame_idx)
+        ret, det_frame = cap.read()
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, det_frame = cap.read()
+        if not ret:
+            cap.release()
+            raise HTTPException(422, "Could not read detection frame")
+        if scale < 1.0:
+            det_frame = cv2.resize(det_frame, (vid_w, vid_h), interpolation=cv2.INTER_AREA)
+
+        # Detect embryos (use biologist-provided bboxes if available)
         if req.bboxes:
             bboxes = req.bboxes
             logger.info(f"Using {len(bboxes)} biologist-provided bboxes (skipping OpenCV)")
@@ -416,97 +794,157 @@ async def analyze(req: AnalyzeRequest, request: Request = None):
             bboxes = _detect_embryos(det_frame, req.expected_count)
             logger.info(f"OpenCV detected {len(bboxes)} embryos")
         _update_progress(sb, effective_job_id, f"Detectados {len(bboxes)} embrião(ões)")
+
+        # Upload plate frame
+        plate_success, plate_buf = cv2.imencode('.jpg', det_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if plate_success:
+            _upload_to_storage(sb, f"{job_dir}/plate_frame.jpg", plate_buf.tobytes())
+
         if not bboxes:
-            # Upload plate frame even if no detection
-            plate_jpg = cv2.imencode('.jpg', det_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
-            _upload_to_storage(sb, f"{job_dir}/plate_frame.jpg", plate_jpg)
+            cap.release()
             return {
                 "plate_frame_path": f"{job_dir}/plate_frame.jpg",
                 "bboxes": [],
                 "embryos": [],
             }
 
-        # Upload plate frame
-        plate_jpg = cv2.imencode('.jpg', det_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
-        _upload_to_storage(sb, f"{job_dir}/plate_frame.jpg", plate_jpg)
+        del det_frame  # Free detection frame
 
-        # Camera noise compensation (shared across embryos)
-        bg_std, bg_timeline, wide_diffs = _compute_background_noise(
-            gray_frames, bboxes, vid_w, vid_h, KINETIC_FPS
-        )
+        # 3. PASS 2 — Streaming analysis (O(1) memory per frame)
+        _update_progress(sb, effective_job_id, "Analisando cinética...")
+        sample_interval = max(1, round(video_fps / KINETIC_FPS))
+        sampled_indices = list(range(0, total_frames, sample_interval))
+        if len(sampled_indices) > MAX_SAMPLED_FRAMES:
+            step = len(sampled_indices) / MAX_SAMPLED_FRAMES
+            sampled_indices = [sampled_indices[int(i * step)] for i in range(MAX_SAMPLED_FRAMES)]
 
-        # Pre-compute cumulative heatmap (shared across all embryos)
-        cumulative_heat = np.zeros((vid_h, vid_w), dtype=np.float64)
-        for wd in wide_diffs:
-            cumulative_heat += wd.astype(np.float64)
+        gap = max(1, int(KINETIC_FPS))
+        accumulator = _StreamingAccumulator(bboxes, vid_w, vid_h, KINETIC_FPS, gap)
 
-        # 4. Process each embryo (parallel: vision then Gemini)
-        # Phase 1: Vision in parallel (crop + kinetics + embedding + upload)
-        vision_results = {}
-        with ThreadPoolExecutor(max_workers=min(2, len(bboxes))) as pool:
-            vision_futures = {
-                pool.submit(
-                    _process_embryo_vision,
-                    i, bbox, color_frames, gray_frames,
-                    wide_diffs, bg_std, bg_timeline,
-                    cumulative_heat,
-                    vid_w, vid_h, KINETIC_FPS, sb, job_dir,
-                ): i
-                for i, bbox in enumerate(bboxes)
-            }
-            # Wait for ALL futures to complete before exiting context
-            futures_wait(list(vision_futures.keys()))
-            for future in vision_futures:
-                idx = vision_futures[future]
-                try:
-                    vision_results[idx] = future.result()
-                except Exception as e:
-                    logger.error(f"Vision failed for embryo {idx}: {e}")
-                    # Mark as failed so Gemini phase skips this embryo
-                    vision_results[idx] = None
+        for idx in sampled_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if scale < 1.0:
+                frame = cv2.resize(frame, (vid_w, vid_h), interpolation=cv2.INTER_AREA)
+            accumulator.process_frame(frame)
+            # frame is discarded on next iteration — O(1) memory
 
-        # Free heavy frame data — no longer needed after vision phase
-        del color_frames, gray_frames, wide_diffs, cumulative_heat
+        cap.release()
+        logger.info(f"Streamed {accumulator.frame_count} frames at {vid_w}x{vid_h}")
+
+        if accumulator.frame_count < 2:
+            del accumulator
+            raise HTTPException(422, "Too few frames extracted")
+
+        embryo_data, bg_std = accumulator.finalize()
+        del accumulator
         gc.collect()
-        logger.info("Freed frame arrays before Gemini phase")
 
-        # Filter out failed vision results before Gemini phase
-        valid_vision = {i: r for i, r in vision_results.items() if r is not None}
-        logger.info(f"Vision: {len(valid_vision)}/{len(bboxes)} embryos succeeded")
+        # 4. Per-embryo processing (encode, upload, DINOv2) with error isolation
+        start_time = time.time()
+        _update_progress(sb, effective_job_id, "Processando embriões...")
 
-        # Phase 2: Gemini in parallel (with retry per embryo)
-        _update_progress(sb, effective_job_id, f"Classificando {len(valid_vision)} embrião(ões) com IA...")
-        if valid_vision:
-            with ThreadPoolExecutor(max_workers=min(3, len(valid_vision))) as pool:
-                gemini_futures = {
-                    pool.submit(
-                        _call_gemini_with_retry,
-                        valid_vision[i].pop("_crop_jpg"),
-                        valid_vision[i].pop("_motion_jpg"),
-                        req.gemini_api_key, req.prompt, req.model_name,
-                        valid_vision[i]["activity_score"],
-                        valid_vision[i]["kinetic_profile"],
-                        valid_vision[i]["nsd"],
-                        valid_vision[i]["anr"],
-                    ): i
-                    for i in valid_vision
+        # Batch DINOv2 embeddings (1 call instead of N)
+        valid_crops = [(i, e["best_crop"]) for i, e in enumerate(embryo_data) if e.get("best_crop") is not None]
+        if valid_crops:
+            batch_embeddings = _get_embeddings_batch([c for _, c in valid_crops])
+            for j, (orig_idx, _) in enumerate(valid_crops):
+                embryo_data[orig_idx]["embedding"] = batch_embeddings[j]
+
+        # Encode and upload per embryo
+        embryo_results = []
+        for emb in embryo_data:
+            try:
+                best_crop = emb.get("best_crop")
+                heat_colored = emb.get("heat_colored")
+
+                if best_crop is None:
+                    logger.warning(f"Embryo {emb['index']}: no crop available, skipping")
+                    continue
+
+                success, crop_buf = cv2.imencode('.jpg', best_crop, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                if not success:
+                    raise ValueError("Failed to encode crop JPEG")
+                crop_jpg = crop_buf.tobytes()
+
+                success, motion_buf = cv2.imencode('.jpg', heat_colored, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if not success:
+                    raise ValueError("Failed to encode motion JPEG")
+                motion_jpg = motion_buf.tobytes()
+
+                emb_dir = f"{job_dir}/embryo_{emb['index']}"
+                _upload_to_storage(sb, f"{emb_dir}/crop.jpg", crop_jpg)
+                _upload_to_storage(sb, f"{emb_dir}/motion.jpg", motion_jpg)
+
+                result = {
+                    "index": emb["index"],
+                    "bbox": bboxes[emb["index"]],
+                    "crop_image_path": f"{emb_dir}/crop.jpg",
+                    "motion_map_path": f"{emb_dir}/motion.jpg",
+                    "activity_score": emb["activity_score"],
+                    "nsd": emb["nsd"],
+                    "anr": emb["anr"],
+                    "bg_std": emb["bg_std"],
+                    "kinetic_profile": emb["kinetic_profile"],
+                    "embedding": emb.get("embedding", [0.0] * 384),
+                    "_crop_jpg": crop_jpg,
+                    "_motion_jpg": motion_jpg,
                 }
-                futures_wait(list(gemini_futures.keys()))
-                for future in gemini_futures:
-                    idx = gemini_futures[future]
-                    try:
-                        valid_vision[idx]["gemini_analysis"] = future.result()
-                    except Exception as e:
-                        logger.error(f"Gemini failed for embryo {idx}: {e}")
-                        valid_vision[idx]["gemini_analysis"] = {
-                            "classification": "Error",
-                            "reasoning": str(e)[:200],
-                            "confidence": "low",
-                        }
+                embryo_results.append(result)
 
-        embryo_results = [valid_vision[i] for i in sorted(valid_vision)]
+            except Exception as e:
+                logger.error(f"Embryo {emb['index']} processing failed: {e}")
+                continue
 
-        # ─── 5. Save scores directly to DB ─────────────────
+        # Free intermediate data
+        del embryo_data
+        gc.collect()
+        logger.info(f"Processed {len(embryo_results)}/{len(bboxes)} embryos successfully")
+
+        # 5. Gemini (max_workers=1 to prevent rate limiting)
+        if time.time() - start_time > 250:
+            logger.warning("Approaching 300s timeout, skipping Gemini phase")
+            for r in embryo_results:
+                r.pop("_crop_jpg", None)
+                r.pop("_motion_jpg", None)
+                r["gemini_analysis"] = {
+                    "classification": "Pending",
+                    "reasoning": "Timeout — reprocesse quando possível",
+                    "confidence": "low",
+                }
+        else:
+            _update_progress(sb, effective_job_id, f"Classificando {len(embryo_results)} embrião(ões) com IA...")
+            if embryo_results:
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    gemini_futures = {
+                        pool.submit(
+                            _call_gemini_with_retry,
+                            embryo_results[i].pop("_crop_jpg"),
+                            embryo_results[i].pop("_motion_jpg"),
+                            req.gemini_api_key, req.prompt, req.model_name,
+                            embryo_results[i]["activity_score"],
+                            embryo_results[i]["kinetic_profile"],
+                            embryo_results[i]["nsd"],
+                            embryo_results[i]["anr"],
+                        ): i
+                        for i in range(len(embryo_results))
+                    }
+                    futures_wait(list(gemini_futures.keys()))
+                    for future in gemini_futures:
+                        idx = gemini_futures[future]
+                        try:
+                            embryo_results[idx]["gemini_analysis"] = future.result()
+                        except Exception as e:
+                            logger.error(f"Gemini failed for embryo {idx}: {e}")
+                            embryo_results[idx]["gemini_analysis"] = {
+                                "classification": "Error",
+                                "reasoning": str(e)[:200],
+                                "confidence": "low",
+                            }
+
+        # ─── 6. Save scores directly to DB ─────────────────
         _update_progress(sb, effective_job_id, "Salvando resultados...")
         if req.lote_fiv_acasalamento_id and req.media_id:
             try:
@@ -1239,6 +1677,49 @@ async def analyze_activity(request_data: dict = {}):
 # DETECTION
 # ═══════════════════════════════════════════════════════════
 
+def _refine_radius(
+    gray: np.ndarray, blurred: np.ndarray,
+    cx: float, cy: float, initial_radius: float,
+    bg_intensity: float, frame_w: int, frame_h: int,
+) -> float:
+    """Expand radius outward from detected center until hitting background.
+
+    For large embryos, adaptive thresholding may only capture internal
+    structures, giving a radius that is too small. This function samples
+    mean intensity in concentric rings expanding from the detected center.
+    When the ring intensity reaches close to bg_intensity, we've passed
+    the embryo edge.
+    """
+    icx, icy = int(cx), int(cy)
+    # Don't expand beyond what fits in the frame
+    max_r = int(min(icx, icy, frame_w - icx, frame_h - icy, frame_w * 0.45))
+    if max_r <= initial_radius:
+        return initial_radius
+
+    step = max(2, int(initial_radius * 0.08))
+    # Threshold: when ring mean is >= 88% of background, we've left the embryo
+    edge_threshold = bg_intensity * 0.88
+
+    best_r = initial_radius
+    for r in range(int(initial_radius), max_r, step):
+        # Sample a thin ring at radius r (thickness = step)
+        ring_outer = np.zeros(gray.shape[:2], dtype=np.uint8)
+        ring_inner = np.zeros(gray.shape[:2], dtype=np.uint8)
+        cv2.circle(ring_outer, (icx, icy), r + step, 255, -1)
+        cv2.circle(ring_inner, (icx, icy), r, 255, -1)
+        ring_mask = cv2.subtract(ring_outer, ring_inner)
+        pixels = blurred[ring_mask > 0]
+        if len(pixels) < 10:
+            break
+        ring_mean = float(np.mean(pixels))
+        if ring_mean >= edge_threshold:
+            # Found the edge — use this radius
+            best_r = float(r)
+            break
+        best_r = float(r)
+
+    return best_r
+
 def _detect_embryos(frame: np.ndarray, expected_count: int) -> list[dict]:
     """Detect embryos using OpenCV multi-pass adaptive detection."""
     bboxes = _detect_embryos_opencv(frame, expected_count)
@@ -1259,10 +1740,12 @@ def _detect_embryos_opencv(frame: np.ndarray, expected_count: int = 0) -> list[d
     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(gray)
     blurred = cv2.GaussianBlur(enhanced, (0, 0), sigmaX=max(3, w // 300))
-    bg_intensity = float(np.median(blurred))
+    # 90th percentile = true background even when large embryos dominate the frame
+    # (embryos are darker than background in brightfield microscopy)
+    bg_intensity = float(np.percentile(blurred, 90))
 
     min_radius = int(w * 0.015)
-    max_radius = int(w * 0.15)
+    max_radius = int(w * 0.45)
     min_area = 3.14159 * min_radius * min_radius
     max_area = 3.14159 * max_radius * max_radius
 
@@ -1404,6 +1887,14 @@ def _detect_embryos_opencv(frame: np.ndarray, expected_count: int = 0) -> list[d
         merged = merged[:expected_count]
 
     logger.info(f"OpenCV detected {len(merged)} embryos (expected: {expected_count})")
+
+    # Refine radii — expand from detected center until hitting background
+    # Fixes small radii caused by adaptive threshold fragmenting large embryos
+    for m in merged:
+        refined = _refine_radius(gray, blurred, m["cx"], m["cy"], m["radius"], bg_intensity, w, h)
+        if refined > m["radius"]:
+            logger.info(f"Radius refined: {m['radius']:.0f} -> {refined:.0f} at ({m['cx']:.0f},{m['cy']:.0f})")
+            m["radius"] = refined
 
     # Reading order
     if len(merged) > 1:
@@ -1599,127 +2090,6 @@ def _compute_temporal_stability(profile: dict) -> float:
     return round(max(0.0, 1.0 - var / 5.0), 3)
 
 
-# ═══════════════════════════════════════════════════════════
-# SINGLE EMBRYO PROCESSING
-# ═══════════════════════════════════════════════════════════
-
-def _process_embryo_vision(
-    emb_idx: int, bbox: dict,
-    color_frames: list, gray_frames: list,
-    wide_diffs: list, bg_std: float, bg_timeline: list,
-    cumulative_heat: np.ndarray,
-    vid_w: int, vid_h: int, fps: float,
-    sb, job_dir: str,
-) -> dict:
-    """Process one embryo vision: kinetics, best frame, DINOv2, upload. No Gemini."""
-
-    cx = int(bbox["x_percent"] / 100 * vid_w)
-    cy = int(bbox["y_percent"] / 100 * vid_h)
-    bw = int(bbox["width_percent"] / 100 * vid_w)
-    bh = int(bbox["height_percent"] / 100 * vid_h)
-    radius = max(bw, bh) // 2
-
-    # Mask for this embryo
-    mask = np.zeros((vid_h, vid_w), dtype=np.uint8)
-    cv2.circle(mask, (cx, cy), radius, 255, -1)
-    mask_indices = mask > 0
-
-    # Activity score (compensated) + NSD/ANR biomarcadores
-    pixel_values = [g[mask_indices].astype(np.float32) for g in gray_frames]
-    if len(pixel_values) >= 2:
-        pixel_stack = np.stack(pixel_values, axis=0)
-        pixel_std = np.std(pixel_stack, axis=0)
-        mean_std = float(np.mean(pixel_std))
-        compensated_std = max(0.0, mean_std - bg_std)
-        activity_score = int(min(100, max(0, compensated_std * 100 / 15)))
-        # NSD (Normalized Standard Deviation) — validated biomarker (PMC5695959, PMC9089758)
-        mean_intensity = float(np.mean(pixel_stack))
-        nsd = round(compensated_std / max(mean_intensity, 1.0), 6)
-        # ANR (Activity-to-Noise Ratio) — embryo signal vs background noise
-        anr = round(compensated_std / max(bg_std, 0.5), 3)
-    else:
-        activity_score = 0
-        nsd = 0.0
-        anr = 0.0
-
-    # Kinetic profile
-    kinetic_profile = _compute_kinetic_profile(
-        gray_frames, mask, mask_indices, cx, cy, radius, fps,
-        wide_diffs, bg_std, bg_timeline, cumulative_heat)
-
-    # Crop region with padding
-    padding_ratio = 0.20
-    size = max(bw, bh)
-    padded = int(size * (1 + padding_ratio * 2))
-    half = padded // 2
-
-    crop_left = max(0, cx - half)
-    crop_top = max(0, cy - half)
-    crop_right = min(vid_w, cx + half)
-    crop_bottom = min(vid_h, cy + half)
-
-    # Extract crops from all frames
-    crops = []
-    for frame in color_frames:
-        crop = frame[crop_top:crop_bottom, crop_left:crop_right]
-        if crop.size > 0:
-            crops.append(cv2.resize(crop, (OUTPUT_SIZE, OUTPUT_SIZE), interpolation=cv2.INTER_LANCZOS4))
-
-    if not crops:
-        raise ValueError("Empty crops for embryo")
-
-    # Best frame selection (Laplacian variance = sharpness)
-    best_idx = _select_best_frame(crops)
-    best_frame = crops[best_idx]
-
-    # Heatmap crop from pre-computed cumulative_heat
-    heat_crop = cumulative_heat[crop_top:crop_bottom, crop_left:crop_right]
-    if heat_crop.max() > 0:
-        heat_norm = (heat_crop / heat_crop.max() * 255).astype(np.uint8)
-    else:
-        heat_norm = np.zeros_like(heat_crop, dtype=np.uint8)
-    heat_colored = cv2.applyColorMap(
-        cv2.resize(heat_norm, (OUTPUT_SIZE, OUTPUT_SIZE), interpolation=cv2.INTER_LANCZOS4),
-        cv2.COLORMAP_JET)
-
-    # Composite: best frame | heatmap side by side
-    composite = np.hstack((best_frame, heat_colored))
-
-    # Encode images
-    crop_jpg = cv2.imencode('.jpg', best_frame, [cv2.IMWRITE_JPEG_QUALITY, 90])[1].tobytes()
-    motion_jpg = cv2.imencode('.jpg', heat_colored, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
-    composite_jpg = cv2.imencode('.jpg', composite, [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
-
-    # Upload to Storage
-    emb_dir = f"{job_dir}/embryo_{emb_idx}"
-    paths = {
-        "crop_image_path": f"{emb_dir}/crop.jpg",
-        "motion_map_path": f"{emb_dir}/motion.jpg",
-        "composite_path": f"{emb_dir}/composite.jpg",
-    }
-    _upload_to_storage(sb, paths["crop_image_path"], crop_jpg)
-    _upload_to_storage(sb, paths["motion_map_path"], motion_jpg)
-    _upload_to_storage(sb, paths["composite_path"], composite_jpg)
-
-    # DINOv2 embedding
-    embedding = _get_embedding(best_frame)
-
-    return {
-        "index": emb_idx,
-        "bbox": bbox,
-        "crop_image_path": paths["crop_image_path"],
-        "motion_map_path": paths["motion_map_path"],
-        "composite_path": paths["composite_path"],
-        "activity_score": activity_score,
-        "nsd": nsd,
-        "anr": anr,
-        "bg_std": bg_std,
-        "kinetic_profile": kinetic_profile,
-        "embedding": embedding,
-        # Temporary data for Gemini phase (popped before results are returned)
-        "_crop_jpg": crop_jpg,
-        "_motion_jpg": motion_jpg,
-    }
 
 
 def _call_gemini_with_retry(
@@ -1752,46 +2122,6 @@ def _call_gemini_with_retry(
             }
 
 
-def _process_single_embryo(
-    emb_idx: int, bbox: dict,
-    color_frames: list, gray_frames: list,
-    wide_diffs: list, bg_std: float, bg_timeline: list,
-    cumulative_heat: np.ndarray,
-    vid_w: int, vid_h: int, fps: float,
-    sb, job_dir: str, req: AnalyzeRequest,
-) -> dict:
-    """Process one embryo: kinetics, best frame, DINOv2, Gemini, upload (sequential fallback)."""
-    result = _process_embryo_vision(
-        emb_idx, bbox, color_frames, gray_frames,
-        wide_diffs, bg_std, bg_timeline, cumulative_heat,
-        vid_w, vid_h, fps, sb, job_dir,
-    )
-    crop_jpg = result.pop("_crop_jpg")
-    motion_jpg = result.pop("_motion_jpg")
-    result["gemini_analysis"] = _call_gemini_with_retry(
-        crop_jpg, motion_jpg, req.gemini_api_key,
-        req.prompt, req.model_name,
-        result["activity_score"], result["kinetic_profile"],
-        result["nsd"], result["anr"],
-    )
-    return result
-
-
-# ═══════════════════════════════════════════════════════════
-# BEST FRAME SELECTION
-# ═══════════════════════════════════════════════════════════
-
-def _select_best_frame(crops: list[np.ndarray]) -> int:
-    """Select frame with highest sharpness (Laplacian variance)."""
-    best_idx = 0
-    best_score = -1.0
-    for i, crop in enumerate(crops):
-        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        score = cv2.Laplacian(gray, cv2.CV_64F).var()
-        if score > best_score:
-            best_score = score
-            best_idx = i
-    return best_idx
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1810,8 +2140,21 @@ def _get_embedding(image: np.ndarray) -> list[float]:
     arr = (arr - np.array([0.485, 0.456, 0.406])) / np.array([0.229, 0.224, 0.225])
     arr = arr.transpose(2, 0, 1)[np.newaxis].astype(np.float32)  # (1, 3, 224, 224)
 
-    result = ort_session.run(None, {"image": arr})
+    # Build input feed dynamically based on what the model expects
+    input_feed = {"image": arr}
+    input_names = [inp.name for inp in ort_session.get_inputs()]
+    if "masks" in input_names:
+        # DINOv2 masks: (batch, num_patches) bool — False = visible (no masking)
+        num_patches = (224 // 14) ** 2  # 256 for ViT-S/14
+        input_feed["masks"] = np.zeros((1, num_patches), dtype=bool)
+
+    result = ort_session.run(None, input_feed)
     return result[0][0].tolist()
+
+
+def _get_embeddings_batch(images: list[np.ndarray]) -> list[list[float]]:
+    """Generate DINOv2 embeddings for a list of images."""
+    return [_get_embedding(img) for img in images]
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1930,7 +2273,10 @@ def _analyze_with_gemini(
         motion_image = Image.open(io.BytesIO(motion_jpg))
 
         model = genai.GenerativeModel(model_name)
-        response = model.generate_content([prompt, crop_image, motion_image])
+        response = model.generate_content(
+            [prompt, crop_image, motion_image],
+            request_options={"timeout": 30}
+        )
 
         raw_text = response.text
         logger.info(f"Gemini raw response ({len(raw_text)} chars): {raw_text[:200]}")
@@ -1947,15 +2293,8 @@ def _analyze_with_gemini(
 
     except Exception as e:
         logger.error(f"Gemini error: {type(e).__name__}: {e}")
-        return {
-            "classification": "Error",
-            "reasoning": f"Gemini analysis failed: {str(e)[:200]}",
-            "stage_code": None,
-            "quality_grade": None,
-            "visual_features": None,
-            "kinetic_assessment": None,
-            "confidence": "low",
-        }
+        # Re-raise so _call_gemini_with_retry can retry
+        raise
 
 
 # ═══════════════════════════════════════════════════════════
@@ -2057,13 +2396,11 @@ def _do_knn_lookup(sb, embedding: list, kinetic_intensity: float,
 
 def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str):
     """Save embryo scores directly to Supabase DB. Called from Cloud Run."""
-    # Fetch existing embryos for this acasalamento (include classificacao for auto-copy)
+    # Fetch embryos linked to THIS job (by queue_id) — each video has its own set
     resp = sb.table('embrioes').select('id, classificacao').eq(
-        'lote_fiv_acasalamento_id', req.lote_fiv_acasalamento_id
-    ).order('id').execute()
+        'queue_id', req.job_id
+    ).order('identificacao').execute()
     existing_embryos = resp.data or []
-
-    offset = req.embryo_offset
 
     # Update queue with detection results
     sb.table('embryo_analysis_queue').update({
@@ -2093,7 +2430,7 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
 
     scores_to_insert = []
     for emb in embryo_results:
-        db_idx = offset + emb["index"]
+        db_idx = emb["index"]
         if db_idx >= len(existing_embryos):
             logger.warning(f"No DB embryo at index {db_idx}")
             continue
@@ -2133,7 +2470,6 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
             # Storage paths
             "crop_image_path": emb.get("crop_image_path"),
             "motion_map_path": emb.get("motion_map_path"),
-            "composite_path": emb.get("composite_path"),
             # Kinetics — NSD-based (scientific: PMC5695959, PMC9089758)
             "kinetic_intensity": emb.get("nsd", 0.0),
             "kinetic_harmony": (emb.get("kinetic_profile") or {}).get("activity_symmetry", 0.0),
@@ -2204,28 +2540,32 @@ def _save_scores_to_db(sb, req, embryo_results: list, bboxes: list, job_dir: str
             .lt("created_at", cutoff) \
             .execute()
 
-        # 3. Auto-populate embryo_references atlas (for scores with biologist classification + valid embedding)
+        # 3. Auto-populate embryo_references atlas (batch upsert)
+        atlas_records = []
         for score_rec in scores_to_insert:
             bio_class = score_rec.get("biologist_classification")
             emb_embedding = score_rec.get("embedding")
             if bio_class and emb_embedding:
-                try:
-                    sb.table('embryo_references').upsert({
-                        "embriao_id": score_rec["embriao_id"],
-                        "classification": bio_class,
-                        "embedding": emb_embedding,
-                        "kinetic_intensity": score_rec.get("kinetic_intensity"),
-                        "kinetic_harmony": score_rec.get("kinetic_harmony"),
-                        "kinetic_stability": score_rec.get("kinetic_stability"),
-                        "kinetic_bg_noise": score_rec.get("kinetic_bg_noise"),
-                        "best_frame_path": score_rec.get("crop_image_path"),
-                        "motion_map_path": score_rec.get("motion_map_path"),
-                        "species": "bovine_real",
-                        "source": "lab",
-                        "lab_id": "00000000-0000-0000-0000-000000000001",
-                    }, on_conflict="embriao_id").execute()
-                except Exception as ref_err:
-                    logger.warning(f"Atlas upsert failed for {score_rec['embriao_id']}: {ref_err}")
+                atlas_records.append({
+                    "embriao_id": score_rec["embriao_id"],
+                    "classification": bio_class,
+                    "embedding": emb_embedding,
+                    "kinetic_intensity": score_rec.get("kinetic_intensity"),
+                    "kinetic_harmony": score_rec.get("kinetic_harmony"),
+                    "kinetic_stability": score_rec.get("kinetic_stability"),
+                    "kinetic_bg_noise": score_rec.get("kinetic_bg_noise"),
+                    "best_frame_path": score_rec.get("crop_image_path"),
+                    "motion_map_path": score_rec.get("motion_map_path"),
+                    "species": "bovine_real",
+                    "source": "lab",
+                    "lab_id": "00000000-0000-0000-0000-000000000001",
+                })
+        if atlas_records:
+            try:
+                sb.table('embryo_references').upsert(
+                    atlas_records, on_conflict="embriao_id").execute()
+            except Exception as ref_err:
+                logger.warning(f"Batch atlas upsert failed: {ref_err}")
 
     # Mark job complete
     sb.table('embryo_analysis_queue').update({
@@ -2260,13 +2600,20 @@ def _download_video(url: str, retries: int = 2) -> str:
     raise last_err
 
 
-def _upload_to_storage(sb, path: str, data: bytes):
-    """Upload bytes to Supabase Storage embryoscore bucket."""
-    try:
-        sb.storage.from_("embryoscore").upload(
-            path, data, {"content-type": "image/jpeg", "upsert": "true"})
-    except Exception as e:
-        logger.error(f"Storage upload failed for {path}: {e}")
+def _upload_to_storage(sb, path: str, data: bytes, retries: int = 3):
+    """Upload bytes to Supabase Storage embryoscore bucket with retry."""
+    for attempt in range(retries):
+        try:
+            sb.storage.from_("embryoscore").upload(
+                path, data, {"content-type": "image/jpeg", "upsert": "true"})
+            return
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(1 * (attempt + 1))
+                logger.warning(f"Upload retry {attempt+1} for {path}: {e}")
+            else:
+                logger.error(f"Upload FAILED after {retries} tries: {path}: {e}")
+                raise
 
 
 def _extract_crop_from_frame(

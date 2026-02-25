@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -10,25 +10,24 @@ import { Settings, LogOut, Sun, Moon, User, X } from 'lucide-react';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { cn } from '@/lib/utils';
 
+const ElapsedTimer = memo(({ startedAt }: { startedAt: string }) => {
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 1000);
+        return () => clearInterval(id);
+    }, []);
+    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+    if (elapsed < 0) return <span>0s</span>;
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    return <span>{m > 0 ? `${m}m${String(s).padStart(2, '0')}s` : `${s}s`}</span>;
+});
+
 function TopBarAnalysisBadge() {
     const { data: queue } = useGlobalAnalysisQueue();
     const queueData: GlobalAnalysisQueueData = queue ?? { pending: 0, processing: 0, total: 0, oldestStartedAt: null, newestExpectedCount: null };
     const cancelAll = useCancelAllAnalysis();
     const [confirming, setConfirming] = useState(false);
-    const [, setTick] = useState(0);
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    useEffect(() => {
-        if (queueData.processing > 0 && queueData.oldestStartedAt) {
-            intervalRef.current = setInterval(() => setTick(t => t + 1), 1000);
-        } else if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-        }
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
-    }, [queueData.processing > 0, queueData.oldestStartedAt]);
 
     if (queueData.total === 0) return null;
 
@@ -43,14 +42,6 @@ function TopBarAnalysisBadge() {
         });
     };
 
-    const formatElapsed = (startedAt: string) => {
-        const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-        if (elapsed < 0) return '0s';
-        const m = Math.floor(elapsed / 60);
-        const s = elapsed % 60;
-        return m > 0 ? `${m}m${String(s).padStart(2, '0')}s` : `${s}s`;
-    };
-
     return (
         <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-primary/20 bg-primary/5 shadow-sm transition-all animate-in fade-in zoom-in duration-300">
             <div className="shrink-0 flex items-center justify-center w-[22px] h-[22px] bg-primary/10 rounded-full">
@@ -62,7 +53,7 @@ function TopBarAnalysisBadge() {
                 </span>
                 {queueData.oldestStartedAt && queueData.processing > 0 && (
                     <span className="text-[9px] font-mono text-muted-foreground font-bold tracking-tight">
-                        {formatElapsed(queueData.oldestStartedAt)}
+                        <ElapsedTimer startedAt={queueData.oldestStartedAt} />
                     </span>
                 )}
             </div>

@@ -33,6 +33,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Search, Users, Dna, X } from 'lucide-react';
+import { TouroCombobox } from '@/components/shared/TouroCombobox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,37 +97,29 @@ export default function DosesSemen() {
     try {
       setLoading(true);
 
-      // Load touros
-      const { data: tourosData, error: tourosError } = await supabase
-        .from('touros')
-        .select('*')
-        .order('nome', { ascending: true });
+      // Load touros, clientes, and doses in parallel
+      const [tourosResult, clientesResult, dosesResult] = await Promise.all([
+        supabase.from('touros').select('*').order('nome', { ascending: true }),
+        supabase.from('clientes').select('id, nome').order('nome', { ascending: true }),
+        supabase.from('doses_semen').select('*').order('created_at', { ascending: false }),
+      ]);
 
-      if (tourosError) throw tourosError;
-      setTouros(tourosData || []);
+      if (tourosResult.error) throw tourosResult.error;
+      if (clientesResult.error) throw clientesResult.error;
+      if (dosesResult.error) throw dosesResult.error;
 
-      // Load clientes
-      const { data: clientesData, error: clientesError } = await supabase
-        .from('clientes')
-        .select('id, nome')
-        .order('nome', { ascending: true });
+      const tourosData = tourosResult.data || [];
+      const clientesData = clientesResult.data || [];
+      const dosesData = dosesResult.data || [];
 
-      if (clientesError) throw clientesError;
-      setClientes(clientesData || []);
-
-      // Load doses
-      const { data: dosesData, error: dosesError } = await supabase
-        .from('doses_semen')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (dosesError) throw dosesError;
+      setTouros(tourosData);
+      setClientes(clientesData);
 
       // Enriquecer doses com informações do touro e cliente
-      const tourosMap = new Map(tourosData?.map((t) => [t.id, t]) || []);
-      const clientesMap = new Map(clientesData?.map((c) => [c.id, c.nome]) || []);
+      const tourosMap = new Map(tourosData.map((t) => [t.id, t]));
+      const clientesMap = new Map(clientesData.map((c) => [c.id, c.nome]));
 
-      const dosesWithInfo: DoseSemenWithInfo[] = (dosesData || []).map((d) => {
+      const dosesWithInfo: DoseSemenWithInfo[] = dosesData.map((d) => {
         const touro = tourosMap.get(d.touro_id);
         return {
           ...d,
@@ -360,21 +353,12 @@ export default function DosesSemen() {
               <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="touro_id">Touro do Catálogo *</Label>
-                <Select
+                <TouroCombobox
+                  touros={touros}
                   value={formData.touro_id}
                   onValueChange={(value) => setFormData({ ...formData, touro_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o touro" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {touros.map((touro) => (
-                      <SelectItem key={touro.id} value={touro.id}>
-                        {touro.nome} ({touro.registro})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Buscar touro por nome ou registro..."
+                />
               </div>
 
               <div className="space-y-2">
@@ -657,21 +641,12 @@ export default function DosesSemen() {
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit_touro_id">Touro do Catálogo *</Label>
-              <Select
+              <TouroCombobox
+                touros={touros}
                 value={editFormData.touro_id}
                 onValueChange={(value) => setEditFormData({ ...editFormData, touro_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o touro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {touros.map((touro) => (
-                    <SelectItem key={touro.id} value={touro.id}>
-                      {touro.nome} ({touro.registro})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Buscar touro por nome ou registro..."
+              />
             </div>
 
             <div className="space-y-2">
