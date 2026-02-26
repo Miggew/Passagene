@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - Design Premium V5 (Golden Ratio + Margens de Profundidade)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    // Proporções Áureas (1.618)
+                    spacing: {
+                        'fib-3': '0.75rem',   // 12px
+                        'fib-5': '1.25rem',   // 20px
+                        'fib-8': '2rem',      // 32px
+                        'fib-13': '3.25rem',  // 52px
+                        'fib-21': '5.25rem',  // 84px
+                    },
+                    colors: {
+                        // 60% - Base
+                        bg: {
+                            primary: '#080B0A',
+                            card: '#0F1412',
+                            hover: '#141C18',
+                            border: '#1C2822'
+                        },
+                        // 30% - A Estrutura PassaGene
+                        green: {
+                            DEFAULT: '#34D399',
+                            dark: '#1A7A50',
+                            glow: 'rgba(52, 211, 153, 0.15)'
+                        },
+                        // 10% - A Ação GenIA
+                        gold: {
+                            DEFAULT: '#D4A24C',
+                            light: '#E8C77B',
+                            dark: '#8B6A2F',
+                            glow: 'rgba(212, 162, 76, 0.2)'
+                        },
+                        text: {
+                            primary: '#ECF0ED',
+                            secondary: '#8A9B90',
+                            muted: '#5E7268'
+                        }
+                    },
+                    boxShadow: {
+                        'card-depth': '0 4px 12px rgba(0, 0, 0, 0.2)',
+                        'card-hover': '0 12px 24px rgba(0, 0, 0, 0.4)',
+                        'glow-green': '0 0 30px rgba(52, 211, 153, 0.2)',
+                        'glow-gold': '0 0 30px rgba(212, 162, 76, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #080B0A;
+            color: #ECF0ED;
+            font-family: 'Outfit', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        :root {
+            --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* 
+       Cartão Premium PassaGene com MARGEM DE PROFUNDIDADE (Left Border V1)
+       Esta é a essência do design atual mixada com o novo.
+    */
+        .depth-card {
+            background-color: rgba(15, 20, 18, 0.7);
+            /* 60% Space Background */
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+
+            /* A clássica borda sutil ao redor e a sombra base */
+            border: 1px solid #1C2822;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+            overflow: hidden;
+        }
+
+        .depth-card:hover {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Ruído de Acrílico (Apenas se não hover conflito) */
+        .depth-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.05;
+            mix-blend-mode: overlay;
+            background-image: var(--glass-noise);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* A Margem de Profundidade Verde (30%) - O clássico `border-l-4` elevado ao premium */
+        .depth-card-green {
+            border-left: 4px solid #1A7A50;
+            /* A borda que dá profundidade óssea */
+        }
+
+        .depth-card-green:hover {
+            border-left-color: #34D399;
+            /* Ilumina no hover */
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        /* A Margem de Profundidade Dourada (10%) - Usado em CTAs e Alertas */
+        .depth-card-gold {
+            border-left: 4px solid #8B6A2F;
+        }
+
+        .depth-card-gold:hover {
+            border-left-color: #D4A24C;
+            border-color: rgba(212, 162, 76, 0.3);
+        }
+
+        /* Directional Rim Light do Acrílico ajustado no Hover */
+        .depth-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* VoiceFAB (Botão IA) */
+        @keyframes breathe-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px 0 rgba(52, 211, 153, 0.2), 0 0 40px 0 rgba(212, 162, 76, 0.15);
+            }
+
+            50% {
+                box-shadow: 0 0 30px 5px rgba(52, 211, 153, 0.4), 0 0 60px 10px rgba(212, 162, 76, 0.3);
+            }
+        }
+
+        @keyframes spin-slow {
+            to {
+                transform: rotate(1turn);
+            }
+        }
+
+        .voice-fab {
+            position: relative;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .voice-fab:hover {
+            transform: scale(1.05);
+        }
+
+        .voice-fab-glow {
+            position: absolute;
+            inset: -4px;
+            border-radius: inherit;
+            animation: breathe-glow 4s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        .voice-fab-aura {
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            background: conic-gradient(from 0deg, transparent 0deg, rgba(52, 211, 153, 1) 90deg, transparent 180deg, rgba(212, 162, 76, 1) 270deg, transparent 360deg);
+            animation: spin-slow 4s linear infinite;
+            z-index: 1;
+        }
+
+        .voice-fab-core {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 12, 0.9);
+            backdrop-filter: blur(24px);
+            border-radius: inherit;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #D4A24C;
+            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        /* Layout Dourado Proporcional (61.8% / 38.2%) */
+        .grid-golden-desktop {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (min-width: 1024px) {
+            .grid-golden-desktop {
+                grid-template-columns: 61.8% 1fr;
+                gap: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row h-screen w-full relative">
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR                                    -->
+    <!-- ========================================== -->
+    <aside
+        class="hidden md:flex flex-col w-[260px] shrink-0 py-fib-8 px-fib-5 z-20 bg-bg-card/50 backdrop-blur-md !border-r !border-bg-border/50">
+        <!-- Brand / Logo (10% Gold Element) -->
+        <div class="flex items-center gap-fib-3 mb-fib-13 relative pl-2">
+            <div
+                class="w-10 h-10 rounded-xl bg-bg-primary border border-gold/30 flex items-center justify-center flex-shrink-0 relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gold/10 group-hover:bg-gold/20 transition-colors"></div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-gold relative z-10">
+                    <path opacity="0.4"
+                        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                        fill="currentColor" />
+                    <path
+                        d="M12 6C8.69 6 6 8.69 6 12C6 15.31 8.69 18 12 18C15.31 18 18 15.31 18 12C18 8.69 15.31 6 12 6ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+            <span class="text-2xl font-bold tracking-tight text-white">PassaGene</span>
+        </div>
+
+        <!-- Navigation List: Aqui as margens profundas substituem fundos chatos -->
+        <nav class="flex-1 flex flex-col gap-3">
+            <!-- Active Item: Margem Esquerda de Profundidade Verde (30%) -->
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 bg-bg-card/80 border border-bg-border text-white font-semibold rounded-lg shadow-sm border-l-4 border-l-green transform transition-all group hover:bg-bg-hover">
+                <svg class="w-5 h-5 text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+                <span class="text-sm">Dashboard Alpha</span>
+            </a>
+
+            <!-- Inactive Item -->
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white transition-all rounded-lg hover:bg-white/5 border border-transparent border-l-[3px] border-l-transparent hover:border-l-bg-border">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                    </path>
+                </svg>
+                <span class="text-sm font-medium">Ciclos FIV</span>
+            </a>
+
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white transition-all rounded-lg hover:bg-white/5 border border-transparent border-l-[3px] border-l-transparent hover:border-l-bg-border">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                <span class="text-sm font-medium">Pacientes</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- MAIN LAYOUT                                -->
+    <!-- ========================================== -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full pb-24 md:pb-0">
+
+        <!-- Background Base 60% puro -->
+        <div class="absolute inset-0 bg-bg-primary z-0"></div>
+
+        <!-- Header Transparente -->
+        <header
+            class="h-fib-21 px-fib-5 lg:px-fib-8 flex items-center justify-between shrink-0 relative z-10 border-b border-bg-border/30">
+            <div class="px-2 py-3 inline-flex items-center gap-4">
+                <h1 class="text-2xl font-bold tracking-tight text-white mb-0">Laboratório</h1>
+                <div class="h-5 w-px bg-bg-border"></div>
+                <p class="text-sm text-text-secondary font-mono">14 de Nov, 2026</p>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <!-- Input discreto -->
+                <div class="hidden md:flex relative group">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" placeholder="ID Paciente ou Equipamento"
+                        class="bg-bg-card/50 border border-bg-border rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-green/40 w-[233px] transition-all placeholder:text-text-muted font-mono leading-none backdrop-blur-sm">
+                </div>
+                <div
+                    class="w-10 h-10 rounded-xl border border-bg-border overflow-hidden cursor-pointer hover:border-gold/50 transition-colors">
+                    <img src="https://i.pravatar.cc/150?img=68" class="w-full h-full object-cover">
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Area -->
+        <div class="flex-1 overflow-y-auto px-fib-5 lg:px-fib-8 py-fib-8 scrollbar-hide relative z-10">
+
+            <div class="grid-golden-desktop">
+                <!-- ========================================== -->
+                <!-- ÁREA 61.8% LARGURA - Conteúdo Base         -->
+                <!-- ========================================== -->
+                <div class="flex flex-col gap-fib-5">
+
+                    <!-- KPIs Section: Utilizando as Margens de Profundidade Verde (30%) e Dourado (10%) -->
+                    <div class="grid grid-cols-2 gap-fib-5">
+                        <!-- KPI 1: Verde (Rotina/Bom/Destaque Estrutural) -->
+                        <div class="depth-card depth-card-green p-6">
+                            <div class="relative z-10">
+                                <span class="text-xs font-bold text-green uppercase tracking-wider mb-2 block">Taxa
+                                    Sucesso Global</span>
+                                <div class="text-4xl lg:text-5xl font-mono text-white tracking-tighter mb-4">68.4%</div>
+                                <!-- Barra de progresso subtil no card de fundo acrílico -->
+                                <div class="bg-bg-primary h-1.5 w-full rounded-full overflow-hidden shadow-inner">
+                                    <div class="bg-green h-full shadow-glow-green" style="width: 68.4%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 2: Dourado (Atenção Premium/Vital / Ação 10%) -->
+                        <div class="depth-card depth-card-gold p-6 cursor-pointer group">
+                            <div class="relative z-10">
+                                <span
+                                    class="text-xs font-bold text-gold uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    Atenção Prioritária
+                                    <span class="w-2 h-2 rounded-full bg-gold shadow-glow-gold animate-pulse"></span>
+                                </span>
+                                <div
+                                    class="text-4xl lg:text-5xl font-mono text-white tracking-tighter mb-2 group-hover:text-gold transition-colors">
+                                    03</div>
+                                <div class="text-xs text-text-secondary font-mono flex items-center gap-1">
+                                    Desvios GenIA Encontrados
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Componente Grande (Base Acrílica Plana com gráfico vivo - 60% puro) -->
+                    <div class="depth-card p-0 mt-2 h-[380px] flex flex-col group hover:border-green/30">
+                        <div class="p-6 border-b border-bg-border/50 flex justify-between items-end relative z-10">
+                            <div>
+                                <h3 class="text-lg font-bold text-white mb-1">Crescimento Embrionário Diário</h3>
+                                <p class="text-xs text-text-secondary font-mono">Volumetria em Estágio de Clivagem</p>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs font-mono">
+                                <span class="flex items-center gap-1"><span
+                                        class="w-3 h-3 bg-green/20 border border-green rounded-sm block"></span>
+                                    D3</span>
+                                <span class="flex items-center gap-1"><span
+                                        class="w-3 h-3 bg-green rounded-sm border border-green/50 block shadow-[0_0_10px_rgba(52,211,153,0.3)]"></span>
+                                    D5</span>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico com preenchimentos integrados ao fundo -->
+                        <div class="flex-1 p-6 pb-0 flex items-end gap-2 px-10 relative z-10">
+                            <div
+                                class="flex-1 bg-green/5 hover:bg-green/20 h-[30%] rounded-t-lg transition-colors border-t border-green/10">
+                            </div>
+                            <div
+                                class="flex-1 bg-green/10 hover:bg-green/20 h-[45%] rounded-t-lg transition-colors border-t border-green/20">
+                            </div>
+                            <div
+                                class="flex-1 bg-green/20 hover:bg-green/30 h-[60%] rounded-t-lg transition-colors border-t border-green/30">
+                            </div>
+
+                            <!-- Destaque Principal -->
+                            <div
+                                class="flex-1 bg-gradient-to-t from-green/20 to-green h-[95%] rounded-t-lg shadow-glow-green border-t-2 border-green/80 relative">
+                                <div
+                                    class="absolute -top-10 left-1/2 -translate-x-1/2 bg-bg-card border border-green text-white font-mono text-xs px-2 py-1 rounded shadow-sm whitespace-nowrap">
+                                    D5 High</div>
+                            </div>
+
+                            <div
+                                class="flex-1 bg-green/5 hover:bg-green/20 h-[55%] rounded-t-lg transition-colors border-t border-green/10">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- ÁREA 38.2% LARGURA - Ações Rápidas         -->
+                <!-- ========================================== -->
+                <div class="flex flex-col gap-fib-5 h-full relative">
+
+                    <!-- Lista de Cardápio Vertical com Margens de Profundidade para dar ritmo -->
+                    <div class="depth-card flex-1 p-6">
+                        <h3 class="text-sm font-bold text-white mb-6 uppercase tracking-wider relative z-10">Próximos em
+                            Agenda</h3>
+
+                        <div class="space-y-4 relative z-10">
+
+                            <!-- Item de Rotina: Profundidade Verde (30%) -->
+                            <div
+                                class="p-3 pl-4 rounded-lg bg-bg-primary/50 border border-bg-border border-l-[3px] border-l-green shadow-sm hover:translate-x-1 transition-transform group cursor-pointer flex justify-between items-center">
+                                <div class="flex gap-4 items-center">
+                                    <div
+                                        class="text-sm font-mono text-text-secondary group-hover:text-green transition-colors">
+                                        08:00</div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-white">Juliana M.</div>
+                                        <div class="text-[11px] text-text-secondary">Transferência (Fresh)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Item Prioritário: Profundidade Gold (10%) -->
+                            <div
+                                class="p-3 pl-4 rounded-lg bg-bg-primary/50 border border-bg-border border-l-[3px] border-l-gold shadow-sm hover:translate-x-1 transition-transform group cursor-pointer flex justify-between items-center">
+                                <div class="flex gap-4 items-center">
+                                    <div class="text-sm font-mono text-gold leading-tight">10:30<br><span
+                                            class="text-[9px] opacity-70">Atraso</span></div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-white">Marcos F. (Amob.)</div>
+                                        <div class="text-[11px] text-gold">Laudo D5 Pendente</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Item Neutro: Profundidade Transparente (60% background adherence) -->
+                            <div
+                                class="p-3 pl-4 rounded-lg bg-bg-primary/50 border border-bg-border border-l-[3px] border-l-text-muted/30 shadow-sm hover:translate-x-1 transition-transform group cursor-pointer flex justify-between items-center">
+                                <div class="flex gap-4 items-center">
+                                    <div
+                                        class="text-sm font-mono text-text-secondary group-hover:text-white transition-colors">
+                                        11:15</div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-white">Carla T.</div>
+                                        <div class="text-[11px] text-text-secondary">Aspiração</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Call To Action Premium - A ação de 10% Gold -->
+                    <div class="depth-card depth-card-gold p-5 pb-6 overflow-hidden relative cursor-pointer group">
+                        <div
+                            class="absolute inset-0 bg-gradient-to-br from-gold/5 to-transparent pointer-events-none z-0">
+                        </div>
+                        <div class="relative z-10">
+                            <div
+                                class="text-[10px] font-bold text-gold mb-1 uppercase tracking-widest flex items-center gap-2">
+                                Ação Sugerida</div>
+                            <div class="text-sm font-semibold text-white mb-4">Processar Lote Timeout</div>
+
+                            <button
+                                class="w-full bg-gradient-to-r from-[#D4A24C] to-[#8B6A2F] text-[#080B0A] font-bold py-2.5 rounded-lg flex justify-center items-center gap-2 shadow-[0_4px_14px_rgba(212,162,76,0.3)] group-hover:shadow-[0_6px_20px_rgba(212,162,76,0.4)] transition-all outline-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Auto-Score GenIA
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Floating VoiceFAB (O pináculo dos 10% Ouro) -->
+                    <div class="absolute hidden lg:flex -bottom-4 -right-2 z-50">
+                        <button class="voice-fab w-[4.5rem] h-[4.5rem] group" aria-label="Acionar GenIA">
+                            <div class="voice-fab-glow bg-gold/50"></div>
+                            <div class="voice-fab-aura"></div>
+                            <div class="voice-fab-core">
+                                <svg class="w-8 h-8 transform group-hover:scale-110 transition-transform" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                        d="M19 11h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547zM12 3v1m6.364 1.636l-.707.707">
+                                    </path>
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MOBILE BOTTOM NAV                          -->
+    <!-- ========================================== -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full h-[84px] bg-bg-card/90 backdrop-blur-xl border-t border-bg-border flex items-center justify-around z-40 px-2 pb-safe">
+
+        <button class="flex flex-col items-center justify-center w-16 h-full text-green relative group">
+            <!-- Indicador ativo simplificado -->
+            <div class="absolute top-0 w-8 h-1 bg-green shadow-glow-green rounded-b-sm"></div>
+            <svg class="w-6 h-6 mb-1 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold tracking-wide">Início</span>
+        </button>
+
+        <button
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-white transition-colors">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium tracking-wide">Ciclos</span>
+        </button>
+
+        <div class="w-16"></div> <!-- Espaço para FAB -->
+
+        <button
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-white transition-colors">
+            <div class="relative w-6 h-6 mb-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+                <span
+                    class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-gold shadow-glow-gold border border-bg-card"></span>
+            </div>
+            <span class="text-[10px] font-medium tracking-wide">Avisos</span>
+        </button>
+
+        <!-- FAB Voice IA Central (Mobile) -->
+        <div class="absolute -top-[24px] left-1/2 -translate-x-1/2">
+            <button class="voice-fab w-14 h-14" aria-label="Acionar GenIA">
+                <div class="voice-fab-glow bg-gold/60"></div>
+                <div class="voice-fab-aura"></div>
+                <div class="voice-fab-core text-gold">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547zM12 3v1m6.364 1.636l-.707.707">
+                        </path>
+                    </svg>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+</body>
+
+</html>

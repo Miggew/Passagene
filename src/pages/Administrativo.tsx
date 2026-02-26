@@ -7,9 +7,10 @@ import AdminClientesTab from '@/components/admin/AdminClientesTab';
 import AdminFazendasTab from '@/components/admin/AdminFazendasTab';
 import AdminUsuariosTab from '@/components/admin/AdminUsuariosTab';
 import AdminCatalogoTab from '@/components/admin/AdminCatalogoTab';
-import { LayoutDashboard, Users, Home, Shield, Dna } from 'lucide-react';
+import AdminEmbryoScoreTab from '@/components/admin/AdminEmbryoScoreTab';
+import { LayoutDashboard, Users, Home, Shield, Dna, Brain } from 'lucide-react';
 
-type TabType = 'visao-geral' | 'clientes' | 'fazendas' | 'catalogo' | 'usuarios';
+type TabType = 'visao-geral' | 'clientes' | 'fazendas' | 'catalogo' | 'usuarios' | 'embryoscore';
 
 interface TabConfig {
   value: TabType;
@@ -24,6 +25,7 @@ const TABS_CONFIG: TabConfig[] = [
   { value: 'fazendas', label: 'Fazendas', icon: Home },
   { value: 'catalogo', label: 'Catalogo', icon: Dna, adminOnly: true },
   { value: 'usuarios', label: 'Usuarios', icon: Shield, adminOnly: true },
+  { value: 'embryoscore', label: 'EmbryoScore', icon: Brain, adminOnly: true },
 ];
 
 export default function Administrativo() {
@@ -48,7 +50,7 @@ export default function Administrativo() {
   // Se usuario nao-admin tentar acessar tab de usuarios via URL, redirecionar
   useEffect(() => {
     const urlTab = searchParams.get('tab') as TabType;
-    if (urlTab === 'usuarios' && !isAdmin) {
+    if ((urlTab === 'usuarios' || urlTab === 'embryoscore') && !isAdmin) {
       setActiveTab('visao-geral');
     }
   }, [searchParams, isAdmin]);
@@ -112,6 +114,7 @@ export default function Administrativo() {
       {activeTab === 'fazendas' && <AdminFazendasTab />}
       {activeTab === 'catalogo' && isAdmin && <AdminCatalogoTab />}
       {activeTab === 'usuarios' && isAdmin && <AdminUsuariosTab />}
+      {activeTab === 'embryoscore' && isAdmin && <AdminEmbryoScoreTab />}
     </div>
   );
 }

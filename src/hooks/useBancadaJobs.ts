@@ -27,6 +27,83 @@ export interface BancadaJob {
   dose_nome?: string;
   embryo_count?: number;
   classified_count?: number;
+  lote_fiv_id?: string;
+  lote_data_abertura?: string;
+  lote_fazenda_nome?: string;
+  lote_status?: string;
+}
+
+export interface BancadaLoteGroup {
+  lote_fiv_id: string | null;
+  data_abertura: string | null;
+  fazenda_nome: string | null;
+  lote_status: string | null;
+  dia_atual: number | null;
+  jobs: BancadaJob[];
+  total_embryos: number;
+  total_classified: number;
+}
+
+/** Calcula dia de cultivo (Dx) a partir de data_abertura (D0). */
+function calcDiaAtual(dataAbertura: string | null): number | null {
+  if (!dataAbertura) return null;
+  const [y, m, d] = dataAbertura.split('-').map(Number);
+  const d0 = new Date(y, m - 1, d);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((hoje.getTime() - d0.getTime()) / 86400000));
+}
+
+export function groupJobsByLote(jobs: BancadaJob[]): BancadaLoteGroup[] {
+  const map = new Map<string, BancadaLoteGroup>();
+  const orphans: BancadaJob[] = [];
+
+  for (const job of jobs) {
+    const loteId = job.lote_fiv_id;
+    if (!loteId) {
+      orphans.push(job);
+      continue;
+    }
+    if (!map.has(loteId)) {
+      map.set(loteId, {
+        lote_fiv_id: loteId,
+        data_abertura: job.lote_data_abertura || null,
+        fazenda_nome: job.lote_fazenda_nome || null,
+        lote_status: job.lote_status || null,
+        dia_atual: calcDiaAtual(job.lote_data_abertura || null),
+        jobs: [],
+        total_embryos: 0,
+        total_classified: 0,
+      });
+    }
+    const group = map.get(loteId)!;
+    group.jobs.push(job);
+    group.total_embryos += job.embryo_count || 0;
+    group.total_classified += job.classified_count || 0;
+  }
+
+  // Sort groups by date DESC
+  const groups = [...map.values()].sort((a, b) => {
+    if (!a.data_abertura) return 1;
+    if (!b.data_abertura) return -1;
+    return b.data_abertura.localeCompare(a.data_abertura);
+  });
+
+  // Orphan bucket at end
+  if (orphans.length > 0) {
+    groups.push({
+      lote_fiv_id: null,
+      data_abertura: null,
+      fazenda_nome: null,
+      lote_status: null,
+      dia_atual: null,
+      jobs: orphans,
+      total_embryos: orphans.reduce((s, j) => s + (j.embryo_count || 0), 0),
+      total_classified: orphans.reduce((s, j) => s + (j.classified_count || 0), 0),
+    });
+  }
+
+  return groups;
 }
 
 export function useBancadaJobs() {
@@ -61,13 +138,13 @@ export function useBancadaJobs() {
 
       // 3. Resolve doadora/touro names via separate queries (no nested joins)
       const acasIds = [...new Set(jobs.map((j) => j.lote_fiv_acasalamento_id).filter(Boolean))];
-      const acasMap: Record<string, { doadora_nome?: string; dose_nome?: string }> = {};
+      const acasMap: Record<string, { doadora_nome?: string; dose_nome?: string; lote_fiv_id?: string }> = {};
 
       if (acasIds.length > 0) {
-        // 3a. acasalamentos → aspiracao_doadora_id + dose_semen_id
+        // 3a. acasalamentos → aspiracao_doadora_id + dose_semen_id + lote_fiv_id
         const { data: acasRows } = await supabase
           .from('lote_fiv_acasalamentos')
-          .select('id, aspiracao_doadora_id, dose_semen_id')
+          .select('id, aspiracao_doadora_id, dose_semen_id, lote_fiv_id')
           .in('id', acasIds);
 
         if (acasRows?.length) {
@@ -77,12 +154,12 @@ export function useBancadaJobs() {
             ? await supabase.from('aspiracoes_doadoras').select('id, doadora_id').in('id', aspIds)
             : { data: [] };
 
-          // 3c. doadoras → nome
+          // 3c. doadoras → registro (campo principal de identificação)
           const doadoraIds = [...new Set((aspRows || []).map((a) => a.doadora_id).filter(Boolean))];
           const { data: doadoraRows } = doadoraIds.length > 0
-            ? await supabase.from('doadoras').select('id, nome').in('id', doadoraIds)
+            ? await supabase.from('doadoras').select('id, registro, nome').in('id', doadoraIds)
             : { data: [] };
-          const doadoraMap = new Map((doadoraRows || []).map((d) => [d.id, d.nome]));
+          const doadoraMap = new Map((doadoraRows || []).map((d) => [d.id, d.registro || d.nome]));
           const aspDoadoraMap = new Map((aspRows || []).map((a) => [a.id, doadoraMap.get(a.doadora_id) || '']));
 
           // 3d. doses_semen → touro nome (via touros or direct field)
@@ -102,19 +179,63 @@ export function useBancadaJobs() {
             acasMap[ac.id] = {
               doadora_nome: aspDoadoraMap.get(ac.aspiracao_doadora_id) || undefined,
               dose_nome: doseTouroMap.get(ac.dose_semen_id) || undefined,
+              lote_fiv_id: ac.lote_fiv_id || undefined,
             };
           }
         }
       }
 
+      // 4. Fetch lotes_fiv data + fazenda names via separate queries
+      const loteFivIds = [...new Set(Object.values(acasMap).map((a) => a.lote_fiv_id).filter(Boolean))] as string[];
+      const loteInfoMap = new Map<string, { data_abertura?: string; status?: string; fazenda_nome?: string }>();
+
+      if (loteFivIds.length > 0) {
+        const { data: loteRows } = await supabase
+          .from('lotes_fiv')
+          .select('id, data_abertura, status, pacote_aspiracao_id')
+          .in('id', loteFivIds);
+
+        if (loteRows?.length) {
+          // 4b. pacotes_aspiracao → fazenda_id
+          const pacoteIds = [...new Set(loteRows.map((l) => l.pacote_aspiracao_id).filter(Boolean))];
+          const { data: pacoteRows } = pacoteIds.length > 0
+            ? await supabase.from('pacotes_aspiracao').select('id, fazenda_id').in('id', pacoteIds)
+            : { data: [] };
+
+          // 4c. fazendas → nome
+          const fazendaIds = [...new Set((pacoteRows || []).map((p) => p.fazenda_id).filter(Boolean))];
+          const { data: fazendaRows } = fazendaIds.length > 0
+            ? await supabase.from('fazendas').select('id, nome').in('id', fazendaIds)
+            : { data: [] };
+          const fazendaMap = new Map((fazendaRows || []).map((f) => [f.id, f.nome]));
+          const pacoteFazendaMap = new Map((pacoteRows || []).map((p) => [p.id, fazendaMap.get(p.fazenda_id) || '']));
+
+          for (const l of loteRows) {
+            loteInfoMap.set(l.id, {
+              data_abertura: l.data_abertura || undefined,
+              status: l.status || undefined,
+              fazenda_nome: pacoteFazendaMap.get(l.pacote_aspiracao_id) || undefined,
+            });
+          }
+        }
+      }
+
       // Merge
-      return jobs.map((j) => ({
-        ...j,
-        doadora_nome: acasMap[j.lote_fiv_acasalamento_id]?.doadora_nome,
-        dose_nome: acasMap[j.lote_fiv_acasalamento_id]?.dose_nome,
-        embryo_count: embryoCountMap[j.id]?.total || j.expected_count || 0,
-        classified_count: embryoCountMap[j.id]?.classified || 0,
-      }));
+      return jobs.map((j) => {
+        const acas = acasMap[j.lote_fiv_acasalamento_id];
+        const loteInfo = acas?.lote_fiv_id ? loteInfoMap.get(acas.lote_fiv_id) : undefined;
+        return {
+          ...j,
+          doadora_nome: acas?.doadora_nome,
+          dose_nome: acas?.dose_nome,
+          embryo_count: embryoCountMap[j.id]?.total || j.expected_count || 0,
+          classified_count: embryoCountMap[j.id]?.classified || 0,
+          lote_fiv_id: acas?.lote_fiv_id,
+          lote_data_abertura: loteInfo?.data_abertura,
+          lote_fazenda_nome: loteInfo?.fazenda_nome,
+          lote_status: loteInfo?.status,
+        };
+      });
     },
     refetchInterval: (query) => {
       const jobs = query.state.data;

@@ -7,11 +7,10 @@ import { GeniaLogo } from './GeniaLogo';
 interface VoiceFABProps {
     className?: string;
     size?: 'md' | 'lg' | 'xl';
-    isSidebar?: boolean;
     isBrutalistCenter?: boolean;
 }
 
-export function VoiceFAB({ className, size = 'lg', isSidebar = false, isBrutalistCenter = false }: VoiceFABProps) {
+export function VoiceFAB({ className, size = 'lg', isBrutalistCenter = false }: VoiceFABProps) {
     const navigate = useNavigate();
     const [isHolding, setIsHolding] = useState(false);
     const pressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -91,7 +90,7 @@ export function VoiceFAB({ className, size = 'lg', isSidebar = false, isBrutalis
     // O novo estilo principal baseia-se num "Glow" respiratório e numa Aura giratória, em vez de sombras clássicas pesadas
     const containerShadow = isBrutalistCenter
         ? "voice-fab-glow border-[1px] border-white/20"
-        : (isSidebar && !isHolding) ? "shadow-md hover:shadow-lg" : "voice-fab-glow";
+        : "voice-fab-glow";
 
     // Se a sidebar tá colapsada, mostrar só o ícone. O design será um gradiente premium verde.
     return (
@@ -148,7 +147,7 @@ export function VoiceFAB({ className, size = 'lg', isSidebar = false, isBrutalis
             </div>
 
             {/* Dica de interação flutuante */}
-            {!isHolding && !isSidebar && (
+            {!isHolding && (
                 <div className="absolute -top-8 bg-black/70 backdrop-blur-md text-white text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                     Segure para Falar
                 </div>

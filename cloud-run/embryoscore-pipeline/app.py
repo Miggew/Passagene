@@ -674,7 +674,7 @@ async def analyze(req: AnalyzeRequest, request: Request = None):
             try:
                 config_rows = sb.table('embryo_score_config').select(
                     'calibration_prompt, model_name'
-                ).limit(1).execute()
+                ).eq('active', True).order('created_at', desc=True).limit(1).execute()
                 if config_rows.data and len(config_rows.data) > 0:
                     config = config_rows.data[0]
             except Exception as cfg_err:
@@ -683,10 +683,10 @@ async def analyze(req: AnalyzeRequest, request: Request = None):
             # 6. Get Gemini API key from secrets table (fallback to env var) — non-critical
             try:
                 secret_rows = sb.table('embryo_score_secrets').select(
-                    'gemini_api_key'
-                ).limit(1).execute()
+                    'key_value'
+                ).eq('key_name', 'GEMINI_API_KEY').limit(1).execute()
                 if secret_rows.data and len(secret_rows.data) > 0:
-                    key_val = secret_rows.data[0].get('gemini_api_key')
+                    key_val = secret_rows.data[0].get('key_value')
                     if key_val:
                         gemini_key = key_val
             except Exception as sec_err:

@@ -1,6 +1,6 @@
 /**
  * Fonte única de verdade para navegação — ícones, labels e rotas rápidas.
- * Importado por Sidebar, MobileNav e HubTabs.
+ * Importado por MobileNav, HubTabs e ProfilePage.
  */
 
 import {
@@ -16,7 +16,6 @@ import {
   FileText,
   ClipboardList,
   TrendingUp,
-  Brain,
   FlaskConical,
   History,
   Microscope,
@@ -47,7 +46,6 @@ export const routeIcons: Record<string, React.ElementType> = {
   '/': Home,
   '/campo': CowIcon,
   '/administrativo': Shield,
-  '/embryoscore': Brain,
   '/doadoras': DonorCowIcon,
   '/touros': Sparkles,
   '/lotes-fiv': TestTube,
@@ -111,7 +109,6 @@ export const routeLabels: Record<string, string> = {
   '/relatorios/producao': 'Produção',
   '/laboratorio': 'Laboratório',
   '/bancada': 'Bancada',
-  '/embryoscore': 'EmbryoScore',
   '/genetica': 'Genética',
   '/genetica/doadoras': 'Doadoras',
   '/genetica/touros': 'Touros',
@@ -122,39 +119,6 @@ export const routeLabels: Record<string, string> = {
   '/cliente/relatorios': 'Relatórios',
   '/cliente/botijao': 'Botijão',
   '/cliente/configuracoes': 'Configurações',
-};
-
-// ─── Labels Longos (sidebar desktop) ───────────────────────────────
-export const routeLabelsLong: Record<string, string> = {
-  '/campo': 'Visão Geral',
-  '/administrativo': 'Painel Admin',
-  '/embryoscore': 'EmbryoScore IA',
-  '/bancada': 'Bancada',
-  '/doadoras': 'Minhas Doadoras',
-  '/touros': 'Catálogo de Touros',
-  '/lotes-fiv': 'Lotes FIV',
-  '/embrioes': 'Embriões',
-  '/embrioes-congelados': 'Embriões Congelados',
-  '/doses-semen': 'Doses de Sêmen',
-  '/protocolos': 'Protocolos Sincronização',
-  '/genia': 'Gen.IA',
-  '/ai-chat': 'Gen.IA',
-  '/aspiracoes': 'Aspiração Folicular',
-  '/transferencia': 'Transferência (TE)',
-  '/dg': 'Diagnóstico (DG)',
-  '/sexagem': 'Sexagem Fetal',
-  '/historico': 'Histórico Operacional',
-
-  '/relatorios': 'Gen.IA Relatórios',
-  '/relatorios/servicos': 'Serviços de Campo',
-  '/relatorios/animais': 'Animais',
-  '/relatorios/material': 'Material Genético',
-  '/relatorios/producao': 'Produção',
-  '/laboratorio': 'Visão Geral',
-  '/genetica': 'Genética',
-  '/genetica/doadoras': 'Doadoras',
-  '/genetica/touros': 'Catálogo de Touros',
-  '/escritorio': 'Visão Geral',
 };
 
 // ─── Rotas Home por Hub ───────────────────────────────────────────

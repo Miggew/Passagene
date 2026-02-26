@@ -1,9 +1,10 @@
 /**
- * Aba de administração do EmbryoScore IA (v4)
+ * Aba de administração do EmbryoScore IA
  *
  * Permite:
- * - Editar modelo, prompt customizado, few-shot examples
- * - Histórico de configs anteriores
+ * - Editar modelo e prompt customizado do Gemini
+ * - Gerenciar chave API Gemini (salva no Supabase, lida pelo Pipeline)
+ * - Reprocessar jobs órfãos/pendentes via Cloud Run
  * - Estatísticas de uso (total análises, concordância biólogo, etc.)
  * - Correlação score × prenhez
  */
@@ -39,22 +40,27 @@ import {
 import { ScorePregnancyCorrelation } from '@/components/embryoscore/ScorePregnancyCorrelation';
 import { ConcordanceReport } from '@/components/embryoscore/ConcordanceReport';
 
-// Prompt padrão v4 (fallback) — espelho do prompt hardcoded na Edge Function
-// Usado como placeholder quando a config não define prompt customizado
-const DEFAULT_CALIBRATION_PROMPT = `[Prompt v4 — hardcoded na Edge Function]
+// Placeholder informativo — o prompt real está hardcoded no Pipeline (Cloud Run app.py)
+// Se o campo estiver vazio, o Pipeline usa o DEFAULT_GEMINI_PROMPT interno
+const PROMPT_PLACEHOLDER = `Deixe VAZIO para usar o prompt padrão do Pipeline.
 
-O prompt padrão está embutido na Edge Function embryo-analyze.
-Deixe este campo VAZIO para usar o prompt v4 padrão.
+Preencha apenas para testar variações. O prompt padrão analisa:
+- 2 imagens: melhor frame + mapa de calor cinético
+- Classificação morfológica: BE/BN/BX/BL/BI/Mo/Dg + IETS stage/grade
+- Análise visual: MCI, trofoectoderma, zona pelúcida, debris, formato
+- Dados cinéticos injetados automaticamente via template vars
 
-Só preencha se quiser sobrescrever com um prompt customizado.
+Variáveis disponíveis (substituídas pelo Pipeline):
+  {activity_score}  — score cinético 0-100
+  {nsd}             — desvio padrão normalizado (atividade)
+  {anr}             — razão atividade/ruído
+  {core_activity}   — atividade no centro 0-100
+  {periphery_activity} — atividade na periferia 0-100
+  {peak_zone}       — zona mais ativa (center/periphery)
+  {temporal_pattern} — padrão temporal (steady/increasing/decreasing)
+  {symmetry}        — simetria de atividade 0-1
 
-Resumo do prompt v4:
-- Foco D7: sub-scoring por componente (MCI 35%, TE 35%, ZP+Forma 20%, Fragmentação 10%)
-- 3 frames (não 10)
-- Kinetic_score refinado pelo Gemini com contexto morfológico
-- Cross context: dados da doadora/touro injetados automaticamente
-- Classificação: ≥82 Excelente, ≥65 Bom, ≥48 Regular, ≥25 Borderline, <25 Inviável
-- Anti-inflação: score médio esperado 62-68`;
+Resposta esperada: JSON com classification, stage_code, quality_grade, reasoning, visual_features, kinetic_assessment, confidence.`;
 
 function useEmbryoScoreConfigs() {
   return useQuery<EmbryoScoreConfig[]>({
@@ -142,12 +148,9 @@ export default function AdminEmbryoScoreTab() {
   const activeConfig = configs.find(c => c.active);
 
   const [modelName, setModelName] = useState('gemini-2.5-flash');
-  const [promptVersion, setPromptVersion] = useState('v4');
   const [notes, setNotes] = useState('');
   const [reprocessLog, setReprocessLog] = useState<string[]>([]);
   const [calibrationPrompt, setCalibrationPrompt] = useState('');
-  const [activePromptTab, setActivePromptTab] = useState<'calibration' | 'fewshot'>('calibration');
-  const [fewShotExamples, setFewShotExamples] = useState('');
 
   // API Key state
   const [apiKey, setApiKey] = useState('');
@@ -208,9 +211,7 @@ export default function AdminEmbryoScoreTab() {
   useEffect(() => {
     if (activeConfig) {
       setModelName(activeConfig.model_name);
-      setPromptVersion(activeConfig.prompt_version);
       setCalibrationPrompt(activeConfig.calibration_prompt || '');
-      setFewShotExamples((activeConfig as unknown as Record<string, unknown>).few_shot_examples as string || '');
     }
   }, [activeConfig]);
 
@@ -224,18 +225,15 @@ export default function AdminEmbryoScoreTab() {
           .eq('id', activeConfig.id);
       }
 
-      // Criar nova config ativa (v4: pesos fixos 1.0/0, kinetic_score refinado pelo Gemini)
+      // Criar nova config ativa
       const { error } = await supabase
         .from('embryo_score_config')
         .insert({
-          morph_weight: 1.0,
-          kinetic_weight: 0,
           model_name: modelName,
-          prompt_version: promptVersion,
+          prompt_version: modelName,
           active: true,
           notes: notes || null,
           calibration_prompt: calibrationPrompt.trim() || null,
-          few_shot_examples: fewShotExamples.trim() || null,
         });
 
       if (error) throw error;
@@ -313,7 +311,7 @@ export default function AdminEmbryoScoreTab() {
           });
         }
       }
-      log.push(`${createdCount} job(s) criado(s) e Edge Function invocada.`);
+      log.push(`${createdCount} job(s) criado(s) e Pipeline invocado.`);
 
       // 5. Reprocessar jobs falhados (resetar para pending e re-invocar)
       let retriedCount = 0;
@@ -368,7 +366,7 @@ export default function AdminEmbryoScoreTab() {
         return log;
       }
 
-      log.push(`${pendingJobs.length} job(s) pendente(s). Invocando Edge Function...`);
+      log.push(`${pendingJobs.length} job(s) pendente(s). Invocando Pipeline...`);
 
       for (const job of pendingJobs) {
         triggerAnalysis(job.id).catch((err: unknown) => {
@@ -376,7 +374,7 @@ export default function AdminEmbryoScoreTab() {
         });
       }
 
-      log.push(`Edge Function invocada para ${pendingJobs.length} job(s).`);
+      log.push(`Pipeline invocado para ${pendingJobs.length} job(s).`);
       return log;
     },
     onSuccess: (log) => {
@@ -390,9 +388,7 @@ export default function AdminEmbryoScoreTab() {
 
   const hasChanges = activeConfig
     ? modelName !== activeConfig.model_name ||
-    promptVersion !== activeConfig.prompt_version ||
-    calibrationPrompt !== (activeConfig.calibration_prompt || '') ||
-    fewShotExamples !== ((activeConfig as unknown as Record<string, unknown>).few_shot_examples as string || '')
+    calibrationPrompt !== (activeConfig.calibration_prompt || '')
     : true;
 
   if (loadingConfigs) {
@@ -416,7 +412,7 @@ export default function AdminEmbryoScoreTab() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-foreground">EmbryoScore IA</h2>
-          <p className="text-xs text-muted-foreground">Configuração e monitoramento da análise por IA (v4)</p>
+          <p className="text-xs text-muted-foreground">Configuração e monitoramento do Pipeline (Cloud Run)</p>
         </div>
       </div>
 
@@ -486,12 +482,12 @@ export default function AdminEmbryoScoreTab() {
               ) : (
                 <Play className="w-4 h-4 mr-2" />
               )}
-              Invocar Edge Function para pendentes
+              Reprocessar jobs pendentes
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
             "Mídias órfãs" = vídeos enviados com upload mas sem job de análise na fila.
-            Cria os jobs e invoca a Edge Function automaticamente.
+            Cria os jobs e invoca o Pipeline automaticamente.
           </p>
 
           {/* Log de reprocessamento */}
@@ -575,108 +571,56 @@ export default function AdminEmbryoScoreTab() {
             </p>
           )}
           <p className="text-[10px] text-muted-foreground/70">
-            Chave salva de forma segura — apenas administradores podem visualizar. A Edge Function usa esta chave com prioridade sobre a variável de ambiente.
+            Chave salva de forma segura — apenas administradores podem visualizar. O Pipeline usa esta chave com prioridade sobre a variável de ambiente.
           </p>
         </div>
       </div>
 
-      {/* Prompts IA */}
+      {/* Prompt Gemini */}
       <div className="rounded-xl border border-border/60 glass-panel overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
           <div className="w-1 h-5 rounded-full bg-violet-500/50" />
           <FileText className="w-4 h-4 text-violet-500/60" />
-          <span className="text-sm font-semibold text-foreground">Prompts IA</span>
+          <span className="text-sm font-semibold text-foreground">Prompt Gemini</span>
           <span className="text-[10px] text-muted-foreground ml-auto">
-            Editável — salvo junto com a configuração
+            Salvo junto com a configuração
           </span>
         </div>
         <div className="p-4 space-y-3">
-          {/* Tabs internas */}
-          <div className="flex gap-1 rounded-lg border border-border/60 bg-muted/30 p-1">
-            <button
-              onClick={() => setActivePromptTab('calibration')}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${activePromptTab === 'calibration'
-                ? 'glass-panel shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Calibração (System)
-            </button>
-            <button
-              onClick={() => setActivePromptTab('fewshot')}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all ${activePromptTab === 'fewshot'
-                ? 'glass-panel shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Few-Shot
-            </button>
-          </div>
-
-          {/* Textarea do prompt */}
-          {activePromptTab === 'calibration' && (
-            <div className="space-y-2">
-              <textarea
-                value={calibrationPrompt || DEFAULT_CALIBRATION_PROMPT}
-                onChange={(e) => setCalibrationPrompt(e.target.value)}
-                rows={14}
-                className="w-full text-xs font-mono bg-muted/30 border border-border/60 rounded-lg px-3 py-2.5 resize-y focus:outline-none focus:ring-1 focus:ring-violet-500/40 focus:border-violet-500/40 leading-relaxed"
-                placeholder={DEFAULT_CALIBRATION_PROMPT}
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] text-muted-foreground">
-                  Use <code className="px-1 py-0.5 rounded bg-muted text-[10px]">{'{morph_weight}'}</code> e{' '}
-                  <code className="px-1 py-0.5 rounded bg-muted text-[10px]">{'{kinetic_weight}'}</code> como placeholders dinâmicos.
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">
-                    {(calibrationPrompt || DEFAULT_CALIBRATION_PROMPT).length} chars
-                  </span>
-                  {calibrationPrompt && calibrationPrompt !== DEFAULT_CALIBRATION_PROMPT && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCalibrationPrompt('')}
-                      className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                    >
-                      <RotateCcw className="w-3 h-3 mr-1" />
-                      Restaurar padrão
-                    </Button>
-                  )}
-                </div>
-              </div>
+          <textarea
+            value={calibrationPrompt}
+            onChange={(e) => setCalibrationPrompt(e.target.value)}
+            rows={12}
+            className="w-full text-xs font-mono bg-muted/30 border border-border/60 rounded-lg px-3 py-2.5 resize-y focus:outline-none focus:ring-1 focus:ring-violet-500/40 focus:border-violet-500/40 leading-relaxed"
+            placeholder={PROMPT_PLACEHOLDER}
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-1">
+              {['{activity_score}', '{nsd}', '{anr}', '{core_activity}', '{periphery_activity}', '{peak_zone}', '{temporal_pattern}', '{symmetry}'].map(v => (
+                <code key={v} className="px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[9px] font-mono">{v}</code>
+              ))}
             </div>
-          )}
-
-          {/* Few-shot tab */}
-          {activePromptTab === 'fewshot' && (
-            <div className="space-y-2">
-              <textarea
-                value={fewShotExamples}
-                onChange={(e) => setFewShotExamples(e.target.value)}
-                rows={10}
-                className="w-full text-xs font-mono bg-muted/30 border border-border/60 rounded-lg px-3 py-2.5 resize-y focus:outline-none focus:ring-1 focus:ring-violet-500/40 focus:border-violet-500/40 leading-relaxed"
-                placeholder={`Cole 1-2 exemplos JSON de análises "gold standard" para calibrar a IA.\n\nExemplo:\n{\n  "embryo_score": 85,\n  "classification": "Excelente",\n  "morphology": { "score": 88, "stage": "Bx, código 7" },\n  "kinetics": { "score": 78 },\n  "reasoning": "Blastocisto expandido com MCI compacta..."\n}`}
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Exemplos inseridos após o system prompt e antes do vídeo. Ajudam a calibrar o formato e a escala de pontuação da IA.
-              </p>
-              {fewShotExamples && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFewShotExamples('')}
-                  className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                >
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                  Limpar
-                </Button>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              {calibrationPrompt && (
+                <>
+                  <span className="text-[10px] text-muted-foreground">
+                    {calibrationPrompt.length} chars
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCalibrationPrompt('')}
+                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                    Limpar
+                  </Button>
+                </>
               )}
             </div>
-          )}
-
+          </div>
           <p className="text-[10px] text-muted-foreground/70 border-t border-border/30 pt-2">
-            Prompt vazio = usa o padrão hardcoded na Edge Function. Alterações são salvas ao clicar "Salvar configuração" abaixo.
+            Vazio = usa o prompt padrão do Pipeline. Alterações são salvas ao clicar "Salvar configuração" abaixo.
           </p>
         </div>
       </div>
@@ -691,34 +635,21 @@ export default function AdminEmbryoScoreTab() {
           </div>
 
           <div className="p-4 space-y-4">
-            {/* v4: Scores independentes — morph_score (visual) + kinetic_score (Gemini refined) */}
             <div className="rounded-lg bg-muted/30 border border-border/30 p-3">
               <p className="text-[11px] text-muted-foreground">
-                <span className="font-semibold text-foreground">v4</span> — embryo_score = morph_score (sub-scoring MCI/TE/ZP/Frag).
-                kinetic_score refinado pelo Gemini com contexto morfológico. 3 frames + dados do cruzamento.
+                Pipeline: DINOv2 (ONNX) + KNN (pgvector) + Gemini Vision. O modelo abaixo é usado na etapa Gemini.
               </p>
             </div>
 
-            {/* Modelo e versão */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Modelo IA</Label>
-                <Input
-                  value={modelName}
-                  onChange={(e) => setModelName(e.target.value)}
-                  placeholder="gemini-2.5-flash"
-                  className="h-9 text-xs"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Versão Prompt</Label>
-                <Input
-                  value={promptVersion}
-                  onChange={(e) => setPromptVersion(e.target.value)}
-                  placeholder="v4"
-                  className="h-9 text-xs"
-                />
-              </div>
+            {/* Modelo */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Modelo Gemini</Label>
+              <Input
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                placeholder="gemini-2.5-flash"
+                className="h-9 text-xs"
+              />
             </div>
 
             {/* Notas */}
@@ -785,14 +716,9 @@ export default function AdminEmbryoScoreTab() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 ml-4">
-                  <span className="text-xs font-medium text-foreground">
-                    {config.model_name} · {config.prompt_version}
+                  <span className="text-[10px] text-muted-foreground">
+                    {config.calibration_prompt ? 'Prompt customizado' : 'Prompt padrão'}
                   </span>
-                  {config.active && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium">
-                      Ativa
-                    </span>
-                  )}
                 </div>
                 {config.notes && (
                   <p className="text-[10px] text-muted-foreground/70 italic mt-0.5 ml-4 truncate" title={config.notes}>

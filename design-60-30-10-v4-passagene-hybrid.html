@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - Design Premium V4 (Golden Ratio + Acrylic + Brutal Depth)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    // Proporções Áureas (1.618)
+                    spacing: {
+                        'fib-3': '0.75rem',   // 12px
+                        'fib-5': '1.25rem',   // 20px
+                        'fib-8': '2rem',      // 32px
+                        'fib-13': '3.25rem',  // 52px
+                        'fib-21': '5.25rem',  // 84px
+                    },
+                    colors: {
+                        // 60% - Base e Profundidade
+                        bg: {
+                            primary: '#080B0A',
+                            card: '#0F1412',
+                            border: '#1C2822'
+                        },
+                        // 30% - A Estrutura PassaGene
+                        green: {
+                            DEFAULT: '#34D399',
+                            dark: '#1A7A50',
+                            glow: 'rgba(52, 211, 153, 0.15)'
+                        },
+                        // 10% - A Ação GenIA
+                        gold: {
+                            DEFAULT: '#D4A24C',
+                            light: '#E8C77B',
+                            dark: '#8B6A2F',
+                            glow: 'rgba(212, 162, 76, 0.2)'
+                        },
+                        text: {
+                            primary: '#ECF0ED',
+                            secondary: '#8A9B90',
+                            muted: '#5E7268'
+                        }
+                    },
+                    boxShadow: {
+                        // Sombra Brutalista (Profundidade com cor sólida)
+                        'brutal-green': '4px 4px 0px 0px #1A7A50',
+                        'brutal-green-lg': '8px 8px 0px 0px #1A7A50',
+                        'brutal-gold': '4px 4px 0px 0px #D4A24C',
+                        'brutal-gold-lg': '8px 8px 0px 0px #D4A24C',
+                        'glow-green': '0 0 30px rgba(52, 211, 153, 0.2)',
+                        'glow-gold': '0 0 30px rgba(212, 162, 76, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #080B0A;
+            color: #ECF0ED;
+            font-family: 'Outfit', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Ruído para o Glassmorphism do PassaGene */
+        :root {
+            --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* ----------------------------------------------------
+       ACRYLIC GLASS (Cartões Premium do PassaGene)
+       Aplicando o conceito 60-30-10:
+       - O fundo é acrílico escuro (60%)
+       - As bordas iluminadas tendem ao Verde (30%) ou Ouro (10%)
+    ----------------------------------------------------- */
+        .glass-panel {
+            background-color: rgba(15, 20, 18, 0.5);
+            /* 60% Space */
+            backdrop-filter: blur(24px) saturate(1.3);
+            -webkit-backdrop-filter: blur(24px) saturate(1.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            /* Soft inner rim */
+            border-radius: 14px;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow:
+                0 10px 30px 0 rgba(0, 0, 0, 0.4),
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* Noise texture para o Acrílico */
+        .glass-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            mix-blend-mode: overlay;
+            background-image: var(--glass-noise);
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Directional Rim Light do Acrílico (PassaGene V1) ajustado no Hover */
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            /* 30% Green Rim Light Default */
+            background: linear-gradient(135deg,
+                    rgba(52, 211, 153, 0.4) 0%,
+                    rgba(255, 255, 255, 0.0) 30%,
+                    rgba(255, 255, 255, 0.0) 70%,
+                    rgba(52, 211, 153, 0.1) 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .glass-panel:hover::after {
+            opacity: 1;
+        }
+
+        /* Cartão Acrílico de Destaque / Hover Forte (Mesclando Verde e Ouro) */
+        .glass-panel.clickable:hover::after {
+            opacity: 1;
+            background: linear-gradient(135deg,
+                    rgba(52, 211, 153, 0.6) 0%,
+                    rgba(255, 255, 255, 0.2) 20%,
+                    rgba(255, 255, 255, 0.0) 50%,
+                    rgba(212, 162, 76, 0.4) 80%,
+                    rgba(212, 162, 76, 0.7) 100%);
+        }
+
+        /* ----------------------------------------------------
+       GENIA FAB (O Botão de IA Premium do PassaGene)
+       O pilar dos 10% Gold (Dourado, Brilhante, Inteligente)
+    ----------------------------------------------------- */
+        @keyframes spin-slow {
+            to {
+                transform: rotate(1turn);
+            }
+        }
+
+        @keyframes breathe-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px 0 rgba(52, 211, 153, 0.2), 0 0 40px 0 rgba(212, 162, 76, 0.15);
+            }
+
+            50% {
+                box-shadow: 0 0 30px 5px rgba(52, 211, 153, 0.4), 0 0 60px 10px rgba(212, 162, 76, 0.3);
+            }
+        }
+
+        .voice-fab {
+            position: relative;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .voice-fab:hover {
+            transform: scale(1.05);
+        }
+
+        .voice-fab:active {
+            transform: scale(0.95);
+        }
+
+        .voice-fab-glow {
+            position: absolute;
+            inset: -4px;
+            border-radius: inherit;
+            animation: breathe-glow 4s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        .voice-fab-aura {
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            background: conic-gradient(from 0deg,
+                    transparent 0deg,
+                    rgba(52, 211, 153, 1) 90deg,
+                    transparent 180deg,
+                    rgba(212, 162, 76, 1) 270deg,
+                    transparent 360deg);
+            animation: spin-slow 4s linear infinite;
+            z-index: 1;
+        }
+
+        .voice-fab-core {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 12, 0.9);
+            backdrop-filter: blur(24px);
+            border-radius: inherit;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #D4A24C;
+            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        /* Layout Dourado Proporcional (61.8% / 38.2%) */
+        .grid-golden-desktop {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (min-width: 1024px) {
+            .grid-golden-desktop {
+                grid-template-columns: 61.8% 1fr;
+                gap: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row h-screen w-full relative">
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR (Acrílico com Físico)               -->
+    <!-- ========================================== -->
+    <aside
+        class="hidden md:flex flex-col w-[260px] shrink-0 py-fib-8 px-fib-5 z-20 glass-panel !rounded-none !border-r !border-bg-border/50">
+        <!-- Brand / Logo (10% Gold Element) -->
+        <div class="flex items-center gap-fib-3 mb-fib-13 relative">
+            <div
+                class="w-10 h-10 rounded-xl bg-bg-card border border-gold/30 flex items-center justify-center shadow-brutal-gold">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-gold">
+                    <path opacity="0.4"
+                        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                        fill="currentColor" />
+                    <path
+                        d="M12 6C8.69 6 6 8.69 6 12C6 15.31 8.69 18 12 18C15.31 18 18 15.31 18 12C18 8.69 15.31 6 12 6ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+            <span class="text-2xl font-bold tracking-tight text-white">PassaGene</span>
+        </div>
+
+        <!-- Navigation List -->
+        <nav class="flex-1 flex flex-col gap-2">
+            <!-- Active Item: Brutalist Depth with Green (30% Rule) -->
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 bg-bg-card border-2 border-green text-green font-semibold rounded-lg shadow-brutal-green transform -translate-y-1 transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+                <span class="text-sm">Dashboard Alpha</span>
+            </a>
+
+            <!-- Inactive Item: Clean Acrilico -->
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 mt-4 text-text-secondary hover:text-white transition-all rounded-lg hover:bg-white/5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                    </path>
+                </svg>
+                <span class="text-sm font-medium">Ciclos FIV</span>
+            </a>
+
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white transition-all rounded-lg hover:bg-white/5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                <span class="text-sm font-medium">Pacientes</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- MAIN LAYOUT                                -->
+    <!-- ========================================== -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 w-full pb-24 md:pb-0">
+
+        <!-- Header Oculto nas Sombras do 60% Space -->
+        <header class="h-fib-21 px-fib-5 lg:px-fib-8 flex items-center justify-between shrink-0">
+            <div class="glass-panel px-6 py-3 rounded-xl inline-flex items-center gap-4">
+                <h1 class="text-xl font-bold tracking-tight text-white mb-0">Visão do Laboratório</h1>
+                <div class="h-4 w-px bg-bg-border"></div>
+                <p class="text-xs text-text-secondary font-mono">Status: <span
+                        class="text-green font-semibold">Operante</span></p>
+            </div>
+
+            <div class="glass-panel px-2 py-2 rounded-[14px] flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-lg border border-bg-border overflow-hidden cursor-pointer hover:border-gold/50 transition-colors">
+                    <img src="https://i.pravatar.cc/150?img=68" class="w-full h-full object-cover">
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Area -->
+        <div class="flex-1 overflow-y-auto px-fib-5 lg:px-fib-8 pb-fib-8 scrollbar-hide">
+
+            <div class="grid-golden-desktop">
+                <!-- ========================================== -->
+                <!-- ÁREA 61.8% LARGURA - Conteúdo Base          -->
+                <!-- ========================================== -->
+                <div class="flex flex-col gap-fib-5">
+
+                    <!-- KPIs Section: Misturando Acrílico (60%), Verde-Estrutura (30%) e Margens Brutalistas -->
+                    <div class="grid grid-cols-2 gap-fib-5">
+                        <!-- KPI 1 (Foco Green) -->
+                        <div
+                            class="glass-panel p-6 border border-bg-border hover:shadow-brutal-green hover:-translate-y-1 transition-all">
+                            <span class="text-[11px] font-bold text-green uppercase tracking-wider mb-3 block">Taxa
+                                Sucesso Global</span>
+                            <div class="text-5xl font-mono text-white tracking-tighter mb-2">68.4%</div>
+                            <div class="bg-bg-border h-1.5 w-full rounded-full overflow-hidden">
+                                <div class="bg-green h-full" style="width: 68.4%"></div>
+                            </div>
+                        </div>
+
+                        <!-- KPI 2 (Falso Acrílico com Borda Brilhante no Hover + Profundidade Brutalista para os 10% de atenção) -->
+                        <div
+                            class="glass-panel clickable p-6 border border-bg-border hover:shadow-brutal-gold hover:border-gold/50 hover:-translate-y-1 transition-all group">
+                            <span
+                                class="text-[11px] font-bold text-gold uppercase tracking-wider mb-3 block flex items-center gap-2">
+                                Atenção
+                                <span class="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
+                            </span>
+                            <div
+                                class="text-5xl font-mono text-white tracking-tighter mb-2 group-hover:text-gold transition-colors">
+                                02</div>
+                            <div class="text-xs text-text-secondary font-mono">Casos Aguardando Laudo GenIA</div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico com Margem Brutalista e Acrílico (A assinatura do design V4) -->
+                    <div class="glass-panel p-0 overflow-hidden shadow-brutal-green-lg flex flex-col h-[380px] mt-2">
+                        <div class="p-6 border-b border-white/5 flex justify-between items-end">
+                            <div>
+                                <h3 class="text-lg font-bold text-white mb-1">Crescimento Embrionário Diário</h3>
+                                <p class="text-xs text-text-secondary font-mono">Volumetria em Estágio de Clivagem</p>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs font-mono">
+                                <span class="w-3 h-3 bg-green/20 border border-green rounded-sm"></span> D3
+                                <span class="w-3 h-3 bg-green rounded-sm shadow-glow-green ml-3"></span> D5
+                            </div>
+                        </div>
+                        <!-- Graphic Bars: A pure expression of 30% Green dominance in data -->
+                        <div class="flex-1 p-6 pb-0 flex items-end gap-2 px-10">
+                            <div
+                                class="flex-1 bg-white/5 hover:bg-green/20 h-[30%] rounded-t-lg transition-colors border-t border-green/0 hover:border-green">
+                            </div>
+                            <div
+                                class="flex-1 bg-white/5 hover:bg-green/20 h-[45%] rounded-t-lg transition-colors border-t border-green/0 hover:border-green">
+                            </div>
+                            <div
+                                class="flex-1 bg-green/10 hover:bg-green/30 h-[60%] rounded-t-lg transition-colors border-t border-green/20 hover:border-green">
+                            </div>
+
+                            <!-- Destaque Principal -->
+                            <div
+                                class="flex-1 bg-gradient-to-t from-green/20 to-green h-[95%] rounded-t-lg shadow-glow-green border-t border-white relative group">
+                                <div
+                                    class="absolute -top-10 left-1/2 -translate-x-1/2 bg-bg-card border border-green text-white font-mono text-xs px-2 py-1 rounded shadow-brutal-green">
+                                    D5 High</div>
+                            </div>
+
+                            <div
+                                class="flex-1 bg-white/5 hover:bg-green/20 h-[55%] rounded-t-lg transition-colors border-t border-green/0 hover:border-green">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- ÁREA 38.2% LARGURA - The Action Canvas      -->
+                <!-- ========================================== -->
+                <div class="flex flex-col gap-fib-5 h-full relative">
+
+                    <!-- Painel Transparente de Rotinas (Background Neutro/Limpo para balancear 60%) -->
+                    <div class="glass-panel flex-1 p-6">
+                        <h3 class="text-md font-bold text-white mb-6">Próximos em Agenda</h3>
+                        <div class="space-y-4">
+                            <!-- Item -->
+                            <div
+                                class="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="text-lg font-mono text-text-secondary group-hover:text-green transition-colors">
+                                        08:00</div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-white">Juliana M.</div>
+                                        <div class="text-xs text-text-secondary mt-0.5">Transferência (Fresh)</div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="px-2 py-1 rounded-md border border-green/30 text-[10px] font-bold text-green shadow-brutal-green">
+                                    PREPARADO</div>
+                            </div>
+
+                            <!-- Item 2 (Gold Aleatório 10%) -->
+                            <div
+                                class="p-4 rounded-xl border border-gold/20 bg-gold/5 flex items-center justify-between shadow-[0_0_15px_rgba(212,162,76,0.1)]">
+                                <div class="flex items-center gap-4">
+                                    <div class="text-lg font-mono text-gold">10:30</div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-white">Marcos F. (Amob.)</div>
+                                        <div class="text-[11px] text-text-secondary mt-0.5">Laudo Genético D5 - Atenção
+                                            Requerida</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Item -->
+                            <div
+                                class="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="text-lg font-mono text-text-secondary group-hover:text-white transition-colors">
+                                        11:15</div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-white">Carla T.</div>
+                                        <div class="text-xs text-text-secondary mt-0.5">Aspiração</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Floating FAB (V4 GenIA Acrylic button) Integrado - Trazendo os toques do V1 de volta -->
+                    <div class="absolute hidden lg:flex -bottom-4 right-0 z-50">
+                        <!-- VoiceFAB structure from index.css -->
+                        <button class="voice-fab w-16 h-16 group" aria-label="Acionar GenIA">
+                            <div class="voice-fab-glow bg-gold/50 mix-blend-screen"></div>
+                            <div class="voice-fab-aura"></div>
+                            <div class="voice-fab-core">
+                                <svg class="w-7 h-7 transform group-hover:scale-110 transition-transform" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                        d="M19 11h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547zM12 3v1m6.364 1.636l-.707.707">
+                                    </path>
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MOBILE BOTTOM NAV                          -->
+    <!-- ========================================== -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full h-[84px] glass-panel !rounded-none !border-t-white/10 flex items-center justify-around z-40 px-2 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.8)]">
+
+        <button class="flex flex-col items-center justify-center w-16 h-full text-green">
+            <!-- Active state with brutalist tab indicator -->
+            <div class="absolute top-0 w-10 h-1 bg-green shadow-glow-green rounded-b-sm"></div>
+            <svg class="w-6 h-6 mb-1 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold tracking-wide">Início</span>
+        </button>
+
+        <button
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-white transition-colors">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium tracking-wide">Ciclos</span>
+        </button>
+
+        <div class="w-16"></div> <!-- Espaço para o FAB -->
+
+        <button
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-white transition-colors">
+            <div class="relative w-6 h-6 mb-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+                <!-- Gold Alert -->
+                <span
+                    class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-gold shadow-glow-gold border-2 border-[#0F1412]"></span>
+            </div>
+            <span class="text-[10px] font-medium tracking-wide">Avisos</span>
+        </button>
+
+        <!-- FAB Voice IA Central (Mobile) -->
+        <div class="absolute -top-[24px] left-1/2 -translate-x-1/2">
+            <button class="voice-fab w-14 h-14" aria-label="Acionar GenIA">
+                <div class="voice-fab-glow bg-gold/60"></div>
+                <div class="voice-fab-aura"></div>
+                <div class="voice-fab-core text-gold">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547zM12 3v1m6.364 1.636l-.707.707">
+                        </path>
+                    </svg>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+</body>
+
+</html>

@@ -42,7 +42,6 @@ const Sexagem = lazy(() => import('./pages/Sexagem'));
 const SexagemSessaoDetail = lazy(() => import('./pages/SexagemSessaoDetail'));
 const SemAcesso = lazy(() => import('./pages/SemAcesso'));
 const Administrativo = lazy(() => import('./pages/Administrativo'));
-const EmbryoScore = lazy(() => import('./pages/EmbryoScore'));
 const EmbryoScoreReview = lazy(() => import('./pages/EmbryoScoreReview'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
@@ -188,7 +187,7 @@ const AppRoutes = () => {
 
             {/* Painel Administrativo Unificado */}
             <Route path="/administrativo" element={<Administrativo />} />
-            <Route path="/embryoscore" element={<EmbryoScore />} />
+            <Route path="/embryoscore" element={<Navigate to="/administrativo?tab=embryoscore" replace />} />
             <Route path="/embryoscore/review/:queueId" element={<EmbryoScoreReview />} />
 
             {/* Redirecionamentos das rotas antigas */}

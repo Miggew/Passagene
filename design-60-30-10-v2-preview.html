@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - Design Premium 60-30-10</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        // 60% Space (Dark/Light Core) - Minimalista, profissional, respirável
+                        bg: {
+                            primary: '#080B0A',
+                            card: '#0F1412',
+                            hover: '#141C18',
+                            border: '#1C2822'
+                        },
+                        // 30% Structure & Data (Green) - Aplicado em tipografia de dados, linhas de separação, gráficos e relevos sutis
+                        green: {
+                            dark: '#1A7A50',
+                            DEFAULT: '#34D399',
+                            light: '#6EE7B7',
+                            dim: 'rgba(52, 211, 153, 0.1)'
+                        },
+                        // 10% Action & Premium (Gold) - Restrito apenas aos botões vitais, selos de qualidade e alertas
+                        gold: {
+                            DEFAULT: '#D4A24C',
+                            light: '#E8C77B',
+                            dark: '#8B6A2F',
+                            dim: 'rgba(212, 162, 76, 0.1)'
+                        },
+                        text: {
+                            primary: '#ECF0ED',
+                            secondary: '#8A9B90',
+                            muted: '#5E7268'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #080B0A;
+            color: #ECF0ED;
+            font-family: 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Estilo de Cartão Profissional e Limpo (60%) */
+        .premium-card {
+            background: #0F1412;
+            border: 1px solid #1C2822;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Hover state sutil que evoca o Verde (faz parte dos 30%) */
+        .premium-card:hover {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: #141C18;
+            box-shadow: 0 8px 32px rgba(9, 201, 114, 0.05);
+        }
+
+        /* Padrão para os 10% (Gold CTA) */
+        .gold-cta {
+            background: linear-gradient(135deg, #D4A24C 0%, #8B6A2F 100%);
+            color: #080B0A;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(212, 162, 76, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .gold-cta:hover {
+            box-shadow: 0 8px 25px rgba(212, 162, 76, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Padrão para Gráficos/Indicadores Verdes (30% visual weight) */
+        .green-data-fill {
+            background: linear-gradient(180deg, rgba(52, 211, 153, 0.2) 0%, rgba(52, 211, 153, 0.0) 100%);
+            border-top: 2px solid #34D399;
+        }
+
+        /* Utilitários de grid para organização perfeita */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row min-h-screen w-full relative">
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR (Desktop) / BOTTOM NAV (Mobile)    -->
+    <!-- ========================================== -->
+    <!-- A sidebar não é mais um bloco verde gigante. É parte formadora dos 60% (bg-primary). 
+       Os 30% verde aparecem limpos no estado ativo do menu e em indicadores estruturais. -->
+    <aside class="hidden md:flex flex-col w-72 bg-bg-primary border-r border-bg-border shrink-0 py-8 px-6 z-20">
+        <!-- Logo area (O ouro 10% usado para coroar a marca) -->
+        <div class="flex items-center gap-4 mb-16 px-2">
+            <div
+                class="w-10 h-10 rounded-xl bg-bg-card border border-gold/30 flex items-center justify-center shadow-[0_0_15px_rgba(212,162,76,0.15)]">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-gold">
+                    <path opacity="0.4"
+                        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                        fill="currentColor" />
+                    <path
+                        d="M12 6C8.69 6 6 8.69 6 12C6 15.31 8.69 18 12 18C15.31 18 18 15.31 18 12C18 8.69 15.31 6 12 6ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+            <span class="text-2xl font-bold tracking-tight text-white">PassaGene</span>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 flex flex-col gap-2">
+            <p class="text-xs font-semibold text-text-muted uppercase tracking-widest px-4 mb-2">Visão Geral</p>
+
+            <!-- Link Ativo: Usa os 30% verde de forma organizada e estruturada -->
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-dim border border-green/20 text-green transition-all relative">
+                <div class="absolute inset-y-0 left-0 w-1 bg-green rounded-r-full"></div>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Dashboard</span>
+            </a>
+
+            <!-- Links inativos -->
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary hover:bg-bg-card hover:text-white transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Ciclos em Andamento</span>
+                <!-- Badge Dourado (10%) chamando atenção apenas para novidades vitais -->
+                <span class="ml-auto w-2 h-2 rounded-full bg-gold"></span>
+            </a>
+
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary hover:bg-bg-card hover:text-white transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Laboratório FIV</span>
+            </a>
+
+            <p class="text-xs font-semibold text-text-muted uppercase tracking-widest px-4 mt-8 mb-2">Administração</p>
+
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary hover:bg-bg-card hover:text-white transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Pacientes</span>
+            </a>
+        </nav>
+
+        <!-- User Profile Footer -->
+        <div class="mt-8 px-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border border-bg-border overflow-hidden bg-bg-card">
+                <img src="https://i.pravatar.cc/150?img=68" alt="User" class="w-full h-full object-cover">
+            </div>
+            <div>
+                <p class="text-sm font-medium text-white">Dra. Helena</p>
+                <p class="text-xs text-text-muted">Diretora Clínica</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- MAIN CONTENT AREA                          -->
+    <!-- ========================================== -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-bg-primary relative pb-20 md:pb-0">
+
+        <!-- Header (Discreto, compõe os 60%) -->
+        <header
+            class="h-20 md:h-24 px-6 md:px-12 flex items-center justify-between border-b border-bg-border bg-bg-primary/95 backdrop-blur-sm z-10 shrink-0">
+            <div class="flex flex-col">
+                <h1 class="text-xl md:text-3xl font-bold text-white tracking-tight">Painel de Qualidade</h1>
+                <p class="text-sm text-text-secondary hidden md:block">Quarta-feira, 24 de Fevereiro • 3 Ciclos Ativos
+                </p>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <!-- Input de Busca Profissional -->
+                <div class="hidden md:flex relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" placeholder="Buscar prontuário..."
+                        class="bg-bg-card border border-bg-border text-sm rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-green/50 w-64 transition-colors placeholder:text-text-muted">
+                </div>
+
+                <!-- Botão Primário 10% Gold: Fica claro que é a ação mais importante da página -->
+                <button class="gold-cta px-4 md:px-6 py-2 md:py-2.5 rounded-lg text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <span class="hidden md:inline">Novo Ciclo</span>
+                    <span class="md:hidden">Criar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-6 md:p-12 scrollbar-hide">
+
+            <!-- BENTO GRID SYSTEM: Ordem e Profissionalismo -->
+            <div class="bento-grid">
+
+                <!-- CARD 1: KPI Principal (25% Width no Desktop, 100% no Mobile) -->
+                <div class="col-span-12 md:col-span-4 premium-card p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="text-sm font-medium text-text-secondary">Taxa de Fertilização</h3>
+                        <!-- Ícone verde compondo os 30% em micro-detalhes -->
+                        <div class="p-2 bg-green-dim text-green rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <!-- Tipografia da dados em verde gritante - É aqui que os 30% são mais úteis -->
+                        <div class="text-4xl md:text-5xl font-mono text-green font-semibold tracking-tight">84.2%</div>
+                        <div class="text-sm text-text-secondary mt-2 flex items-center gap-1">
+                            <span class="text-green">+3.1%</span> vs Mês Anterior
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 2: KPI Secundário -->
+                <div class="col-span-12 md:col-span-4 premium-card p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="text-sm font-medium text-text-secondary">Embriões Clivados</h3>
+                        <div class="p-2 bg-bg-hover text-text-muted rounded-lg border border-bg-border">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-4xl md:text-5xl font-mono text-white font-semibold tracking-tight">128</div>
+                        <div class="text-sm text-text-muted mt-2">Neste laboratório (Alpha)</div>
+                    </div>
+                </div>
+
+                <!-- CARD 3: Call to Action Premium / Alerta (10% Gold destaque absoluto) -->
+                <div
+                    class="col-span-12 md:col-span-4 premium-card p-6 border-gold/40 flex flex-col justify-between relative overflow-hidden group">
+                    <!-- Brilho de fundo -->
+                    <div
+                        class="absolute -right-8 -top-8 w-32 h-32 bg-gold/15 rounded-full blur-[40px] group-hover:bg-gold/25 transition-all">
+                    </div>
+
+                    <div class="relative z-10 flex justify-between items-start mb-4">
+                        <div
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gold-dim border border-gold/30 text-gold text-xs font-bold uppercase tracking-wider">
+                            Auto-Score Alerta
+                        </div>
+                    </div>
+                    <div class="relative z-10">
+                        <h4 class="text-lg font-bold text-white mb-1">Novas Classificações</h4>
+                        <p class="text-sm text-text-secondary leading-relaxed mb-4">A GenIA processou 14 novos embriões.
+                            Dois requerem atenção Imediata.</p>
+                        <!-- Link Dourado -->
+                        <a href="#"
+                            class="inline-flex items-center gap-2 text-gold font-medium text-sm hover:text-gold-light transition-colors">
+                            Revisar Laudos
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- CARD 4: Gráfico / Estrutura de Dados (Aqui entra grande parte do 30% verde visualmente, ordenado e limpo) -->
+                <div class="col-span-12 md:col-span-7 premium-card p-0 flex flex-col h-[320px]">
+                    <div class="p-6 border-b border-bg-border flex justify-between items-center">
+                        <h3 class="text-md font-semibold text-white">Desenvolvimento Embrionário</h3>
+                        <select
+                            class="bg-bg-primary text-text-secondary text-xs rounded border border-bg-border px-2 py-1 outline-none">
+                            <option>Últimos 14 dias</option>
+                            <option>Este Mês</option>
+                        </select>
+                    </div>
+                    <!-- Representação mockada do gráfico com o verde 30% estrutural -->
+                    <div class="flex-1 w-full bg-bg-card relative flex items-end px-6 pb-6 pt-10 gap-2 md:gap-4">
+                        <!-- Barras do gráfico -->
+                        <div
+                            class="flex-1 bg-green/20 rounded-t-sm h-[30%] hover:bg-green/40 transition-colors relative group">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs text-white font-mono transition-opacity">
+                                12</div>
+                        </div>
+                        <div
+                            class="flex-1 bg-green/20 rounded-t-sm h-[40%] hover:bg-green/40 transition-colors relative group">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs text-white font-mono transition-opacity">
+                                18</div>
+                        </div>
+                        <div
+                            class="flex-1 bg-green/30 rounded-t-sm h-[55%] hover:bg-green/50 transition-colors relative group">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs text-white font-mono transition-opacity">
+                                26</div>
+                        </div>
+                        <div
+                            class="flex-1 bg-green/40 rounded-t-sm h-[85%] hover:bg-green/60 transition-colors relative group">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs text-white font-mono transition-opacity">
+                                45</div>
+                        </div>
+                        <div
+                            class="flex-1 bg-green/60 rounded-t-sm h-[60%] hover:bg-green/70 transition-colors relative group">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs text-white font-mono transition-opacity">
+                                30</div>
+                        </div>
+                        <!-- Barra Destaque -->
+                        <div
+                            class="flex-1 bg-green rounded-t-sm h-[100%] shadow-[0_0_15px_rgba(52,211,153,0.3)] relative group cursor-pointer">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs text-green font-mono font-bold">
+                                58</div>
+                        </div>
+                        <div
+                            class="flex-1 bg-green/20 rounded-t-sm h-[45%] hover:bg-green/40 transition-colors relative group">
+                            <div
+                                class="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs text-white font-mono transition-opacity">
+                                22</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 5: Lista de Dados Profissional -->
+                <div class="col-span-12 md:col-span-5 premium-card p-6 flex flex-col h-[320px]">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-md font-semibold text-white">Procedimentos do Dia</h3>
+                        <button class="text-xs text-text-secondary hover:text-white transition-colors">Visualizar
+                            Agenda</button>
+                    </div>
+
+                    <div class="flex-1 space-y-3 overflow-y-auto scrollbar-hide pr-2">
+                        <!-- Table Row-like Item -->
+                        <div
+                            class="flex items-center gap-4 p-3 rounded-lg bg-bg-hover border border-transparent hover:border-bg-border transition-colors cursor-pointer group">
+                            <div class="w-2 h-2 rounded-full bg-gold shrink-0"></div>
+                            <!-- Indicador Dourado para Prioridade -->
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-white truncate">Juliana P. Silva</p>
+                                <p class="text-xs text-text-secondary truncate mt-0.5">ICSI - Injeção
+                                    Intracitoplasmática</p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-sm font-mono text-white">09:30</p>
+                                <span class="text-[10px] font-bold text-gold uppercase tracking-wider">Atenção</span>
+                            </div>
+                        </div>
+
+                        <!-- Table Row-like Item -->
+                        <div
+                            class="flex items-center gap-4 p-3 rounded-lg bg-bg-primary/50 border border-transparent hover:border-bg-border transition-colors cursor-pointer group">
+                            <div class="w-2 h-2 rounded-full bg-green shrink-0"></div>
+                            <!-- Indicador verde de rotina -->
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-white truncate">Carla M. Santos</p>
+                                <p class="text-xs text-text-secondary truncate mt-0.5">Transferência (Fresh)</p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-sm font-mono text-text-muted">11:00</p>
+                                <span
+                                    class="text-[10px] font-medium text-text-muted uppercase tracking-wider">Prep.</span>
+                            </div>
+                        </div>
+
+                        <!-- Table Row-like Item -->
+                        <div
+                            class="flex items-center gap-4 p-3 rounded-lg bg-bg-primary/50 border border-transparent hover:border-bg-border transition-colors cursor-pointer group">
+                            <div class="w-2 h-2 rounded-full bg-bg-border shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-white truncate">Manutenção Equip.</p>
+                                <p class="text-xs text-text-secondary truncate mt-0.5">Incubadora 03</p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-sm font-mono text-text-muted">14:00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- End Bento Grid -->
+
+        </div>
+
+        <!-- GENIA FAB (Floating Action Button) - Fica no canto na versão Desktop, e adaptado no mobile -->
+        <div class="absolute bottom-6 md:bottom-10 right-6 md:right-12 z-50">
+            <button
+                class="w-14 h-14 md:w-16 md:h-16 rounded-full gold-cta flex items-center justify-center shadow-[0_8px_30px_rgba(212,162,76,0.25)] hover:scale-110 active:scale-95 transition-all outline-none">
+                <svg class="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MOBILE BOTTOM NAV                          -->
+    <!-- ========================================== -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full h-16 bg-bg-card border-t border-bg-border flex items-center justify-around z-40 px-2 pb-safe">
+        <a href="#" class="flex flex-col items-center justify-center w-16 h-full text-green">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium">Início</span>
+        </a>
+        <a href="#"
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-text-secondary transition-colors">
+            <div class="relative">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                    </path>
+                </svg>
+                <span class="absolute top-0 -right-1 w-2 h-2 rounded-full bg-gold"></span>
+            </div>
+            <span class="text-[10px] font-medium">Ciclos</span>
+        </a>
+        <div class="w-16"></div> <!-- Espaçador para o FAB não ficar em cima de um ícone -->
+        <a href="#"
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-text-secondary transition-colors">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium">Lab</span>
+        </a>
+        <a href="#"
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-text-secondary transition-colors">
+            <div class="w-6 h-6 rounded-full overflow-hidden mb-1 border border-bg-border opacity-70">
+                <img src="https://i.pravatar.cc/150?img=68" class="w-full h-full object-cover">
+            </div>
+            <span class="text-[10px] font-medium">Perfil</span>
+        </a>
+    </nav>
+
+</body>
+
+</html>

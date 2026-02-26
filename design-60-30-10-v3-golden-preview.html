@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - Design Golden Ratio (60-30-10)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    // Proporções Áureas (1.618) e Sequência de Fibonacci (1, 2, 3, 5, 8, 13, 21, 34, 55, 89...)
+                    spacing: {
+                        'fib-1': '0.25rem',   // 4px
+                        'fib-2': '0.5rem',    // 8px
+                        'fib-3': '0.75rem',   // 12px
+                        'fib-5': '1.25rem',   // 20px
+                        'fib-8': '2rem',      // 32px
+                        'fib-13': '3.25rem',  // 52px
+                        'fib-21': '5.25rem',  // 84px
+                        'fib-34': '8.5rem',   // 136px
+                        'golden-w': '61.8%',  // Secção Áurea para larguras maiores
+                        'golden-rest': '38.2%' // O restante da proporção
+                    },
+                    colors: {
+                        // 60% Space (Dark Core)
+                        bg: {
+                            primary: '#080B0A',
+                            card: '#0F1412',
+                            hover: '#141C18',
+                            border: '#1C2822'
+                        },
+                        // 30% Structure (Green)
+                        green: {
+                            dark: '#1A7A50',
+                            DEFAULT: '#34D399',
+                            light: '#6EE7B7',
+                            dim: 'rgba(52, 211, 153, 0.08)'
+                        },
+                        // 10% Premium Action (Gold)
+                        gold: {
+                            DEFAULT: '#D4A24C',
+                            light: '#E8C77B',
+                            dark: '#8B6A2F',
+                            dim: 'rgba(212, 162, 76, 0.12)'
+                        },
+                        text: {
+                            primary: '#ECF0ED',
+                            secondary: '#8A9B90',
+                            muted: '#5E7268'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #080B0A;
+            color: #ECF0ED;
+            font-family: 'Outfit', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            /* Previne overscroll no macOS/Mobile */
+            overscroll-behavior-y: none;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Cartões Baseados em Proporção */
+        .golden-card {
+            background: #0F1412;
+            border: 1px solid #1C2822;
+            border-radius: 12px;
+            /* fib-3 */
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .golden-card:hover {
+            border-color: rgba(52, 211, 153, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 13px 34px rgba(9, 201, 114, 0.04);
+            /* Valores de fibonacci na sombra */
+        }
+
+        /* Linha de dados: 30% Verde na prática */
+        .v-timeline-line {
+            position: absolute;
+            left: 10px;
+            top: 24px;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(180deg, #34D399 0%, rgba(52, 211, 153, 0) 100%);
+        }
+
+        /* 10% Gold CTA - O botão principal que atrai os olhos pela proporção menor */
+        .gold-action {
+            background: linear-gradient(135deg, #D4A24C, #8B6A2F);
+            color: #080B0A;
+            box-shadow: 0 5px 13px rgba(212, 162, 76, 0.2);
+            /* Fibonacci: 5px blur, 13px spread */
+            transition: all 0.3s ease;
+        }
+
+        .gold-action:hover {
+            box-shadow: 0 8px 21px rgba(212, 162, 76, 0.3);
+            /* Fibonacci: 8px blur, 21px spread */
+        }
+
+        /* Utilitário para quebra da Proporção Áurea no CSS Grid */
+        /* 1 / 1.618  aproximadamente = 61.8% e 38.2% */
+        .grid-golden-desktop {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            /* fib-5 */
+        }
+
+        @media (min-width: 1024px) {
+            .grid-golden-desktop {
+                grid-template-columns: 61.8% 1fr;
+                /* Exact Golden Ratio Split */
+                gap: 2rem;
+                /* fib-8 */
+            }
+        }
+
+        .golden-aspect {
+            aspect-ratio: 1.618 / 1;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row h-screen w-full relative overflow-hidden">
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR (Desktop)                          -->
+    <!-- ========================================== -->
+    <aside
+        class="hidden md:flex flex-col w-[250px] bg-bg-card/50 border-r border-bg-border shrink-0 py-fib-8 px-fib-5 z-20 backdrop-blur-md">
+        <!-- Brand / Logo (10% Gold Element) -->
+        <div class="flex items-center gap-fib-3 mb-fib-13 px-fib-2">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center relative group">
+                <!-- Golden Glow behind logo -->
+                <div class="absolute inset-0 bg-gold/20 blur-md rounded-full group-hover:bg-gold/30 transition-all">
+                </div>
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" class="text-gold relative z-10">
+                    <path opacity="0.4"
+                        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                        fill="currentColor" />
+                    <path
+                        d="M12 6C8.69 6 6 8.69 6 12C6 15.31 8.69 18 12 18C15.31 18 18 15.31 18 12C18 8.69 15.31 6 12 6ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+            <span class="text-xl font-bold tracking-tight text-white">PassaGene</span>
+        </div>
+
+        <!-- Navigation List baseada em ritmo de Fibonacci para espaçamentos verticais -->
+        <nav class="flex-1 flex flex-col gap-fib-2">
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-widest px-fib-3 mb-fib-2">Laboratório
+            </p>
+
+            <!-- Active Item: Refinado, 30% Green subtle -->
+            <a href="#"
+                class="flex items-center gap-fib-3 px-fib-3 py-fib-2 rounded-md bg-green-dim border border-green/10 text-green transition-all relative">
+                <div class="absolute inset-y-[20%] left-0 w-1 bg-green rounded-r-full"></div>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Dashboard Alpha</span>
+            </a>
+
+            <!-- Inactive Item -->
+            <a href="#"
+                class="flex items-center gap-fib-3 px-fib-3 py-fib-2 rounded-md text-text-secondary hover:text-white transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Painel Incubadora</span>
+                <!-- 10% Gold Alert - Rare & tiny -->
+                <span class="ml-auto w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_rgba(212,162,76,0.6)]"></span>
+            </a>
+
+            <p class="text-[10px] font-semibold text-text-muted uppercase tracking-widest px-fib-3 mt-fib-8 mb-fib-2">
+                Clínica</p>
+
+            <a href="#"
+                class="flex items-center gap-fib-3 px-fib-3 py-fib-2 rounded-md text-text-secondary hover:text-white transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Pacientes</span>
+            </a>
+            <a href="#"
+                class="flex items-center gap-fib-3 px-fib-3 py-fib-2 rounded-md text-text-secondary hover:text-white transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                    </path>
+                </svg>
+                <span class="font-medium text-sm">Agenda</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- MAIN LAYOUT                                -->
+    <!-- ========================================== -->
+    <main class="flex-1 flex flex-col h-full bg-bg-primary overflow-hidden relative">
+
+        <!-- Top Header (Foco puro em 60% Space para deixar conteúdo respirar) -->
+        <header
+            class="h-fib-21 px-fib-5 lg:px-fib-8 flex items-center justify-between border-b border-bg-border/50 bg-bg-primary shrink-0">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-white mb-1">Qualidade do Laboratório</h1>
+                <p class="text-[13px] text-text-secondary font-mono">14 de Novembro <span
+                        class="text-green mx-2">•</span> 13 Ciclos Ativos</p>
+            </div>
+
+            <div class="flex items-center gap-fib-5">
+                <!-- Input elegante (60% background adherence) -->
+                <div class="hidden md:flex relative group">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-green transition-colors"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" placeholder="ID Paciente ou Equipamento"
+                        class="bg-bg-card border border-bg-border rounded-md pl-9 pr-3 py-1.5 text-sm text-white focus:outline-none focus:border-green/40 w-[233px] transition-all placeholder:text-text-muted font-mono leading-none">
+                </div>
+
+                <div class="h-8 w-px bg-bg-border hidden md:block"></div>
+
+                <div
+                    class="w-8 h-8 rounded-full border border-bg-border overflow-hidden cursor-pointer hover:border-gold/50 transition-colors">
+                    <img src="https://i.pravatar.cc/150?img=68" class="w-full h-full object-cover">
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Area Container -->
+        <div class="flex-1 overflow-y-auto p-fib-5 lg:p-fib-8 scrollbar-hide">
+
+            <!-- GOLDEN RATIO MAIN GRID -->
+            <!-- A largura de 61.8% para conteúdo principal, 38.2% para sidebar secundária -->
+            <div class="grid-golden-desktop">
+
+                <!-- ========================================== -->
+                <!-- ÁREA A: 61.8% LARGURA (Foco Principal Dados) -->
+                <!-- ========================================== -->
+                <div class="flex flex-col gap-fib-5">
+
+                    <!-- Seção Gráfica Hero. Proporção 1.618 : 1 na imagem -->
+                    <div class="golden-card p-fib-5 overflow-hidden group">
+                        <div class="flex items-start justify-between mb-fib-5">
+                            <div>
+                                <h3 class="text-sm font-medium text-text-secondary mb-1">Desenvolvimento Embrionário
+                                </h3>
+                                <!-- Tipografia grande para dados = 30% verde destaque -->
+                                <div class="flex items-baseline gap-2">
+                                    <span
+                                        class="text-5xl font-mono text-green font-semibold tracking-tighter">1.61</span>
+                                    <span class="text-sm text-green">Taxa de Clivagem</span>
+                                </div>
+                            </div>
+
+                            <!-- 10% Gold Alert no Header do card -->
+                            <div
+                                class="flex items-center gap-2 bg-gold-dim px-3 py-1 rounded-full border border-gold/20">
+                                <div class="w-1.5 h-1.5 rounded-full bg-gold animate-pulse"></div>
+                                <span class="text-xs font-bold text-gold tracking-wide">GenIA Analisando</span>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico visual mockado com sequência Fibonacci nas barras -->
+                        <div class="h-32 mt-4 flex items-end gap-1 px-1">
+                            <!-- As alturas são proporcionais aos números de Fibonacci: 1, 2, 3, 5, 8, 13, 21, 34 -->
+                            <div class="flex-1 bg-bg-hover rounded-t-sm" style="height: 3%"></div>
+                            <div class="flex-1 bg-bg-hover rounded-t-sm" style="height: 6%"></div>
+                            <div class="flex-1 bg-bg-hover rounded-t-sm" style="height: 9%"></div>
+                            <div class="flex-1 bg-green/10 rounded-t-sm" style="height: 15%"></div>
+                            <div class="flex-1 bg-green/20 rounded-t-sm" style="height: 24%"></div>
+                            <div class="flex-1 bg-green/40 rounded-t-sm" style="height: 38%"></div>
+                            <!-- Dia atual com verde 100% (Fazendo uso do 30% estrutural) -->
+                            <div class="flex-1 bg-green shadow-[0_0_15px_rgba(52,211,153,0.3)] rounded-t-sm relative group cursor-crosshair"
+                                style="height: 62%">
+                                <div
+                                    class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-mono font-bold text-green">
+                                    D3</div>
+                            </div>
+                            <div class="flex-1 bg-green/80 rounded-t-sm" style="height: 100%"></div>
+                        </div>
+                        <div class="flex justify-between mt-2 text-[10px] font-mono text-text-muted">
+                            <span>Dia 1</span>
+                            <span>Dia 3</span>
+                            <span>Dia 5 (Blastocisto)</span>
+                        </div>
+                    </div>
+
+                    <!-- Cards em Proporção. Dividindo o espaço da secção 61.8% em subáreas -->
+                    <div class="grid grid-cols-2 gap-fib-5">
+                        <!-- KP 1 -->
+                        <div class="golden-card p-fib-5">
+                            <span
+                                class="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Fertilização</span>
+                            <div class="text-3xl font-mono text-white mb-2">89%</div>
+                            <div class="w-full bg-bg-hover h-1 rounded-full overflow-hidden">
+                                <div class="bg-green h-full" style="width: 89%"></div>
+                            </div>
+                        </div>
+                        <!-- KP 2 -->
+                        <div class="golden-card p-fib-5 relative overflow-hidden">
+                            <div
+                                class="absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-gold/5 lg:to-transparent pointer-events-none">
+                            </div>
+                            <span class="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Atenção
+                                Prioritária</span>
+                            <div class="text-3xl font-mono text-gold mb-2">03</div>
+                            <div class="flex items-center text-[10px] text-text-secondary gap-1">
+                                <svg class="w-3 h-3 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                    </path>
+                                </svg>
+                                Embriões em anomalia
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ========================================== -->
+                <!-- ÁREA B: 38.2% LARGURA (Ações e Timeline)   -->
+                <!-- ========================================== -->
+                <div class="flex flex-col gap-fib-5 h-full">
+
+                    <!-- Card de Timeline: Utilizando o verde (30%) de forma estrutural para guiar os olhos -->
+                    <div class="golden-card flex-1 p-fib-5">
+                        <h3 class="text-sm font-semibold text-white mb-fib-5">Próximos Procedimentos</h3>
+
+                        <div class="relative pl-6 space-y-fib-5 mt-fib-3">
+                            <div class="v-timeline-line"></div>
+
+                            <!-- Item Timeline 1 - Em andamento (Destaque Gold 10%) -->
+                            <div class="relative">
+                                <div
+                                    class="absolute -left-[28px] top-1 w-3 h-3 rounded-full border-2 border-[#0F1412] bg-gold shadow-[0_0_8px_rgba(212,162,76,0.6)] z-10">
+                                </div>
+                                <p class="text-[10px] font-mono text-gold mb-0.5">AGORA • 09:30</p>
+                                <p class="text-sm font-medium text-white">Transferência (TE)</p>
+                                <p class="text-xs text-text-secondary">Paciente: Camila R. (Incubadora B2)</p>
+                            </div>
+
+                            <!-- Item Timeline 2 - Futuro (Neutro / Green) -->
+                            <div class="relative">
+                                <div
+                                    class="absolute -left-[28px] top-1 w-3 h-3 rounded-full border-2 border-[#0F1412] bg-bg-border z-10 group-hover:bg-green transition-colors">
+                                </div>
+                                <p class="text-[10px] font-mono text-text-muted mb-0.5">11:00</p>
+                                <p class="text-sm font-medium text-white">ICSI</p>
+                                <p class="text-xs text-text-secondary">Paciente: Amanda T.</p>
+                            </div>
+
+                            <!-- Item Timeline 3 -->
+                            <div class="relative">
+                                <div
+                                    class="absolute -left-[28px] top-1 w-3 h-3 rounded-full border-2 border-[#0F1412] bg-bg-border z-10 group-hover:bg-green transition-colors">
+                                </div>
+                                <p class="text-[10px] font-mono text-text-muted mb-0.5">14:15</p>
+                                <p class="text-sm font-medium text-white">Descongelamento Oócitos</p>
+                                <p class="text-xs text-text-secondary">Lote: 8A441</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- O Grande CTA GOLD (10% Space) - A âncora visual baseada em Proporção Áurea para clique -->
+                    <div class="golden-card overflow-hidden">
+                        <!-- Área de clique com fundo escuro compondo base -->
+                        <div class="p-5">
+                            <div class="text-sm font-semibold text-white mb-1">Processamento de Lote</div>
+                            <div class="text-xs text-text-secondary mb-4">42 imagens prontas para escoar pelo GenIA
+                                Score Dinov2</div>
+
+                            <button
+                                class="w-full gold-action text-sm font-bold py-3 rounded-lg flex justify-center items-center gap-2 group outline-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Iniciar Auto-Score
+                            </button>
+                        </div>
+                    </div>
+
+                </div> <!-- Fim Área 38.2% -->
+
+            </div> <!-- Fim Grid Golden Ratio -->
+        </div>
+
+        <!-- Floating Micro Actions Area (10% Action) -->
+        <div class="hidden md:flex absolute bottom-8 right-8 gap-3 z-50">
+            <!-- Secondary Action (30% Green) -->
+            <button
+                class="w-12 h-12 rounded-full bg-bg-card border border-green/30 text-green flex items-center justify-center hover:bg-green/10 transition-colors shadow-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+            </button>
+
+            <!-- Primary Core Action (10% Gold / FAB Premium) -->
+            <button
+                class="w-14 h-14 rounded-full gold-action flex items-center justify-center hover:-translate-y-1 transition-transform group">
+                <svg class="w-6 h-6 transform group-hover:rotate-12 transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                    </path>
+                </svg>
+            </button>
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MOBILE BOTTOM NAV (Strict 60-30-10 adherence)-->
+    <!-- ========================================== -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full h-[84px] bg-bg-primary/95 backdrop-blur-md border-t border-bg-border flex items-center justify-around z-40 px-2 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.5)]">
+
+        <!-- Item Inativo (60% background blend) -->
+        <button class="flex flex-col items-center justify-center w-16 h-full text-text-muted">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium">Dashboard</span>
+        </button>
+
+        <!-- Item Ativo (30% Green Structure) -->
+        <button class="flex flex-col items-center justify-center w-16 h-full text-green relative">
+            <div class="absolute top-2 w-10 h-10 bg-green/10 rounded-full"></div>
+            <svg class="w-6 h-6 mb-1 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium relative z-10">Laboratório</span>
+        </button>
+
+        <div class="w-16"></div> <!-- Space for Central FAB -->
+
+        <button class="flex flex-col items-center justify-center w-16 h-full text-text-muted">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium">Pacientes</span>
+        </button>
+
+        <button class="flex flex-col items-center justify-center w-16 h-full text-text-muted text-center relative">
+            <div class="relative w-6 h-6 mb-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+                <div class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-gold border-[2px] border-bg-primary">
+                </div>
+            </div>
+            <span class="text-[10px] font-medium">Avisos</span>
+        </button>
+
+        <!-- A âncora de 10% Gold fixada no centro superior da navegação mobile -->
+        <button
+            class="absolute -top-[21px] left-1/2 -translate-x-1/2 w-14 h-14 rounded-full gold-action flex items-center justify-center shadow-[0_8px_21px_rgba(212,162,76,0.3)] border-[3px] border-bg-primary">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+        </button>
+    </nav>
+
+</body>
+
+</html>

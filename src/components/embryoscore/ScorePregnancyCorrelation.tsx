@@ -46,80 +46,95 @@ function useScorePregnancyData() {
   return useQuery<CorrelationDataPoint[]>({
     queryKey: ['score-pregnancy-correlation'],
     queryFn: async () => {
-      // 1. Buscar todos os scores com embrião
+      // 1. Buscar scores atuais (apenas is_current para reduzir volume)
       const { data: scores, error: scoresError } = await supabase
         .from('embryo_scores')
-        .select('embriao_id, embryo_score, classification');
+        .select('embriao_id, embryo_score, classification')
+        .eq('is_current', true);
 
       if (scoresError) throw scoresError;
       if (!scores?.length) return [];
 
-      const embriaoIds = scores.map(s => s.embriao_id);
-
-      // 2. Buscar transferências desses embriões
+      // 2. Buscar transferências que tenham embrião com score
+      // Abordagem inversa: buscar TEs primeiro (tabela menor) e depois filtrar
       const { data: transferencias, error: teError } = await supabase
         .from('transferencias_embrioes')
         .select('embriao_id, receptora_id')
-        .in('embriao_id', embriaoIds);
+        .not('embriao_id', 'is', null);
 
       if (teError) throw teError;
       if (!transferencias?.length) return [];
 
-      const receptoraIds = [...new Set(transferencias.map(t => t.receptora_id))];
+      // Filtrar apenas TEs cujo embrião tem score
+      const scoreMap = new Map(scores.map(s => [s.embriao_id, s]));
+      const relevantTEs = transferencias.filter(t => scoreMap.has(t.embriao_id));
+      if (!relevantTEs.length) return [];
 
-      // 3. Buscar DGs dessas receptoras
-      const { data: dgs, error: dgError } = await supabase
-        .from('diagnosticos_gestacao')
-        .select('receptora_id, resultado')
-        .in('receptora_id', receptoraIds);
+      const receptoraIds = [...new Set(relevantTEs.map(t => t.receptora_id))];
 
-      if (dgError) throw dgError;
-      if (!dgs?.length) return [];
+      // 3. Buscar DGs dessas receptoras (em batches para evitar URL limit)
+      const BATCH_SIZE = 200;
+      const allDgs: { receptora_id: string; resultado: string }[] = [];
+      for (let i = 0; i < receptoraIds.length; i += BATCH_SIZE) {
+        const batch = receptoraIds.slice(i, i + BATCH_SIZE);
+        const { data: dgs, error: dgError } = await supabase
+          .from('diagnosticos_gestacao')
+          .select('receptora_id, resultado')
+          .in('receptora_id', batch);
+        if (dgError) throw dgError;
+        if (dgs) allDgs.push(...dgs);
+      }
 
-      // 4. Buscar identificações dos embriões
-      const { data: embrioes } = await supabase
-        .from('embrioes')
-        .select('id, identificacao')
-        .in('id', embriaoIds);
+      if (!allDgs.length) return [];
 
-      const embriaoMap = new Map(embrioes?.map(e => [e.id, e.identificacao || 'Sem código']) || []);
-
-      // Montar mapa receptora → resultado DG (mais recente)
+      // Montar mapas
       const dgMap = new Map<string, string>();
-      for (const dg of dgs) {
+      for (const dg of allDgs) {
         dgMap.set(dg.receptora_id, dg.resultado);
       }
 
-      // Montar mapa embriao → receptora
       const embriaoReceptoraMap = new Map<string, string>();
-      for (const te of transferencias) {
+      for (const te of relevantTEs) {
         embriaoReceptoraMap.set(te.embriao_id, te.receptora_id);
       }
 
+      // 4. Buscar identificações dos embriões relevantes
+      const relevantEmbriaoIds = relevantTEs.map(t => t.embriao_id);
+      const allEmbrioes: { id: string; identificacao: string | null }[] = [];
+      for (let i = 0; i < relevantEmbriaoIds.length; i += BATCH_SIZE) {
+        const batch = relevantEmbriaoIds.slice(i, i + BATCH_SIZE);
+        const { data: embrioes } = await supabase
+          .from('embrioes')
+          .select('id, identificacao')
+          .in('id', batch);
+        if (embrioes) allEmbrioes.push(...embrioes);
+      }
+
+      const embriaoMap = new Map(allEmbrioes.map(e => [e.id, e.identificacao || 'Sem código']));
+
       // Correlacionar
       const result: CorrelationDataPoint[] = [];
-      for (const score of scores) {
-        const receptoraId = embriaoReceptoraMap.get(score.embriao_id);
+      for (const [embriaoId, score] of scoreMap) {
+        const receptoraId = embriaoReceptoraMap.get(embriaoId);
         if (!receptoraId) continue;
 
         const resultado = dgMap.get(receptoraId);
         if (!resultado) continue;
 
-        const prenhe = resultado.startsWith('PRENHE');
-
         result.push({
           embryo_score: score.embryo_score,
           classification: score.classification,
-          prenhe,
+          prenhe: resultado.startsWith('PRENHE'),
           resultado_dg: resultado,
-          embriao_id: score.embriao_id,
-          identificacao: embriaoMap.get(score.embriao_id) || 'Sem código',
+          embriao_id: embriaoId,
+          identificacao: embriaoMap.get(embriaoId) || 'Sem código',
         });
       }
 
       return result;
     },
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 }
 
@@ -150,7 +165,7 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 export function ScorePregnancyCorrelation() {
-  const { data: correlationData = [], isLoading } = useScorePregnancyData();
+  const { data: correlationData = [], isLoading, isError } = useScorePregnancyData();
   const [viewMode, setViewMode] = useState<'scatter' | 'buckets'>('buckets');
 
   // Agregar por faixas de score
@@ -207,7 +222,7 @@ export function ScorePregnancyCorrelation() {
     );
   }
 
-  if (!correlationData.length) {
+  if (isError || !correlationData.length) {
     return (
       <div className="rounded-xl border border-border/60 glass-panel overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-transparent border-b border-border/50">
@@ -218,10 +233,10 @@ export function ScorePregnancyCorrelation() {
         <div className="p-8 text-center">
           <Info className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
-            Dados insuficientes para correlação.
+            Ainda sem dados para correlação
           </p>
-          <p className="text-xs text-muted-foreground/60 mt-1">
-            Os embriões analisados pela IA precisam ser transferidos e passar por DG para gerar dados de correlação.
+          <p className="text-xs text-muted-foreground/60 mt-1 max-w-md mx-auto">
+            Este gráfico cruza o score da IA com o resultado do DG. Para aparecer, embriões analisados precisam ter sido transferidos (TE) e a receptora precisa ter resultado de DG registrado.
           </p>
         </div>
       </div>

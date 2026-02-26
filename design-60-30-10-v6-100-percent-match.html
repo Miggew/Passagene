@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene - V6 (100% Fidelidade UI Atual + 60-30-10)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        // Cores copiadas DIRETAMENTE do index.css (Dark Mode) do App Atual
+                        bg: {
+                            primary: '#080B0A',
+                            card: '#0F1412',
+                            hover: '#141C18',
+                            subtle: '#0D1210',
+                            warm: '#12100D',
+                        },
+                        border: {
+                            DEFAULT: '#1C2822',
+                            active: '#2A5C3F',
+                            gold: '#3D2E14',
+                        },
+                        text: {
+                            primary: '#ECF0ED',
+                            secondary: '#8A9B90',
+                            muted: '#5E7268',
+                        },
+                        green: {
+                            DEFAULT: '#34D399',
+                            dim: '#1A7A50', // Revertendo dim/default conforme CSS atual
+                        },
+                        gold: {
+                            DEFAULT: '#D4A24C',
+                            light: '#E8C77B',
+                            dim: '#8B6A2F',
+                        }
+                    },
+                    boxShadow: {
+                        // As sombras brutalistas reais que estão no tailwind.config.ts atual
+                        'brutal': '4px 4px 0px 0px var(--brutal-shadow-color)',
+                        'brutal-sm': '2px 2px 0px 0px var(--brutal-shadow-color)',
+                        'brutal-lg': '8px 8px 0px 0px var(--brutal-shadow-color)',
+                        'brutal-dark': '4px 4px 0px 0px #09C972',
+                        'brutal-dark-lg': '8px 8px 0px 0px rgba(9, 201, 114, 0.4)',
+                        'glow': '0 0 20px rgba(9, 201, 114, 0.4)',
+                        'glow-gold': '0 0 20px rgba(212, 162, 76, 0.12)', // da utilities atual
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #080B0A;
+            color: #ECF0ED;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* CSS SVG Noise pattern for frosted effect (Copiado de index.css) */
+        :root {
+            --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* A EXATA classe .glass-panel do Dark Mode do PassaGene atual */
+        .glass-panel {
+            background-color: rgba(15, 20, 18, 0.4);
+            /* bg-background/40 no dark mode */
+            backdrop-filter: blur(24px) saturate(1.3);
+            -webkit-backdrop-filter: blur(24px) saturate(1.3);
+            border: 0;
+            transition: all 0.3s ease;
+            box-shadow:
+                0 10px 30px 0 rgba(0, 0, 0, 0.2),
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.05),
+                inset 0 -1px 1px 0 rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        .glass-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            mix-blend-mode: overlay;
+            background-image: var(--glass-noise);
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0.6;
+            background: linear-gradient(135deg,
+                    rgba(52, 211, 153, 0.3) 0%,
+                    rgba(255, 255, 255, 0.1) 20%,
+                    rgba(255, 255, 255, 0.0) 40%,
+                    rgba(255, 255, 255, 0.0) 60%,
+                    rgba(255, 255, 255, 0.1) 80%,
+                    rgba(212, 162, 76, 0.2) 100%);
+        }
+
+        .glass-panel.clickable:hover::after {
+            opacity: 1;
+            background: linear-gradient(135deg,
+                    rgba(52, 211, 153, 0.5) 0%,
+                    rgba(255, 255, 255, 0.2) 20%,
+                    rgba(255, 255, 255, 0.0) 40%,
+                    rgba(255, 255, 255, 0.0) 60%,
+                    rgba(255, 255, 255, 0.15) 80%,
+                    rgba(212, 162, 76, 0.4) 100%);
+        }
+
+        /* VoiceFAB EXATO do index.css */
+        @keyframes spin-slow {
+            to {
+                transform: rotate(1turn);
+            }
+        }
+
+        @keyframes breathe-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px 0 rgba(52, 211, 153, 0.2), 0 0 40px 0 rgba(212, 162, 76, 0.1);
+            }
+
+            50% {
+                box-shadow: 0 0 30px 5px rgba(52, 211, 153, 0.4), 0 0 60px 10px rgba(212, 162, 76, 0.2);
+            }
+        }
+
+        .voice-fab {
+            position: relative;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .voice-fab:hover {
+            transform: scale(1.05);
+        }
+
+        .voice-fab-glow {
+            position: absolute;
+            inset: -4px;
+            border-radius: inherit;
+            animation: breathe-glow 4s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        .voice-fab-aura {
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            background: conic-gradient(from 0deg, transparent 0deg, rgba(52, 211, 153, 1) 90deg, transparent 180deg, rgba(212, 162, 76, 1) 270deg, transparent 360deg);
+            animation: spin-slow 5s linear infinite;
+            z-index: 1;
+        }
+
+        .voice-fab-core {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(24px);
+            border-radius: inherit;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #D4A24C;
+            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row h-screen w-full relative">
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR                                    -->
+    <!-- ========================================== -->
+    <aside
+        class="hidden md:flex flex-col w-[260px] shrink-0 py-8 px-5 z-20 bg-bg-card/50 backdrop-blur-md border-r border-border">
+        <!-- Brand / Logo -->
+        <div class="flex items-center gap-3 mb-12 pl-2">
+            <!-- O logo usa o dourado (10%) -->
+            <div
+                class="w-10 h-10 rounded-xl bg-bg-primary border border-border-gold flex items-center justify-center flex-shrink-0 shadow-glow-gold">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-gold">
+                    <path opacity="0.4"
+                        d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                        fill="currentColor" />
+                    <path
+                        d="M12 6C8.69 6 6 8.69 6 12C6 15.31 8.69 18 12 18C15.31 18 18 15.31 18 12C18 8.69 15.31 6 12 6ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+            <span class="text-2xl font-bold tracking-tight text-white">PassaGene</span>
+        </div>
+
+        <!-- Navigation List: Aqui já está sendo aplicado as borders do App Atual -->
+        <nav class="flex-1 flex flex-col gap-1">
+            <!-- Active Item: Segue o estilo exato do app onde items selecionados tem border-l (Agora mapeado pra Verde 30%) -->
+            <a href="#" class="flex flex-col gap-1 px-2.5 py-0.5 border-l border-green text-green bg-bg-hover">
+                <div class="flex items-center gap-3 px-4 py-3 rounded-lg">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                        </path>
+                    </svg>
+                    <span class="text-sm font-semibold">Dashboard Cliente</span>
+                </div>
+            </a>
+
+            <!-- Inactive Item -->
+            <a href="#"
+                class="flex flex-col gap-1 px-2.5 py-0.5 border-l border-transparent hover:border-border text-text-secondary hover:text-white transition-colors mt-2">
+                <div class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-bg-hover">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    <span class="text-sm font-medium">Lotes de Oócitos</span>
+                </div>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- MAIN LAYOUT                                -->
+    <!-- ========================================== -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full pb-24 md:pb-0">
+
+        <div class="absolute inset-0 bg-bg-primary z-0"></div> <!-- 60% Space absoluto garantido -->
+
+        <!-- Header -->
+        <header class="h-24 px-8 flex items-center justify-between shrink-0 relative z-10 border-b border-border/50">
+            <div class="flex flex-col">
+                <h1 class="text-2xl font-bold tracking-tight text-white mb-0 flex items-center gap-3">
+                    <!-- O Destaque Gold 10% nas áreas chaves -->
+                    <div class="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                            </path>
+                        </svg>
+                    </div>
+                    Fazenda Aurora
+                </h1>
+                <p class="text-sm text-text-secondary mt-1">Dashboard de Transferência de Embriões</p>
+            </div>
+
+            <div class="flex items-center">
+                <div class="w-10 h-10 rounded-full border border-border overflow-hidden cursor-pointer">
+                    <img src="https://i.pravatar.cc/150?img=68" class="w-full h-full object-cover">
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Area -->
+        <div class="flex-1 overflow-y-auto px-4 md:px-8 py-6 scrollbar-hide relative z-10">
+            <div class="flex flex-col gap-6 max-w-7xl mx-auto">
+
+                <!-- ── A: PRÓXIMO SERVIÇO (semáforo que está no HomeDashboardCliente.tsx real) ── -->
+                <!-- Essa div é literalmente transcrita do código fonte fornecido para V6, mas com background ajustado (60-30-10) -->
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-text-muted mt-2">Avisos e Ações
+                    Prioritárias</h2>
+
+                <div
+                    class="rounded-xl border-l-[4px] border border-border px-4 py-4 shadow-sm cursor-pointer group hover:shadow-md transition-all border-l-gold bg-gold/5 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <!-- O semáforo agora usando o Dourado como Alerta (10%) ou Verde se estiver O.K. -->
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <div class="w-12 h-12 rounded-lg bg-gold/15 flex items-center justify-center shrink-0">
+                            <svg class="w-6 h-6 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                </path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold leading-tight text-white mb-1">Transferência de Embriões (TE)
+                            </p>
+                            <p class="text-base text-text-secondary">42 receptoras · <span
+                                    class="text-white font-medium">18 prontas hoje</span></p>
+                        </div>
+                    </div>
+
+                    <div class="sm:text-right shrink-0 mt-2 sm:mt-0 flex gap-4 items-center">
+                        <div class="text-right">
+                            <span class="text-3xl font-bold text-gold font-mono">Hoje</span>
+                            <p class="text-sm text-gold/70">Janela ideal</p>
+                        </div>
+                        <!-- O botão CTA Dourado (10%) -->
+                        <button
+                            class="bg-gradient-to-r from-[#D4A24C] to-[#8B6A2F] text-[#080B0A] font-bold py-2 px-4 rounded-lg flex justify-center items-center shadow-[0_4px_14px_rgba(212,162,76,0.3)] hover:shadow-[0_6px_20px_rgba(212,162,76,0.5)] transition-all">
+                            Abrir Relatório
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+
+                    <!-- ── B: MEU REBANHO (Transcrito do App + Acrílico Glass-panel) ── -->
+                    <div
+                        class="rounded-xl border border-border glass-panel px-6 py-6 shadow-sm relative group cursor-pointer hover:shadow-brutal-dark">
+                        <div class="flex items-center gap-2 mb-6">
+                            <div
+                                class="w-10 h-10 rounded-lg bg-gradient-to-br from-green/20 to-green/5 border border-green/15 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                    </path>
+                                </svg>
+                            </div>
+                            <span class="text-lg font-bold">Meu Rebanho</span>
+                            <!-- 30% Green Action Highlight -->
+                            <span class="ml-auto text-lg font-semibold text-green">68%</span>
+                            <span class="text-sm text-text-muted -ml-1">prenhez</span>
+                        </div>
+
+                        <!-- Número hero com o verde do app -->
+                        <div class="flex justify-center mb-6">
+                            <div class="text-center">
+                                <span class="text-6xl font-bold text-white tracking-tighter">184</span>
+                                <p class="text-sm text-text-secondary uppercase tracking-widest mt-1">receptoras ativas
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Grid 2×2 de status EXATO do app -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Prenhes -->
+                            <div
+                                class="flex items-center gap-3 rounded-lg bg-bg-primary/50 border border-bg-border px-4 py-3 hover:bg-bg-hover transition-colors">
+                                <div
+                                    class="w-2.5 h-2.5 rounded-full bg-green shrink-0 shadow-[0_0_10px_rgba(52,211,153,0.6)]">
+                                </div>
+                                <span class="text-2xl font-bold leading-none text-green">125</span>
+                                <span class="text-sm text-text-secondary">prenhes</span>
+                            </div>
+                            <!-- Servidas (O violeta no original passaria para Ouro/Verde no 60-30-10 para manter a regra, mas vou usar cor de transicão) -->
+                            <div
+                                class="flex items-center gap-3 rounded-lg bg-bg-primary/50 border border-bg-border px-4 py-3 hover:bg-bg-hover transition-colors">
+                                <div
+                                    class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.6)]">
+                                </div>
+                                <span class="text-2xl font-bold leading-none text-blue-500">22</span>
+                                <span class="text-sm text-text-secondary">servidas</span>
+                            </div>
+                            <!-- Protocoladas -->
+                            <div
+                                class="flex items-center gap-3 rounded-lg bg-bg-primary/50 border border-bg-border px-4 py-3 hover:bg-bg-hover transition-colors">
+                                <div
+                                    class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.6)]">
+                                </div>
+                                <span class="text-2xl font-bold leading-none text-amber-500">18</span>
+                                <span class="text-sm text-text-secondary">protocol.</span>
+                            </div>
+                            <!-- Vazias -->
+                            <div
+                                class="flex items-center gap-3 rounded-lg bg-bg-primary/50 border border-bg-border px-4 py-3 hover:bg-bg-hover transition-colors">
+                                <div class="w-2.5 h-2.5 rounded-full bg-text-muted shrink-0"></div>
+                                <span class="text-2xl font-bold leading-none text-text-muted">19</span>
+                                <span class="text-sm text-text-secondary">vazias</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── C: ÚLTIMOS RESULTADOS (Com as linhas tappable border-l-[3px] exatas) ── -->
+                    <div class="flex flex-col gap-2">
+
+                        <div
+                            class="rounded-xl border border-border glass-panel overflow-hidden shadow-sm flex-1 flex flex-col justify-between p-[1px]">
+                            <!-- Header embutido para dar limpeza (60%) -->
+                            <div class="px-6 pt-5 pb-3">
+                                <span class="text-sm font-semibold text-white uppercase tracking-wider">Últimos
+                                    Resultados</span>
+                                <p class="text-xs text-text-muted mt-1">Registros das últimas 4 semanas</p>
+                            </div>
+
+                            <!-- As famosas rows com tappable borders (E aqui usamos os 30% Green e 10% Gold puro) -->
+                            <div class="flex flex-col bg-bg-primary/40 rounded-b-[10px] overflow-hidden">
+
+                                <!-- Row 1: Ouro Premium (Foi algo acima da média) -->
+                                <div
+                                    class="flex items-center gap-4 px-6 min-h-[64px] cursor-pointer group hover:bg-bg-hover transition-colors border-l-[3px] border-l-gold bg-gold/5 border-t border-border/50">
+                                    <svg class="w-5 h-5 text-gold shrink-0" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                                        </path>
+                                    </svg>
+                                    <div class="flex-1 min-w-0 flex flex-col justify-center">
+                                        <span class="text-base font-bold text-white">Diagnóstico de Gestação</span>
+                                        <span class="text-sm text-gold font-mono truncate">42 recept · 38 prenhes ·
+                                            <span class="font-bold">90% Excelência</span></span>
+                                    </div>
+                                    <svg class="w-5 h-5 text-text-muted group-hover:text-gold shrink-0 transition-colors"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </div>
+
+                                <!-- Row 2: Verde (Sucesso Padrão / Estrutural - 30%) -->
+                                <div
+                                    class="flex items-center gap-4 px-6 min-h-[64px] cursor-pointer group hover:bg-bg-hover transition-colors border-l-[3px] border-l-green border-t border-border/50">
+                                    <svg class="w-5 h-5 text-green shrink-0" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                        </path>
+                                    </svg>
+                                    <div class="flex-1 min-w-0 flex flex-col justify-center">
+                                        <span class="text-base font-bold text-white">Transferência de Embriões</span>
+                                        <span class="text-sm text-text-secondary font-mono truncate">80 sinc · 68 serv ·
+                                            85% Aprov.</span>
+                                    </div>
+                                    <svg class="w-5 h-5 text-text-muted group-hover:text-green shrink-0 transition-colors"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </div>
+
+                                <!-- Row 3: Neutro (Focando manter o balanço de 60%) -->
+                                <div
+                                    class="flex items-center gap-4 px-6 min-h-[64px] cursor-pointer group hover:bg-bg-hover transition-colors border-l-[3px] border-l-text-muted border-t border-border/50">
+                                    <svg class="w-5 h-5 text-text-muted shrink-0" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                    <div class="flex-1 min-w-0 flex flex-col justify-center">
+                                        <span class="text-base font-bold text-white">Aspiração Folicular</span>
+                                        <span class="text-sm text-text-secondary font-mono truncate">4 doadoras · 62
+                                            oócitos · 15.5 média</span>
+                                    </div>
+                                    <svg class="w-5 h-5 text-text-muted group-hover:text-white shrink-0 transition-colors"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- VoiceFAB Desktop Floating -->
+        <div class="absolute hidden lg:flex bottom-8 right-8 z-50">
+            <button class="voice-fab w-16 h-16 group clickable" aria-label="Acionar GenIA">
+                <div class="voice-fab-glow bg-gold/50"></div>
+                <div class="voice-fab-aura"></div>
+                <div class="voice-fab-core text-gold">
+                    <svg class="w-7 h-7 transform group-hover:scale-110 transition-transform" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M19 11h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547zM12 3v1m6.364 1.636l-.707.707">
+                        </path>
+                    </svg>
+                </div>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MOBILE BOTTOM NAV                          -->
+    <!-- ========================================== -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full h-[84px] glass-panel !rounded-none !border-t-white/10 flex items-center justify-around z-40 px-2 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.8)]">
+
+        <button class="flex flex-col items-center justify-center w-16 h-full text-green">
+            <!-- Active state com Verde Forte (30%) -->
+            <div class="absolute top-0 w-10 h-[3px] bg-green shadow-glow-green rounded-b-sm"></div>
+            <svg class="w-6 h-6 mb-1 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold tracking-wide">Início</span>
+        </button>
+
+        <button
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-white transition-colors">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                </path>
+            </svg>
+            <span class="text-[10px] font-medium tracking-wide">Lotes</span>
+        </button>
+
+        <div class="w-16"></div> <!-- Espaço para FAB -->
+
+        <button
+            class="flex flex-col items-center justify-center w-16 h-full text-text-muted hover:text-white transition-colors">
+            <div class="relative w-6 h-6 mb-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+                <span
+                    class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-gold shadow-glow-gold border border-bg-card"></span>
+            </div>
+            <span class="text-[10px] font-medium tracking-wide">Avisos</span>
+        </button>
+
+        <!-- FAB Voice IA Central (Mobile) - O 10% Gold Supremo -->
+        <div class="absolute -top-[24px] left-1/2 -translate-x-1/2">
+            <button class="voice-fab w-14 h-14" aria-label="Acionar GenIA">
+                <div class="voice-fab-glow bg-gold/60"></div>
+                <div class="voice-fab-aura"></div>
+                <div class="voice-fab-core text-gold outline outline-[3px] outline-bg-primary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547zM12 3v1m6.364 1.636l-.707.707">
+                        </path>
+                    </svg>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+</body>
+
+</html>
