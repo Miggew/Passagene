@@ -637,6 +637,32 @@ html.font-grande {
   .inline-mic-breathe {
     animation: inline-mic-breathe 4s ease-in-out infinite;
   }
+
+  /* v3 Table patterns */
+  .table-row-hover {
+    @apply transition-colors duration-150;
+  }
+  .table-row-hover:hover {
+    @apply bg-green-50;
+  }
+  :is(.dark .table-row-hover):hover {
+    background: rgba(26, 122, 80, 0.06);
+  }
+
+  .table-header-cell {
+    @apply text-[11px] font-semibold uppercase tracking-wider;
+    color: var(--text-muted);
+  }
+
+  .table-id {
+    @apply font-mono text-xs font-medium;
+    color: var(--green);
+  }
+
+  .table-money {
+    @apply font-mono font-semibold;
+    color: var(--gold-light, #D4A24C);
+  }
 }
 
 /* Bancada — SVG marker pulse */

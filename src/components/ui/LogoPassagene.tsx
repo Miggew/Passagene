@@ -161,7 +161,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
                 style={{
                     width: `${innerSize}px`,
                     height: `${innerSize}px`,
-                    background: variant === 'premium' ? 'linear-gradient(135deg, #34D399, #D4A24C)' : colors.bg,
+                    background: variant === 'premium' ? 'var(--gradient-dna)' : colors.bg,
                     borderRadius: '50%',
                     boxShadow: variant === 'premium' ? '0 4px 14px rgba(0, 0, 0, 0.1)' : 'none'
                 }}
@@ -223,7 +223,7 @@ export const LogoPassagene: React.FC<LogoPassageneProps> = ({
                 >
                     <span style={{ color: variant === 'premium' ? 'hsl(var(--logo-passa))' : colors.textPassa }}>Passa</span>
                     <span style={{
-                        background: variant === 'premium' ? 'linear-gradient(135deg, #34D399, #D4A24C)' : colors.textGene,
+                        background: variant === 'premium' ? 'var(--gradient-dna-text)' : colors.textGene,
                         WebkitBackgroundClip: variant === 'premium' ? 'text' : 'unset',
                         WebkitTextFillColor: variant === 'premium' ? 'transparent' : 'unset',
                         fontWeight: 400
