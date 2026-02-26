@@ -67,6 +67,12 @@ html.font-grande {
     --input: 155 15% 90%;
     --ring: 158 64% 40%;
 
+    /* DNA Gradient (brand identity — same in light & dark) */
+    --gradient-dna: linear-gradient(135deg, #34D399, #D4A24C);
+    --gradient-dna-subtle: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.10));
+    --gradient-dna-border: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(212, 162, 76, 0.15));
+    --gradient-dna-text: linear-gradient(135deg, #09C972, #D4A24C);
+
     /* Radius base */
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -155,6 +161,12 @@ html.font-grande {
     /* #1C2822 */
     --input: 155 18% 13%;
     --ring: 158 64% 52%;
+
+    /* DNA Gradient (brand identity — same in light & dark) */
+    --gradient-dna: linear-gradient(135deg, #34D399, #D4A24C);
+    --gradient-dna-subtle: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.10));
+    --gradient-dna-border: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(212, 162, 76, 0.15));
+    --gradient-dna-text: linear-gradient(135deg, #09C972, #D4A24C);
 
     /* Radius base */
     --radius-sm: 6px;
@@ -478,7 +490,7 @@ html.font-grande {
     z-index: -1;
   }
 
-  /* Directional Rim Light */
+  /* Directional Rim Light — DNA green (#34D399 / #1A7A50) → gold (#D4A24C / #8B6A2F) */
   .glass-panel::after {
     content: '';
     position: absolute;
