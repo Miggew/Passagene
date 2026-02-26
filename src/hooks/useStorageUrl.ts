@@ -44,3 +44,22 @@ export function useEmbryoVideoUrl(path: string | null | undefined) {
     staleTime: 30 * 60 * 1000,
   });
 }
+
+/**
+ * Signed URL para arquivo no bucket profiles (avatars, banners, etc.).
+ */
+export function useProfileUrl(path: string | null | undefined) {
+  return useQuery({
+    queryKey: ['profile-url', path],
+    queryFn: async () => {
+      if (!path) return null;
+      const { data, error } = await supabase.storage
+        .from('profiles')
+        .createSignedUrl(path, 60 * 60); // 1h
+      if (error || !data?.signedUrl) return null;
+      return data.signedUrl;
+    },
+    enabled: !!path,
+    staleTime: 30 * 60 * 1000, // 30min
+  });
+}

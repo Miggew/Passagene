@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable, { RowInput, CellDef } from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { PdfBranding } from './pdfBranding';
 
 // Cores do design system PassaGene
 const COLORS = {
@@ -41,6 +42,25 @@ export interface PdfExportOptions {
     periodo?: string;
     geradoPor?: string;
   };
+  branding?: PdfBranding;
+}
+
+export interface PdfSection {
+  title?: string;
+  columns: PdfColumn[];
+  data: Record<string, unknown>[];
+  /** Optional summary/totals row rendered bold at the bottom of the table */
+  footRow?: string[];
+}
+
+export interface PdfDetailedOptions {
+  title: string;
+  subtitle?: string;
+  fileName?: string;
+  orientation?: 'portrait' | 'landscape';
+  footer?: string;
+  branding?: PdfBranding;
+  sections: PdfSection[];
 }
 
 /**
@@ -88,31 +108,53 @@ function formatValue(value: unknown, key: string): string {
 }
 
 /**
- * Adiciona cabeçalho do PDF com logo e informações
+ * Adiciona cabeçalho do PDF com branding (avatar + nome + logo) e informações
  */
-function addHeader(doc: jsPDF, options: PdfExportOptions): number {
+function addHeader(doc: jsPDF, options: { title: string; subtitle?: string; branding?: PdfBranding; metadata?: PdfExportOptions['metadata'] }): number {
   const pageWidth = doc.internal.pageSize.getWidth();
+  const branding = options.branding;
+  const IMG_SIZE = 12; // mm
   let y = 15;
 
+  // --- Branding row: [Avatar] ... ClientName ---
+  if (branding) {
+    const imgY = y - 2; // vertical align with text
+
+    // Left: client avatar
+    if (branding.clientLogoBase64) {
+      try { doc.addImage(branding.clientLogoBase64, 'PNG', 15, imgY, IMG_SIZE, IMG_SIZE); } catch { /* skip */ }
+    }
+
+    // Center: client name (bold 14pt)
+    if (branding.clientName) {
+      doc.setFontSize(14);
+      doc.setTextColor(...COLORS.primaryDark);
+      doc.setFont('helvetica', 'bold');
+      doc.text(branding.clientName, pageWidth / 2, y + 2, { align: 'center' });
+    }
+
+    y += IMG_SIZE + 2; // move below the branding row
+  }
+
   // Título principal
-  doc.setFontSize(18);
+  doc.setFontSize(branding ? 12 : 18);
   doc.setTextColor(...COLORS.primaryDark);
   doc.setFont('helvetica', 'bold');
   doc.text(options.title, pageWidth / 2, y, { align: 'center' });
-  y += 8;
+  y += branding ? 5 : 8;
 
   // Subtítulo
   if (options.subtitle) {
-    doc.setFontSize(11);
+    doc.setFontSize(9);
     doc.setTextColor(...COLORS.muted);
     doc.setFont('helvetica', 'normal');
     doc.text(options.subtitle, pageWidth / 2, y, { align: 'center' });
-    y += 6;
+    y += 5;
   }
 
   // Metadata (fazenda, período, etc)
   if (options.metadata) {
-    y += 4;
+    y += 2;
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.text);
 
@@ -126,22 +168,23 @@ function addHeader(doc: jsPDF, options: PdfExportOptions): number {
     }
   }
 
-  // Linha separadora
-  y += 3;
+  // Linha separadora verde
+  y += 2;
   doc.setDrawColor(...COLORS.primary);
   doc.setLineWidth(0.5);
   doc.line(15, y, pageWidth - 15, y);
 
-  return y + 8;
+  return y + 6;
 }
 
 /**
  * Adiciona rodapé com data de geração e paginação
  */
-function addFooter(doc: jsPDF, options: PdfExportOptions): void {
+function addFooter(doc: jsPDF, options: { footer?: string; branding?: PdfBranding }): void {
   const pageCount = doc.getNumberOfPages();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+  const LOGO_SIZE = 8; // mm
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -151,11 +194,20 @@ function addFooter(doc: jsPDF, options: PdfExportOptions): void {
     doc.setLineWidth(0.3);
     doc.line(15, pageHeight - 15, pageWidth - 15, pageHeight - 15);
 
+    // PassaGene logo (left, next to date)
+    let textStartX = 15;
+    if (options.branding?.appLogoBase64) {
+      try {
+        doc.addImage(options.branding.appLogoBase64, 'PNG', 15, pageHeight - 14, LOGO_SIZE, LOGO_SIZE);
+        textStartX = 15 + LOGO_SIZE + 2;
+      } catch { /* skip */ }
+    }
+
     // Data de geração
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
     const dataGeracao = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-    doc.text(`Gerado em ${dataGeracao}`, 15, pageHeight - 8);
+    doc.text(`Gerado em ${dataGeracao}`, textStartX, pageHeight - 8);
 
     // Paginação
     doc.text(`Página ${i} de ${pageCount}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
@@ -233,13 +285,95 @@ export function exportToPdf(options: PdfExportOptions): void {
   });
 
   // Adicionar rodapé
-  addFooter(doc, options);
+  addFooter(doc, { footer: options.footer, branding: options.branding });
 
   // Gerar nome do arquivo
   const fileName = options.fileName ||
     `${options.title.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
 
   // Download
+  doc.save(fileName);
+}
+
+/**
+ * Exporta PDF com múltiplas seções/tabelas encadeadas
+ */
+export function exportDetailedPdf(options: PdfDetailedOptions): void {
+  const { sections, orientation = 'portrait' } = options;
+
+  const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
+
+  let curY = addHeader(doc, options);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const tableWidth = pageWidth - 30;
+
+  for (const section of sections) {
+    // Section title
+    if (section.title) {
+      // Check if we need a new page (title + at least some rows)
+      if (curY > doc.internal.pageSize.getHeight() - 40) {
+        doc.addPage();
+        curY = 20;
+      }
+      doc.setFontSize(10);
+      doc.setTextColor(...COLORS.primaryDark);
+      doc.setFont('helvetica', 'bold');
+      doc.text(section.title, 15, curY);
+      curY += 5;
+    }
+
+    if (section.data.length === 0) continue;
+
+    const headers = section.columns.map(c => c.header);
+    const body: RowInput[] = section.data.map(row =>
+      section.columns.map(col => formatValue(row[col.key], col.key)),
+    );
+
+    const columnStyles: Record<number, { halign?: 'left' | 'center' | 'right'; cellWidth?: number | 'auto' }> = {};
+    section.columns.forEach((col, i) => {
+      columnStyles[i] = {
+        halign: col.align || 'left',
+        cellWidth: col.width ? (col.width / 100) * tableWidth : 'auto',
+      };
+    });
+
+    autoTable(doc, {
+      head: [headers],
+      body,
+      foot: section.footRow ? [section.footRow] : undefined,
+      startY: curY,
+      margin: { left: 15, right: 15 },
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: COLORS.text,
+        lineColor: COLORS.border,
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: COLORS.headerBg,
+        textColor: COLORS.primaryDark,
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      footStyles: {
+        fillColor: COLORS.headerBg,
+        textColor: COLORS.primaryDark,
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      alternateRowStyles: { fillColor: [252, 252, 253] },
+      columnStyles,
+    });
+
+    // Position after this table
+    curY = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  addFooter(doc, { footer: options.footer, branding: options.branding });
+
+  const fileName = options.fileName ||
+    `${options.title.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
   doc.save(fileName);
 }
 

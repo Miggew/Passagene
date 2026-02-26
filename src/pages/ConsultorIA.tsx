@@ -13,7 +13,9 @@ import { GeniaLogo } from '@/components/ui/GeniaLogo';
 import { fetchReportDataFromIntent, type AIIntent } from '@/services/aiReportService';
 import { tipoIconConfig, tipoBadgeConfig } from '@/lib/receptoraHistoricoUtils';
 import { formatDateBR } from '@/lib/dateUtils';
-import { exportToPdf, type PdfColumn } from '@/lib/exportPdf';
+import { exportToPdf, exportDetailedPdf, type PdfColumn, type PdfSection } from '@/lib/exportPdf';
+import { preparePdfBranding, type PdfBranding } from '@/lib/pdfBranding';
+import { useProfileUrl } from '@/hooks/useStorageUrl';
 import ReportFullscreenViewer from '@/components/genia/ReportFullscreenViewer';
 
 interface Message {
@@ -26,7 +28,7 @@ interface Message {
 
 // === PDF Export Helper ===
 
-function exportGenIAPdf(intentData: any) {
+function exportGenIAPdf(intentData: any, branding?: PdfBranding) {
     const tipo = intentData.tipo;
     let title = '';
     let columns: PdfColumn[] = [];
@@ -59,10 +61,9 @@ function exportGenIAPdf(intentData: any) {
         case 'PROXIMOS_PARTOS':
             title = 'Próximos Partos';
             columns = [
-                { header: 'Identificação', key: 'identificacao', width: 25 },
-                { header: 'Status', key: 'status', width: 18 },
-                { header: 'Data Parto', key: 'dataPartoPrevista', width: 18, align: 'center' },
-                { header: 'Dias Restantes', key: 'diasRestantes', width: 15, align: 'center' },
+                { header: 'Identificação', key: 'identificacao', width: 30 },
+                { header: 'Status', key: 'status', width: 22 },
+                { header: 'Data Prevista', key: 'dataPartoPrevista', width: 22, align: 'center' },
             ];
             data = intentData.animais || [];
             break;
@@ -165,6 +166,231 @@ function exportGenIAPdf(intentData: any) {
             }));
             break;
 
+        case 'ASPIRACAO': {
+            const sessoes = intentData.sessoes || [];
+            const sections: PdfSection[] = [];
+
+            for (const s of sessoes) {
+                if (!s.doadoras || s.doadoras.length === 0) continue;
+                const totalOoc = s.doadoras.reduce((sum: number, d: any) => sum + (d.totalOocitos || 0), 0);
+                const totalViav = s.doadoras.reduce((sum: number, d: any) => sum + (d.viaveis || 0), 0);
+                sections.push({
+                    title: `Sessão ${s.data ? formatDateBR(s.data) : '—'} — Vet: ${s.veterinario || '—'}`,
+                    columns: [
+                        { header: 'Doadora', key: 'nome', width: 30 },
+                        { header: 'Raça', key: 'raca', width: 25 },
+                        { header: 'Oócitos', key: 'totalOocitos', width: 15, align: 'center' },
+                        { header: 'Viáveis', key: 'viaveis', width: 15, align: 'center' },
+                    ],
+                    data: s.doadoras,
+                    footRow: ['Total', `${s.doadoras.length} doadoras`, String(totalOoc), String(totalViav)],
+                });
+            }
+
+            const aspFileName = `genia-aspiracoes-${new Date().toISOString().slice(0, 10)}.pdf`;
+            exportDetailedPdf({
+                title: 'Gen.IA — Relatório de Aspirações',
+                subtitle: intentData.periodo || undefined,
+                fileName: aspFileName,
+                orientation: sessoes.length > 5 ? 'landscape' : 'portrait',
+                branding,
+                sections,
+            });
+            return;
+        }
+
+        case 'TE': {
+            const teRegistros = intentData.registros || [];
+            const teSections: PdfSection[] = [];
+
+            for (const r of teRegistros) {
+                if (!r.receptoras || r.receptoras.length === 0) continue;
+                teSections.push({
+                    title: `Sessão ${r.data ? formatDateBR(r.data) : '—'} — Vet: ${r.veterinario || '—'}`,
+                    columns: [
+                        { header: 'Receptora', key: 'identificacao', width: 50 },
+                        { header: 'Status', key: 'status_te', width: 30, align: 'center' },
+                    ],
+                    data: r.receptoras,
+                    footRow: ['Total', `${r.receptoras.length} receptoras`],
+                });
+            }
+
+            exportDetailedPdf({
+                title: 'Gen.IA — Transferências de Embriões',
+                subtitle: intentData.periodo || undefined,
+                fileName: `genia-te-${new Date().toISOString().slice(0, 10)}.pdf`,
+                orientation: teRegistros.length > 5 ? 'landscape' : 'portrait',
+                branding,
+                sections: teSections,
+            });
+            return;
+        }
+
+        case 'DG': {
+            const dgRegistros = intentData.registros || [];
+            const dgSections: PdfSection[] = [];
+
+            for (const r of dgRegistros) {
+                if (!r.receptoras || r.receptoras.length === 0) continue;
+                const prenhes = r.receptoras.filter((rc: any) => rc.resultado?.startsWith('PRENHE')).length;
+                const vazias = r.receptoras.filter((rc: any) => rc.resultado === 'VAZIA').length;
+                dgSections.push({
+                    title: `Sessão ${r.data ? formatDateBR(r.data) : '—'} — Vet: ${r.veterinario || '—'}`,
+                    columns: [
+                        { header: 'Receptora', key: 'identificacao', width: 50 },
+                        { header: 'Resultado', key: 'resultado', width: 30, align: 'center' },
+                    ],
+                    data: r.receptoras,
+                    footRow: [`Total: ${r.receptoras.length}`, `Prenhes: ${prenhes} | Vazias: ${vazias}`],
+                });
+            }
+
+            exportDetailedPdf({
+                title: 'Gen.IA — Diagnóstico de Gestação',
+                subtitle: intentData.periodo || undefined,
+                fileName: `genia-dg-${new Date().toISOString().slice(0, 10)}.pdf`,
+                orientation: dgRegistros.length > 5 ? 'landscape' : 'portrait',
+                branding,
+                sections: dgSections,
+            });
+            return;
+        }
+
+        case 'SEXAGEM': {
+            const sexRegistros = intentData.registros || [];
+            const sexSections: PdfSection[] = [];
+
+            for (const r of sexRegistros) {
+                if (!r.receptoras || r.receptoras.length === 0) continue;
+                const machos = r.receptoras.filter((rc: any) => rc.sexagem === 'MACHO').length;
+                const femeas = r.receptoras.filter((rc: any) => rc.sexagem === 'FEMEA').length;
+                sexSections.push({
+                    title: `Sessão ${r.data ? formatDateBR(r.data) : '—'}`,
+                    columns: [
+                        { header: 'Receptora', key: 'identificacao', width: 50 },
+                        { header: 'Sexagem', key: 'sexagem', width: 30, align: 'center' },
+                    ],
+                    data: r.receptoras,
+                    footRow: [`Total: ${r.receptoras.length}`, `Machos: ${machos} | Fêmeas: ${femeas}`],
+                });
+            }
+
+            exportDetailedPdf({
+                title: 'Gen.IA — Sexagem Fetal',
+                subtitle: intentData.periodo || undefined,
+                fileName: `genia-sexagem-${new Date().toISOString().slice(0, 10)}.pdf`,
+                orientation: sexRegistros.length > 5 ? 'landscape' : 'portrait',
+                branding,
+                sections: sexSections,
+            });
+            return;
+        }
+
+        case 'PROTOCOLOS': {
+            const protRegistros = intentData.registros || [];
+            const protSections: PdfSection[] = [];
+
+            if (protRegistros.length > 0) {
+                const totalRec = protRegistros.reduce((s: number, r: any) => s + (r.totalReceptoras || 0), 0);
+                const totalAptas = protRegistros.reduce((s: number, r: any) => s + (r.aptas || 0), 0);
+                const totalInaptas = protRegistros.reduce((s: number, r: any) => s + (r.inaptas || 0), 0);
+                protSections.push({
+                    title: 'Protocolos',
+                    columns: [
+                        { header: 'Data Início', key: 'data', width: 15, align: 'center' },
+                        { header: 'Veterinário', key: 'veterinario', width: 25 },
+                        { header: 'Status', key: 'status', width: 15, align: 'center' },
+                        { header: 'Receptoras', key: 'totalReceptoras', width: 12, align: 'center' },
+                        { header: 'Aptas', key: 'aptas', width: 10, align: 'center' },
+                        { header: 'Inaptas', key: 'inaptas', width: 10, align: 'center' },
+                    ],
+                    data: protRegistros.map((r: any) => ({ ...r, data: r.data ? formatDateBR(r.data) : '—' })),
+                    footRow: [`Total: ${protRegistros.length}`, '', '', String(totalRec), String(totalAptas), String(totalInaptas)],
+                });
+            }
+
+            exportDetailedPdf({
+                title: 'Gen.IA — Protocolos de Sincronização',
+                subtitle: intentData.periodo || undefined,
+                fileName: `genia-protocolos-${new Date().toISOString().slice(0, 10)}.pdf`,
+                orientation: protRegistros.length > 10 ? 'landscape' : 'portrait',
+                branding,
+                sections: protSections,
+            });
+            return;
+        }
+
+        case 'NASCIMENTOS': {
+            const nascRegistros = intentData.registros || [];
+            const nascSections: PdfSection[] = [];
+
+            if (nascRegistros.length > 0) {
+                const machos = nascRegistros.filter((r: any) => r.sexo === 'MACHO').length;
+                const femeas = nascRegistros.filter((r: any) => r.sexo === 'FÊMEA' || r.sexo === 'FEMEA').length;
+                nascSections.push({
+                    title: 'Animais Nascidos',
+                    columns: [
+                        { header: 'Pai (Touro)', key: 'pai', width: 18 },
+                        { header: 'Doadora (Mãe)', key: 'doadora', width: 18 },
+                        { header: 'Receptora', key: 'receptora', width: 18 },
+                        { header: 'Sexo', key: 'sexo', width: 10, align: 'center' },
+                        { header: 'Raça', key: 'raca', width: 14 },
+                        { header: 'Data Nasc.', key: 'data', width: 12, align: 'center' },
+                    ],
+                    data: nascRegistros.map((r: any) => ({ ...r, data: r.data && r.data !== '—' ? formatDateBR(r.data) : '—' })),
+                    footRow: [`Total: ${nascRegistros.length}`, '', '', `M: ${machos} | F: ${femeas}`, '', ''],
+                });
+            }
+
+            exportDetailedPdf({
+                title: 'Gen.IA — Nascimentos',
+                subtitle: intentData.periodo || undefined,
+                fileName: `genia-nascimentos-${new Date().toISOString().slice(0, 10)}.pdf`,
+                orientation: nascRegistros.length > 20 ? 'landscape' : 'portrait',
+                branding,
+                sections: nascSections,
+            });
+            return;
+        }
+
+        case 'DOADORAS_DISPONIVEIS': {
+            const dispRegistros = intentData.registros || [];
+            const dispSections: PdfSection[] = [];
+
+            if (dispRegistros.length > 0) {
+                dispSections.push({
+                    title: `Doadoras disponíveis para ${intentData.dataAlvo ? formatDateBR(intentData.dataAlvo) : 'hoje'}`,
+                    columns: [
+                        { header: 'Nome', key: 'nome', width: 18 },
+                        { header: 'Raça', key: 'raca', width: 12 },
+                        { header: 'Última Asp.', key: 'ultimaAspiracao', width: 13, align: 'center' },
+                        { header: 'Dias Desc.', key: 'diasDescanso', width: 10, align: 'center' },
+                        { header: 'Méd. Viáveis (3)', key: 'mediaViaveis', width: 13, align: 'center' },
+                        { header: 'Disponível em', key: 'disponivel_em', width: 13, align: 'center' },
+                    ],
+                    data: dispRegistros.map((r: any) => ({
+                        ...r,
+                        ultimaAspiracao: r.ultimaAspiracao ? formatDateBR(r.ultimaAspiracao) : 'Nunca aspirada',
+                        disponivel_em: typeof r.disponivel_em === 'string' && r.disponivel_em.includes('-') ? formatDateBR(r.disponivel_em) : r.disponivel_em,
+                        diasDescanso: r.diasDescanso ?? '—',
+                        mediaViaveis: r.mediaViaveis != null ? r.mediaViaveis : '—',
+                    })),
+                    footRow: [`Total: ${dispRegistros.length}`, '', '', '', `Viáveis: ${intentData.somaViaveis ?? 0}`, ''],
+                });
+            }
+
+            exportDetailedPdf({
+                title: 'Gen.IA — Doadoras Disponíveis',
+                subtitle: intentData.dataAlvo ? `Referência: ${formatDateBR(intentData.dataAlvo)}` : undefined,
+                fileName: `genia-doadoras-disponiveis-${new Date().toISOString().slice(0, 10)}.pdf`,
+                orientation: dispRegistros.length > 15 ? 'landscape' : 'portrait',
+                branding,
+                sections: dispSections,
+            });
+            return;
+        }
+
         default: {
             // Fallback: transpor campos numéricos como Chave → Valor
             const tipoLabels: Record<string, string> = {
@@ -202,7 +428,8 @@ function exportGenIAPdf(intentData: any) {
         columns,
         data: data as Record<string, unknown>[],
         fileName,
-        orientation: data.length > 20 ? 'landscape' : 'portrait',
+        orientation: 'portrait',
+        branding,
     });
 }
 
@@ -214,19 +441,22 @@ function hasExportableData(intentData: any): boolean {
     if (['PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'CATALOGO_GENETICA', 'MINHAS_RESERVAS'].includes(tipo))
         return (intentData.itens?.length ?? 0) > 0;
     if (tipo === 'RECOMENDACAO_GENETICA') return (intentData.cruzamentos?.length ?? 0) > 0;
+    if (tipo === 'ASPIRACAO') return (intentData.sessoes?.length ?? 0) > 0;
     if (['DESEMPENHO_VET', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS'].includes(tipo))
         return (intentData.veterinarios?.length ?? 0) > 0;
+    if (['TE', 'DG', 'SEXAGEM', 'PROTOCOLOS', 'NASCIMENTOS', 'DOADORAS_DISPONIVEIS'].includes(tipo))
+        return (intentData.registros?.length ?? 0) > 0;
     if (tipo === 'BUSCA_ANIMAL') return false;
     // Fallback: has numeric fields
     const numericKeys = ['total', 'totalAnimais', 'realizadas', 'prenhes', 'vazias', 'positivos', 'totalProtocolos', 'totalReceptoras', 'aptas', 'inaptas'];
     return numericKeys.some(k => intentData[k] !== undefined && intentData[k] !== null);
 }
 
-function ExportPdfButton({ intentData }: { intentData: any }) {
+function ExportPdfButton({ intentData, branding }: { intentData: any; branding?: PdfBranding }) {
     if (!hasExportableData(intentData)) return null;
     return (
         <button
-            onClick={() => exportGenIAPdf(intentData)}
+            onClick={() => exportGenIAPdf(intentData, branding)}
             title="Exportar PDF"
             className="text-muted-foreground hover:text-primary transition-colors p-0.5"
         >
@@ -302,7 +532,10 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
     const headerColor = accentColor === 'red' ? 'text-red-700' : accentColor === 'amber' ? 'text-amber-700' : 'text-primary-dark';
 
     return (
-        <div className={cn("mt-2 bg-background/50 border rounded-xl p-4 shadow-sm", borderColor)}>
+        <div
+            className={cn("mt-2 bg-background/50 border rounded-xl p-4 shadow-sm cursor-pointer hover:border-primary/40 transition-colors", borderColor)}
+            onClick={() => onExpand?.()}
+        >
             <div className="flex items-center justify-between mb-2 border-b border-border/30 pb-2">
                 <div className={cn("flex items-center gap-2 font-semibold", headerColor)}>
                     {icon}
@@ -314,7 +547,7 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
                         <span className="text-[10px] text-muted-foreground">mostrando {mostrando} de {total}</span>
                     )}
                     {onExport && (
-                        <button onClick={onExport} title="Exportar PDF" className="text-muted-foreground hover:text-primary transition-colors p-0.5">
+                        <button onClick={(e) => { e.stopPropagation(); onExport(); }} title="Exportar PDF" className="text-muted-foreground hover:text-primary transition-colors p-0.5">
                             <Download className="w-4 h-4" />
                         </button>
                     )}
@@ -330,7 +563,7 @@ function AnimalListCard({ icon, title, total, mostrando, accentColor, summary, i
                 ))}
             </div>
             {remaining > 0 && !expanded && (
-                <button onClick={() => setExpanded(true)} className="mt-2 text-xs text-primary hover:text-primary/80 flex items-center gap-1 mx-auto">
+                <button onClick={(e) => { e.stopPropagation(); setExpanded(true); }} className="mt-2 text-xs text-primary hover:text-primary/80 flex items-center gap-1 mx-auto">
                     <ChevronDown className="w-3 h-3" /> + {remaining} mais...
                 </button>
             )}
@@ -375,7 +608,7 @@ function GeneticaItemRow({ item, onNavigate }: { item: any; onNavigate: (path: s
     );
 }
 
-function CatalogoGeneticaCard({ intentData, onExpand }: { intentData: any; onExpand?: () => void }) {
+function CatalogoGeneticaCard({ intentData, onExpand, branding }: { intentData: any; onExpand?: () => void; branding?: PdfBranding }) {
     const navigate = useNavigate();
     return (
         <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
@@ -386,7 +619,7 @@ function CatalogoGeneticaCard({ intentData, onExpand }: { intentData: any; onExp
                     <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{intentData.total}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <ExportPdfButton intentData={intentData} />
+                    <ExportPdfButton intentData={intentData} branding={branding} />
                     {onExpand && <ExpandButton onClick={onExpand} />}
                 </div>
             </div>
@@ -709,6 +942,8 @@ function getFollowUpSuggestions(intentData: any): string[] {
             return ["Mostrar apenas as vazias", "Quais estão aptas para protocolo?", "Mostrar repetidoras"];
         case 'LISTA_DOADORAS':
             return ["Qual o estoque de embriões?", "Compare o desempenho das fazendas"];
+        case 'DOADORAS_DISPONIVEIS':
+            return ["Ver lista de doadoras", "Última aspiração", "Estoque de embriões"];
         case 'ANALISE_REPETIDORAS':
             return ["Quais touros têm melhor desempenho?", "Resumo geral da fazenda"];
         case 'ESTOQUE_SEMEN':
@@ -723,6 +958,8 @@ function getFollowUpSuggestions(intentData: any): string[] {
             return ["Ranking de touros", "Resumo geral"];
         case 'COMPARACAO_FAZENDAS':
             return ["Resumo geral", "Lista de Doadoras"];
+        case 'ASPIRACAO':
+            return ["Lista de doadoras", "Ranking dos touros", "Resumo geral da fazenda"];
         case 'CATALOGO_GENETICA':
             return ["Meu botijão", "Minhas reservas", "Sugerir genética pro meu rebanho"];
         case 'MEU_BOTIJAO':
@@ -846,7 +1083,7 @@ function ZeroStateHero({ onSuggestionClick, kpis, isLoadingKpis }: ZeroStateHero
 
 // === Fullscreen Report Content ===
 
-function FullscreenReportContent({ intentData, humanizeStatus }: { intentData: any; humanizeStatus: (s?: string | null) => string }) {
+function FullscreenReportContent({ intentData, humanizeStatus, branding }: { intentData: any; humanizeStatus: (s?: string | null) => string; branding?: PdfBranding }) {
     if (!intentData?.tipo) return null;
     const tipo = intentData.tipo;
 
@@ -885,6 +1122,33 @@ function FullscreenReportContent({ intentData, humanizeStatus }: { intentData: a
                             <span className="text-[11px] text-muted-foreground">{d.totalAspiracoes} asp.</span>
                             <span className={cn("text-[12px] font-black px-2 py-0.5 rounded-full", d.mediaOocitos < 5 ? "bg-red-500/10 text-red-700" : d.mediaOocitos < 10 ? "bg-amber-500/10 text-amber-700" : "bg-emerald-500/10 text-emerald-700")}>
                                 {d.mediaOocitos} ooc/asp
+                            </span>
+                        </div>
+                    </div>
+                )}
+            />
+        );
+    }
+
+    if (tipo === 'DOADORAS_DISPONIVEIS' && intentData.registros?.length > 0) {
+        return (
+            <AnimalListCard
+                icon={<CheckCircle2 className="w-4 h-4" />}
+                title={`Doadoras Disponíveis${intentData.dataAlvo ? ` — ${formatDateBR(intentData.dataAlvo)}` : ''}`}
+                total={intentData.total}
+                summary={intentData.somaViaveis != null ? `Total viáveis: ${intentData.somaViaveis}` : undefined}
+                items={intentData.registros}
+                renderItem={(d: any) => (
+                    <div className="flex items-center justify-between gap-2 py-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-bold text-[13px] text-foreground truncate">{d.nome}</span>
+                            {d.raca && d.raca !== '—' && <span className="text-[11px] text-muted-foreground">({d.raca})</span>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {d.mediaViaveis != null && <span className="text-[11px] text-blue-600 font-medium">Méd: {d.mediaViaveis}</span>}
+                            {d.diasDescanso != null && <span className="text-[11px] text-muted-foreground">{d.diasDescanso}d desc.</span>}
+                            <span className="text-[11px] text-emerald-600 font-medium">
+                                {d.ultimaAspiracao ? formatDateBR(d.ultimaAspiracao) : 'Nunca aspirada'}
                             </span>
                         </div>
                     </div>
@@ -976,7 +1240,7 @@ function FullscreenReportContent({ intentData, humanizeStatus }: { intentData: a
     }
 
     if (tipo === 'CATALOGO_GENETICA' && intentData.itens?.length > 0) {
-        return <CatalogoGeneticaCard intentData={intentData} />;
+        return <CatalogoGeneticaCard intentData={intentData} branding={branding} />;
     }
 
     if (tipo === 'MEU_BOTIJAO') {
@@ -989,6 +1253,44 @@ function FullscreenReportContent({ intentData, humanizeStatus }: { intentData: a
 
     if (tipo === 'RECOMENDACAO_GENETICA' && intentData.cruzamentos?.length > 0) {
         return <RecomendacaoGeneticaCard intentData={intentData} />;
+    }
+
+    if (tipo === 'ASPIRACAO' && intentData.sessoes?.length > 0) {
+        return (
+            <AnimalListCard
+                icon={<Activity className="w-4 h-4" />}
+                title="Aspirações"
+                total={intentData.totalSessoes}
+                summary={`${intentData.totalViaveis} viáveis de ${intentData.totalOocitos} oócitos · Média ${intentData.mediaViaveisPorSessao}/sessão`}
+                items={intentData.sessoes}
+                renderItem={(sessao: any) => (
+                    <div className="py-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Calendar className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                                <span className="font-bold text-[13px] text-foreground">{formatDateBR(sessao.data)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[11px] text-muted-foreground">{sessao.totalDoadoras} doa.</span>
+                                <span className="text-[12px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">{sessao.totalViaveisSessao} viáveis</span>
+                            </div>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 ml-6">
+                            Vet: {sessao.veterinario} · {sessao.totalOocitosSessao} oócitos
+                        </div>
+                        {sessao.doadoras?.length > 0 && (
+                            <div className="ml-6 mt-1 flex flex-wrap gap-1">
+                                {sessao.doadoras.map((d: any, j: number) => (
+                                    <span key={j} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">
+                                        {d.nome}: <span className="font-bold text-foreground">{d.viaveis}</span> viáveis
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            />
+        );
     }
 
     if ((tipo === 'DESEMPENHO_VET' || tipo === 'DESEMPENHO_TOURO' || tipo === 'COMPARACAO_FAZENDAS') && intentData.veterinarios?.length > 0) {
@@ -1100,10 +1402,17 @@ function FullscreenReportContent({ intentData, humanizeStatus }: { intentData: a
 
 export default function ConsultorIA() {
     const { toast } = useToast();
-    const { clienteId } = usePermissions();
+    const { clienteId, profile } = usePermissions();
     const { data: hubData, isLoading: hubLoading } = useGlobalFarmData();
     const { data: clienteHubData, isLoading: clienteHubLoading } = useClienteHubData(clienteId ?? undefined);
     const location = useLocation();
+
+    // Branding for PDF exports
+    const { data: avatarUrl } = useProfileUrl(profile?.avatar_url);
+    const brandingRef = useRef<PdfBranding | undefined>(undefined);
+    useEffect(() => {
+        preparePdfBranding(profile, avatarUrl).then(b => { brandingRef.current = b; });
+    }, [profile, avatarUrl]);
 
     const kpis = useMemo(() => {
         if (clienteHubData) {
@@ -1408,6 +1717,7 @@ export default function ConsultorIA() {
             REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', BUSCA_ANIMAL: 'Busca de Animal',
             CATALOGO_GENETICA: 'Catálogo de Genética', MEU_BOTIJAO: 'Meu Botijão',
             MINHAS_RESERVAS: 'Minhas Reservas', RECOMENDACAO_GENETICA: 'Sugestões de Genética',
+            DOADORAS_DISPONIVEIS: 'Doadoras Disponíveis',
         };
         return tipoLabels[intentData?.tipo] || intentData?.tipo || 'Relatório';
     };
@@ -1503,7 +1813,7 @@ export default function ConsultorIA() {
                                                                 total={msg.intentData.total}
                                                                 mostrando={msg.intentData.mostrando}
                                                                 items={msg.intentData.animais}
-                                                                onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
                                                                 onExpand={() => openFullscreen(msg.intentData)}
                                                                 renderItem={(a: any) => (
                                                                     <div className="flex items-center justify-between gap-2 py-1.5">
@@ -1520,7 +1830,7 @@ export default function ConsultorIA() {
                                                                     title="Doadoras"
                                                                     total={msg.intentData.total}
                                                                     items={msg.intentData.animais}
-                                                                    onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                    onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
                                                                     onExpand={() => openFullscreen(msg.intentData)}
                                                                     renderItem={(d: any) => (
                                                                         <div className="flex items-center justify-between gap-2 py-1.5">
@@ -1541,6 +1851,33 @@ export default function ConsultorIA() {
                                                                     )}
                                                                 />
                                                             ) :
+                                                                /* === DOADORAS_DISPONIVEIS Card === */
+                                                                msg.intentData.tipo === 'DOADORAS_DISPONIVEIS' && msg.intentData.registros?.length > 0 ? (
+                                                                    <AnimalListCard
+                                                                        icon={<CheckCircle2 className="w-4 h-4" />}
+                                                                        title={`Doadoras Disponíveis${msg.intentData.dataAlvo ? ` — ${formatDateBR(msg.intentData.dataAlvo)}` : ''}`}
+                                                                        total={msg.intentData.total}
+                                                                        summary={msg.intentData.somaViaveis != null ? `Total viáveis: ${msg.intentData.somaViaveis}` : undefined}
+                                                                        items={msg.intentData.registros}
+                                                                        onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
+                                                                        onExpand={() => openFullscreen(msg.intentData)}
+                                                                        renderItem={(d: any) => (
+                                                                            <div className="flex items-center justify-between gap-2 py-1.5">
+                                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                                    <span className="font-bold text-[13px] text-foreground truncate">{d.nome}</span>
+                                                                                    {d.raca && d.raca !== '—' && <span className="text-[11px] text-muted-foreground">({d.raca})</span>}
+                                                                                </div>
+                                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                                    {d.mediaViaveis != null && <span className="text-[11px] text-blue-600 font-medium">Méd: {d.mediaViaveis}</span>}
+                                                                                    {d.diasDescanso != null && <span className="text-[11px] text-muted-foreground">{d.diasDescanso}d desc.</span>}
+                                                                                    <span className="text-[11px] text-emerald-600 font-medium">
+                                                                                        {d.ultimaAspiracao ? formatDateBR(d.ultimaAspiracao) : 'Nunca aspirada'}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    />
+                                                                ) :
                                                                 /* === ANALISE_REPETIDORAS Card === */
                                                                 msg.intentData.tipo === 'ANALISE_REPETIDORAS' && msg.intentData.animais?.length > 0 ? (
                                                                     <AnimalListCard
@@ -1550,7 +1887,7 @@ export default function ConsultorIA() {
                                                                         accentColor="red"
                                                                         summary={`Min. ${msg.intentData.minProtocolos} protocolos sem prenhez`}
                                                                         items={msg.intentData.animais}
-                                                                        onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                        onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
                                                                         onExpand={() => openFullscreen(msg.intentData)}
                                                                         renderItem={(a: any) => (
                                                                             <div className="flex items-center justify-between gap-2 py-1.5">
@@ -1577,7 +1914,7 @@ export default function ConsultorIA() {
                                                                             accentColor="amber"
                                                                             summary={msg.intentData.urgentes > 0 ? `${msg.intentData.urgentes} urgente(s)` : undefined}
                                                                             items={msg.intentData.animais}
-                                                                            onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                            onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
                                                                             onExpand={() => openFullscreen(msg.intentData)}
                                                                             renderItem={(a: any) => (
                                                                                 <div className="flex items-center justify-between gap-2 py-1.5">
@@ -1607,7 +1944,7 @@ export default function ConsultorIA() {
                                                                                     msg.intentData.passados > 0 ? `${msg.intentData.passados} atrasado(s)` : null,
                                                                                 ].filter(Boolean).join(' | ') || undefined}
                                                                                 items={msg.intentData.itens}
-                                                                                onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                                onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
                                                                                 onExpand={() => openFullscreen(msg.intentData)}
                                                                                 renderItem={(i: any) => (
                                                                                     <div className="flex items-center justify-between gap-2 py-1.5">
@@ -1628,7 +1965,7 @@ export default function ConsultorIA() {
                                                                         ) :
                                                                             /* === CATALOGO_GENETICA Card === */
                                                                             msg.intentData.tipo === 'CATALOGO_GENETICA' && msg.intentData.itens?.length > 0 ? (
-                                                                                <CatalogoGeneticaCard intentData={msg.intentData} onExpand={() => openFullscreen(msg.intentData)} />
+                                                                                <CatalogoGeneticaCard intentData={msg.intentData} onExpand={() => openFullscreen(msg.intentData)} branding={brandingRef.current} />
                                                                             ) :
                                                                             /* === MEU_BOTIJAO Card === */
                                                                             msg.intentData.tipo === 'MEU_BOTIJAO' ? (
@@ -1652,7 +1989,7 @@ export default function ConsultorIA() {
                                                                                             {msg.intentData.periodo && (
                                                                                                 <span className="text-xs bg-violet-500/10 text-violet-700 px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
                                                                                             )}
-                                                                                            <ExportPdfButton intentData={msg.intentData} />
+                                                                                            <ExportPdfButton intentData={msg.intentData} branding={brandingRef.current} />
                                                                                             <ExpandButton onClick={() => openFullscreen(msg.intentData)} />
                                                                                         </div>
                                                                                     </div>
@@ -1681,7 +2018,7 @@ export default function ConsultorIA() {
                                                                                         title="Estoque de Sêmen"
                                                                                         total={msg.intentData.total}
                                                                                         items={msg.intentData.itens}
-                                                                                        onExport={() => exportGenIAPdf(msg.intentData)}
+                                                                                        onExport={() => exportGenIAPdf(msg.intentData, brandingRef.current)}
                                                                                         onExpand={() => openFullscreen(msg.intentData)}
                                                                                         renderItem={(item: any) => (
                                                                                             <div className="flex items-center justify-between gap-2 py-1.5">
@@ -1704,7 +2041,7 @@ export default function ConsultorIA() {
                                                                                                 Embriões Congelados
                                                                                                 <div className="flex items-center gap-2 ml-auto">
                                                                                                     <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold">{msg.intentData.total}</span>
-                                                                                                    <ExportPdfButton intentData={msg.intentData} />
+                                                                                                    <ExportPdfButton intentData={msg.intentData} branding={brandingRef.current} />
                                                                                                     <ExpandButton onClick={() => openFullscreen(msg.intentData)} />
                                                                                                 </div>
                                                                                             </div>
@@ -1729,7 +2066,7 @@ export default function ConsultorIA() {
                                                                                                         {msg.intentData.periodo && (
                                                                                                             <span className="text-xs bg-primary/10 text-primary-dark px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
                                                                                                         )}
-                                                                                                        <ExportPdfButton intentData={msg.intentData} />
+                                                                                                        <ExportPdfButton intentData={msg.intentData} branding={brandingRef.current} />
                                                                                                         <ExpandButton onClick={() => openFullscreen(msg.intentData)} />
                                                                                                     </div>
                                                                                                 </div>
@@ -1753,6 +2090,82 @@ export default function ConsultorIA() {
                                                                                                 </div>
                                                                                             </div>
                                                                                         ) :
+                                                                                            /* === ASPIRACAO Card === */
+                                                                                            msg.intentData.tipo === 'ASPIRACAO' && msg.intentData.sessoes?.length > 0 ? (
+                                                                                                <div className="mt-2 bg-background/50 border border-orange-500/20 rounded-xl p-4 shadow-sm">
+                                                                                                    <div className="flex items-center justify-between mb-3 border-b border-orange-500/10 pb-2">
+                                                                                                        <div className="flex items-center gap-2 text-orange-700 font-semibold">
+                                                                                                            <Activity className="w-4 h-4" />
+                                                                                                            Relatório de Aspirações
+                                                                                                        </div>
+                                                                                                        <div className="flex items-center gap-2">
+                                                                                                            {msg.intentData.periodo && (
+                                                                                                                <span className="text-xs bg-orange-500/10 text-orange-700 px-2 py-0.5 rounded-full">{msg.intentData.periodo}</span>
+                                                                                                            )}
+                                                                                                            <ExportPdfButton intentData={msg.intentData} branding={brandingRef.current} />
+                                                                                                            <ExpandButton onClick={() => openFullscreen(msg.intentData)} />
+                                                                                                        </div>
+                                                                                                    </div>
+
+                                                                                                    {/* KPIs resumo */}
+                                                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Sessões</span>
+                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.totalSessoes}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Oócitos</span>
+                                                                                                            <span className="text-lg font-bold text-foreground">{msg.intentData.totalOocitos}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Viáveis</span>
+                                                                                                            <span className="text-lg font-bold text-emerald-600">{msg.intentData.totalViaveis}</span>
+                                                                                                        </div>
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-xs text-muted-foreground uppercase font-medium">Média/Sessão</span>
+                                                                                                            <span className="text-lg font-bold text-orange-600">{msg.intentData.mediaViaveisPorSessao}</span>
+                                                                                                        </div>
+                                                                                                    </div>
+
+                                                                                                    {/* Lista de sessões */}
+                                                                                                    <div className="flex flex-col divide-y divide-border/30">
+                                                                                                        {msg.intentData.sessoes.slice(0, 10).map((sessao: any, i: number) => (
+                                                                                                            <div key={i} className="py-2">
+                                                                                                                <div className="flex items-center justify-between gap-2">
+                                                                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                                                                        <Calendar className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                                                                                                                        <span className="font-bold text-[13px] text-foreground">{formatDateBR(sessao.data)}</span>
+                                                                                                                    </div>
+                                                                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                                                                        <span className="text-[11px] text-muted-foreground">{sessao.totalDoadoras} doa.</span>
+                                                                                                                        <span className="text-[12px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">{sessao.totalViaveisSessao} viáveis</span>
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                                <div className="text-[11px] text-muted-foreground mt-0.5 ml-5.5">
+                                                                                                                    Vet: {sessao.veterinario} · {sessao.totalOocitosSessao} oócitos totais
+                                                                                                                </div>
+                                                                                                                {sessao.doadoras?.length > 0 && (
+                                                                                                                    <div className="ml-5.5 mt-1 flex flex-wrap gap-1">
+                                                                                                                        {sessao.doadoras.slice(0, 5).map((d: any, j: number) => (
+                                                                                                                            <span key={j} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">
+                                                                                                                                {d.nome}: <span className="font-bold text-foreground">{d.viaveis}</span> viáveis
+                                                                                                                            </span>
+                                                                                                                        ))}
+                                                                                                                        {sessao.doadoras.length > 5 && (
+                                                                                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">+{sessao.doadoras.length - 5} mais</span>
+                                                                                                                        )}
+                                                                                                                    </div>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                    {msg.intentData.sessoes.length > 10 && (
+                                                                                                        <div className="text-[11px] text-muted-foreground text-center mt-2">
+                                                                                                            + {msg.intentData.sessoes.length - 10} sessões não exibidas. Exporte o PDF para ver todas.
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            ) :
                                                                                             msg.intentData.tipo === 'BUSCA_ANIMAL' && msg.intentData.categoria !== 'Não Encontrado na Base Principal' ? (
                                                                                                 <div className="mt-3 glass-panel border border-primary/20 rounded-xl overflow-hidden shadow-md">
                                                                                                     <div className="bg-primary/10 px-4 py-3 flex justify-between items-center border-b border-primary/20">
@@ -1876,9 +2289,10 @@ export default function ConsultorIA() {
                                                                                                     REBANHO: 'Rebanho', PROTOCOLOS: 'Protocolos', BUSCA_ANIMAL: 'Busca de Animal',
                                                                                                     CATALOGO_GENETICA: 'Catálogo de Genética', MEU_BOTIJAO: 'Meu Botijão',
                                                                                                     MINHAS_RESERVAS: 'Minhas Reservas', RECOMENDACAO_GENETICA: 'Sugestões de Genética',
+                                                                                                    DOADORAS_DISPONIVEIS: 'Doadoras Disponíveis',
                                                                                                 };
                                                                                                 const tipoLabel = tipoLabels[msg.intentData.tipo] || msg.intentData.tipo;
-                                                                                                const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS', 'CATALOGO_GENETICA', 'MINHAS_RESERVAS'].includes(msg.intentData.tipo);
+                                                                                                const isEmptyList = msg.intentData.total === 0 && ['LISTA_RECEPTORAS', 'LISTA_DOADORAS', 'ANALISE_REPETIDORAS', 'PROXIMOS_PARTOS', 'PROXIMOS_SERVICOS', 'ESTOQUE_SEMEN', 'ESTOQUE_EMBRIOES', 'NASCIMENTOS', 'DESEMPENHO_TOURO', 'COMPARACAO_FAZENDAS', 'CATALOGO_GENETICA', 'MINHAS_RESERVAS', 'DOADORAS_DISPONIVEIS'].includes(msg.intentData.tipo);
                                                                                                 return (
                                                                                                     <div className="mt-2 bg-background/50 border border-primary/20 rounded-xl p-4 shadow-sm">
                                                                                                         <div className="flex items-center justify-between mb-3 border-b border-primary/10 pb-2">
@@ -1892,7 +2306,7 @@ export default function ConsultorIA() {
                                                                                                                         {msg.intentData.periodo}
                                                                                                                     </span>
                                                                                                                 )}
-                                                                                                                {!isEmptyList && <ExportPdfButton intentData={msg.intentData} />}
+                                                                                                                {!isEmptyList && <ExportPdfButton intentData={msg.intentData} branding={brandingRef.current} />}
                                                                                                                 {!isEmptyList && <ExpandButton onClick={() => openFullscreen(msg.intentData)} />}
                                                                                                             </div>
                                                                                                         </div>
@@ -2087,9 +2501,9 @@ export default function ConsultorIA() {
                     open={!!fullscreenReport}
                     onClose={() => setFullscreenReport(null)}
                     title={fullscreenReport.title}
-                    onExportPdf={hasExportableData(fullscreenReport.intentData) ? () => exportGenIAPdf(fullscreenReport.intentData) : undefined}
+                    onExportPdf={hasExportableData(fullscreenReport.intentData) ? () => exportGenIAPdf(fullscreenReport.intentData, brandingRef.current) : undefined}
                 >
-                    <FullscreenReportContent intentData={fullscreenReport.intentData} humanizeStatus={humanizeStatus} />
+                    <FullscreenReportContent intentData={fullscreenReport.intentData} humanizeStatus={humanizeStatus} branding={brandingRef.current} />
                 </ReportFullscreenViewer>
             )}
         </div>

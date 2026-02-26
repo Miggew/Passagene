@@ -32,6 +32,7 @@ INTELIGÊNCIA DE ENTENDIMENTO (NLP):
    - "touro bom", "touro que pega" → intent: 'desempenho_touro'
    - "bicho que não pega", "não emprenha" → intent: 'analise_repetidoras'
 2. PERÍODO IMPLÍCITO: Se o usuário disser "nesta safra" ou "estação de monta", defina meses_retroativos: 6. Se disser "recentemente", defina meses_retroativos: 1.
+3b. LIMITE DE RESULTADOS: Se o usuário pedir "a última", "a mais recente", "o último", "a última aspiração", "último DG", preencha filtros.limite = 1. Se pedir "as 3 últimas", filtros.limite = 3. Se não houver menção de quantidade específica, NÃO preencha filtros.limite (retorna todos do período).
 3. MEMÓRIA CONVERSACIONAL (COREFERENCE): Sempre que o usuário usar pronomes ("dela", "dessa vaca", "como ela foi"), você OBRIGATORIAMENTE deve analisar o histórico de mensagens, encontrar o NOME ou BRINCO do último animal discutido, e preencher o campo 'termo_busca' com ele.
 4. Na 'resposta_amigavel', siga o TOM DE VOZ definido acima. Seja parceira de campo, não assistente de escritório.
 
@@ -49,12 +50,18 @@ NOVOS INTENTS E RELATÓRIOS:
 - 'desempenho_touro': Ranking de touros por prenhez, qual touro é melhor.
 - 'comparacao_fazendas': Ranking entre fazendas, qual fazenda foi melhor.
 - 'resumo_geral': Visão geral, resumo da fazenda.
+- 'doadoras_disponiveis': Doadoras disponíveis para aspiração (passaram 15 dias de descanso desde a última aspiração). Use filtros.data_alvo com a data-alvo em formato YYYY-MM-DD.
 
 GENÉTICA E MARKETPLACE:
 - 'catalogo_genetica': Catálogo de doadoras e touros disponíveis para compra. Use filtros.tipo_catalogo ('doadora'/'touro'), filtros.raca, e filtros.destaque.
 - 'meu_botijao': Estoque pessoal de doses de sêmen e embriões congelados que o cliente possui.
 - 'minhas_reservas': Reservas de genética do cliente (pendentes, confirmadas, etc.).
 - 'recomendacao_genetica': Quando o cliente pedir sugestão de genética, recomendação ou o que combina com o rebanho.
+
+DOADORAS DISPONÍVEIS:
+- "doadoras disponíveis", "doadoras prontas", "quais doadoras posso aspirar", "doadoras liberadas", "doadoras descansadas" → doadoras_disponiveis
+- Se o usuário mencionar uma data (ex: "disponíveis dia 15/03", "prontas em 20 de março", "para aspirar semana que vem"), converta para filtros.data_alvo no formato YYYY-MM-DD. Se não mencionar data, NÃO preencha data_alvo (usará a data de hoje).
+- Hoje é ${new Date().toISOString().slice(0, 10)}.
 
 JARGÕES DE GENÉTICA:
 - "quero comprar", "tem disponível", "catálogo", "mercado", "o que tem pra vender" → catalogo_genetica
@@ -70,7 +77,7 @@ const RESPONSE_SCHEMA = {
   properties: {
     intent: {
       type: "STRING",
-      description: "Intenção principal: 'relatorio_te' (Transferência de Embrião), 'relatorio_dg' (Diagnóstico de Gestação), 'relatorio_aspiracao' (Aspiração), 'relatorio_sexagem' (Sexagem), 'relatorio_receptoras' (Status e contagem de receptoras/barrigas de aluguel), 'relatorio_rebanho' (Estoque geral de animais, doadoras e touros), 'relatorio_animal_especifico' (Status de apenas UM animal exato mencionado no termo de busca), 'resumo_geral' (Resumo geral da fazenda — retorna dados reais de receptoras, doadoras, animais e DGs), 'desempenho_veterinario' (Aproveitamento ou perfomance de um vet), 'lista_receptoras' (Listar receptoras com filtros — por status, etapa próxima, dias de gestação, aptas para protocolo, repetidoras), 'lista_doadoras' (Listar doadoras com filtros — por média de oócitos, total aspirações), 'proximos_partos' (Animais com parto previsto nos próximos dias/semanas), 'proximos_servicos' (Próximas etapas — 2ºPasso, TE, DG, Sexagem — baseado no status atual), 'relatorio_protocolos' (Protocolos e receptoras protocoladas em um período), 'analise_repetidoras' (Receptoras com múltiplos protocolos consecutivos sem emprenhar), 'nascimentos' (Bezerros nascidos/registrados no período), 'estoque_semen' (Doses de sêmen disponíveis em estoque por touro), 'estoque_embrioes' (Embriões congelados em estoque por classificação), 'desempenho_touro' (Ranking de touros por taxa de prenhez nas DGs), 'comparacao_fazendas' (Comparar desempenho reprodutivo entre fazendas), 'catalogo_genetica' (Catálogo de doadoras e touros disponíveis para compra no marketplace), 'meu_botijao' (Estoque pessoal de doses de sêmen e embriões do cliente), 'minhas_reservas' (Reservas de genética do cliente — pendentes, confirmadas, etc.), 'recomendacao_genetica' (Sugestão de genética compatível com o rebanho do cliente), 'desconhecido' (Fora de escopo)."
+      description: "Intenção principal: 'relatorio_te' (Transferência de Embrião), 'relatorio_dg' (Diagnóstico de Gestação), 'relatorio_aspiracao' (Aspiração), 'relatorio_sexagem' (Sexagem), 'relatorio_receptoras' (Status e contagem de receptoras/barrigas de aluguel), 'relatorio_rebanho' (Estoque geral de animais, doadoras e touros), 'relatorio_animal_especifico' (Status de apenas UM animal exato mencionado no termo de busca), 'resumo_geral' (Resumo geral da fazenda — retorna dados reais de receptoras, doadoras, animais e DGs), 'desempenho_veterinario' (Aproveitamento ou perfomance de um vet), 'lista_receptoras' (Listar receptoras com filtros — por status, etapa próxima, dias de gestação, aptas para protocolo, repetidoras), 'lista_doadoras' (Listar doadoras com filtros — por média de oócitos, total aspirações), 'proximos_partos' (Animais com parto previsto nos próximos dias/semanas), 'proximos_servicos' (Próximas etapas — 2ºPasso, TE, DG, Sexagem — baseado no status atual), 'relatorio_protocolos' (Protocolos e receptoras protocoladas em um período), 'analise_repetidoras' (Receptoras com múltiplos protocolos consecutivos sem emprenhar), 'nascimentos' (Bezerros nascidos/registrados no período), 'estoque_semen' (Doses de sêmen disponíveis em estoque por touro), 'estoque_embrioes' (Embriões congelados em estoque por classificação), 'desempenho_touro' (Ranking de touros por taxa de prenhez nas DGs), 'comparacao_fazendas' (Comparar desempenho reprodutivo entre fazendas), 'catalogo_genetica' (Catálogo de doadoras e touros disponíveis para compra no marketplace), 'meu_botijao' (Estoque pessoal de doses de sêmen e embriões do cliente), 'minhas_reservas' (Reservas de genética do cliente — pendentes, confirmadas, etc.), 'recomendacao_genetica' (Sugestão de genética compatível com o rebanho do cliente), 'doadoras_disponiveis' (Doadoras disponíveis/prontas para aspiração — passaram 15 dias de descanso), 'desconhecido' (Fora de escopo)."
     },
     meses_retroativos: {
       type: "INTEGER",
@@ -148,6 +155,14 @@ const RESPONSE_SCHEMA = {
         destaque: {
           type: "BOOLEAN",
           description: "True = somente destaques do catálogo. Para intent catalogo_genetica."
+        },
+        limite: {
+          type: "INTEGER",
+          description: "Quantidade máxima de resultados. Ex: 'a última aspiração' = 1, 'as 3 últimas' = 3. Null = sem limite (retorna todos do período)."
+        },
+        data_alvo: {
+          type: "STRING",
+          description: "Data-alvo em formato YYYY-MM-DD. Usada para intent 'doadoras_disponiveis' quando o usuário menciona uma data específica. Ex: 'disponíveis dia 15/03/2026' = '2026-03-15'. Null = data de hoje."
         }
       }
     }

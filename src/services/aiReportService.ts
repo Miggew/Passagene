@@ -32,6 +32,7 @@ export interface AIIntent {
     | 'nascimentos' | 'estoque_semen' | 'estoque_embrioes'
     | 'desempenho_touro' | 'comparacao_fazendas'
     | 'catalogo_genetica' | 'meu_botijao' | 'minhas_reservas' | 'recomendacao_genetica'
+    | 'doadoras_disponiveis'
     | 'desconhecido';
     meses_retroativos: number;
     nome_veterinario: string | null;
@@ -51,6 +52,8 @@ export interface AIIntent {
         media_oocitos_min?: number;
         tipo_catalogo?: 'doadora' | 'touro';
         destaque?: boolean;
+        limite?: number;
+        data_alvo?: string;
     };
 }
 
@@ -107,6 +110,34 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 const aguardandoDG = receptorasComTE - comDG;
                 const taxaAproveitamento = comDG > 0 ? ((prenhes / comDG) * 100).toFixed(1) : '—';
 
+                // Fetch receptora names for detailed PDF
+                const teRecUniqueIds = [...new Set(tes.map(t => t.receptora_id))];
+                const recsInfo = teRecUniqueIds.length > 0
+                    ? await fetchInChunks('receptoras', 'id, identificacao', 'id', teRecUniqueIds)
+                    : [];
+                const recMap = new Map(recsInfo.map((r: any) => [r.id, r.identificacao || r.id.substring(0, 8)]));
+
+                // Group by data_te + veterinario
+                const teGroupMap = new Map<string, { data: string; veterinario: string; receptoras: { identificacao: string; status_te: string }[] }>();
+                for (const te of tes) {
+                    const key = `${te.data_te}|${te.veterinario_responsavel || 'Não informado'}`;
+                    if (!teGroupMap.has(key)) {
+                        teGroupMap.set(key, {
+                            data: te.data_te,
+                            veterinario: te.veterinario_responsavel || 'Não informado',
+                            receptoras: [],
+                        });
+                    }
+                    teGroupMap.get(key)!.receptoras.push({
+                        identificacao: recMap.get(te.receptora_id) || te.receptora_id.substring(0, 8),
+                        status_te: te.status_te || '—',
+                    });
+                }
+                const registros = Array.from(teGroupMap.values()).map(g => ({
+                    ...g,
+                    total: g.receptoras.length,
+                }));
+
                 return {
                     tipo: 'TE',
                     periodo: `${limitMeses} meses`,
@@ -116,6 +147,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     aguardandoDG,
                     prenhes,
                     taxaAproveitamento: taxaAproveitamento !== '—' ? `${taxaAproveitamento}%` : taxaAproveitamento,
+                    registros,
                 };
             }
 
@@ -124,7 +156,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                 const dgs: any[] = await fetchInChunks(
                     'diagnosticos_gestacao',
-                    'id, data_diagnostico, resultado, veterinario_responsavel',
+                    'id, receptora_id, data_diagnostico, resultado, veterinario_responsavel',
                     'receptora_id',
                     receptoraIds,
                     (q) => {
@@ -138,6 +170,36 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 const negativos = dgs.filter(dg => dg.resultado === 'VAZIA').length;
                 const taxaPrenhez = dgs.length > 0 ? ((positivos / dgs.length) * 100).toFixed(1) : '0.0';
 
+                // Fetch receptora names for detailed PDF
+                const dgRecUniqueIds = [...new Set(dgs.map((d: any) => d.receptora_id))];
+                const dgRecsInfo = dgRecUniqueIds.length > 0
+                    ? await fetchInChunks('receptoras', 'id, identificacao', 'id', dgRecUniqueIds)
+                    : [];
+                const dgRecMap = new Map(dgRecsInfo.map((r: any) => [r.id, r.identificacao || r.id.substring(0, 8)]));
+
+                // Group by data_diagnostico + veterinario
+                const dgGroupMap = new Map<string, { data: string; veterinario: string; receptoras: { identificacao: string; resultado: string }[] }>();
+                for (const dg of dgs) {
+                    const key = `${dg.data_diagnostico}|${dg.veterinario_responsavel || 'Não informado'}`;
+                    if (!dgGroupMap.has(key)) {
+                        dgGroupMap.set(key, {
+                            data: dg.data_diagnostico,
+                            veterinario: dg.veterinario_responsavel || 'Não informado',
+                            receptoras: [],
+                        });
+                    }
+                    dgGroupMap.get(key)!.receptoras.push({
+                        identificacao: dgRecMap.get(dg.receptora_id) || dg.receptora_id.substring(0, 8),
+                        resultado: dg.resultado || '—',
+                    });
+                }
+                const dgRegistros = Array.from(dgGroupMap.values()).map(g => ({
+                    ...g,
+                    total: g.receptoras.length,
+                    prenhes: g.receptoras.filter(r => r.resultado?.startsWith('PRENHE')).length,
+                    vazias: g.receptoras.filter(r => r.resultado === 'VAZIA').length,
+                }));
+
                 return {
                     tipo: 'DG',
                     periodo: `${limitMeses} meses`,
@@ -145,6 +207,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     positivos,
                     negativos,
                     taxaPrenhez: `${taxaPrenhez}%`,
+                    registros: dgRegistros,
                 };
             }
 
@@ -153,7 +216,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                 const sexagens: any[] = await fetchInChunks(
                     'diagnosticos_gestacao',
-                    'id, data_diagnostico, sexagem',
+                    'id, receptora_id, data_diagnostico, sexagem',
                     'receptora_id',
                     receptoraIds,
                     (q) => q.eq('tipo_diagnostico', 'SEXAGEM').gte('data_diagnostico', dataInicio).not('sexagem', 'is', null)
@@ -162,34 +225,121 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 const machos = sexagens.filter(s => s.sexagem === 'MACHO').length;
                 const femeas = sexagens.filter(s => s.sexagem === 'FEMEA').length;
 
+                // Fetch receptora names for detailed PDF
+                const sexRecUniqueIds = [...new Set(sexagens.map((s: any) => s.receptora_id))];
+                const sexRecsInfo = sexRecUniqueIds.length > 0
+                    ? await fetchInChunks('receptoras', 'id, identificacao', 'id', sexRecUniqueIds)
+                    : [];
+                const sexRecMap = new Map(sexRecsInfo.map((r: any) => [r.id, r.identificacao || r.id.substring(0, 8)]));
+
+                // Group by data_diagnostico
+                const sexGroupMap = new Map<string, { data: string; receptoras: { identificacao: string; sexagem: string }[] }>();
+                for (const s of sexagens) {
+                    const key = s.data_diagnostico;
+                    if (!sexGroupMap.has(key)) {
+                        sexGroupMap.set(key, { data: s.data_diagnostico, receptoras: [] });
+                    }
+                    sexGroupMap.get(key)!.receptoras.push({
+                        identificacao: sexRecMap.get(s.receptora_id) || s.receptora_id.substring(0, 8),
+                        sexagem: s.sexagem || '—',
+                    });
+                }
+                const sexRegistros = Array.from(sexGroupMap.values()).map(g => ({
+                    ...g,
+                    total: g.receptoras.length,
+                }));
+
                 return {
                     tipo: 'SEXAGEM',
                     periodo: `${limitMeses} meses`,
                     total: sexagens.length,
                     machos,
                     femeas,
+                    registros: sexRegistros,
                 };
             }
 
             case 'relatorio_aspiracao': {
+                const limite = intent.filtros?.limite;
+
                 let query = supabase
                     .from('pacotes_aspiracao')
-                    .select('id, data_aspiracao, veterinario_responsavel')
+                    .select('id, data_aspiracao, veterinario_responsavel, fazenda_id')
                     .in('fazenda_id', farmIds)
-                    .gte('data_aspiracao', dataInicio);
+                    .order('data_aspiracao', { ascending: false });
+
+                // Se pediu "a última", não filtra por período para garantir que pega a mais recente
+                if (!limite) {
+                    query = query.gte('data_aspiracao', dataInicio);
+                }
 
                 if (intent.nome_veterinario) {
                     query = query.ilike('veterinario_responsavel', `%${intent.nome_veterinario}%`);
                 }
 
-                const { data: aspiracoes, error } = await query;
+                if (limite && limite > 0) {
+                    query = query.limit(limite);
+                }
+
+                const { data: pacotes, error } = await query;
                 if (error) throw error;
+
+                if (!pacotes || pacotes.length === 0) {
+                    return { tipo: 'ASPIRACAO', periodo: limite === 1 ? 'Última sessão' : `${limitMeses} meses`, totalSessoes: 0, sessoes: [] };
+                }
+
+                const pacoteIds = pacotes.map(p => p.id);
+
+                // Fetch aspirações por doadora de cada pacote
+                const aspDoadoras = await fetchInChunks(
+                    'aspiracoes_doadoras',
+                    'id, pacote_aspiracao_id, doadora_id, viaveis, total_oocitos',
+                    'pacote_aspiracao_id',
+                    pacoteIds
+                );
+
+                // Fetch nomes das doadoras
+                const doadoraIds = [...new Set((aspDoadoras || []).map((a: any) => a.doadora_id).filter(Boolean))];
+                const doadoras = doadoraIds.length > 0
+                    ? await fetchInChunks('doadoras', 'id, nome, registro, raca', 'id', doadoraIds)
+                    : [];
+                const doadoraMap = new Map((doadoras || []).map((d: any) => [d.id, d]));
+
+                // Montar sessões com detalhe por doadora
+                let totalOocitos = 0;
+                let totalViaveis = 0;
+                const sessoes = pacotes.map(p => {
+                    const doadorasNaSessao = (aspDoadoras || [])
+                        .filter((a: any) => a.pacote_aspiracao_id === p.id)
+                        .map((a: any) => {
+                            const doa = doadoraMap.get(a.doadora_id);
+                            totalOocitos += a.total_oocitos || 0;
+                            totalViaveis += a.viaveis || 0;
+                            return {
+                                nome: doa?.nome || doa?.registro || '—',
+                                raca: doa?.raca || null,
+                                totalOocitos: a.total_oocitos || 0,
+                                viaveis: a.viaveis || 0,
+                            };
+                        });
+                    return {
+                        data: p.data_aspiracao,
+                        veterinario: p.veterinario_responsavel || 'Não informado',
+                        totalDoadoras: doadorasNaSessao.length,
+                        totalOocitosSessao: doadorasNaSessao.reduce((s: number, d: any) => s + d.totalOocitos, 0),
+                        totalViaveisSessao: doadorasNaSessao.reduce((s: number, d: any) => s + d.viaveis, 0),
+                        doadoras: doadorasNaSessao,
+                    };
+                });
 
                 return {
                     tipo: 'ASPIRACAO',
-                    periodo: `${limitMeses} meses`,
-                    totalSessoes: aspiracoes.length,
-                    raw: aspiracoes
+                    periodo: limite === 1 ? 'Última sessão' : limite ? `Últimas ${limite} sessões` : `${limitMeses} meses`,
+                    totalSessoes: pacotes.length,
+                    totalOocitos,
+                    totalViaveis,
+                    mediaViaveisPorSessao: pacotes.length > 0 ? Math.round((totalViaveis / pacotes.length) * 10) / 10 : 0,
+                    sessoes,
                 };
             }
 
@@ -829,7 +979,7 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
             case 'relatorio_protocolos': {
                 const { data: prots, error: protErr } = await supabase
                     .from('protocolos_sincronizacao')
-                    .select('id, data_inicio, status')
+                    .select('id, data_inicio, status, veterinario_responsavel')
                     .in('fazenda_id', farmIds)
                     .gte('data_inicio', dataInicio);
 
@@ -843,12 +993,25 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
 
                 const { data: protRecs } = await supabase
                     .from('protocolo_receptoras')
-                    .select('id, status')
+                    .select('id, protocolo_id, status')
                     .in('protocolo_id', protIds);
 
                 const totalReceptoras = protRecs?.length || 0;
                 const aptas = protRecs?.filter(r => r.status === 'APTA' || r.status === 'UTILIZADA').length || 0;
                 const inaptas = protRecs?.filter(r => r.status === 'INAPTA').length || 0;
+
+                // Build per-protocol registros
+                const protRegistros = prots.map(p => {
+                    const recsInProt = (protRecs || []).filter(r => r.protocolo_id === p.id);
+                    return {
+                        data: p.data_inicio,
+                        veterinario: p.veterinario_responsavel || 'Não informado',
+                        status: p.status || '—',
+                        totalReceptoras: recsInProt.length,
+                        aptas: recsInProt.filter(r => r.status === 'APTA' || r.status === 'UTILIZADA').length,
+                        inaptas: recsInProt.filter(r => r.status === 'INAPTA').length,
+                    };
+                });
 
                 return {
                     tipo: 'PROTOCOLOS',
@@ -857,15 +1020,17 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     totalReceptoras,
                     aptas,
                     inaptas,
+                    registros: protRegistros,
                 };
             }
 
             case 'nascimentos': {
                 if (farmIds.length === 0) return { error: 'Nenhuma fazenda vinculada.' };
 
+                // Query base — sem nested joins profundos (podem falhar silenciosamente)
                 const { data: animaisNasc, error: nascErr } = await supabase
                     .from('animais')
-                    .select('id, sexo, created_at')
+                    .select('id, sexo, raca, data_nascimento, pai_nome, mae_nome, receptora_id, embriao_id')
                     .in('fazenda_id', farmIds)
                     .gte('created_at', dataInicio);
                 if (nascErr) throw nascErr;
@@ -873,12 +1038,80 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                 const machos = (animaisNasc || []).filter(a => a.sexo === 'MACHO').length;
                 const femeas = (animaisNasc || []).filter(a => a.sexo === 'FÊMEA' || a.sexo === 'FEMEA').length;
 
+                // Buscar nomes das receptoras
+                const nascRecIds = [...new Set((animaisNasc || []).map((a: any) => a.receptora_id).filter(Boolean))];
+                const nascRecsInfo = nascRecIds.length > 0
+                    ? await fetchInChunks('receptoras', 'id, identificacao', 'id', nascRecIds)
+                    : [];
+                const nascRecMap = new Map(nascRecsInfo.map((r: any) => [r.id, r.identificacao]));
+
+                // Buscar doadora e touro via embriao → acasalamento → aspiração/dose
+                const nascEmbIds = [...new Set((animaisNasc || []).map((a: any) => a.embriao_id).filter(Boolean))];
+                const embDoaTouroMap = new Map<string, { doadora: string; touro: string }>();
+
+                if (nascEmbIds.length > 0) {
+                    const embrioes = await fetchInChunks('embrioes', 'id, lote_fiv_acasalamento_id', 'id', nascEmbIds);
+                    const acIds = [...new Set((embrioes || []).map((e: any) => e.lote_fiv_acasalamento_id).filter(Boolean))];
+
+                    if (acIds.length > 0) {
+                        const acasalamentos = await fetchInChunks('lote_fiv_acasalamentos', 'id, aspiracao_doadora_id, dose_semen_id', 'id', acIds);
+
+                        // Buscar doadoras
+                        const aspIds = [...new Set((acasalamentos || []).map((a: any) => a.aspiracao_doadora_id).filter(Boolean))];
+                        const aspDoas = aspIds.length > 0
+                            ? await fetchInChunks('aspiracoes_doadoras', 'id, doadora_id', 'id', aspIds) : [];
+                        const doaIds = [...new Set((aspDoas || []).map((a: any) => a.doadora_id).filter(Boolean))];
+                        const doadoras = doaIds.length > 0
+                            ? await fetchInChunks('doadoras', 'id, nome, registro', 'id', doaIds) : [];
+                        const doaMap = new Map(doadoras.map((d: any) => [d.id, d.nome || d.registro || '—']));
+                        const aspDoaMap = new Map(aspDoas.map((a: any) => [a.id, doaMap.get(a.doadora_id) || '—']));
+
+                        // Buscar touros
+                        const doseIds = [...new Set((acasalamentos || []).map((a: any) => a.dose_semen_id).filter(Boolean))];
+                        const doses = doseIds.length > 0
+                            ? await fetchInChunks('doses_semen', 'id, touro_id', 'id', doseIds) : [];
+                        const touroIds = [...new Set(doses.map((d: any) => d.touro_id).filter(Boolean))];
+                        const touros = touroIds.length > 0
+                            ? await fetchInChunks('touros', 'id, nome', 'id', touroIds) : [];
+                        const touroMap = new Map(touros.map((t: any) => [t.id, t.nome || '—']));
+                        const doseTouroMap = new Map(doses.map((d: any) => [d.id, touroMap.get(d.touro_id) || '—']));
+
+                        // Mapear acasalamento → {doadora, touro}
+                        const acMap = new Map<string, { doadora: string; touro: string }>();
+                        (acasalamentos || []).forEach((ac: any) => {
+                            acMap.set(ac.id, {
+                                doadora: aspDoaMap.get(ac.aspiracao_doadora_id) || '—',
+                                touro: doseTouroMap.get(ac.dose_semen_id) || '—',
+                            });
+                        });
+
+                        // Mapear embriao_id → {doadora, touro}
+                        (embrioes || []).forEach((e: any) => {
+                            const info = acMap.get(e.lote_fiv_acasalamento_id);
+                            if (info) embDoaTouroMap.set(e.id, info);
+                        });
+                    }
+                }
+
+                const nascRegistros = (animaisNasc || []).map((a: any) => {
+                    const info = embDoaTouroMap.get(a.embriao_id);
+                    return {
+                        pai: info?.touro || a.pai_nome || '—',
+                        doadora: info?.doadora || a.mae_nome || '—',
+                        receptora: nascRecMap.get(a.receptora_id) || '—',
+                        sexo: a.sexo || '—',
+                        raca: a.raca || '—',
+                        data: a.data_nascimento || '—',
+                    };
+                });
+
                 return {
                     tipo: 'NASCIMENTOS',
                     periodo: `${limitMeses} meses`,
                     total: (animaisNasc || []).length,
                     machos,
                     femeas,
+                    registros: nascRegistros,
                 };
             }
 
@@ -1372,6 +1605,109 @@ export async function fetchReportDataFromIntent(intent: AIIntent, farmIds: strin
                     totalDoadoras: usandoDoadorasCliente ? doadorasCliente.length : catDoadoras.length,
                     totalTouros: touros.length,
                     cruzamentos,
+                };
+            }
+
+            case 'doadoras_disponiveis': {
+                if (farmIds.length === 0) return { error: 'Nenhuma fazenda vinculada.' };
+
+                const DIAS_DESCANSO = 15;
+                const dataAlvo = intent.filtros?.data_alvo || todayISO();
+
+                // Buscar todas as doadoras das fazendas
+                const { data: doas, error: doaErr } = await supabase
+                    .from('doadoras')
+                    .select('id, nome, registro, raca')
+                    .in('fazenda_id', farmIds);
+                if (doaErr) throw doaErr;
+                if (!doas || doas.length === 0) return { tipo: 'DOADORAS_DISPONIVEIS', total: 0, dataAlvo, registros: [] };
+
+                const doaIds = doas.map(d => d.id);
+
+                // Buscar TODAS as aspirações com viáveis — usando data_aspiracao direto
+                const aspiracoes = await fetchInChunks(
+                    'aspiracoes_doadoras',
+                    'doadora_id, data_aspiracao, viaveis',
+                    'doadora_id',
+                    doaIds
+                );
+
+                // Agrupar aspirações por doadora_id (todas, ordenadas por data desc)
+                const aspByIdMap = new Map<string, { data: string; viaveis: number }[]>();
+                (aspiracoes || []).forEach((a: any) => {
+                    if (!a.data_aspiracao) return;
+                    const arr = aspByIdMap.get(a.doadora_id) || [];
+                    arr.push({ data: a.data_aspiracao, viaveis: a.viaveis || 0 });
+                    aspByIdMap.set(a.doadora_id, arr);
+                });
+                // Ordenar cada lista por data desc
+                aspByIdMap.forEach(arr => arr.sort((a, b) => b.data.localeCompare(a.data)));
+
+                // Deduplicar por registro — mesma doadora pode estar em múltiplas fazendas com IDs diferentes
+                // Agrupar todos os IDs por registro/nome, consolidar aspirações
+                const doaByKey = new Map<string, { nome: string; registro: string; raca: string; allAsps: { data: string; viaveis: number }[] }>();
+                for (const d of doas) {
+                    const key = (d.registro || d.nome || d.id).toUpperCase().trim();
+                    const asps = aspByIdMap.get(d.id) || [];
+                    const existing = doaByKey.get(key);
+
+                    if (!existing) {
+                        doaByKey.set(key, {
+                            nome: d.nome || d.registro || d.id.substring(0, 8),
+                            registro: d.registro || '—',
+                            raca: d.raca || '—',
+                            allAsps: [...asps],
+                        });
+                    } else {
+                        // Merge aspirações de todos os IDs da mesma doadora
+                        existing.allAsps.push(...asps);
+                    }
+                }
+                // Re-ordenar aspirações consolidadas por data desc
+                doaByKey.forEach(v => v.allAsps.sort((a, b) => b.data.localeCompare(a.data)));
+
+                // Filtrar: disponível se última_asp + 15 <= dataAlvo (ou nunca aspirada)
+                let somaViaveis = 0;
+                const registros = Array.from(doaByKey.values())
+                    .map(d => {
+                        const ultimaAsp = d.allAsps.length > 0 ? d.allAsps[0].data : null;
+                        const disponivel_em = ultimaAsp ? addDaysISO(ultimaAsp, DIAS_DESCANSO) : null;
+                        const disponivel = !ultimaAsp || disponivel_em! <= dataAlvo;
+                        const diasDescanso = ultimaAsp ? diffDays(ultimaAsp, dataAlvo) : null;
+                        // Média de viáveis das últimas 3 aspirações
+                        const ultimas3 = d.allAsps.slice(0, 3);
+                        const mediaViaveis = ultimas3.length > 0
+                            ? Math.round((ultimas3.reduce((s, a) => s + a.viaveis, 0) / ultimas3.length) * 10) / 10
+                            : null;
+                        return {
+                            nome: d.nome,
+                            registro: d.registro,
+                            raca: d.raca,
+                            ultimaAspiracao: ultimaAsp,
+                            diasDescanso,
+                            disponivel_em: disponivel_em || 'Já disponível',
+                            disponivel,
+                            mediaViaveis,
+                            totalAspiracoes: d.allAsps.length,
+                        };
+                    })
+                    .filter(d => d.disponivel)
+                    .sort((a, b) => (b.diasDescanso ?? 999) - (a.diasDescanso ?? 999));
+
+                // Soma total de viáveis (todas as aspirações de todas as doadoras disponíveis)
+                registros.forEach(r => {
+                    const key = (r.registro !== '—' ? r.registro : r.nome).toUpperCase().trim();
+                    const d = doaByKey.get(key);
+                    if (d) somaViaveis += d.allAsps.reduce((s, a) => s + a.viaveis, 0);
+                });
+
+                return {
+                    tipo: 'DOADORAS_DISPONIVEIS',
+                    dataAlvo,
+                    total: registros.length,
+                    totalDoadoras: doaByKey.size,
+                    somaViaveis,
+                    registros,
                 };
             }
 

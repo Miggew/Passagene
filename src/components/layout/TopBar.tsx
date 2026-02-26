@@ -6,7 +6,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useGlobalAnalysisQueue, useCancelAllAnalysis } from '@/hooks/useEmbryoScores';
 import type { GlobalAnalysisQueueData } from '@/hooks/useEmbryoScores';
 import { LoaderDNA } from '@/components/ui/LoaderDNA';
-import { Settings, LogOut, Sun, Moon, User, X } from 'lucide-react';
+import { LogOut, Sun, Moon, User, X } from 'lucide-react';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 import { LogoPassagene } from '@/components/ui/LogoPassagene';
 import { cn } from '@/lib/utils';
 
@@ -162,16 +163,16 @@ export default function TopBar() {
                                     </div>
                                 </button>
 
-                                {/* Preferencias */}
+                                {/* Meu Perfil */}
                                 <button
-                                    onClick={() => { setIsMenuOpen(false); if (isCliente) navigate('/cliente/configuracoes'); }}
+                                    onClick={() => { setIsMenuOpen(false); navigate('/'); }}
                                     className={cn(
                                         "group/btn flex items-center justify-end gap-3 transition-all duration-300 ease-out",
                                         isMenuOpen ? "translate-y-0 scale-100 delay-[100ms]" : "translate-y-[-40px] scale-75"
                                     )}
                                 >
                                     <span className="px-2.5 py-1 rounded-full glass-panel border border-border text-foreground font-bold text-[10px] tracking-wide whitespace-nowrap shadow-md opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300">
-                                        Preferências
+                                        Meu Perfil
                                     </span>
                                     <div className="w-10 h-10 rounded-full glass-panel shadow-lg flex items-center justify-center border-2 border-border group-hover/btn:border-primary/50 transition-colors">
                                         <User className="w-4 h-4 text-foreground" />
@@ -196,17 +197,18 @@ export default function TopBar() {
                                 </button>
                             </div>
 
-                            {/* Célula Mãe (A Engrenagem de Click) */}
+                            {/* Célula Mãe (Avatar do Usuário) */}
                             <div
                                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                                 className={cn(
-                                    "relative z-50 w-10 h-10 rounded-xl border-[3px] shadow-brutal-sm flex items-center justify-center cursor-pointer transition-all duration-300 active:translate-y-1 active:shadow-none",
-                                    isMenuOpen ? "bg-muted border-border text-foreground shadow-sm" : "glass-panel border-border text-foreground hover:bg-muted"
+                                    "relative z-50 cursor-pointer transition-all duration-300 active:scale-95",
+                                    isMenuOpen && "ring-2 ring-primary/40 rounded-full"
                                 )}>
-                                <Settings className={cn(
-                                    "w-5 h-5 transition-transform duration-500",
-                                    isMenuOpen ? "rotate-90 scale-110 text-[#080B0A]" : "text-foreground"
-                                )} />
+                                <ProfileAvatar
+                                    nome={profile?.nome}
+                                    avatarPath={profile?.avatar_url}
+                                    size="sm"
+                                />
                             </div>
 
                         </div>

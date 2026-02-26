@@ -19,11 +19,12 @@ import { TouroCard } from '@/components/cliente/TouroCard';
 import { EmbrioCard } from '@/components/cliente/EmbrioCard';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Dna, ShoppingBag, ClipboardList, Container, Snowflake, Search, RefreshCw } from 'lucide-react';
+import { Dna, ShoppingBag, ClipboardList, Container, Snowflake, Search, RefreshCw, Users } from 'lucide-react';
 import { SpermIcon } from '@/components/icons/SpermIcon';
 import { DonorCowIcon } from '@/components/icons/DonorCowIcon';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import MercadoComunitario from '@/components/profile/MercadoComunitario';
 import type { CatalogoDoadora, CatalogoTouro } from '@/hooks/genetica/useCatalogoData';
 
 type TipoFilter = 'todos' | 'doadora' | 'touro';
@@ -63,7 +64,7 @@ export default function ClienteMercado() {
   // State — Catálogo (inicializar tab a partir da URL se presente)
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(
-    tabParam === 'botijao' || tabParam === 'reservas' ? tabParam : 'catalogo'
+    tabParam === 'botijao' || tabParam === 'reservas' || tabParam === 'comunidade' ? tabParam : 'catalogo'
   );
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos');
   const [racaFilter, setRacaFilter] = useState('');
@@ -265,7 +266,7 @@ export default function ClienteMercado() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* 3 Tabs premium */}
         <div className="rounded-xl border border-border/60 glass-panel p-1.5 shadow-sm">
-          <TabsList className="grid grid-cols-3 h-auto p-0 bg-transparent gap-1.5">
+          <TabsList className="grid grid-cols-4 h-auto p-0 bg-transparent gap-1.5">
             {/* Catálogo */}
             <TabsTrigger
               value="catalogo"
@@ -345,6 +346,28 @@ export default function ClienteMercado() {
               )}
               {activeTab === 'reservas' && (
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-amber-500 rounded-full" />
+              )}
+            </TabsTrigger>
+
+            {/* Comunidade */}
+            <TabsTrigger
+              value="comunidade"
+              aria-label="Comunidade — Anúncios de outros usuários"
+              className={cn(
+                'relative h-12 gap-1.5 rounded-lg font-medium transition-all duration-200',
+                'data-[state=active]:bg-muted/80 data-[state=active]:shadow-sm',
+                'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/40'
+              )}
+            >
+              <div className={cn(
+                'w-7 h-7 rounded-md flex items-center justify-center transition-colors border',
+                activeTab === 'comunidade' ? 'bg-violet-500/15 border-violet-500/20' : 'bg-muted/50 border-transparent'
+              )}>
+                <Users className={cn('w-4 h-4', activeTab === 'comunidade' ? 'text-violet-500' : 'text-muted-foreground')} />
+              </div>
+              <span className="hidden sm:inline">Comunidade</span>
+              {activeTab === 'comunidade' && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-violet-500 rounded-full" />
               )}
             </TabsTrigger>
           </TabsList>
@@ -578,6 +601,11 @@ export default function ClienteMercado() {
               cancelando={cancelando}
             />
           )}
+        </TabsContent>
+
+        {/* ═══ Tab Comunidade (C2C) ═══ */}
+        <TabsContent value="comunidade" className="mt-4">
+          <MercadoComunitario />
         </TabsContent>
       </Tabs>
 

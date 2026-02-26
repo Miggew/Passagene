@@ -17,6 +17,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 // Paginas do app
 const Home = lazy(() => import('./pages/Home'));
+const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const FazendaDetail = lazy(() => import('./pages/FazendaDetail'));
 const Doadoras = lazy(() => import('./pages/Doadoras'));
 const DoadoraDetail = lazy(() => import('./pages/DoadoraDetail'));
@@ -133,7 +134,7 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
   if (permissions.isAdmin) return <>{children}</>;
 
   // Rotas compartilhadas que todos os usuários autenticados podem acessar
-  const sharedRoutes = ['/', '/sem-acesso', '/genia', '/ai-chat'];
+  const sharedRoutes = ['/', '/sem-acesso', '/genia', '/ai-chat', '/perfil'];
   if (sharedRoutes.some(r => location.pathname === r)) return <>{children}</>;
 
   // Cliente só acessa /cliente/* e /genetica/*
@@ -179,8 +180,11 @@ const AppRoutes = () => {
           {/* Rotas protegidas (app principal com MainLayout + role guard) */}
           <Route element={<ProtectedRoute><RoleGuard><MainLayout /></RoleGuard></ProtectedRoute>}>
 
-            {/* Página inicial - Dashboard unificado por tipo de usuário */}
+            {/* Página inicial - Perfil pessoal + Dashboard por tipo */}
             <Route path="/" element={<Home />} />
+
+            {/* Perfil público */}
+            <Route path="/perfil/:slug" element={<PublicProfile />} />
 
             {/* Painel Administrativo Unificado */}
             <Route path="/administrativo" element={<Administrativo />} />

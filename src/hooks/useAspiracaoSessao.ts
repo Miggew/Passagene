@@ -131,8 +131,16 @@ export function useAspiracaoSessao() {
         if (submittingRef.current) return;
         submittingRef.current = true;
 
+        let pacoteId: string | null = null;
+
         try {
             setSubmitting(true);
+
+            // Validação: pelo menos 1 doadora
+            if (doadoras.length === 0) {
+                toast({ title: 'Adicione pelo menos uma doadora antes de finalizar.', variant: 'destructive' });
+                return;
+            }
 
             // 1. Criar doadoras novas (se houver)
             const doadorasParaCriar = doadoras.filter(d => d.isNew);
@@ -159,7 +167,7 @@ export function useAspiracaoSessao() {
                 .from('pacotes_aspiracao')
                 .insert({
                     fazenda_id: formData.fazenda_id,
-                    fazenda_destino_id: fazendasDestinoIds[0] || null, // Legacy support if needed, or null
+                    fazenda_destino_id: fazendasDestinoIds[0] || null,
                     data_aspiracao: formData.data_aspiracao,
                     horario_inicio: formData.horario_inicio || null,
                     veterinario_responsavel: formData.veterinario_responsavel.trim(),
@@ -171,6 +179,7 @@ export function useAspiracaoSessao() {
                 .single();
 
             if (pacoteError) throw pacoteError;
+            pacoteId = pacote.id;
 
             // 3. Criar fazendas destino (Many-to-Many)
             if (fazendasDestinoIds.length > 0) {
@@ -217,6 +226,9 @@ export function useAspiracaoSessao() {
 
             if (aspiracoesError) throw aspiracoesError;
 
+            // Tudo OK — limpar pacoteId para não deletar no finally
+            pacoteId = null;
+
             limparRascunho();
             resetForm();
             toast({
@@ -226,6 +238,13 @@ export function useAspiracaoSessao() {
 
         } catch (error) {
             console.error(error);
+
+            // Cleanup: se o pacote foi criado mas passos posteriores falharam, remove o órfão
+            if (pacoteId) {
+                await supabase.from('pacotes_aspiracao_fazendas_destino').delete().eq('pacote_aspiracao_id', pacoteId);
+                await supabase.from('pacotes_aspiracao').delete().eq('id', pacoteId);
+            }
+
             toast({
                 title: 'Erro ao finalizar',
                 description: error instanceof Error ? error.message : 'Erro desconhecido',

@@ -22,6 +22,13 @@ export interface UserProfile {
   user_type: UserType;
   cliente_id?: string;
   active: boolean;
+  avatar_url?: string;
+  banner_url?: string;
+  bio?: string;
+  profile_slug?: string;
+  profile_public?: boolean;
+  telefone?: string;
+  localizacao?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -50,6 +57,7 @@ export interface Cliente {
   nome: string;
   telefone?: string;
   endereco?: string;
+  logo_url?: string;
   created_at?: string;
 }
 
@@ -965,4 +973,97 @@ export interface ItemTransferenciaQuery {
   brinco?: string;
   nome?: string;
   [key: string]: unknown;
+}
+
+// ========================================
+// Tipos para Perfil e Marketplace C2C
+// ========================================
+
+export type ProfileSectionType = 'text' | 'animal_showcase' | 'photo_gallery' | 'stats' | 'fazenda_highlight';
+
+export interface ProfileSection {
+  id: string;
+  user_id: string;
+  section_type: ProfileSectionType;
+  title: string;
+  content: ProfileSectionContent;
+  sort_order: number;
+  is_public: boolean;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Conteúdo JSONB por tipo de seção
+export type ProfileSectionContent =
+  | TextSectionContent
+  | AnimalShowcaseContent
+  | PhotoGalleryContent
+  | StatsSectionContent
+  | FazendaHighlightContent;
+
+export interface TextSectionContent {
+  body: string;
+}
+
+export interface AnimalShowcaseContent {
+  animals: Array<{
+    type: 'doadora' | 'touro';
+    id: string;
+    nome: string;
+    foto_url?: string;
+  }>;
+  layout?: 'grid' | 'carousel';
+}
+
+export interface PhotoGalleryContent {
+  photos: Array<{
+    url: string;
+    caption?: string;
+  }>;
+  layout?: 'grid' | 'masonry';
+}
+
+export interface StatsSectionContent {
+  show_doadoras?: boolean;
+  show_receptoras?: boolean;
+  show_embrioes?: boolean;
+  custom_stats?: Array<{
+    label: string;
+    value: string;
+    icon?: string;
+  }>;
+}
+
+export interface FazendaHighlightContent {
+  fazenda_id: string;
+  show_map?: boolean;
+  show_animal_count?: boolean;
+  custom_description?: string;
+}
+
+export type AnuncioTipo = 'doadora' | 'touro' | 'embriao' | 'dose' | 'outro';
+export type AnuncioStatus = 'RASCUNHO' | 'ATIVO' | 'PAUSADO' | 'VENDIDO' | 'REMOVIDO';
+
+export interface AnuncioUsuario {
+  id: string;
+  user_id: string;
+  cliente_id?: string;
+  tipo: AnuncioTipo;
+  titulo: string;
+  descricao?: string;
+  preco?: number;
+  preco_negociavel?: boolean;
+  doadora_id?: string;
+  touro_id?: string;
+  foto_principal?: string;
+  fotos_galeria?: string[];
+  status: AnuncioStatus;
+  created_at?: string;
+  updated_at?: string;
+  // Campos enriquecidos (joins)
+  vendedor_nome?: string;
+  vendedor_avatar?: string;
+  vendedor_slug?: string;
+  vendedor_localizacao?: string;
 }
