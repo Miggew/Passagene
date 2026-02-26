@@ -34,7 +34,7 @@ export const LoaderDNA: React.FC<LoaderDNAProps> = ({
         switch (variant) {
             case 'premium':
                 return {
-                    bg: 'linear-gradient(135deg, #34D399, #D4A24C)',
+                    bg: 'var(--gradient-dna)',
                     frontStrand: '#ffffff',
                     backStrand: 'rgba(255, 255, 255, 0.5)',
                 };

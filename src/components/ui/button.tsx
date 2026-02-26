@@ -13,9 +13,15 @@ const buttonVariants = cva(
         // Primary Global (High-Contrast Luxury)
         default:
           "bg-foreground text-background hover:bg-foreground/90 hover:scale-[1.02] shadow-xl shadow-foreground/10 border-0",
-        // Primary Dourado Marketplace (Mantido para ênfase comercial)
+        // Primary Green (Design System v3) — cor institucional verde
+        primary:
+          "bg-green text-white hover:bg-green/85 hover:scale-[1.02] shadow-sm border-0",
+        // Primary Dourado Marketplace — gold com texto escuro
         gold:
-          "btn-primary-gold border-0 hover:scale-[1.02]",
+          "bg-gold-light text-green-950 hover:bg-gold hover:scale-[1.02] shadow-sm border-0",
+        // Success — verde explícito para ações de confirmação
+        success:
+          "bg-green text-white hover:bg-green/90 hover:scale-[1.02] shadow-sm border-0",
         // Destructive (vermelho)
         destructive:
           "bg-danger text-white shadow-[0_0_15px_rgba(224,82,82,0.15)] hover:bg-danger/90 hover:translate-y-0.5 hover:shadow-none active:scale-[0.96] border-0",
@@ -34,8 +40,6 @@ const buttonVariants = cva(
         // Alias retrocompatíveis mapeados para a nova estética
         accent:
           "bg-foreground text-background border-0",
-        success:
-          "bg-primary text-primary-foreground border-0 hover:bg-primary/90 hover:scale-[1.02]",
       },
       size: {
         default: "h-10 px-4 py-2",

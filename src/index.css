@@ -67,6 +67,12 @@ html.font-grande {
     --input: 155 15% 90%;
     --ring: 158 64% 40%;
 
+    /* DNA Gradient (brand identity — same in light & dark) */
+    --gradient-dna: linear-gradient(135deg, #34D399, #D4A24C);
+    --gradient-dna-subtle: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.10));
+    --gradient-dna-border: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(212, 162, 76, 0.15));
+    --gradient-dna-text: linear-gradient(135deg, #09C972, #D4A24C);
+
     /* Radius base */
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -155,6 +161,12 @@ html.font-grande {
     /* #1C2822 */
     --input: 155 18% 13%;
     --ring: 158 64% 52%;
+
+    /* DNA Gradient (brand identity — same in light & dark) */
+    --gradient-dna: linear-gradient(135deg, #34D399, #D4A24C);
+    --gradient-dna-subtle: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.10));
+    --gradient-dna-border: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(212, 162, 76, 0.15));
+    --gradient-dna-text: linear-gradient(135deg, #09C972, #D4A24C);
 
     /* Radius base */
     --radius-sm: 6px;
@@ -440,6 +452,10 @@ html.font-grande {
     box-shadow: 0 0 20px rgba(212, 162, 76, 0.12);
   }
 
+  .btn-primary-gold:hover {
+    box-shadow: 0 0 20px rgba(212, 162, 76, 0.2), 0 0 40px rgba(52, 211, 153, 0.08);
+  }
+
   .btn-primary-green {
     background: linear-gradient(135deg, #34D399, #1A7A50);
     color: #080B0A;
@@ -451,6 +467,34 @@ html.font-grande {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* DNA gradient accents */
+  .border-dna {
+    border-image: var(--gradient-dna-border) 1;
+  }
+
+  .bg-dna-subtle {
+    background: var(--gradient-dna-subtle);
+  }
+
+  .text-dna {
+    background: var(--gradient-dna-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* DNA gradient progress bar fill */
+  .progress-dna {
+    background: var(--gradient-dna);
+  }
+
+  /* DNA glow for focus states */
+  .ring-dna {
+    box-shadow: 0 0 0 2px var(--bg-primary),
+                0 0 0 4px rgba(52, 211, 153, 0.2),
+                0 0 12px rgba(212, 162, 76, 0.08);
   }
 
   /* CSS SVG Noise pattern for frosted effect */
@@ -478,7 +522,7 @@ html.font-grande {
     z-index: -1;
   }
 
-  /* Directional Rim Light */
+  /* Directional Rim Light — DNA green (#34D399 / #1A7A50) → gold (#D4A24C / #8B6A2F) */
   .glass-panel::after {
     content: '';
     position: absolute;
@@ -624,6 +668,32 @@ html.font-grande {
 
   .inline-mic-breathe {
     animation: inline-mic-breathe 4s ease-in-out infinite;
+  }
+
+  /* v3 Table patterns */
+  .table-row-hover {
+    @apply transition-colors duration-150;
+  }
+  .table-row-hover:hover {
+    @apply bg-green-50;
+  }
+  :is(.dark .table-row-hover):hover {
+    background: rgba(26, 122, 80, 0.06);
+  }
+
+  .table-header-cell {
+    @apply text-[11px] font-semibold uppercase tracking-wider;
+    color: var(--text-muted);
+  }
+
+  .table-id {
+    @apply font-mono text-xs font-medium;
+    color: var(--green);
+  }
+
+  .table-money {
+    @apply font-mono font-semibold;
+    color: var(--gold-light, #D4A24C);
   }
 }
 

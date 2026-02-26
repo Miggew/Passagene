@@ -86,11 +86,19 @@ export default {
         green: {
           DEFAULT: "var(--green)",
           dim: "var(--green-dim)",
+          50: "#ECFDF5",
+          400: "#34D399",
+          500: "#1A7A50",
+          600: "#15653F",
+          950: "#052E16",
         },
         gold: {
           DEFAULT: "var(--gold)",
           light: "var(--gold-light)",
           dim: "var(--gold-dim)",
+          400: "#E8C77B",
+          500: "#D4A24C",
+          600: "#8B6A2F",
         },
         success: "var(--success)",
         warning: "var(--warning)",
@@ -122,6 +130,8 @@ export default {
         'brutal-dark': '4px 4px 0px 0px #09C972',
         'brutal-dark-lg': '8px 8px 0px 0px rgba(9, 201, 114, 0.4)',
         'glow': '0 0 20px rgba(9, 201, 114, 0.4)',
+        'glow-green': '0 0 20px rgba(9, 201, 114, 0.15)',
+        'glow-gold': '0 0 20px rgba(212, 162, 76, 0.15)',
       },
       keyframes: {
         "accordion-down": {

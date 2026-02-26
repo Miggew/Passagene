@@ -1,87 +1,93 @@
-# PassaGene Design System v2.0
+# PassaGene Design System v3.0
 
-> **Fonte única de verdade** para toda decisão visual do app.
-> Qualquer dev ou agente IA deve seguir este guia. Nenhuma outra referência de design é válida.
+> **Fonte unica de verdade** para toda decisao visual do app.
+> Qualquer dev ou agente IA deve seguir este guia. Nenhuma outra referencia de design e valida.
 
 ---
 
-## 1. Filosofia
+## 1. Filosofia & Identidade
 
-### Regra de Ouro: MENOS É MAIS
-- **Proibido**: glows, stripes, dots, gradients, blur, animate-ping, decorações excessivas
-- Verde como acento pontual, **nunca dominante**
-- Cards limpos e funcionais — a informação é o protagonista
-- A marca é **biológica e orgânica**, não mecânica — evitar cantos vivos e rigidez visual
+### Principio Central
+> **"Precisao de laboratorio, prestigio de leilao."**
 
-### UX Writing
-- Tom: **Profissional, mas próximo** — como um geneticista explicando algo para um amigo
-- Mensagens humanizadas:
-  - ✅ "Análise genética concluída!"
-  - ❌ "Dados processados com sucesso."
-  - ✅ "Tivemos um problema. Tente novamente."
-  - ❌ "Erro 500."
-- Textos **sempre em Português do Brasil**
+O PassaGene e onde a ciencia genetica encontra o topo do agronegocio brasileiro. Cada pixel deve transmitir: **competencia tecnica** e **valor economico**.
+
+### As 5 Regras de Ouro
+
+1. **Consistencia acima de decoracao** — Um componente, um estilo. Zero excecoes por pagina.
+2. **Informacao e o protagonista** — Efeitos existem para hierarquizar, nunca para enfeitar.
+3. **Verde = Ciencia, Dourado = Valor** — A intensidade do dourado sobe em contextos de negocio.
+4. **Animacoes com proposito** — Cada animacao comunica algo (loading, transicao, feedback). Nenhuma e cosmetica.
+5. **AI-first** — A Genia e o centro. Tudo converge para a experiencia conversacional.
+
+### Tom de Voz (UX Writing)
+- **Profissional mas proximo** — como um geneticista que tambem entende de negocios
+- Textos sempre em **Portugues do Brasil**
+- Nunca jargao tecnico sem contexto
+- Numeros sempre formatados (1.250, nao 1250)
 
 ---
 
 ## 2. Paleta de Cores
 
-### Brand (extraído dos vetores originais da logo)
-| Token | Hex | Uso |
-|-------|-----|-----|
-| brand | `#09C972` | Cor exata da logo — ícone de marca, splash, marketing |
-| brand-deep | `#049357` | Verde profundo da logo — hovers de destaque |
+### Brand (DNA da Logo)
+| Token | Hex | Papel |
+|-------|-----|-------|
+| `brand` | `#09C972` | Cor exata da logo — splash, marketing, icone |
+| `brand-deep` | `#049357` | Verde profundo da logo — hovers de destaque |
 
-### Primary (escala UI derivada do brand)
+### Green (Ciencia — o lado Lab)
 | Token | Hex | Uso |
 |-------|-----|-----|
-| primary-50 | `#f0f9f4` | Backgrounds sutis, hover states |
-| primary-100 | `#daf1e4` | Badges default, backgrounds leves |
-| primary-200 | `#b8e3cb` | Borders de foco |
-| primary-300 | `#89ceaa` | Decorativos |
-| primary-400 | `#57b584` | Ícones ativos, indicadores |
-| primary-500 | `#3d9e6b` | **Cor principal UI** — botões, links |
-| primary-600 | `#3a8a5e` | Hover de botões |
-| primary-700 | `#2d6e4a` | Texto primary sobre fundo claro |
-| primary-800 | `#27583d` | Headings fortes |
-| primary-900 | `#1e4732` | Backgrounds escuros |
-| primary-950 | `#0d2a1c` | Sidebar background |
+| `green-50` | `#EEFBF4` | Backgrounds sutis, hover states |
+| `green-100` | `#D7F5E5` | Badges leves, tags |
+| `green-200` | `#B3EBD0` | Borders de foco |
+| `green-300` | `#7ADCB0` | Decorativos, indicadores |
+| `green-400` | `#3EC98A` | Icones ativos |
+| `green-500` | `#1A7A50` | **Cor principal UI** — botoes primarios, links |
+| `green-600` | `#156842` | Hover de botoes |
+| `green-700` | `#105434` | Texto primary sobre fundo claro |
+| `green-800` | `#0C4229` | Headings fortes |
+| `green-900` | `#08311E` | Backgrounds de sidebar/nav |
+| `green-950` | `#041A10` | Background dark mode |
 
-### Accent (Dourado Âmbar — complementar)
+### Gold (Valor — o lado Elite)
 | Token | Hex | Uso |
 |-------|-----|-----|
-| accent-50 | `#fefce8` | Backgrounds warning suaves |
-| accent-100 | `#fef9c3` | Badges accent |
-| accent-200 | `#fef08a` | Borders accent |
-| accent-400 | `#facc15` | Indicadores, destaques |
-| accent-500 | `#eab308` | **Cor accent principal** |
-| accent-600 | `#ca8a04` | Botões accent, texto accent |
-| accent-700 | `#a16207` | Texto accent escuro |
+| `gold-50` | `#FDF8ED` | Backgrounds accent suaves |
+| `gold-100` | `#FAF0D4` | Badges premium |
+| `gold-200` | `#F4DFA8` | Borders douradas |
+| `gold-300` | `#ECCC73` | Indicadores, destaques |
+| `gold-400` | `#D4A24C` | **Cor accent principal** — CTAs secundarios, destaques de valor |
+| `gold-500` | `#B8862E` | Texto accent, icones premium |
+| `gold-600` | `#96691E` | Hover de accent |
+| `gold-700` | `#745016` | Texto accent escuro |
+| `gold-800` | `#5A3E11` | Labels de destaque |
+| `gold-900` | `#3D2A0B` | Backgrounds accent dark |
 
 ### Neutral (Slate)
-Usar a escala Tailwind `slate` padrão: slate-50 até slate-950.
+Escala Tailwind `slate` padrao (slate-50 a slate-950). Sem customizacao.
 
-### Surfaces (fundos com identidade de marca)
-| Contexto | Valor | Nota |
+### Surfaces
+| Contexto | Light | Dark |
 |----------|-------|------|
-| Light background | `#F2FBF7` | Off-white com tint verde — **nunca branco puro** |
-| Dark background | `#051F15` | Preto-verde profundo — **nunca preto puro** |
-| Card light | `#FFFFFF` | Branco puro apenas em cards (contraste com bg) |
-| Card dark | CSS var `--card` | Definido no tema escuro |
+| Background | `#F7FAF8` (off-white com tint verde) | `#080B0A` (quase-preto organico) |
+| Card | `#FFFFFF` | `var(--bg-card)` |
+| Card hover | `#F0F4F1` | `var(--bg-card-hover)` |
+| Subtle | `#E8EDE9` | `var(--bg-subtle)` |
+| Elevated | glass-panel (backdrop-blur) | glass-panel (backdrop-blur) |
 
-### Semânticas
-| Tipo | Light | Base | Dark | Uso |
-|------|-------|------|------|-----|
-| Success | `#dcfce7` | `#22c55e` | `#16a34a` | Confirmações, aprovações |
-| Danger | `#fee2e2` | `#ef4444` | `#dc2626` | Erros, exclusões, alertas |
-| Warning | `#fef3c7` | `#f59e0b` | `#d97706` | Avisos, prazos próximos |
-| Info | `#dbeafe` | `#3b82f6` | `#2563eb` | Informações, processamento |
+### Semanticas (Status do Sistema)
+| Tipo | Light bg | Base | Dark text |
+|------|----------|------|-----------|
+| Success | `#dcfce7` | `#22c55e` | `#16a34a` |
+| Danger | `#fee2e2` | `#ef4444` | `#dc2626` |
+| Warning | `#fef3c7` | `#f59e0b` | `#d97706` |
+| Info | `#dbeafe` | `#3b82f6` | `#2563eb` |
 
-### Cores de Status (Regras de Negócio)
-Mapeamento fixo usado em StatusBadge, CountBadge e ResultBadge:
-
-| Status | Cor Tailwind |
-|--------|-------------|
+### Cores de Status (Regras de Negocio — fixas)
+| Status | Cor |
+|--------|-----|
 | VAZIA | red |
 | PRENHE | green |
 | PRENHE_RETOQUE | amber |
@@ -92,326 +98,1173 @@ Mapeamento fixo usado em StatusBadge, CountBadge e ResultBadge:
 | SERVIDA, UTILIZADA | violet |
 | CONGELADO | cyan |
 
-**Padrão universal de badge**: `bg-[cor]-500/10 text-[cor]-600 dark:text-[cor]-400 border-[cor]-500/30`
+### Regra de Intensidade do Dourado
+- **Modulos tecnicos** (embrioes, protocolos, lab): green como primary, gold ausente ou minimo
+- **Modulos de negocio** (dashboard, clientes, vendas, perfil): gold aparece em headers, CTAs, badges premium
+- **Genia**: fusao — green na estrutura, gold nos highlights de valor (precos, metricas, recomendacoes)
 
 ---
 
 ## 3. Tipografia
 
 ### Fontes
-- **Headings + Body**: `Plus Jakarta Sans` (geométrica humanista, compatível com a logo)
-- **Monospace**: `JetBrains Mono` (IDs, códigos, valores numéricos)
+| Papel | Fonte | Por que |
+|-------|-------|---------|
+| **Display + Body** | `Outfit` | Geometrica moderna, pesos variados (300-800), leitura excelente em tela |
+| **Dados + Codigo** | `JetBrains Mono` | Monospace premium, alinhamento tabular perfeito para IDs, valores, scores |
 
-### Escala Tipográfica
-| Elemento | Tamanho | Peso | Tailwind |
-|----------|---------|------|----------|
-| Page Title | 22px | 800 (ExtraBold) | `text-[22px] font-extrabold tracking-tight` |
-| H2 | 18px | 700 (Bold) | `text-lg font-bold` |
-| H3 | 16px | 700 (Bold) | `text-base font-bold` |
-| H4 / Label | 14px | 600 (Semibold) | `text-sm font-semibold` |
-| Body | 14px | 400 (Regular) | `text-sm` |
-| Caption | 13px | 500 (Medium) | `text-[13px] font-medium` |
-| Small | 12px | 400 | `text-xs` |
-| Tiny | 11px | 500 | `text-[11px] font-medium` |
-| Mono Data | 12-14px | 500 | `font-mono text-sm font-medium` |
+### Escala Tipografica
 
-### Regras
-- Line-height body text: `leading-relaxed` (1.625)
-- Letter-spacing headings grandes: `tracking-tight` (-0.025em)
-- Letter-spacing labels uppercase: `tracking-wider` (0.05em)
+| Elemento | Tamanho | Peso | Tailwind | Quando usar |
+|----------|---------|------|----------|-------------|
+| Display | 32px | 800 | `text-[32px] font-extrabold tracking-tight` | Hero da Genia, numero principal de dashboard |
+| Page Title | 24px | 700 | `text-2xl font-bold tracking-tight` | Titulo de cada pagina |
+| H2 | 18px | 700 | `text-lg font-bold` | Titulo de secao dentro de pagina |
+| H3 | 16px | 600 | `text-base font-semibold` | Subtitulo, titulo de card |
+| Body | 14px | 400 | `text-sm` | Texto corrido, descricoes |
+| Body Strong | 14px | 600 | `text-sm font-semibold` | Labels de formulario, enfase inline |
+| Caption | 13px | 500 | `text-[13px] font-medium` | Metadata, timestamps, hints |
+| Small | 12px | 400 | `text-xs` | Texto auxiliar, footnotes |
+| Tiny | 11px | 600 | `text-[11px] font-semibold` | Badges, tags, contadores |
+| Mono Data | 14px | 500 | `font-mono text-sm font-medium` | IDs, valores monetarios, scores, contagens |
+| Mono Small | 12px | 500 | `font-mono text-xs font-medium` | IDs em tabelas, codigos curtos |
+
+### Regras de Tipografia
+
+**Espacamento:**
+- Headings (Display, Page Title, H2): `tracking-tight` (-0.025em)
+- Labels uppercase: `tracking-wider` (0.05em) + `uppercase`
+- Body text: `leading-relaxed` (1.625)
+
+**Hierarquia por cor:**
+- Titulos: `text-foreground` (maximo contraste)
+- Body: `text-foreground` ou `text-secondary`
+- Auxiliar: `text-muted`
+- Desabilitado: `text-muted/50`
+
+**Numeros e dados financeiros:**
+- Sempre `font-mono` para alinhamento tabular
+- Valores monetarios: `font-mono font-semibold` + formatacao BR (R$ 1.250,00)
+- Scores/porcentagens: `font-mono font-bold` com cor semantica
+
+**Regra do dourado na tipografia:**
+- Valores financeiros em contextos de negocio podem usar `text-gold-500` (dark) / `text-gold-600` (light)
+- Nunca usar gold em body text corrido — apenas em dados numericos de valor
 
 ---
 
-## 4. Espaçamento
+## 4. Espacamento, Layout & Grid
 
-Usar **múltiplos de 4px** via classes Tailwind:
+### Escala de Espacamento (multiplos de 4px)
 
-| Nome | Classe | Valor | Uso |
-|------|--------|-------|-----|
-| xs | `p-1` | 4px | Padding mínimo interno |
-| sm | `p-2` | 8px | Gap entre label e input |
-| md | `p-4` | 16px | Padding de seções internas |
-| lg | `p-6` | 24px | Padding de cards, gap entre seções |
-| xl | `p-8` | 32px | Padding de página desktop |
-| 2xl | `p-12` | 48px | Espaçamento generoso |
+| Token | Classe | Valor | Uso |
+|-------|--------|-------|-----|
+| 2xs | `1` | 4px | Padding minimo, gap entre icone e texto |
+| xs | `1.5` | 6px | Padding interno de badges/tags |
+| sm | `2` | 8px | Gap label-input, padding de inputs compactos |
+| md | `3` | 12px | Gap entre itens em lista, padding de celulas |
+| lg | `4` | 16px | Padding de cards mobile, gap entre componentes |
+| xl | `5` | 20px | Padding de cards desktop |
+| 2xl | `6` | 24px | Gap entre secoes, padding de containers |
+| 3xl | `8` | 32px | Padding de pagina desktop |
+| 4xl | `12` | 48px | Espacamento generoso entre blocos maiores |
 
-### Regras de layout
-- **Entre seções de página**: `space-y-6` (24px)
-- **Dentro de seções**: `space-y-4` (16px)
-- **Label → Input**: `space-y-2` (8px)
-- **Gap em grid/flex**: `gap-3` (12px) a `gap-4` (16px)
-- **Padding de página**: `p-4` mobile, `p-8` desktop
+### Regras de Layout
+
+**Pagina:**
+- Mobile: `px-4 pt-4 pb-24` (clearance do bottom nav)
+- Desktop: `px-8 pt-6`
+
+**Entre secoes:**
+- `space-y-6` (24px) — separacao principal
+- `space-y-4` (16px) — dentro de secoes
+
+**Formularios:**
+- Label - Input: `space-y-1.5` (6px)
+- Entre campos: `space-y-4` (16px)
+- Grupos de campos: `space-y-6` (24px)
+
+**Grid de cards:**
+```
+grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4
+```
+
+**Grid de stats:**
+```
+grid grid-cols-2 lg:grid-cols-4 gap-3
+```
+
+### Border Radius (Hierarquia organica)
+
+| Token | Valor | Tailwind | Uso |
+|-------|-------|----------|-----|
+| sm | 6px | `rounded-md` | Badges, tags, inputs inline |
+| md | 10px | `rounded-lg` | Inputs, botoes, dropdowns |
+| lg | 14px | `rounded-xl` | Cards, dialogs, alerts |
+| xl | 20px | `rounded-2xl` | Containers principais, glass-panels |
+| full | 9999px | `rounded-full` | Avatares, pills, FAB |
+
+**Regra**: Nunca `rounded-none` ou `rounded-sm` (2px). A marca e biologica — cantos sempre suavizados.
+
+### Sombras
+
+| Token | Uso | Light | Dark |
+|-------|-----|-------|------|
+| `shadow-sm` | Cards em repouso | `0 1px 2px rgba(0,0,0,0.05)` | `0 1px 2px rgba(0,0,0,0.3)` |
+| `shadow-md` | Cards em hover, dropdowns | `0 4px 12px rgba(0,0,0,0.08)` | `0 4px 12px rgba(0,0,0,0.4)` |
+| `shadow-lg` | Modals, popovers | `0 8px 24px rgba(0,0,0,0.12)` | `0 8px 24px rgba(0,0,0,0.5)` |
+| `shadow-glow-green` | Hover de CTAs primarios | `0 0 20px rgba(9,201,114,0.15)` | `0 0 20px rgba(9,201,114,0.25)` |
+| `shadow-glow-gold` | Hover de CTAs premium | `0 0 20px rgba(212,162,76,0.15)` | `0 0 20px rgba(212,162,76,0.25)` |
+
+**Regra de glow**: So em elementos interativos no hover/focus. Nunca em repouso. Nunca em mais de 1 elemento simultaneo por viewport.
+
+### Responsividade
+
+**Breakpoints:**
+| Token | Largura | Uso |
+|-------|---------|-----|
+| `sm` | 640px | Telefones landscape |
+| `md` | 768px | **Breakpoint principal** — tablet |
+| `lg` | 1024px | Desktop pequeno |
+| `xl` | 1280px | Desktop |
+| `2xl` | 1400px | Desktop largo |
+
+**Padrao Dual-Layout:**
+- Mobile (`md:hidden`): Cards empilhados, full width, touch-first
+- Desktop (`hidden md:block`): Tabelas, grids, density maior
+
+**Touch targets:**
+- Mobile: `h-11` (44px) — sem excecao
+- Desktop: `h-9` (36px) padrao, `h-10` (40px) para acoes principais
 
 ---
 
 ## 5. Componentes
 
-### Botões (shadcn/ui Button)
-- **border-radius**: `rounded-lg` (8px)
-- **font-weight**: `font-semibold` (600)
-- **Interação**: `active:scale-[0.98]` + `transition-all duration-200`
-- **Com ícone**: Lucide React à esquerda, `gap-2`
-- **Variantes:**
-  - `primary`: bg-primary-600, text-white, hover bg-primary-700, shadow-sm
-  - `secondary`: bg-white, text-primary-700, border border-primary-300, hover bg-primary-50
-  - `accent`: bg-accent-500, text-white, hover bg-accent-600
-  - `ghost`: bg-transparent, text-slate-600, hover bg-slate-100
-  - `outline`: bg-transparent, text-slate-700, border border-slate-300, hover bg-slate-50
-  - `danger`: bg-red-500, text-white, hover bg-red-600
-- **Tamanhos**: sm (py-1.5 px-3.5), md (py-2.5 px-5), lg (py-3 px-6)
+### Botoes
 
-### Cards (shadcn/ui Card)
-- **border-radius**: `rounded-xl` (12px)
-- **border**: `border border-slate-200` (light) / `border-border` (dark)
-- **shadow**: `shadow-sm` padrão, `shadow-lg` no hover
-- **hover**: `hover:-translate-y-0.5 transition-all duration-200`
-- **Variante accent**: barra sólida de 3px no topo com `bg-primary-500`
-- **padding**: `p-5` (20px) padrão
-- **Card mobile**: `rounded-xl border border-border/60 bg-card shadow-sm p-3.5`
+**Base**: shadcn/ui Button customizado. Todos os botoes:
+- `rounded-lg` (10px), `font-bold`, `tracking-tight`
+- `transition-all duration-200`
+- `focus-visible:ring-2 focus-visible:ring-offset-2`
+- Icone a esquerda, `gap-2`
 
-### Badges (Sistema Unificado)
-Três componentes especializados:
-- **StatusBadge**: status de receptoras/protocolos/embriões (89 mapeamentos)
-- **CountBadge**: contagens numéricas com variantes de cor (11 variantes)
-- **ResultBadge**: resultados DG/Sexagem/TE/Classificação
+**Variantes:**
 
-Specs:
-- **border-radius**: `rounded-md` (6px)
-- **font**: `text-[11px] font-semibold`
-- **Padrão CSS**: `bg-[cor]-500/10 text-[cor]-600 dark:text-[cor]-400 border-[cor]-500/30`
-- **Variantes**: default (primary), accent, danger, success, warning, info, neutral, outline
+| Variante | Estilo | Quando usar |
+|----------|--------|-------------|
+| `primary` | bg-green-500, text-white, hover bg-green-600, `shadow-sm hover:shadow-glow-green` | Acao principal da pagina (1 por tela) |
+| `gold` | bg-gold-400, text-green-950, hover bg-gold-500, `shadow-sm hover:shadow-glow-gold` | CTA premium — vendas, valores, destaque financeiro |
+| `secondary` | bg-white, text-green-700, border border-green-200, hover bg-green-50 | Acoes secundarias |
+| `ghost` | bg-transparent, text-slate-600, hover bg-slate-100 | Acoes terciarias, toolbars |
+| `outline` | bg-transparent, text-slate-700, border border-slate-300, hover bg-slate-50 | Acoes neutras, cancelar |
+| `danger` | bg-red-500, text-white, hover bg-red-600 | Excluir, acoes destrutivas |
+| `success` | bg-green-500, text-white, hover `shadow-glow-green` | Confirmar, salvar |
+| `link` | text-green-600, underline-offset-4, hover underline | Links inline |
 
-### Inputs (shadcn/ui Input)
-- **border-radius**: `rounded-lg` (8px)
-- **border**: `border-1.5 border-slate-300`
-- **focus**: `focus:border-primary-400 focus:ring-2 focus:ring-primary-500/8`
-- **error**: `border-red-500 focus:ring-red-500/8`
-- **Com ícone**: Lucide React à esquerda, cor slate-400
-- **Altura**: `h-11` (44px) mobile → `h-9` (36px) desktop
+**Tamanhos:**
+
+| Size | Altura | Padding | Font | Uso |
+|------|--------|---------|------|-----|
+| `sm` | h-9 (36px) | px-3.5 | text-sm | Acoes em tabelas, inline |
+| `md` | h-10 (40px) | px-5 | text-sm | Padrao |
+| `lg` | h-11 (44px) | px-6 | text-base | CTA principal, mobile |
+| `icon` | h-10 w-10 | — | — | Botoes so icone |
+| `icon-sm` | h-9 w-9 | — | — | Icone em tabelas |
+
+**Regra**: Maximo 1 botao `primary` ou `gold` por viewport. Resto e `secondary`, `ghost` ou `outline`.
+
+### Cards
+
+**Base**: glass-panel com hierarquia clara.
+
+```
+rounded-2xl border border-border bg-card shadow-sm
+transition-all duration-200
+```
+
+**Variantes:**
+
+| Variante | Diferencial | Quando usar |
+|----------|-------------|-------------|
+| `default` | Base glass-panel | Container generico |
+| `interactive` | + `hover:shadow-md hover:-translate-y-0.5 cursor-pointer` | Cards clicaveis (listagens) |
+| `stat` | Compacto, valor grande mono + label caption | Metricas de dashboard |
+| `accent-green` | `border-l-3 border-l-green-500` | Destaque de modulo lab |
+| `accent-gold` | `border-l-3 border-l-gold-400` | Destaque de modulo negocio |
+
+**Padding interno:**
+- Mobile: `p-4` (16px)
+- Desktop: `p-5` (20px)
+
+**Estrutura interna:**
+```
+CardHeader  -> p-5 pb-0 (titulo + descricao)
+CardContent -> p-5 (conteudo)
+CardFooter  -> p-5 pt-0 flex gap-3 (acoes)
+```
+
+### Inputs
+
+**Base**: shadcn/ui Input customizado.
+
+```
+rounded-lg border border-border bg-card
+h-11 md:h-9 px-3 text-sm
+transition-all duration-200
+focus:border-green-400 focus:ring-2 focus:ring-green-500/10
+```
+
+**Estados:**
+
+| Estado | Estilo |
+|--------|--------|
+| Default | `border-border` |
+| Hover | `border-slate-400` |
+| Focus | `border-green-400 ring-2 ring-green-500/10` |
+| Error | `border-red-500 ring-2 ring-red-500/10` |
+| Disabled | `opacity-50 cursor-not-allowed bg-muted` |
+
+**Com icone**: Icone a esquerda, `text-muted`, padding-left aumentado.
+
+**Selects, Textareas, DatePickers**: Mesma base, mesmos estados. Zero variacao.
 
 ### Tabelas
-- **Container**: `rounded-xl border border-slate-200 overflow-hidden`
-- **Header**: `bg-slate-50`, texto `uppercase text-[11px] font-semibold tracking-wider text-slate-500`
-- **Rows**: zebra com `odd:bg-white even:bg-slate-50`
-- **Hover row**: `hover:bg-primary-50`
-- **IDs**: `font-mono text-xs font-medium text-primary-600`
-- **Status**: usar Badge com variante semântica
 
-#### CSS Grid — Armadilha Conhecida
-`overflow-x-auto` + `minmax(X,1fr)` = colunas travadas no mínimo.
-
-**100% largura (sem scroll):**
-```tsx
-<div className="rounded-lg border border-border">
-  <div className="grid grid-cols-[2fr_16px_1.2fr_1.8fr]">
+**Container:**
+```
+rounded-xl border border-border overflow-hidden
 ```
 
-**Scroll horizontal:**
-```tsx
-<div className="overflow-x-auto">
-  <div className="min-w-[750px]">
-    <div className="grid grid-cols-[160px_36px_90px_100px]">
+**Header:**
+```
+bg-muted/50
+text-[11px] font-semibold uppercase tracking-wider text-muted
 ```
 
-**Centralização**: Usar `flex justify-center`, não `text-center`.
+**Rows:**
+```
+border-b border-border/50
+hover:bg-green-50 dark:hover:bg-green-950/30
+transition-colors duration-150
+```
+
+**Celulas de dados:**
+- IDs: `font-mono text-xs font-medium text-green-600`
+- Valores monetarios: `font-mono font-semibold text-gold-600`
+- Status: Badge com variante semantica
+- Texto: `text-sm text-foreground`
+
+**Sem zebra** — hover e suficiente para rastreamento visual (padrao Linear).
+
+### Badges (Sistema Unificado)
+
+Tres componentes especializados: **StatusBadge**, **CountBadge**, **ResultBadge**.
+
+**Base:**
+```
+inline-flex items-center rounded-md
+px-2 py-0.5
+text-[11px] font-semibold
+border
+```
+
+**Padrao de cor universal:**
+```
+bg-[cor]-500/10 text-[cor]-600 dark:text-[cor]-400 border-[cor]-500/20
+```
+
+**Variantes de cor:** green, gold, red, amber, blue, indigo, purple, pink, violet, cyan, slate.
+
+**Regra**: Badges sao **informativos**, nunca interativos. Se clicavel, e um Button variant `outline` size `sm`.
 
 ### Alertas
-- **border-radius**: `rounded-xl` (12px)
-- **Layout**: ícone + título + mensagem
-- **border-left**: `border-l-[3px]` com cor semântica
-- **background**: cor semântica light
-- **Variantes**: success, warning, danger, info
 
-### Ícones
-- **Biblioteca**: Lucide React — SEMPRE
-- **Stroke**: `strokeWidth={1.5}` ou `{2}` (traços arredondados, combina com identidade orgânica)
-- **Tamanho padrão**: `size-4` (16px) em botões, `size-5` (20px) standalone
-- **NUNCA** usar emojis — sempre ícones Lucide
+```
+rounded-xl border-l-[3px] p-4
+flex gap-3 items-start
+```
+
+| Variante | Border-left | Background | Icone |
+|----------|-------------|------------|-------|
+| `success` | `border-l-green-500` | `bg-green-50` | `CheckCircle` |
+| `warning` | `border-l-amber-500` | `bg-amber-50` | `AlertTriangle` |
+| `danger` | `border-l-red-500` | `bg-red-50` | `XCircle` |
+| `info` | `border-l-blue-500` | `bg-blue-50` | `Info` |
+
+### Icones
+
+**Estrategia: Icon set custom para conceitos-chave + tipografia no resto.**
+
+**Icones Custom PassaGene** (~15 icones a criar):
+
+| Conceito | Contexto |
+|----------|----------|
+| Embriao | Classificacao, TE, EmbryoScore |
+| Doadora | Listagem, perfil, aspiracao |
+| Receptora | Listagem, protocolo, DG |
+| DNA / Genetica | Modulo genetico, helix |
+| Lote FIV | Listagem de lotes |
+| Aspiracao | Hub lab |
+| Transferencia | Hub lab |
+| Botijao | Criopreservacao |
+| Genia (IA) | Chat, FAB, assistente |
+| Fazenda | Perfil, filtros |
+| Touro | Reprodutor, genetica |
+| Prenhez | DG, status |
+| Score | EmbryoScore, qualidade |
+| Relatorio | Exports, PDFs |
+| Protocolo | Sincronizacao |
+
+**Specs dos icones custom:**
+- **Grid**: 24x24px (design), renderizado em 16/20/24px
+- **Stroke**: 1.75px (consistente com identidade organica)
+- **Estilo**: Linhas arredondadas, biologico/organico, sem cantos vivos
+- **Cor**: Herda `currentColor` — nunca cor fixa no SVG
+- **Formato**: SVG como componente React
+
+**Icones utilitarios (Lucide como fallback temporario):**
+- Apenas para acoes genericas: fechar (X), seta, chevron, busca, menu, check, plus, minus, copy, download
+- Marcados internamente como `[PLACEHOLDER]` para substituicao futura
+
+**Onde NAO usar icones:**
+- Headers de pagina — tipografia forte e suficiente
+- Labels de formulario — texto e mais claro
+- Itens de menu quando o texto e autoexplicativo
+- Badges — cor e texto bastam
 
 ### Loading & Empty States
 
-**Loading principal — DNA Wave** (`<LoadingSpinner />`):
-- Silhueta do escudo PassaGene (3 frames a 15% opacidade constante)
-- 6 marks (barras diagonais da logo) pulsam em onda do canto superior-direito → inferior-esquerdo
-- Animação: `dna-wave` 2.4s ease-in-out infinite, delays escalonados (0.12s → 1.00s)
-- Tamanho padrão: 48px. Cores brand: `#09C972` (topo) + `#049357` (base)
-- Keyframes e classes `.dna-wave .dna-m*` definidos em `index.css`
-- Quando `className` é passado (uso inline, e.g. dentro de botões), cai pra `Loader2` do Lucide
+**LoaderDNA (loading principal):**
+- 7-dot DNA double helix animado
+- Tamanho padrao: 64px
+- Variantes: `default` (green), `accent` (green bg), `premium` (gradient)
+- Uso: Loading de pagina, operacoes longas (>500ms)
 
-**Skeletons**: usar `Skeleton` do shadcn/ui para placeholders de conteúdo
+**Skeleton (loading de conteudo):**
+- shadcn/ui Skeleton, `rounded-lg`
+- Replica o layout do conteudo real
+- Animacao `pulse` padrao
 
-**Empty state**: borda tracejada, centralizado, ícone + título + descrição + ação opcional
-
----
-
-## 6. Navegação
-
-### Sidebar (Desktop)
-- **Background**: `bg-slate-950`
-- **Largura**: 220px expandida, 60px colapsada
-- **Logo**: PassaGene com ícone + texto no topo
-- **Item ativo**: `bg-primary-500/15 border-l-2 border-primary-400`
-- **Item hover**: `bg-white/4`
-- **Texto ativo**: `text-white font-semibold`
-- **Texto inativo**: `text-white/50 font-normal`
-- **Ícones**: Lucide React (LayoutDashboard, Dna, Store, Brain, DollarSign, FileText, Users, Settings)
-- **Footer**: Avatar com iniciais + nome/role
-
-### Top Bar
-- **Background**: `bg-white border-b border-slate-200`
-- **Altura**: 52-60px
-- **Elementos**: toggle sidebar | busca (⌘K) | notificações | data
-
-### Mobile Bottom Nav
-- **Altura**: 80px + safe-area-bottom (iOS notch)
-- **Touch targets**: mínimo 44px (h-11)
-- **Hub-aware**: mostra rotas relevantes do hub ativo
-- **Ícones**: 20px + label de 1 linha
+**Empty State:**
+```
+rounded-xl border-2 border-dashed border-border/60
+p-8 text-center
+flex flex-col items-center gap-3
+```
+Icone (`size-10 text-muted/40`) + Titulo (`font-semibold`) + Descricao (`text-muted text-sm`) + Acao opcional (Button `secondary`)
 
 ---
 
-## 7. Dark Mode
+## 6. Navegacao & Estrutura
 
-### Estratégia
+### Arquitetura de Navegacao
+
+O app e **AI-first**. A Genia e o destino padrao. A navegacao existe para acessar as ferramentas de suporte. **Nao ha sidebar nem barra de navegacao inferior.** A estrutura e inteiramente horizontal: TopBar fixa + HubTabs para troca de modulo + VoiceFAB flutuante para acesso rapido a Genia.
+
+```
++---------------------------------------------+
+|  TopBar (fixa, glass-panel)                  |
++---------------------------------------------+
+|  HubTabs (horizontal, scrollavel mobile)     |
++---------------------------------------------+
+|                                              |
+|          Conteudo da pagina                  |
+|                                              |
++---------------------------------------------+
+                                [VoiceFAB] (floating, bottom-right)
+```
+
+### TopBar
+
+```
+sticky top-0 z-40
+h-16 (64px)
+glass-panel/95 backdrop-blur border-b-[3px] border-border shadow-sm
+px-4 lg:px-8
+max-w-7xl mx-auto
+flex items-center justify-between
+```
+
+**Elementos:**
+
+| Posicao | Desktop | Mobile |
+|---------|---------|--------|
+| Esquerda | Logo PassaGene premium (DNA + texto, h=32px) | Logo PassaGene premium (DNA + texto, h=28px) |
+| Centro | Saudacao: "Ola, {nome}!" (`text-sm font-medium text-muted-foreground`) | — |
+| Direita | Badge de analises IA + Avatar dropdown | Saudacao curta + Badge de analises IA + Avatar dropdown |
+
+**Badge de Analises IA (TopBarAnalysisBadge):**
+- Aparece somente quando ha analises EmbryoScore em fila (pending/processing > 0)
+- `rounded-full border border-primary/20 bg-primary/5 shadow-sm`
+- LoaderDNA animado (16px, variant accent) + contagem + timer decorrido
+- Botao de cancelar com confirmacao em dois cliques (segundo clique = vermelho)
+- Animacao de entrada: `animate-in fade-in zoom-in duration-300`
+
+**Avatar dropdown (mitose pattern):**
+O avatar do usuario funciona como "celula mae". Ao clicar, 3 sub-opcoes "brotam" para baixo com delays escalonados (50ms, 100ms, 150ms), cada uma com:
+- Icone circular `w-10 h-10 rounded-full glass-panel shadow-lg border-2 border-border`
+- Label flutuante que aparece no hover (`opacity-0 -> opacity-100, translate-x`)
+- Itens:
+  1. **Toggle tema** — Sun/Moon icon, label "Modo Claro"/"Modo Escuro"
+  2. **Meu Perfil** — User icon, navega para `/`
+  3. **Sair** — LogOut icon vermelho, dot pulsante `animate-pulse` vermelho, label "Sair do Sistema"
+
+**Regras:**
+- TopBar e **sempre** glass-panel — consistencia absoluta
+- Nenhum icone de navegacao na TopBar (navegacao de modulos vive no HubTabs)
+- Nenhuma busca na TopBar — a Genia e a busca
+- Logo clicavel: navega para `/` com `hover:-translate-y-0.5`
+- Avatar ativo: `ring-2 ring-primary/40 rounded-full`
+
+### HubTabs
+
+Barra horizontal de modulos (hubs) logo abaixo da TopBar. Funciona como navegacao principal entre os grandes modulos do sistema.
+
+```
+glass-panel border-b border-border
+flex items-center justify-between
+```
+
+**Layout:**
+
+| Posicao | Conteudo |
+|---------|----------|
+| Esquerda | Logo PassaGene (so icone DNA, h=32px, sem texto) + Tabs dos hubs |
+| Direita | ThemeToggle (sm) + Nome do usuario (hidden mobile) + Botao Sair |
+
+**Logo no HubTabs:**
+```
+px-4 py-3 hover:bg-muted transition-colors border-r border-border
+```
+Clicavel, navega para `/`. Separada visualmente das tabs por `border-r`.
+
+**Tabs dos hubs:**
+```
+nav flex items-center overflow-x-auto
+```
+
+Cada tab:
+```
+flex items-center gap-2
+px-4 py-3
+text-sm font-medium
+whitespace-nowrap
+transition-all duration-200
+```
+
+| Estado | Estilo |
+|--------|--------|
+| Inativo | `text-muted-foreground hover:text-foreground hover:bg-muted border-b-2 border-transparent` |
+| Ativo | `bg-primary/5 text-primary border-b-[3px] border-primary font-bold` |
+
+**Hubs disponiveis** (filtrados por permissao do usuario via `getAccessibleHubs()`):
+
+| Hub | Icone | Rotas principais |
+|-----|-------|-----------------|
+| Laboratorio | `FlaskConical` | `/laboratorio`, `/lotes-fiv`, `/embrioes`, `/bancada` |
+| Campo | `CowIcon` (custom) | `/campo`, `/dg`, `/sexagem`, `/transferencia`, `/protocolos` |
+| Genetica | `Dna` | `/genetica`, `/doadoras`, `/genetica/touros` |
+| Relatorios | `FileBarChart` | `/relatorios`, `/relatorios/servicos`, `/relatorios/producao` |
+| Administrativo | `Building2` | `/administrativo` |
+
+**Regras:**
+- Tabs so aparecem para usuarios nao-cliente e quando ha mais de 1 hub acessivel
+- Clientes veem apenas o logo + area direita (sem tabs)
+- Scroll horizontal automatico em mobile — sem truncamento de labels
+- Icone herda `text-primary` quando ativo
+
+### VoiceFAB (Floating Gen.IA Button)
+
+Botao flutuante fixo no canto inferior direito da tela. Ponto de acesso rapido para a Genia em qualquer pagina.
+
+```
+fixed bottom-6 right-6 z-50
+rounded-full
+w-[72px] h-[72px] (size lg, padrao)
+```
+
+**Tamanhos:**
+
+| Size | Dimensao | Uso |
+|------|----------|-----|
+| `md` | w-14 h-14 | Contextos compactos |
+| `lg` | w-[72px] h-[72px] | **Padrao** — FAB flutuante |
+| `xl` | w-24 h-24 | Home page, destaque central |
+
+**Anatomia visual (3 camadas):**
+
+1. **Aura giratoria** (camada externa): `conic-gradient` com green (`#34D399`) e gold (`#D4A24C`), rotacao lenta continua via `animate-spin-slow`
+2. **Core acrilico** (camada intermediaria): `bg-black/60 backdrop-blur-[24px]`, efeito frosted glass com `inset box-shadow` sutil
+3. **Conteudo** (camada interna): Texto "Gen" + ".IA" em branco, `font-black tracking-tighter uppercase`, com `drop-shadow` para legibilidade
+
+**Breathing Glow (idle):**
+```css
+@keyframes breathe-glow {
+  0%, 100% { box-shadow: 0 0 20px 0 rgba(52,211,153,0.2), 0 0 40px 0 rgba(212,162,76,0.1); }
+  50%      { box-shadow: 0 0 30px 5px rgba(52,211,153,0.4), 0 0 60px 10px rgba(212,162,76,0.2); }
+}
+animation: breathe-glow 4s ease-in-out infinite
+```
+Comunica "estou aqui, pronta" — sutil, nao distrai.
+
+**Interacao (press-and-hold pattern):**
+
+| Gesto | Resultado |
+|-------|-----------|
+| Clique curto (<500ms) | Navega para `/genia` |
+| Segurar (>=500ms) | Navega para `/genia` + inicia gravacao de voz automaticamente |
+| Soltar apos segurar | Envia o audio gravado (`genia:stop-voice` event) |
+
+**Estado "segurando" (isHolding):**
+- Escala: `scale-110`
+- Core escurece: `bg-black/80 backdrop-saturate-200`
+- Aura acelera: `animate-[spin-slow_1s_linear_infinite]`
+- Ondas sonoras radiais: 2 circulos com `animate-ping` e opacidades diferentes
+- Icone muda para `Mic` com `animate-bounce`
+
+**Tooltip flutuante:**
+```
+absolute -top-8
+bg-black/70 backdrop-blur-md text-white
+text-[10px] uppercase font-bold tracking-widest
+px-3 py-1 rounded-full
+opacity-0 group-hover:opacity-100
+```
+Texto: "Segure para Falar". Aparece no hover, some durante hold.
+
+**Regras:**
+- **Oculto na pagina `/genia`** — la o input bar unificado ja tem microfone, o FAB seria redundante
+- Visivel em todas as outras paginas para todos os tipos de usuario
+- `safe-area-bottom` para dispositivos com home indicator
+- Touch: `WebkitTapHighlightColor: transparent`, `select-none`, `active:scale-95`
+
+### Navegacao entre Hubs (Sub-rotas Internas)
+
+Cada hub (Lab, Campo, Escritorio) tem sub-rotas internas. Dentro de um hub:
+
+```
+Tabs com TabsList horizontal (scrollavel em mobile)
+rounded-lg bg-muted/50 p-1
+```
+
+| Estado | Estilo |
+|--------|--------|
+| Inativo | `text-muted` |
+| Hover | `text-foreground` |
+| Ativo | `bg-card text-foreground font-semibold shadow-sm rounded-md` |
+
+Sem sidebar aninhada. Sem breadcrumbs complexos. Tabs bastam.
+
+---
+
+## 7. Genia — A Experiencia Central
+
+A Genia e onde o usuario vive. Nao e uma feature — e **o app**. Todo o design system converge aqui.
+
+### Layout da Tela
+
+```
++-------------------------------------+
+|  TopBar (glass-panel)               |
++-------------------------------------+
+|                                     |
+|         Area de conversa            |
+|         (scroll vertical)           |
+|                                     |
+|  +-----------------------------+    |
+|  |  Mensagem do usuario        |    |
+|  +-----------------------------+    |
+|                                     |
+|  +-----------------------------+    |
+|  |  Resposta da Genia          |    |
+|  |  com rich content           |    |
+|  +-----------------------------+    |
+|                                     |
++-------------------------------------+
+|  Input bar (fixa no bottom)         |
++-------------------------------------+
+```
+
+**Container:**
+```
+flex flex-col h-[calc(100vh-56px)]
+bg-background
+```
+
+**Area de conversa:**
+```
+flex-1 overflow-y-auto
+px-4 md:px-0
+md:max-w-3xl md:mx-auto
+py-6 space-y-6
+```
+
+Centrada com `max-w-3xl` no desktop (como ChatGPT/Claude). Full-width no mobile.
+
+### Mensagens do Usuario
+
+```
+ml-auto max-w-[85%] md:max-w-[70%]
+bg-green-500 text-white
+rounded-2xl rounded-br-md
+px-4 py-3
+text-sm
+```
+
+Alinhada a direita. Verde solido. Canto inferior direito mais agudo (indica "saiu de mim").
+
+### Respostas da Genia
+
+```
+max-w-[90%] md:max-w-[80%]
+bg-card border border-border
+rounded-2xl rounded-bl-md
+px-5 py-4
+```
+
+Alinhada a esquerda. Card com borda sutil. Canto inferior esquerdo mais agudo.
+
+**Avatar da Genia** (inline, antes da mensagem):
+```
+w-7 h-7 rounded-full
+bg-green-500/10 border border-green-500/20
+flex items-center justify-center
+```
+Icone custom da Genia dentro.
+
+**Rich Content dentro das respostas:**
+
+| Tipo | Estilo |
+|------|--------|
+| Texto | `text-sm leading-relaxed text-foreground` |
+| Codigo/dados | `font-mono text-xs bg-muted/50 rounded-md px-2 py-1` |
+| Tabelas inline | Compactas, `text-xs font-mono`, borders sutis |
+| Valores monetarios | `font-mono font-semibold text-gold-500` |
+| Metricas/scores | `font-mono font-bold` + cor semantica |
+| Links/acoes | `text-green-500 font-medium hover:underline` |
+| Cards de resumo | Mini-cards dentro da resposta com `bg-muted/30 rounded-lg p-3` |
+
+**Genia "pensando" (loading):**
+```
+3 dots pulsando em sequencia
+bg-card border border-border rounded-2xl rounded-bl-md
+px-5 py-4
+```
+Dots com `animate-pulse` e delays escalonados (0ms, 150ms, 300ms). Verde com opacidade variavel.
+
+### Input Bar
+
+```
+sticky bottom-0
+glass-panel border-t border-border
+px-4 py-3
+md:max-w-3xl md:mx-auto
+```
+
+**Campo de input:**
+```
+flex items-end gap-3
+bg-card border border-border rounded-xl
+px-4 py-3
+min-h-[48px] max-h-[200px]
+resize-none
+```
+
+Textarea auto-expansivel. Cresce com o conteudo ate `max-h-[200px]`.
+
+**Botao de envio:**
+```
+self-end
+w-10 h-10 rounded-full
+bg-green-500 text-white
+hover:bg-green-600
+transition-all duration-200
+disabled:opacity-30
+```
+Icone de seta. So ativo quando ha texto.
+
+**Botao de voz (VoiceFAB):**
+```
+self-end
+w-10 h-10 rounded-full
+bg-card border border-border text-muted
+hover:text-foreground hover:border-green-400
+```
+
+Quando gravando:
+```
+bg-red-500 text-white
+animate-pulse
+shadow-glow com vermelho
+```
+
+**Acoes rapidas (acima do input, opcional):**
+```
+flex gap-2 overflow-x-auto pb-2
+scrollbar-none
+```
+
+Pills de sugestao:
+```
+rounded-full border border-border
+px-3 py-1.5
+text-xs font-medium text-muted
+hover:text-foreground hover:border-green-400
+transition-all duration-150
+```
+
+### Fusao Green + Gold na Genia
+
+| Elemento | Lado |
+|----------|------|
+| Estrutura (bg, borders, avatar) | **Green** — ciencia, precisao |
+| Valores monetarios em respostas | **Gold** — `text-gold-500 font-mono` |
+| Metricas de performance/lucro | **Gold** — destaque de valor |
+| Dados tecnicos (scores, classificacoes) | **Green** — dados cientificos |
+| Recomendacoes de acao | **Green** — botao primary |
+| Insights financeiros | **Gold** — badge ou highlight |
+
+**Regra**: O dourado na Genia aparece **dentro do conteudo** (dados de valor), nunca na estrutura (que e verde/neutra).
+
+### Genia em Mobile
+
+Mesma estrutura, ajustes:
+- Input bar acima do MobileNav: `bottom-16` (clearance da nav)
+- Mensagens: `max-w-[90%]` (mais espaco)
+- Sugestoes rapidas: scroll horizontal com snap
+- Sem avatar da Genia em mobile (economizar espaco) — diferenciacao por alinhamento e cor basta
+
+---
+
+## 8. Animacoes & Micro-interacoes
+
+### Filosofia
+
+> **Cada animacao comunica algo. Nenhuma e cosmetica.**
+
+Tres categorias: **Feedback**, **Transicao**, **Identidade**. Se nao cabe em nenhuma, nao existe.
+
+### Feedback (resposta a acao do usuario)
+
+| Interacao | Animacao | Spec |
+|-----------|----------|------|
+| Botao click | Scale down | `active:scale-[0.97]` duration-100 |
+| Card hover | Elevar | `hover:-translate-y-0.5 hover:shadow-md` duration-200 |
+| Input focus | Ring expand | `ring-2 ring-green-500/10` duration-150 |
+| Toggle/Switch | Slide | `transition-transform` duration-200 |
+| Toast enter | Slide up + fade | `translate-y-2 -> 0, opacity 0 -> 1` duration-300 |
+| Toast exit | Fade out | `opacity 1 -> 0` duration-200 |
+| Botao submit (Genia) | Scale pulse | `scale-100 -> 105 -> 100` duration-200 ao enviar |
+
+### Transicao (mudanca de estado/pagina)
+
+| Contexto | Animacao | Spec |
+|----------|----------|------|
+| Pagina enter | Fade up | `opacity 0->1, translate-y-4->0` duration-300 ease-out |
+| Tab switch | Fade cross | Conteudo antigo fade-out, novo fade-in, duration-200 |
+| Modal/Dialog open | Scale up + backdrop | `scale-95->100, opacity 0->1` duration-200. Backdrop `bg-black/50` fade-in |
+| Modal/Dialog close | Scale down | `scale-100->95, opacity 1->0` duration-150 |
+| Sheet (mobile) open | Slide up | `translate-y-full -> 0` duration-300 ease-out |
+| Sidebar collapse | Width shrink | `w-[220px] -> w-[60px]` duration-300 |
+| Dropdown open | Scale + fade | `scale-95->100, opacity 0->1` from top, duration-150 |
+| Skeleton pulse | Opacity loop | `opacity 0.4->1->0.4` duration-1500 infinite |
+
+### Identidade (DNA do PassaGene)
+
+Animacoes que dao personalidade e nao existem em nenhum outro app:
+
+**1. LoaderDNA (Loading principal)**
+```
+7 dots em formacao de dupla-helice
+Rotacao continua: rotate 360 em 1.5s linear infinite
+Dots com opacidade escalonada criando efeito de profundidade 3D
+```
+- Uso: Loading de pagina, operacoes longas (>500ms)
+- Tamanhos: `sm` (32px), `md` (64px), `lg` (96px)
+- Nunca mais de 1 LoaderDNA visivel por tela
+
+**2. Genia Breathing (idle do bot)**
+```
+scale: 1 -> 1.03 -> 1
+opacity do glow: 0.1 -> 0.2 -> 0.1
+duration: 4s ease-in-out infinite
+```
+- Uso: Icone da Genia na sidebar/nav quando idle
+- Comunica: "estou aqui, pronta"
+- Para quando a Genia esta respondendo (substitui por loading dots)
+
+**3. Mitose (Acao de expansao)**
+```
+Elemento central -> sub-elementos "brotam" com:
+transform: scale(0) -> scale(1)
+translate de dentro pra fora
+delays escalonados: 50ms, 100ms, 150ms...
+duration: 250ms ease-out cada
+```
+- Uso: Menu de acoes rapidas, FAB expansion
+- Comunica: uma acao gerando multiplas opcoes
+- Maximo 5 sub-elementos (mais que isso vira ruido)
+
+**4. Gold Shimmer (Destaque de valor)**
+```
+background-position: -200% -> 200%
+gradient linear: transparent -> gold-400/20 -> transparent
+duration: 2s ease-in-out (single play, nao loop)
+```
+- Uso: Quando a Genia apresenta um valor financeiro relevante, insight de lucro, ou recomendacao premium
+- Trigger: Uma vez na montagem do elemento, nao repete
+- Sutil — e um brilho que passa, nao uma animacao constante
+
+### Regras Absolutas de Animacao
+
+1. **Durations**: Feedback <=200ms. Transicoes 200-300ms. Identidade livre (mas <=4s loop).
+2. **Easing**: `ease-out` para entradas, `ease-in` para saidas, `ease-in-out` para loops.
+3. **Reduce motion**: Respeitar `prefers-reduced-motion`. Quando ativo:
+   - Feedback: manter (sao funcionais)
+   - Transicoes: substituir por fade simples de 150ms
+   - Identidade: LoaderDNA vira spinner estatico, breathing/mitose desativados, shimmer desativado
+4. **Performance**: So animar `transform` e `opacity` (GPU-accelerated). Nunca `width`, `height`, `margin`, `padding`, `top`, `left`.
+5. **Maximo 1 animacao de identidade visivel por viewport**. Se o LoaderDNA esta rodando, nenhum breathing/shimmer/mitose.
+6. **Removido do sistema**: `animate-ping`, `animate-bounce`, blobs, gradients animados constantes, parallax. Nao existem no PassaGene.
+
+---
+
+## 9. Dark Mode
+
+### Estrategia
+
 - Toggle via classe `dark` no `<html>` (Tailwind `darkMode: ["class"]`)
-- CSS variables em `:root` e `.dark` para todas as cores semânticas
-- Usar `bg-muted`, `text-foreground`, `border-border` — **nunca hardcodar cores por modo**
+- **Todas** as cores via CSS variables — nunca hardcodar hex por modo
+- Ambos os modos sao cidadaos de primeira classe — nenhum e "versao degradada"
 
-### Surfaces
-- **Background**: `#051F15` (preto-verde, nunca preto puro)
-- **Card / Muted**: via CSS variables (`--card`, `--muted`)
+### Superficies
 
-### Regras
-- `muted-foreground` em dark deve ter **≥70% lightness** para legibilidade
-- Shadows com green tint precisam de opacidade maior em dark mode
-- Badges mantêm o padrão `dark:text-[cor]-400` automaticamente
-- **NUNCA** usar `text-green-600` etc. direto — sempre `text-primary` ou CSS var
+| Token | Light | Dark | Nota |
+|-------|-------|------|------|
+| `--bg-primary` | `#F7FAF8` | `#080B0A` | Nunca branco puro, nunca preto puro |
+| `--bg-card` | `#FFFFFF` | `#0F1412` | Cards se destacam do fundo |
+| `--bg-card-hover` | `#F0F4F1` | `#161D19` | Hover sutil |
+| `--bg-subtle` | `#E8EDE9` | `#1A211D` | Areas recuadas, muted sections |
+| `--bg-elevated` | glass-panel | glass-panel | TopBar, modals — mesmo efeito |
 
----
+### Textos
 
-## 8. Responsividade & Mobile
+| Token | Light | Dark | Contraste minimo |
+|-------|-------|------|------------------|
+| `--text-primary` | `#080B0A` | `#F1F5F2` | >=15:1 |
+| `--text-secondary` | `#4E5F54` | `#A3B5A9` | >=7:1 |
+| `--text-muted` | `#8A9B90` | `#6B7C71` | >=4.5:1 |
+| `--text-disabled` | `#B5C0B9` | `#3D4A42` | Decorativo — sem requisito |
 
-### Dual-Layout Pattern
-- **Mobile** (`md:hidden`): cards empilhados, full width
-- **Desktop** (`hidden md:block`): tabelas com CSS Grid
-- Touch targets: `h-11 md:h-9`, inputs `w-full md:w-[Xpx]`
+### Borders
 
-### Breakpoints
-| Token | Largura | Uso |
-|-------|---------|-----|
-| `sm` | 640px | Telefones landscape |
-| `md` | 768px | **Ponto de quebra principal** — tablets |
-| `lg` | 1024px | Desktops pequenos |
-| `xl` | 1280px | Desktops |
+| Token | Light | Dark |
+|-------|-------|------|
+| `--border-default` | `#E2E8E4` | `#1E2722` |
+| `--border-active` | `#34D399` | `#34D399` |
+| `--border-gold` | `#D4A24C` | `#D4A24C` |
 
-### Padding de Página
-- Mobile: `p-4` (16px) + `pb-24` (96px, clearance do bottom nav)
-- Desktop: `p-8` (32px)
+Green-dim e gold **nao mudam** entre modos — sao ancoras de identidade.
 
-### Filtros (padrão mobile-friendly)
-- Container: `rounded-xl border border-border bg-card p-4`
-- Layout: `flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:gap-6`
-- Indicador lateral: `w-1 h-6 rounded-full bg-[cor]/40`
+### Green no Dark Mode
 
----
+| Token | Light | Dark | Nota |
+|-------|-------|------|------|
+| `--green-500` | `#1A7A50` | `#34D399` | Inverte: escuro->claro para manter legibilidade |
+| Botao primary bg | `#1A7A50` | `#1A7A50` | **Nao inverte** — solido nos dois modos |
+| Botao primary hover | `#156842` | `#22916A` | Hover clareia no dark |
+| Text green | `#1A7A50` | `#34D399` | Links, IDs, destaques |
+| Green bg sutil | `#EEFBF4` | `#0A1F16` | Badges, backgrounds |
 
-## 9. Módulo Cliente (Acessibilidade Reforçada)
+### Gold no Dark Mode
 
-Público-alvo: **usuários idosos com vista ruim e pouca intimidade com tecnologia**.
+| Token | Light | Dark | Nota |
+|-------|-------|------|------|
+| `--gold-400` | `#D4A24C` | `#D4A24C` | **Nao muda** — dourado brilha mais no escuro naturalmente |
+| Text gold | `#96691E` | `#D4A24C` | Clareia para legibilidade |
+| Gold bg sutil | `#FDF8ED` | `#1A1508` | Badges, highlights |
+| Gold shimmer | `gold-400/20` | `gold-400/15` | Levemente reduzido no dark |
 
-### Regras Obrigatórias
-- Fontes mínimas: `text-xs` (12px) para labels, `text-base` (16px) para nomes/valores
-- Touch targets: **44px** (h-11) — sem exceção
-- Vocabulário simplificado, sem jargão técnico
-- Mobile-first: cards + filtros simples, sem tabelas complexas
+### Componentes — Diferencas por Modo
 
-### Navegação
+**Glass Panel:**
+```css
+/* Light */
+background: rgba(255, 255, 255, 0.8);
+backdrop-filter: blur(12px);
+border: 1px solid var(--border-default);
+
+/* Dark */
+background: rgba(15, 20, 18, 0.8);
+backdrop-filter: blur(12px);
+border: 1px solid rgba(255, 255, 255, 0.06);
 ```
-Home | Rebanho | Serviços | Botijão
+
+**Sidebar:**
+```
+Light: bg-green-950 (escura nos dois modos — ancora visual)
+Dark:  bg-green-950
+```
+A sidebar **nao muda** entre modos. E sempre escura. Cria consistencia e ancora a navegacao.
+
+**Cards:**
+```css
+/* Light */
+bg-card border-border shadow-sm
+
+/* Dark */
+bg-card border-white/[0.06] shadow-none
+```
+No dark mode, cards perdem sombra (nao funciona em fundo escuro) e ganham borda luminosa sutil.
+
+**Badges:**
+```
+Padrao universal (funciona nos dois modos):
+bg-[cor]-500/10 text-[cor]-600 dark:text-[cor]-400 border-[cor]-500/20
 ```
 
+**Tabelas:**
+```css
+/* Light */
+header: bg-muted/50
+row hover: bg-green-50
+
+/* Dark */
+header: bg-muted/30
+row hover: bg-green-950/50
+```
+
+**Inputs:**
+```css
+/* Light */
+bg-card border-border
+
+/* Dark */
+bg-card border-white/10
+focus: border-green-400 ring-green-400/10
+```
+
+### Glow Effects no Dark
+
+Glows ganham **mais presenca** no dark mode:
+
+| Glow | Light | Dark |
+|------|-------|------|
+| `shadow-glow-green` | `rgba(9,201,114, 0.15)` | `rgba(9,201,114, 0.30)` |
+| `shadow-glow-gold` | `rgba(212,162,76, 0.15)` | `rgba(212,162,76, 0.30)` |
+
+Opacidade dobra no dark. O dourado sobre fundo escuro e onde a identidade "elite" mais aparece.
+
+### Regras Absolutas de Dark Mode
+
+1. **Nunca** `text-green-600` direto — sempre `text-green-500 dark:text-green-400` ou CSS var
+2. **Nunca** branco puro (#FFF) como background no dark — usar `--bg-card`
+3. **Nunca** preto puro (#000) — usar `--bg-primary` com tint verde
+4. **Sidebar e imutavel** entre modos — ancora visual
+5. **Borders no dark**: `white/[0.06]` para sutil, `white/[0.12]` para enfase
+6. **Sombras no dark**: substituir por borders luminosas. `shadow-sm` -> `border border-white/[0.06]`
+7. **Testar sempre**: todo componente deve ser verificado nos dois modos antes de merge
+
 ---
 
-## 10. Stat Cards (Dashboard)
+## 10. Modulo Cliente (Acessibilidade Reforcada)
 
-- **Layout**: Label (caption) + Valor (grande) + Variação (seta ▲/▼)
-- **Ícone**: canto superior direito, `bg-primary-50 rounded-lg`
-- **Valor**: `text-[28px] font-extrabold tracking-tight`
-- **Variação positiva**: `text-green-600` com ▲
-- **Variação negativa**: `text-red-500` com ▼
-- **Hover**: `hover:shadow-lg hover:-translate-y-0.5`
-- **Grid**: 4 cols desktop (`lg`), 2 cols tablet (`md`), 1 col mobile (`sm`)
+### Publico-alvo
+
+**Fazendeiros e produtores rurais** — frequentemente:
+- Idade 50+, vista cansada
+- Pouca intimidade com tecnologia
+- Usando celular no campo, com sol forte
+- Querem ver seus animais e resultados, nao operar sistemas complexos
+
+### Regras Obrigatorias (sem excecao)
+
+| Regra | Spec | Por que |
+|-------|------|---------|
+| Fonte minima | `text-base` (16px) para qualquer informacao legivel | Vista cansada |
+| Labels | `text-sm` (14px) minimo, nunca `text-xs` | Precisa ler sem esforco |
+| Touch targets | `h-12` (48px) — acima do padrao 44px | Dedos grossos, maos de trabalho |
+| Contraste | WCAG AAA (>=7:1) em todo texto funcional | Sol forte na tela |
+| Vocabulario | Zero jargao tecnico — "Prenhe" sim, "PRENHE_RETOQUE" nao | Simplicidade |
+| Navegacao | Maximo 4 itens visiveis, sem menus aninhados | Sem confusao |
+| Acoes | Botoes grandes com texto explicito, nunca so icone | Clareza total |
+
+### Layout Mobile-Only
+
+O modulo cliente e **mobile-first e mobile-only na pratica**. Desktop funciona mas nao e prioridade.
+
+```
+px-5 pt-5 pb-28
+space-y-5
+```
+
+Padding mais generoso que o app principal. Mais ar entre elementos.
+
+### Componentes Adaptados
+
+**Cards de Animal:**
+```
+rounded-2xl border border-border bg-card
+p-5
+space-y-3
+```
+- Nome do animal: `text-lg font-bold` (18px)
+- Info secundaria: `text-base text-secondary` (16px)
+- Status: Badge com `text-sm` (14px) — maior que o padrao
+
+**Botoes:**
+```
+w-full h-12 rounded-xl
+text-base font-bold
+```
+Sempre full-width no mobile. Sempre com texto, nunca so icone.
+
+**Filtros:**
+- Select grande (`h-12`) com texto `text-base`
+- Maximo 2 filtros visiveis — resto em "Mais filtros" (sheet)
+- Opcoes com texto descritivo, nao codigos
+
+**Tabelas -> Cards:**
+Nunca tabela no modulo cliente. Sempre lista de cards empilhados.
+
+### Navegacao do Cliente
+
+```
+Home  |  Rebanho  |  Resultados  |  Perfil
+```
+
+4 itens. Nomes em linguagem do produtor. Sem "Dashboard", sem "Hub", sem "Modulo".
+
+### Tom de Voz (Cliente)
+
+| Padrao | Cliente |
+|--------|---------|
+| "PRENHE_FEMEA" | "Prenhe — Femea" |
+| "DG pendente" | "Diagnostico de gestacao pendente" |
+| "TE realizada" | "Embriao transferido" |
+| "Erro 500" | "Algo deu errado. Tente de novo." |
+| "Nenhum registro" | "Nenhum animal encontrado" |
+| "N/A" | "Sem informacao" |
 
 ---
 
-## 11. Regras Gerais
+## 11. Regras Gerais de Implementacao
 
-### Obrigatórias
-1. **NUNCA** usar cores inline (`style={{ color: "..." }}`). SEMPRE classes Tailwind.
-2. **NUNCA** usar emojis no app. SEMPRE Lucide React icons.
-3. **NUNCA** cantos vivos (`rounded-none`, `rounded-sm`). A marca é biológica.
-4. **SEMPRE** manter consistência: todos os cards mesmos radius e sombras.
-5. **SEMPRE** espaçamento em múltiplos de 4px.
-6. **SEMPRE** textos em Português do Brasil.
-7. **SEMPRE** usar shadcn/ui como base, customizando via variantes.
-8. **SEMPRE** usar CSS variables para dark mode.
+### Obrigatorias (quebrar = bug)
 
-### Padrões de Interação
-- Hover em cards: elevar com shadow + translate
-- Hover em rows de tabela: mudar background
-- Focus em inputs: ring com cor primary
-- Transições: `transition-all duration-200` padrão
-- Loading states: Skeleton do shadcn/ui
+1. **Cores**: Sempre via CSS variables ou classes Tailwind semanticas. Nunca `style={{ color: "..." }}`.
+2. **Icones**: Custom PassaGene para conceitos-chave. Lucide so para acoes genericas (marcados `[PLACEHOLDER]`). Nunca emojis.
+3. **Radius**: Nunca `rounded-none` ou `rounded-sm`. Minimo `rounded-md` (6px).
+4. **Espacamento**: Multiplos de 4px. Sem valores arbitrarios (`mt-[7px]`).
+5. **Textos**: Portugues do Brasil. Sempre.
+6. **Touch targets mobile**: `h-11` (44px) minimo no app principal, `h-12` (48px) no modulo cliente.
+7. **Dark mode**: Todo componente funciona nos dois modos. Testar antes de merge.
+8. **Animacao**: So `transform` e `opacity`. Respeitar `prefers-reduced-motion`.
+9. **shadcn/ui**: Base de todos os componentes. Customizar via variantes, nunca reescrever do zero.
+10. **1 primary action por viewport**: Maximo 1 botao `primary` ou `gold` visivel por vez.
 
----
+### Padroes de Codigo
 
-## 12. Configuração Tailwind
+**Componente novo:**
+```tsx
+// Sempre tipar props
+interface CardAnimalProps {
+  nome: string
+  status: StatusReceptora
+  className?: string
+}
 
+// Sempre usar cn() para merge de classes
+export function CardAnimal({ nome, status, className }: CardAnimalProps) {
+  return (
+    <div className={cn(
+      "rounded-2xl border border-border bg-card p-5",
+      className
+    )}>
+      ...
+    </div>
+  )
+}
+```
+
+**CSS Variables (em index.css):**
+```css
+:root {
+  --bg-primary: #F7FAF8;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F0F4F1;
+  --bg-subtle: #E8EDE9;
+  --text-primary: #080B0A;
+  --text-secondary: #4E5F54;
+  --text-muted: #8A9B90;
+  --border-default: #E2E8E4;
+  --border-active: #34D399;
+  --border-gold: #D4A24C;
+}
+
+.dark {
+  --bg-primary: #080B0A;
+  --bg-card: #0F1412;
+  --bg-card-hover: #161D19;
+  --bg-subtle: #1A211D;
+  --text-primary: #F1F5F2;
+  --text-secondary: #A3B5A9;
+  --text-muted: #6B7C71;
+  --border-default: #1E2722;
+  --border-active: #34D399;
+  --border-gold: #D4A24C;
+}
+```
+
+**Tailwind config (theme.extend):**
 ```ts
-// tailwind.config.ts — theme.extend
 {
   colors: {
-    brand: '#09C972',  // Cor exata da logo
-    primary: {
-      50: '#f0f9f4', 100: '#daf1e4', 200: '#b8e3cb', 300: '#89ceaa',
-      400: '#57b584', 500: '#3d9e6b', 600: '#3a8a5e', 700: '#2d6e4a',
-      800: '#27583d', 900: '#1e4732', 950: '#0d2a1c',
+    brand: '#09C972',
+    'brand-deep': '#049357',
+    green: {
+      50: '#EEFBF4', 100: '#D7F5E5', 200: '#B3EBD0', 300: '#7ADCB0',
+      400: '#3EC98A', 500: '#1A7A50', 600: '#156842', 700: '#105434',
+      800: '#0C4229', 900: '#08311E', 950: '#041A10',
     },
-    accent: {
-      50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047',
-      400: '#facc15', 500: '#eab308', 600: '#ca8a04', 700: '#a16207',
-      800: '#854d0e', 900: '#713f12', 950: '#422006',
+    gold: {
+      50: '#FDF8ED', 100: '#FAF0D4', 200: '#F4DFA8', 300: '#ECCC73',
+      400: '#D4A24C', 500: '#B8862E', 600: '#96691E', 700: '#745016',
+      800: '#5A3E11', 900: '#3D2A0B',
     },
+    background: 'var(--bg-primary)',
+    card: 'var(--bg-card)',
+    foreground: 'var(--text-primary)',
+    secondary: 'var(--text-secondary)',
+    muted: 'var(--text-muted)',
+    border: 'var(--border-default)',
   },
   fontFamily: {
-    sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+    sans: ['Outfit', 'system-ui', 'sans-serif'],
+    heading: ['Outfit', 'system-ui', 'sans-serif'],
     mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+  },
+  borderRadius: {
+    sm: '6px',
+    md: '10px',
+    lg: '14px',
+    xl: '20px',
+    '2xl': '24px',
   },
 }
 ```
 
----
+### Checklist de Novo Componente
 
-## 13. Elementos Disruptivos (Orgânicos e de Alta Performance)
+Antes de considerar pronto, todo componente deve passar por:
 
-Para quebrar a dureza "mecânica" das interfaces tradicionais, o PassaGene utiliza 3 padrões não-convencionais e de alto desempenho que mimetizam propriedades biológicas. Estes padrões **substituem** soluções quadradas ou estáticas em futuras refatorações estéticas.
-
-### 13.1 Membrana Curva (Menu/Navegação)
-- **O que é**: Evitar barras de navegação (Bottom Nav Mobile ou Sidebar Desktop) perfeitamente retas. Uma "vala" ou "barriga" suave deforma a barra para abraçar a principal Ação Flutuante (FAB).
-- **Como implementar**: Usar um `<svg>` com fundo opaco preenchendo o espaço (ex: `fill-white dark:fill-card`) com filtro `drop-shadow`.
-- **Custo de Performance**: **ZERO GPU/CPU**. É uma ilusão de ótica estática gerada uma única vez pelo navegador.
-- **Caso de uso**: `MobileNav` (app celular) e menus principais isolados.
-
-### 13.2 Botão "Mitose" de Ação (Apenas CSS)
-- **O que é**: Ao clicar no Botão de Ação Principal (FAB), em vez de um menu seco, bolhas menores "deslizam" de dentro dele esticando uma membrana (linha de ligação) invisível como uma célula se dividindo. 
-- **Como implementar**: **NUNCA usar SVG Filters (`feColorMatrix` ou `goo`).** Construir exclusivamente com `transform: scale()`, `translate()` e `opacity` do CSS Tailwind com tempos em cascata (`delay-75`, `delay-150`). As propriedades de curvatura e estiramento são ilusões de escala no CSS.
-- **Custo de Performance**: **Extremamente Baixo**. Os navegadores aceleram as propriedades `transform` na placa gráfica do celular, rodando a 60FPS num piscar de olhos sem exigir da bateria.
-- **Caso de uso**: Inserção rápida de dados essenciais (ex: Botão Central para "Transferir Embrião", "Novo Animal").
-
-### 13.3 Fecho Ecler Dinâmico "Dupla Hélice" (Listas Animadas)
-- **O que é**: Uma Timeline vertical onde as células (cards) não descem do topo, mas sim cruzam animadas dos lados esquerdo e direito simulando os degraus (bases nitrogenadas) de uma dupla-hélice de DNA conectando-se na espinha dorsal.
-- **Como implementar**: Usar transição CSS (`transition-all duration-700 delay-[staggered]`) mesclada a `translate-x` reversos dependendo se o item é par ou ímpar (side `left`/`right`). A linha central vertical deve ter propriedades gradientes.
-- **Custo de Performance**: **Seguro e leve**. Depende de CSS Transforms acionados apenas na montagem da tela (`mount`).
-- **Caso de uso**: Páginas de Históricos longos (Histórico de Vida do Animal, Protocolo FIV de uma Doadora, Etapas de um Lote).
-
-> **Aviso de Performance Geral:** Efeitos de intersecção complexa com embaçamento e "Blobs" constantes na membrana geométrica (ex: `animate-blob` deformando `border-radius` em milisegundos) foram **testados e REPROVADOS** para telas múltiplas por fritarem o processador de celulares antigos. Limite os blobs a casos excepcionais, muito contidos. No dia a dia, use apenas as 3 regras acima.
+- [ ] Funciona em light mode
+- [ ] Funciona em dark mode
+- [ ] Funciona em mobile (<=768px)
+- [ ] Funciona em desktop (>=1024px)
+- [ ] Touch targets >=44px em mobile
+- [ ] Sem cores hardcodadas — so CSS vars / Tailwind
+- [ ] Animacoes respeitam `prefers-reduced-motion`
+- [ ] Texto em Portugues do Brasil
+- [ ] Usa `cn()` para merge de classes
