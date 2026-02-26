@@ -1780,7 +1780,7 @@ export default function ConsultorIA() {
                                     </div>
                                     {/* Lado Direito (Balão Usuário) */}
                                     <div className="flex w-full justify-end md:pl-6 max-w-[90%] md:max-w-full justify-self-end">
-                                        <div className="bg-muted/40 backdrop-blur-md border border-border/50 text-foreground rounded-2xl rounded-tr-sm px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed relative">
+                                        <div className="bg-green-500 text-white rounded-2xl rounded-br-md px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed relative">
                                             <div className="md:hidden absolute top-5 -left-2 w-[10px] h-[2px] bg-border/50" />
                                             {msg.content}
                                         </div>
@@ -1791,7 +1791,7 @@ export default function ConsultorIA() {
                                 <>
                                     {/* Lado Esquerdo (Balão IA) */}
                                     <div className="flex w-full justify-start md:pr-6 max-w-[95%] md:max-w-full">
-                                        <div className="glass-panel border border-border/50 text-foreground/90 rounded-2xl rounded-tl-sm px-5 py-3.5 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed w-full">
+                                        <div className="bg-card border border-border rounded-2xl rounded-bl-md px-5 py-4 shadow-sm whitespace-pre-wrap text-[15px] leading-relaxed w-full">
 
                                             {msg.isSearching ? (
                                                 <div className="flex items-center gap-3 h-6">

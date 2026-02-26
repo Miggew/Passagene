@@ -452,6 +452,10 @@ html.font-grande {
     box-shadow: 0 0 20px rgba(212, 162, 76, 0.12);
   }
 
+  .btn-primary-gold:hover {
+    box-shadow: 0 0 20px rgba(212, 162, 76, 0.2), 0 0 40px rgba(52, 211, 153, 0.08);
+  }
+
   .btn-primary-green {
     background: linear-gradient(135deg, #34D399, #1A7A50);
     color: #080B0A;
@@ -463,6 +467,34 @@ html.font-grande {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* DNA gradient accents */
+  .border-dna {
+    border-image: var(--gradient-dna-border) 1;
+  }
+
+  .bg-dna-subtle {
+    background: var(--gradient-dna-subtle);
+  }
+
+  .text-dna {
+    background: var(--gradient-dna-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* DNA gradient progress bar fill */
+  .progress-dna {
+    background: var(--gradient-dna);
+  }
+
+  /* DNA glow for focus states */
+  .ring-dna {
+    box-shadow: 0 0 0 2px var(--bg-primary),
+                0 0 0 4px rgba(52, 211, 153, 0.2),
+                0 0 12px rgba(212, 162, 76, 0.08);
   }
 
   /* CSS SVG Noise pattern for frosted effect */
