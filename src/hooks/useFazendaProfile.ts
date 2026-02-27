@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { handleError } from '@/lib/error-handler';
-import type { FazendaProfile, FazendaStats, ProviderStats, Fazenda } from '@/lib/types';
+import type { FazendaProfile, FazendaStats, ProviderStats, PlatformStats, Fazenda } from '@/lib/types';
 
 /** Perfil da fazenda por slug (público) */
 export function useFazendaProfileBySlug(slug: string | null) {
@@ -155,6 +155,19 @@ export function useProviderStats(userId: string | null) {
       return data as ProviderStats | null;
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Stats agregadas da plataforma (admin) */
+export function usePlatformStats() {
+  return useQuery({
+    queryKey: ['platform-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_platform_stats');
+      if (error) throw error;
+      return data as PlatformStats | null;
+    },
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -995,7 +995,7 @@ export interface ItemTransferenciaQuery {
 // Tipos para Perfil e Marketplace C2C
 // ========================================
 
-export type ProfileSectionType = 'text' | 'animal_showcase' | 'photo_gallery' | 'stats' | 'fazenda_highlight' | 'production_stats' | 'service_stats' | 'specialties' | 'service_portfolio' | 'fazenda_links';
+export type ProfileSectionType = 'text' | 'animal_showcase' | 'photo_gallery' | 'stats' | 'fazenda_highlight' | 'production_stats' | 'service_stats' | 'specialties' | 'service_portfolio' | 'fazenda_links' | 'platform_stats' | 'feature_showcase';
 
 export interface ProfileSection {
   id: string;
@@ -1022,7 +1022,9 @@ export type ProfileSectionContent =
   | ServiceStatsContent
   | SpecialtiesContent
   | ServicePortfolioContent
-  | FazendaLinksContent;
+  | FazendaLinksContent
+  | PlatformStatsContent
+  | FeatureShowcaseContent;
 
 export interface TextSectionContent {
   body: string;
@@ -1091,6 +1093,19 @@ export interface FazendaLinksContent {
   show_stats?: boolean;
 }
 
+export interface PlatformStatsContent {
+  visibility: Record<string, boolean>;
+}
+
+export interface FeatureShowcaseContent {
+  features: Array<{
+    icon: string;
+    title: string;
+    description: string;
+  }>;
+  layout?: 'grid' | 'list';
+}
+
 export interface FazendaStats {
   total_doadoras: number;
   total_receptoras: number;
@@ -1105,6 +1120,15 @@ export interface ProviderStats {
   total_embrioes: number;
   total_clientes: number;
   taxa_aproveitamento: number;
+}
+
+export interface PlatformStats {
+  total_clientes: number;
+  total_fazendas: number;
+  total_embrioes: number;
+  total_aspiracoes: number;
+  total_tes: number;
+  taxa_prenhez: number;
 }
 
 export type AnuncioTipo = 'doadora' | 'touro' | 'embriao' | 'dose' | 'outro';
