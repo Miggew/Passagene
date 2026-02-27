@@ -55,13 +55,14 @@ export default function ProfileAvatarUpload({ nome, currentPath, className }: Pr
         avatarPath={currentPath}
         avatarUrl={previewUrl}
         size="xl"
+        shape="square"
         onClick={() => !isLoading && inputRef.current?.click()}
       />
 
       {/* Overlay */}
       <div
         className={cn(
-          'absolute inset-0 rounded-full flex items-center justify-center transition-opacity',
+          'absolute inset-0 rounded-xl flex items-center justify-center transition-opacity',
           isLoading ? 'bg-black/40 opacity-100' : 'bg-black/30 opacity-0 group-hover:opacity-100 cursor-pointer'
         )}
         onClick={() => !isLoading && inputRef.current?.click()}

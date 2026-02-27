@@ -208,6 +208,7 @@ export default function TopBar() {
                                     nome={profile?.nome}
                                     avatarPath={profile?.avatar_url}
                                     size="sm"
+                                    shape="circle"
                                 />
                             </div>
 

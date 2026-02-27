@@ -12,6 +12,8 @@ interface ProfileAvatarProps {
   /** URL direta (signed) — quando já temos a URL pronta */
   avatarUrl?: string | null;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  /** circle = rounded-full (TopBar, cards), square = rounded-xl (perfil, logos) */
+  shape?: 'circle' | 'square';
   className?: string;
   onClick?: () => void;
 }
@@ -52,17 +54,22 @@ export default function ProfileAvatar({
   avatarPath,
   avatarUrl: directUrl,
   size = 'md',
+  shape = 'square',
   className,
   onClick,
 }: ProfileAvatarProps) {
   const { data: signedUrl } = useProfileUrl(avatarPath);
   const imageUrl = directUrl || signedUrl;
 
+  const shapeClass = shape === 'circle' ? 'rounded-full' : 'rounded-xl';
+  const imgFit = shape === 'circle' ? 'object-cover' : 'object-contain';
+
   return (
     <div
       className={cn(
         sizeMap[size],
-        'rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-white select-none',
+        shapeClass,
+        'overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-white select-none',
         !imageUrl && `bg-gradient-to-br ${getGradient(nome)}`,
         imageUrl && 'bg-muted',
         onClick && 'cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all',
@@ -74,7 +81,7 @@ export default function ProfileAvatar({
         <img
           src={imageUrl}
           alt={nome || 'Avatar'}
-          className="w-full h-full object-cover"
+          className={cn('w-full h-full', imgFit)}
           loading="lazy"
         />
       ) : (

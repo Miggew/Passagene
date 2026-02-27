@@ -11,8 +11,6 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProfileData, useProfileSections, useUpsertSection, useDeleteSection, useReorderSections } from '@/hooks/useProfile';
-import ProfileBannerUpload from './ProfileBannerUpload';
-import ProfileAvatarUpload from './ProfileAvatarUpload';
 import ProfileHeader from './ProfileHeader';
 import ProfileEditDrawer from './ProfileEditDrawer';
 import ProfileSectionsView from './ProfileSectionsView';
@@ -107,19 +105,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-4 pb-24 md:pb-8">
-      {/* Banner + Avatar */}
-      <div className="relative">
-        <ProfileBannerUpload currentPath={profile.banner_url} />
-
-        {/* Avatar overlay */}
-        <div className="absolute -bottom-6 left-4 md:left-6 z-10">
-          <div className="ring-4 ring-background rounded-full">
-            <ProfileAvatarUpload nome={profile.nome} currentPath={profile.avatar_url} />
-          </div>
-        </div>
-      </div>
-
-      {/* Header */}
+      {/* Header with inline avatar */}
       <ProfileHeader
         profile={profile}
         isOwner={true}

@@ -28,7 +28,7 @@ export default function SellerProfileCard({ nome, avatarPath, slug, localizacao 
       disabled={!slug}
       className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left w-full"
     >
-      <ProfileAvatar nome={nome} avatarPath={avatarPath} size="sm" />
+      <ProfileAvatar nome={nome} avatarPath={avatarPath} size="sm" shape="circle" />
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground truncate">{nome || 'Vendedor'}</p>
         {localizacao && (

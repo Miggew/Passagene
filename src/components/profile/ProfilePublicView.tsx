@@ -6,7 +6,6 @@
 import { useParams } from 'react-router-dom';
 import { usePublicProfile, useProfileSections } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
-import ProfileBanner from './ProfileBanner';
 import ProfileHeader from './ProfileHeader';
 import ProfileSectionsView from './ProfileSectionsView';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
@@ -40,15 +39,7 @@ export default function ProfilePublicView() {
 
   return (
     <div className="space-y-4 pb-24 md:pb-8">
-      {/* Banner + Avatar */}
-      <ProfileBanner
-        nome={profile.nome}
-        avatarPath={profile.avatar_url}
-        bannerPath={profile.banner_url}
-        showAvatar={true}
-      />
-
-      {/* Header (sem botão editar para visitante) */}
+      {/* Header with inline avatar */}
       <ProfileHeader
         profile={profile}
         isOwner={isOwner}
