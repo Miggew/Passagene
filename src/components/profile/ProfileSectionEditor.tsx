@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Type, Image, BarChart3, MapPin, PawPrint, Briefcase, Award, FolderOpen, Building2 } from 'lucide-react';
-import { useUpsertSection } from '@/hooks/useProfile';
+import { Loader2, Type, Image, BarChart3, MapPin, PawPrint, Briefcase, Award, FolderOpen, Building2, Globe, Sparkles } from 'lucide-react';
+import { useUpsertSection, useProfileData } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { ProfileSection, ProfileSectionType, ProfileSectionContent, TextSectionContent } from '@/lib/types';
 
@@ -34,6 +35,8 @@ const sectionTypeLabels: Record<ProfileSectionType, { label: string; icon: React
   specialties: { label: 'Especialidades', icon: <Award className="w-4 h-4" /> },
   service_portfolio: { label: 'Portfolio', icon: <FolderOpen className="w-4 h-4" /> },
   fazenda_links: { label: 'Minhas Fazendas', icon: <Building2 className="w-4 h-4" /> },
+  platform_stats: { label: 'Stats da Plataforma', icon: <Globe className="w-4 h-4" /> },
+  feature_showcase: { label: 'Showcase de Features', icon: <Sparkles className="w-4 h-4" /> },
 };
 
 export default function ProfileSectionEditor({
@@ -43,6 +46,9 @@ export default function ProfileSectionEditor({
   nextSortOrder,
   fazendaProfileId,
 }: ProfileSectionEditorProps) {
+  const { user } = useAuth();
+  const { data: profile } = useProfileData(user?.id ?? null);
+  const isAdmin = profile?.user_type === 'admin';
   const upsertSection = useUpsertSection();
   const isEditing = !!section;
 
@@ -89,6 +95,20 @@ export default function ProfileSectionEditor({
         return { items: [] };
       case 'fazenda_links':
         return { show_stats: true };
+      case 'platform_stats':
+        return { visibility: {} };
+      case 'feature_showcase':
+        return {
+          features: [
+            { icon: 'dna', title: 'EmbryoScore IA', description: 'Score automatizado de embriões com DINOv2 + Gemini' },
+            { icon: 'flask-conical', title: 'Gestão de FIV', description: 'Lotes, aspirações, acasalamentos e embriões' },
+            { icon: 'syringe', title: 'Hub de Campo', description: 'Protocolos, TE, DG e sexagem' },
+            { icon: 'file-text', title: 'Hub Escritório', description: 'Digitalização de relatórios com OCR' },
+            { icon: 'bar-chart-3', title: 'Relatórios', description: 'Produção, KPIs e exportação de dados' },
+            { icon: 'store', title: 'Marketplace', description: 'Compra e venda de genética bovina' },
+          ],
+          layout: 'grid',
+        };
     }
   };
 
@@ -129,7 +149,12 @@ export default function ProfileSectionEditor({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(sectionTypeLabels).map(([key, { label, icon }]) => (
+                  {Object.entries(sectionTypeLabels)
+                    .filter(([key]) => {
+                      if (key === 'platform_stats' && !isAdmin) return false;
+                      return true;
+                    })
+                    .map(([key, { label, icon }]) => (
                     <SelectItem key={key} value={key}>
                       <div className="flex items-center gap-2">
                         {icon}

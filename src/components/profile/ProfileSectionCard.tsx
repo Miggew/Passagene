@@ -13,6 +13,8 @@ import ServiceStatsSection from './sections/ServiceStatsSection';
 import SpecialtiesSection from './sections/SpecialtiesSection';
 import ServicePortfolioSection from './sections/ServicePortfolioSection';
 import FazendaLinksSection from './sections/FazendaLinksSection';
+import PlatformStatsSection from './sections/PlatformStatsSection';
+import FeatureShowcaseSection from './sections/FeatureShowcaseSection';
 
 interface ProfileSectionCardProps {
   section: ProfileSection;
@@ -56,6 +58,12 @@ export default function ProfileSectionCard({ section }: ProfileSectionCardProps)
       )}
       {section.section_type === 'fazenda_links' && (
         <FazendaLinksSection content={content as any} />
+      )}
+      {section.section_type === 'platform_stats' && (
+        <PlatformStatsSection content={content as any} />
+      )}
+      {section.section_type === 'feature_showcase' && (
+        <FeatureShowcaseSection content={content as any} />
       )}
     </div>
   );
