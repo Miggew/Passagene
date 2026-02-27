@@ -29,6 +29,9 @@ export interface UserProfile {
   profile_public?: boolean;
   telefone?: string;
   localizacao?: string;
+  profile_roles?: string[];
+  specialties?: string[];
+  service_description?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -72,6 +75,19 @@ export interface Fazenda {
   latitude?: number;
   longitude?: number;
   created_at?: string;
+}
+
+export interface FazendaProfile {
+  id: string;
+  fazenda_id: string;
+  owner_id: string;
+  slug?: string;
+  foto_url?: string;
+  descricao?: string;
+  is_public: boolean;
+  created_at?: string;
+  updated_at?: string;
+  fazenda?: Fazenda;
 }
 
 export interface Doadora {
@@ -979,7 +995,7 @@ export interface ItemTransferenciaQuery {
 // Tipos para Perfil e Marketplace C2C
 // ========================================
 
-export type ProfileSectionType = 'text' | 'animal_showcase' | 'photo_gallery' | 'stats' | 'fazenda_highlight';
+export type ProfileSectionType = 'text' | 'animal_showcase' | 'photo_gallery' | 'stats' | 'fazenda_highlight' | 'production_stats' | 'service_stats' | 'specialties' | 'service_portfolio' | 'fazenda_links';
 
 export interface ProfileSection {
   id: string;
@@ -990,6 +1006,7 @@ export interface ProfileSection {
   sort_order: number;
   is_public: boolean;
   active: boolean;
+  fazenda_profile_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -1000,7 +1017,12 @@ export type ProfileSectionContent =
   | AnimalShowcaseContent
   | PhotoGalleryContent
   | StatsSectionContent
-  | FazendaHighlightContent;
+  | FazendaHighlightContent
+  | ProductionStatsContent
+  | ServiceStatsContent
+  | SpecialtiesContent
+  | ServicePortfolioContent
+  | FazendaLinksContent;
 
 export interface TextSectionContent {
   body: string;
@@ -1040,6 +1062,49 @@ export interface FazendaHighlightContent {
   show_map?: boolean;
   show_animal_count?: boolean;
   custom_description?: string;
+}
+
+export interface ProductionStatsContent {
+  fazenda_id: string;
+  visibility: Record<string, boolean>;
+}
+
+export interface ServiceStatsContent {
+  user_id: string;
+  visibility: Record<string, boolean>;
+}
+
+export interface SpecialtiesContent {
+  description: string;
+  specialties: string[];
+}
+
+export interface ServicePortfolioContent {
+  items: Array<{
+    foto_url: string;
+    caption?: string;
+    resultado?: string;
+  }>;
+}
+
+export interface FazendaLinksContent {
+  show_stats?: boolean;
+}
+
+export interface FazendaStats {
+  total_doadoras: number;
+  total_receptoras: number;
+  total_embrioes: number;
+  total_aspiracoes: number;
+  taxa_prenhez: number;
+}
+
+export interface ProviderStats {
+  total_aspiracoes: number;
+  total_tes: number;
+  total_embrioes: number;
+  total_clientes: number;
+  taxa_aproveitamento: number;
 }
 
 export type AnuncioTipo = 'doadora' | 'touro' | 'embriao' | 'dose' | 'outro';
