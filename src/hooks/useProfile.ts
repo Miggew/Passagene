@@ -40,13 +40,13 @@ export function usePublicProfile(slug: string | null) {
       if (!slug) return null;
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('id, nome, bio, avatar_url, banner_url, profile_slug, profile_public, localizacao, user_type, cliente_id')
+        .select('id, nome, bio, avatar_url, banner_url, profile_slug, profile_public, localizacao, user_type, cliente_id, profile_roles, telefone, specialties, service_description')
         .eq('profile_slug', slug)
         .eq('profile_public', true)
         .maybeSingle();
 
       if (error) throw error;
-      return data as (Pick<UserProfile, 'id' | 'nome' | 'bio' | 'avatar_url' | 'banner_url' | 'profile_slug' | 'profile_public' | 'localizacao' | 'user_type' | 'cliente_id'>) | null;
+      return data as (Pick<UserProfile, 'id' | 'nome' | 'bio' | 'avatar_url' | 'banner_url' | 'profile_slug' | 'profile_public' | 'localizacao' | 'user_type' | 'cliente_id' | 'profile_roles' | 'telefone' | 'specialties' | 'service_description'>) | null;
     },
     enabled: !!slug,
     staleTime: 2 * 60 * 1000,
@@ -59,7 +59,7 @@ export function useUpdateProfile() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (updates: Partial<Pick<UserProfile, 'nome' | 'bio' | 'avatar_url' | 'banner_url' | 'profile_slug' | 'profile_public' | 'telefone' | 'localizacao'>>) => {
+    mutationFn: async (updates: Partial<Pick<UserProfile, 'nome' | 'bio' | 'avatar_url' | 'banner_url' | 'profile_slug' | 'profile_public' | 'telefone' | 'localizacao' | 'profile_roles' | 'specialties' | 'service_description'>>) => {
       if (!user) throw new Error('Usuário não autenticado');
 
       const { data, error } = await supabase
@@ -111,6 +111,33 @@ export function useProfileSections(userId: string | null, publicOnly = false) {
   });
 }
 
+/** Listar seções de um perfil de fazenda */
+export function useFazendaSections(fazendaProfileId: string | null, publicOnly = false) {
+  return useQuery({
+    queryKey: ['fazenda-sections', fazendaProfileId, publicOnly],
+    queryFn: async () => {
+      if (!fazendaProfileId) return [];
+
+      let query = supabase
+        .from('profile_sections')
+        .select('*')
+        .eq('fazenda_profile_id', fazendaProfileId)
+        .eq('active', true)
+        .order('sort_order');
+
+      if (publicOnly) {
+        query = query.eq('is_public', true);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as ProfileSection[];
+    },
+    enabled: !!fazendaProfileId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 /** Criar ou atualizar seção */
 export function useUpsertSection() {
   const queryClient = useQueryClient();
@@ -124,6 +151,7 @@ export function useUpsertSection() {
       content: ProfileSectionContent;
       sort_order?: number;
       is_public?: boolean;
+      fazenda_profile_id?: string;
     }) => {
       if (!user) throw new Error('Usuário não autenticado');
 
@@ -156,6 +184,7 @@ export function useUpsertSection() {
             content: section.content,
             sort_order: section.sort_order ?? 0,
             is_public: section.is_public ?? true,
+            fazenda_profile_id: section.fazenda_profile_id || null,
           })
           .select()
           .single();
@@ -166,6 +195,7 @@ export function useUpsertSection() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-sections', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['fazenda-sections'] });
     },
     onError: (error) => {
       handleError(error, 'Erro ao salvar seção');
