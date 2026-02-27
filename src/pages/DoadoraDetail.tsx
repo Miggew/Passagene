@@ -32,7 +32,7 @@ import CountBadge from '@/components/shared/CountBadge';
 import { DataTable } from '@/components/shared/DataTable';
 import { useToast } from '@/hooks/use-toast';
 import { formatDateBR as formatDate } from '@/lib/dateUtils';
-import { ArrowLeft, Save, Star, Gem, History, Edit, ChevronDown, Dna, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Save, Star, Gem, History, Edit, ChevronDown, Dna, ShoppingBag, Heart } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import GenealogiaTree, { type GenealogiaData } from '@/components/shared/GenealogiaTree';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -59,6 +59,8 @@ export default function DoadoraDetail() {
   const [activeTab, setActiveTab] = useState('historico');
   const [genealogiaOpen, setGenealogiaOpen] = useState(false);
   const [catalogInfo, setCatalogInfo] = useState<CatalogoInfo | null>(null);
+  const [receptoraVinculada, setReceptoraVinculada] = useState<string | null>(null);
+  const [criandoReceptora, setCriandoReceptora] = useState(false);
 
   const racasPredefinidas = ['Holandesa', 'Jersey', 'Gir', 'Girolando'];
   const [racaSelecionada, setRacaSelecionada] = useState<string>('');
@@ -149,6 +151,14 @@ export default function DoadoraDetail() {
         .maybeSingle();
 
       setCatalogInfo(catData || null);
+
+      // Verificar se já tem receptora vinculada
+      const { data: recData } = await supabase
+        .from('receptoras')
+        .select('id')
+        .eq('doadora_id', id)
+        .maybeSingle();
+      setReceptoraVinculada(recData?.id || null);
 
       // Processar raça
       const raca = doadoraData.raca || '';
@@ -305,6 +315,40 @@ export default function DoadoraDetail() {
     }
   };
 
+  const handleUsarComoReceptora = async () => {
+    if (!doadora || !doadora.fazenda_id) return;
+    setCriandoReceptora(true);
+    try {
+      const { data, error } = await supabase
+        .from('receptoras')
+        .insert({
+          identificacao: doadora.registro,
+          nome: doadora.nome || null,
+          fazenda_atual_id: doadora.fazenda_id,
+          status_reprodutivo: 'VAZIA',
+          doadora_id: doadora.id,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      setReceptoraVinculada(data.id);
+      toast({
+        title: 'Receptora criada',
+        description: `${doadora.nome || doadora.registro} agora também é receptora`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao criar receptora',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setCriandoReceptora(false);
+    }
+  };
+
   const getClassificacaoIcon = () => {
     switch (formData.classificacao_genetica) {
       case 'diamante':
@@ -348,6 +392,28 @@ export default function DoadoraDetail() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">Detalhes da Doadora</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {receptoraVinculada ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/receptoras/${receptoraVinculada}/historico`)}
+            >
+              <Heart className="w-4 h-4 mr-1 text-pink-500" />
+              Ver como Receptora
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUsarComoReceptora}
+              disabled={criandoReceptora}
+            >
+              <Heart className="w-4 h-4 mr-1" />
+              {criandoReceptora ? 'Criando...' : 'Usar como Receptora'}
+            </Button>
+          )}
         </div>
       </div>
 

@@ -34,6 +34,7 @@ import {
   Phone,
   ClipboardList,
   AlertCircle,
+  Dna,
 } from 'lucide-react';
 import { FazendaReceptorasTab } from '@/components/fazenda/FazendaReceptorasTab';
 import { FazendaDoadorasTab } from '@/components/fazenda/FazendaDoadorasTab';

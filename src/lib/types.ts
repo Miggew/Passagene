@@ -120,6 +120,7 @@ export interface Receptora {
   data_provavel_parto?: string;
   is_cio_livre?: boolean;
   status_cio_livre?: 'PENDENTE' | 'CONFIRMADA' | 'REJEITADA' | 'SUBSTITUIDA' | null;
+  doadora_id?: string | null;
   created_at?: string;
 }
 

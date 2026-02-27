@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Dna, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Dna, Calendar, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import LoadingScreen from '@/components/shared/LoadingScreen';
@@ -158,6 +158,18 @@ export default function ReceptoraHistorico() {
                     <span className="text-xs font-medium text-muted-foreground">Raça</span>
                     <p className="text-sm text-foreground">{receptora.raca}</p>
                   </div>
+                </>
+              )}
+              {receptora.doadora_id && (
+                <>
+                  <div className="h-8 w-px bg-border" />
+                  <Badge
+                    className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 cursor-pointer text-[10px] font-bold"
+                    onClick={() => navigate(`/doadoras/${receptora.doadora_id}`)}
+                  >
+                    <Star className="w-3 h-3 mr-1" />
+                    Também é doadora
+                  </Badge>
                 </>
               )}
             </div>
