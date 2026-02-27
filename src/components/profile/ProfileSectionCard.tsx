@@ -8,6 +8,11 @@ import AnimalShowcaseSection from './sections/AnimalShowcaseSection';
 import PhotoGallerySection from './sections/PhotoGallerySection';
 import StatsSection from './sections/StatsSection';
 import FazendaHighlightSection from './sections/FazendaHighlightSection';
+import ProductionStatsSection from './sections/ProductionStatsSection';
+import ServiceStatsSection from './sections/ServiceStatsSection';
+import SpecialtiesSection from './sections/SpecialtiesSection';
+import ServicePortfolioSection from './sections/ServicePortfolioSection';
+import FazendaLinksSection from './sections/FazendaLinksSection';
 
 interface ProfileSectionCardProps {
   section: ProfileSection;
@@ -36,6 +41,21 @@ export default function ProfileSectionCard({ section }: ProfileSectionCardProps)
       )}
       {section.section_type === 'fazenda_highlight' && (
         <FazendaHighlightSection content={content as any} />
+      )}
+      {section.section_type === 'production_stats' && (
+        <ProductionStatsSection content={content as any} />
+      )}
+      {section.section_type === 'service_stats' && (
+        <ServiceStatsSection content={content as any} />
+      )}
+      {section.section_type === 'specialties' && (
+        <SpecialtiesSection content={content as any} />
+      )}
+      {section.section_type === 'service_portfolio' && (
+        <ServicePortfolioSection content={content as any} />
+      )}
+      {section.section_type === 'fazenda_links' && (
+        <FazendaLinksSection content={content as any} />
       )}
     </div>
   );

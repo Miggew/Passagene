@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PassaGene — Design System v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --bg:#030907;
+  --surface:rgba(255,255,255,0.02);
+  --surface-hover:rgba(255,255,255,0.04);
+  --border:rgba(255,255,255,0.05);
+  --text:#E8F0EC;
+  --text-2:rgba(255,255,255,0.5);
+  --text-3:rgba(255,255,255,0.25);
+  --green:#34D399;
+  --green-deep:#1A7A50;
+  --green-glow:rgba(9,201,114,0.12);
+  --green-dim:rgba(9,201,114,0.06);
+  --gold:#D4A24C;
+  --gold-glow:rgba(212,162,76,0.12);
+  --gold-dim:rgba(212,162,76,0.06);
+  --brand:#09C972;
+}
+
+body{
+  font-family:'Outfit',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* Subtle static grain */
+body::after{
+  content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+  opacity:0.015;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px;
+}
+
+/* Static ambient glow */
+.ambient{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 600px 400px at 20% 20%,rgba(9,201,114,0.02),transparent),
+    radial-gradient(ellipse 500px 400px at 80% 80%,rgba(212,162,76,0.012),transparent);
+}
+
+/* ═══════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════ */
+.app-shell{
+  display:flex;flex-direction:column;
+  min-height:100vh;
+  position:relative;z-index:1;
+}
+
+/* ═══════════════════════════════════
+   TOPBAR
+   ═══════════════════════════════════ */
+.topbar{
+  height:52px;padding:0 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(3,9,7,0.85);
+  backdrop-filter:blur(16px);
+  flex-shrink:0;
+  position:sticky;top:0;z-index:40;
+  border-bottom:1px solid var(--border);
+}
+.topbar::after{
+  content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 5%,rgba(9,201,114,0.12) 30%,rgba(212,162,76,0.08) 70%,transparent 95%);
+}
+
+.tb-left{display:flex;align-items:center;gap:14px;}
+
+.logo{display:flex;align-items:center;gap:8px;cursor:pointer;text-decoration:none;}
+.logo svg{width:28px;height:28px;border-radius:8px;flex-shrink:0;}
+.logo-text{font-size:16px;font-weight:800;color:#fff;letter-spacing:-0.02em;}
+.logo-text b{color:var(--brand);font-weight:400;}
+
+.tb-greet{font-size:13px;color:var(--text-2);}
+.tb-greet strong{color:var(--text);font-weight:600;}
+
+.tb-right{display:flex;align-items:center;gap:10px;}
+.tb-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:6px;
+  font-size:11px;font-weight:600;
+  background:linear-gradient(135deg,rgba(9,201,114,0.08),rgba(212,162,76,0.04));
+  color:var(--green);
+  border:1px solid rgba(9,201,114,0.08);
+}
+.tb-avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--green-deep),var(--gold));
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+  cursor:pointer;transition:box-shadow 0.2s;
+}
+.tb-avatar:hover{box-shadow:0 0 0 2px var(--bg),0 0 0 3px rgba(9,201,114,0.3);}
+
+/* ═══════════════════════════════════
+   HUB TABS
+   ═══════════════════════════════════ */
+.hub-tabs{
+  display:flex;gap:0;
+  padding:0 20px;
+  background:rgba(3,9,7,0.6);
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;flex-shrink:0;
+}
+.hub-tabs::-webkit-scrollbar{display:none;}
+
+.hub-tab{
+  padding:10px 18px;
+  font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;
+  color:var(--text-3);
+  border:none;background:transparent;
+  cursor:pointer;transition:all 0.2s;
+  white-space:nowrap;position:relative;
+  border-bottom:2px solid transparent;
+}
+.hub-tab:hover{color:var(--text-2);}
+.hub-tab.active{color:var(--green);font-weight:600;border-bottom-color:var(--green);}
+.hub-tab.active::after{
+  content:'';position:absolute;bottom:-1px;left:20%;right:20%;height:4px;
+  background:linear-gradient(90deg,rgba(9,201,114,0.3),rgba(212,162,76,0.15));
+  filter:blur(4px);pointer-events:none;
+}
+
+/* ═══════════════════════════════════
+   CONTENT
+   ═══════════════════════════════════ */
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+
+/* ═══════════════════════════════════
+   SPECIMEN PANELS
+   ═══════════════════════════════════ */
+.specimens{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  margin:24px 20px;
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--border);
+  border:1px solid var(--border);
+}
+
+.specimen{
+  padding:20px 22px;position:relative;
+  background:var(--bg);cursor:default;overflow:hidden;
+  transition:background 0.3s;
+}
+.specimen:hover{background:rgba(255,255,255,0.012);}
+
+.specimen::before,.specimen::after{
+  content:'';position:absolute;pointer-events:none;
+  transition:opacity 0.3s;opacity:0.12;
+}
+.specimen::before{top:8px;left:8px;width:7px;height:7px;border-top:1px solid var(--green);border-left:1px solid var(--green);}
+.specimen::after{bottom:8px;right:8px;width:7px;height:7px;border-bottom:1px solid var(--green);border-right:1px solid var(--green);}
+.specimen:hover::before,.specimen:hover::after{opacity:0.35;}
+.specimen.gold-s::before{border-color:var(--gold);}
+.specimen.gold-s::after{border-color:var(--gold);}
+
+.specimen-accent{
+  position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(9,201,114,0.2),rgba(212,162,76,0.12),transparent);
+  opacity:0;transition:opacity 0.3s;
+}
+.specimen:hover .specimen-accent{opacity:1;}
+
+.sp-label{font-size:10px;font-weight:500;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;}
+.sp-value{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:800;letter-spacing:-0.04em;line-height:1;}
+.sp-value.gv{color:var(--green);}
+.sp-value.dv{color:var(--gold);}
+.sp-foot{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.sp-delta{font-size:11px;font-weight:600;}
+.sp-delta.up{color:rgba(52,211,153,0.6);}
+.sp-delta.down{color:rgba(248,113,113,0.5);}
+
+.pulse-dot{display:inline-block;width:4px;height:4px;border-radius:50%;animation:pdot 2.5s ease-in-out infinite;}
+.pulse-dot.gp{background:var(--green);box-shadow:0 0 6px var(--brand);}
+.pulse-dot.dp{background:var(--gold);box-shadow:0 0 6px var(--gold);}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.3;transform:scale(0.7);}}
+
+.sparkline{margin-top:12px;height:24px;}
+.sparkline svg{width:100%;height:100%;overflow:visible;}
+.spark-line{fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.spark-line.green{stroke:var(--green);filter:drop-shadow(0 0 3px rgba(9,201,114,0.25));}
+.spark-line.gold{stroke:var(--gold);filter:drop-shadow(0 0 3px rgba(212,162,76,0.25));}
+.spark-area{opacity:0.05;}
+.spark-area.green{fill:var(--green);}
+.spark-area.gold{fill:var(--gold);}
+
+/* ═══════════════════════════════════
+   BIO CONTAINER
+   ═══════════════════════════════════ */
+.bio-box{
+  margin:0 20px 24px;border-radius:16px;
+  background:var(--surface);border:1px solid var(--border);
+  overflow:hidden;position:relative;
+  transition:border-color 0.3s;
+}
+.bio-box:hover{border-color:rgba(9,201,114,0.1);}
+
+.bio-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.bio-title{font-size:14px;font-weight:700;letter-spacing:-0.02em;}
+
+.bio-tabs{display:inline-flex;gap:2px;padding:3px;border-radius:8px;background:rgba(255,255,255,0.03);}
+.bio-tab{
+  padding:4px 14px;border-radius:6px;
+  font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;
+  color:var(--text-3);border:none;background:transparent;
+  cursor:pointer;transition:all 0.2s;
+}
+.bio-tab.active{background:var(--surface-hover);color:var(--text);font-weight:600;}
+
+/* TABLE */
+.t-head{
+  display:grid;grid-template-columns:68px 1.5fr 0.8fr 100px 60px 1fr;
+  padding:10px 20px;font-size:10px;font-weight:600;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--text-3);background:rgba(255,255,255,0.015);
+}
+.t-body{border-top:1px solid var(--border);}
+.t-row{
+  display:grid;grid-template-columns:68px 1.5fr 0.8fr 100px 60px 1fr;
+  align-items:center;padding:12px 20px;
+  border-bottom:1px solid var(--border);transition:all 0.25s;position:relative;
+}
+.t-row:last-child{border-bottom:none;}
+.t-row:hover{background:linear-gradient(90deg,rgba(9,201,114,0.02),rgba(212,162,76,0.008),transparent);}
+.t-row:hover::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--brand),var(--gold),transparent);}
+
+.t-id{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:rgba(52,211,153,0.5);}
+.t-name{font-weight:600;font-size:13.5px;}
+.t-breed{font-size:12.5px;color:var(--text-2);}
+.t-emb{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--text-2);text-align:center;}
+.t-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--gold);text-align:right;}
+
+.status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid;}
+.status.prenhe{color:var(--green);background:var(--green-dim);border-color:rgba(9,201,114,0.1);}
+.status.prenhe::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--green);animation:pdot 2s infinite;}
+.status.vazia{color:#f87171;background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.1);}
+.status.servida{color:#a78bfa;background:rgba(139,92,246,0.06);border-color:rgba(139,92,246,0.1);}
+
+/* ═══════════════════════════════════
+   GENIA CHAT
+   ═══════════════════════════════════ */
+.chat{flex:1;display:flex;flex-direction:column;}
+.chat-area{flex:1;overflow-y:auto;padding:24px 20px;display:flex;flex-direction:column;gap:16px;max-width:720px;margin:0 auto;width:100%;}
+
+.msg{display:flex;gap:10px;max-width:82%;animation:cell-in 0.5s ease-out both;}
+.msg.user{align-self:flex-end;flex-direction:row-reverse;}
+.msg.bot{align-self:flex-start;}
+.msg:nth-child(2){animation-delay:0.15s;}
+.msg:nth-child(3){animation-delay:0.35s;}
+.msg:nth-child(4){animation-delay:0.55s;}
+.msg:nth-child(5){animation-delay:0.75s;}
+
+@keyframes cell-in{
+  from{opacity:0;transform:translateY(6px);filter:blur(2px);}
+  to{opacity:1;transform:translateY(0);filter:blur(0);}
+}
+
+.m-avatar{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  background:linear-gradient(135deg,rgba(9,201,114,0.1),rgba(212,162,76,0.05));
+  border:1px solid rgba(9,201,114,0.1);color:var(--brand);
+}
+
+.bubble-u{padding:10px 16px;background:rgba(9,201,114,0.07);border:1px solid rgba(9,201,114,0.1);border-radius:18px 18px 4px 18px;font-size:14px;line-height:1.6;color:rgba(255,255,255,0.9);}
+.bubble-b{padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:18px 18px 18px 4px;font-size:14px;line-height:1.7;color:rgba(255,255,255,0.75);}
+.bubble-b .hl{color:var(--green);font-family:'JetBrains Mono',monospace;font-weight:700;text-shadow:0 0 12px rgba(9,201,114,0.15);}
+.bubble-b .gl{color:var(--gold);font-family:'JetBrains Mono',monospace;font-weight:700;text-shadow:0 0 12px rgba(212,162,76,0.15);}
+
+/* Nucleus card */
+.nucleus{margin-top:12px;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(9,201,114,0.025),rgba(212,162,76,0.012));position:relative;overflow:hidden;border:1px solid rgba(9,201,114,0.08);}
+.nucleus::after{content:'';position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(212,162,76,0.04),transparent);pointer-events:none;}
+.nuc-row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
+.nuc-name{font-weight:700;font-size:13.5px;color:var(--text);}
+.nuc-meta{font-size:10.5px;color:var(--text-3);margin-top:2px;}
+.nuc-score{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:800;color:var(--green);text-shadow:0 0 20px rgba(9,201,114,0.12);}
+.nuc-price{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--gold);margin-top:2px;}
+.nuc-bar{height:2px;border-radius:1px;background:rgba(255,255,255,0.04);margin-top:10px;overflow:hidden;position:relative;z-index:1;}
+.nuc-bar-fill{height:100%;border-radius:1px;background:linear-gradient(90deg,var(--brand),var(--green),var(--gold));animation:bar-grow 1.5s ease-out 0.8s both;}
+@keyframes bar-grow{from{width:0;}}
+
+/* Thinking */
+.thinking{align-self:flex-start;margin-left:36px;display:inline-flex;gap:5px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:18px 18px 18px 4px;animation:cell-in 0.3s ease-out 1s both;}
+.think-d{width:5px;height:5px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--gold));animation:think-bob 1.4s ease-in-out infinite;}
+.think-d:nth-child(2){animation-delay:0.15s;}
+.think-d:nth-child(3){animation-delay:0.3s;}
+@keyframes think-bob{0%,100%{opacity:0.2;transform:translateY(0);}50%{opacity:1;transform:translateY(-3px);}}
+
+/* Chat input */
+.chat-input{padding:10px 20px 18px;border-top:1px solid var(--border);background:rgba(3,9,7,0.6);backdrop-filter:blur(16px);max-width:720px;margin:0 auto;width:100%;}
+.chat-pills{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;}
+.chat-pills::-webkit-scrollbar{display:none;}
+.c-pill{white-space:nowrap;padding:5px 14px;border-radius:999px;border:1px solid var(--border);background:transparent;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;color:var(--text-3);cursor:pointer;transition:all 0.2s;}
+.c-pill:hover{color:var(--text);border-color:transparent;background:linear-gradient(var(--bg),var(--bg)) padding-box,linear-gradient(135deg,rgba(9,201,114,0.25),rgba(212,162,76,0.15)) border-box;}
+
+.chat-row{display:flex;gap:8px;align-items:flex-end;}
+.c-field{flex:1;padding:11px 16px;border-radius:14px;border:1px solid var(--border);background:var(--surface);font-family:'Outfit',sans-serif;font-size:14px;color:var(--text);outline:none;resize:none;min-height:42px;transition:all 0.2s;}
+.c-field::placeholder{color:var(--text-3);}
+.c-field:focus{border-color:rgba(9,201,114,0.2);box-shadow:0 0 0 3px rgba(9,201,114,0.03);}
+
+.c-btn{width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all 0.2s;}
+.c-send{background:linear-gradient(135deg,var(--green-deep),rgba(212,162,76,0.5));color:#fff;}
+.c-send:hover{box-shadow:0 0 16px rgba(9,201,114,0.12),0 0 32px rgba(212,162,76,0.06);}
+
+/* ═══════════════════════════════════
+   VOICE FAB — The real Gen.IA button
+   ═══════════════════════════════════ */
+.voice-fab{
+  position:fixed;bottom:24px;right:24px;z-index:50;
+  width:72px;height:72px;
+  border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;
+  animation:breathe-glow 4s ease-in-out infinite;
+  -webkit-tap-highlight-color:transparent;
+}
+@keyframes breathe-glow{
+  0%,100%{box-shadow:0 0 20px 0 rgba(52,211,153,0.2),0 0 40px 0 rgba(212,162,76,0.1);}
+  50%{box-shadow:0 0 30px 5px rgba(52,211,153,0.4),0 0 60px 10px rgba(212,162,76,0.2);}
+}
+
+/* Aura — spinning conic gradient ring */
+.fab-aura{
+  position:absolute;inset:-2px;border-radius:50%;overflow:hidden;z-index:0;
+}
+.fab-aura-inner{
+  position:absolute;inset:-50%;
+  background:conic-gradient(from 0deg,
+    transparent 0deg,
+    rgba(52,211,153,1) 90deg,
+    transparent 180deg,
+    rgba(212,162,76,1) 270deg,
+    transparent 360deg);
+  animation:spin-slow 5s linear infinite;
+}
+@keyframes spin-slow{to{transform:rotate(1turn);}}
+
+/* Frost core */
+.fab-core{
+  position:absolute;inset:2px;border-radius:50%;z-index:1;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(24px);
+  box-shadow:inset 0 1px 1px 0 rgba(255,255,255,0.15);
+}
+
+/* Text content */
+.fab-text{
+  position:relative;z-index:2;
+  font-family:'Outfit',sans-serif;font-weight:900;
+  text-transform:uppercase;color:#fff;
+  line-height:1;text-align:center;
+  filter:drop-shadow(0 0 8px rgba(255,255,255,0.6));
+  pointer-events:none;
+}
+.fab-text .gen{font-size:16px;opacity:0.8;}
+.fab-text .ia{font-size:20px;}
+
+/* Hover tooltip */
+.fab-tooltip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);
+  color:#fff;font-size:10px;text-transform:uppercase;font-weight:700;
+  letter-spacing:0.06em;padding:4px 10px;border-radius:999px;
+  opacity:0;transition:opacity 0.2s;white-space:nowrap;pointer-events:none;
+}
+.voice-fab:hover .fab-tooltip{opacity:1;}
+
+/* ═══════════════════════════════════
+   LOADING SCREEN (overlay)
+   ═══════════════════════════════════ */
+.loading-overlay{
+  position:fixed;inset:0;z-index:9000;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.4s;
+}
+.loading-overlay.show{opacity:1;pointer-events:all;}
+
+.loader-dna{
+  width:64px;height:64px;border-radius:50%;
+  background:linear-gradient(135deg,#34D399,#D4A24C);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 24px rgba(52,211,153,0.2),0 2px 12px rgba(212,162,76,0.1);
+  overflow:hidden;
+}
+.loader-dna-inner{
+  width:54px;height:54px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.loader-helix{
+  display:flex;align-items:center;justify-content:center;height:60%;
+  transform:rotate(-45deg) scale(0.93);
+}
+.loader-col{
+  position:relative;display:flex;justify-content:center;align-items:center;
+  height:100%;width:7px;
+}
+.loader-dot{
+  position:absolute;border-radius:50%;
+  left:50%;transform:translateX(-50%);
+}
+.loader-dot.front{width:6px;height:6px;background:#fff;}
+.loader-dot.back{width:4px;height:4px;background:rgba(255,255,255,0.5);}
+
+.loading-text{
+  font-size:14px;font-weight:600;color:var(--text-2);letter-spacing:0.02em;
+}
+
+/* ═══════════════════════════════════
+   VIEW SWITCHER (demo)
+   ═══════════════════════════════════ */
+.view-switch{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:100;
+  display:flex;gap:2px;padding:3px;border-radius:10px;
+  background:rgba(3,9,7,0.9);backdrop-filter:blur(16px);
+  border:1px solid var(--border);
+}
+.v-btn{
+  padding:6px 18px;border-radius:8px;
+  font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;
+  border:none;background:transparent;color:var(--text-3);
+  cursor:pointer;transition:all 0.2s;
+}
+.v-btn.active{background:linear-gradient(135deg,rgba(9,201,114,0.08),rgba(212,162,76,0.04));color:var(--green);}
+.v-btn:hover{color:var(--text);}
+
+.view{display:none;}
+.view.active{display:flex;flex-direction:column;flex:1;}
+
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div class="ambient"></div>
+
+<!-- ═══ LOADING SCREEN ═══ -->
+<div class="loading-overlay show" id="loading">
+  <div class="loader-dna">
+    <div class="loader-dna-inner">
+      <div class="loader-helix" id="helix"></div>
+    </div>
+  </div>
+  <div class="loading-text">Carregando PassaGene...</div>
+  <!-- Real logo below the loader -->
+  <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="32" height="32">
+      <defs>
+        <linearGradient id="lbg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#34D399"/>
+          <stop offset="100%" stop-color="#D4A24C"/>
+        </linearGradient>
+        <clipPath id="lc"><circle cx="60" cy="60" r="60"/></clipPath>
+      </defs>
+      <circle cx="60" cy="60" r="60" fill="url(#lbg)"/>
+      <g clip-path="url(#lc)">
+        <g transform="translate(60,60) rotate(-45) scale(1.25) translate(-43.6,-27.0)">
+          <circle cx="6.24" cy="51.10" r="2.90" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="18.71" cy="48.07" r="3.09" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="31.18" cy="39.78" r="3.62" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="43.65" cy="28.45" r="4.35" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="56.12" cy="35.43" r="3.62" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="68.59" cy="42.66" r="3.09" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="81.06" cy="45.30" r="2.90" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="6.24" cy="5.80" r="5.80" fill="#ffffff"/>
+          <circle cx="18.71" cy="8.45" r="5.60" fill="#ffffff"/>
+          <circle cx="31.18" cy="15.67" r="5.07" fill="#ffffff"/>
+          <circle cx="43.65" cy="25.55" r="4.35" fill="#ffffff"/>
+          <circle cx="56.12" cy="17.12" r="5.07" fill="#ffffff"/>
+          <circle cx="68.59" cy="8.83" r="5.60" fill="#ffffff"/>
+          <circle cx="81.06" cy="5.80" r="5.80" fill="#ffffff"/>
+        </g>
+      </g>
+    </svg>
+    <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.02em;">Passa<span style="color:#09C972;font-weight:400;">Gene</span></span>
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <!-- ═══ TOPBAR ═══ -->
+  <header class="topbar">
+    <div class="tb-left">
+      <a class="logo" href="#">
+        <!-- Real PassaGene Logo SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="28" height="28">
+          <defs>
+            <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#34D399"/>
+              <stop offset="100%" stop-color="#D4A24C"/>
+            </linearGradient>
+            <clipPath id="c"><circle cx="60" cy="60" r="60"/></clipPath>
+          </defs>
+          <circle cx="60" cy="60" r="60" fill="url(#bg)"/>
+          <g clip-path="url(#c)">
+            <g transform="translate(60,60) rotate(-45) scale(1.25) translate(-43.6,-27.0)">
+              <circle cx="6.24" cy="51.10" r="2.90" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="18.71" cy="48.07" r="3.09" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="31.18" cy="39.78" r="3.62" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="43.65" cy="28.45" r="4.35" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="56.12" cy="35.43" r="3.62" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="68.59" cy="42.66" r="3.09" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="81.06" cy="45.30" r="2.90" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="6.24" cy="5.80" r="5.80" fill="#fff"/>
+              <circle cx="18.71" cy="8.45" r="5.60" fill="#fff"/>
+              <circle cx="31.18" cy="15.67" r="5.07" fill="#fff"/>
+              <circle cx="43.65" cy="25.55" r="4.35" fill="#fff"/>
+              <circle cx="56.12" cy="17.12" r="5.07" fill="#fff"/>
+              <circle cx="68.59" cy="8.83" r="5.60" fill="#fff"/>
+              <circle cx="81.06" cy="5.80" r="5.80" fill="#fff"/>
+            </g>
+          </g>
+        </svg>
+        <span class="logo-text">Passa<b>Gene</b></span>
+      </a>
+      <span class="tb-greet">Bom dia, <strong>Miguel</strong></span>
+    </div>
+    <div class="tb-right">
+      <span class="tb-badge"><span style="font-size:12px;">&#x2726;</span> 3 analises</span>
+      <div class="tb-avatar">ML</div>
+    </div>
+  </header>
+
+  <!-- ═══ HUB TABS ═══ -->
+  <nav class="hub-tabs">
+    <button class="hub-tab active" onclick="switchView('chat')">Genia</button>
+    <button class="hub-tab" onclick="switchView('dashboard')">Laboratorio</button>
+    <button class="hub-tab">Campo</button>
+    <button class="hub-tab">Escritorio</button>
+    <button class="hub-tab">Genetica</button>
+    <button class="hub-tab">Relatorios</button>
+  </nav>
+
+  <!-- ═══ CONTENT ═══ -->
+  <div class="content">
+
+    <!-- VIEW: GENIA -->
+    <div class="view active" id="view-chat">
+      <div class="chat">
+        <div class="chat-area">
+          <div class="msg user"><div class="bubble-u">Qual doadora com melhor performance esse mes?</div></div>
+          <div class="msg bot">
+            <div class="m-avatar">&#x2726;</div>
+            <div class="bubble-b">
+              A <strong>FIV Garbosa TE</strong> lidera com <span class="hl">78.4%</span> de prenhez em 23 transferencias.
+              <div class="nucleus">
+                <div class="nuc-row">
+                  <div>
+                    <div class="nuc-name">FIV Garbosa TE</div>
+                    <div class="nuc-meta">Nelore &middot; DOA-0012 &middot; 24 embrioes</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="nuc-score">78.4%</div>
+                    <div class="nuc-price">R$ 450.000</div>
+                  </div>
+                </div>
+                <div class="nuc-bar"><div class="nuc-bar-fill" style="width:78.4%"></div></div>
+              </div>
+              Valor genetico: <span class="gl">R$ 450.000</span> — o mais alto do rebanho.
+            </div>
+          </div>
+          <div class="msg user"><div class="bubble-u">E o EmbryoScore do ultimo lote?</div></div>
+          <div class="msg bot">
+            <div class="m-avatar">&#x2726;</div>
+            <div class="bubble-b">
+              Lote <span class="hl">FIV-2026-03</span>: score medio <span class="hl">84.2</span> (Excelente). 18 classe A, 6 classe B. Nenhum inviavel. Custo por embriao viavel: <span class="gl">R$ 1.875</span>.
+            </div>
+          </div>
+          <div class="thinking">
+            <div class="think-d"></div><div class="think-d"></div><div class="think-d"></div>
+          </div>
+        </div>
+        <div class="chat-input">
+          <div class="chat-pills">
+            <button class="c-pill">Relatorio completo</button>
+            <button class="c-pill">Comparar doadoras</button>
+            <button class="c-pill">Proxima aspiracao</button>
+            <button class="c-pill">Historico de lotes</button>
+          </div>
+          <div class="chat-row">
+            <textarea class="c-field" rows="1" placeholder="Pergunte a Genia..."></textarea>
+            <button class="c-btn c-send">&#x2192;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: DASHBOARD -->
+    <div class="view" id="view-dashboard">
+      <div class="specimens">
+        <div class="specimen">
+          <div class="specimen-accent"></div>
+          <div class="sp-label">Embrioes Viaveis</div>
+          <div class="sp-value gv">1.247</div>
+          <div class="sp-foot"><span class="sp-delta up">&#x25B2; 12.4%</span><span class="pulse-dot gp"></span></div>
+          <div class="sparkline"><svg viewBox="0 0 100 24"><path class="spark-area green" d="M0,20 L14,16 L28,18 L42,12 L56,14 L70,8 L84,6 L100,3 L100,24 L0,24Z"/><path class="spark-line green" d="M0,20 L14,16 L28,18 L42,12 L56,14 L70,8 L84,6 L100,3"/></svg></div>
+        </div>
+        <div class="specimen">
+          <div class="specimen-accent"></div>
+          <div class="sp-label">Taxa de Prenhez</div>
+          <div class="sp-value gv">67.3%</div>
+          <div class="sp-foot"><span class="sp-delta down">&#x25BC; 2.1%</span><span class="pulse-dot gp"></span></div>
+          <div class="sparkline"><svg viewBox="0 0 100 24"><path class="spark-area green" d="M0,8 L14,6 L28,10 L42,8 L56,12 L70,10 L84,14 L100,16 L100,24 L0,24Z"/><path class="spark-line green" d="M0,8 L14,6 L28,10 L42,8 L56,12 L70,10 L84,14 L100,16"/></svg></div>
+        </div>
+        <div class="specimen gold-s">
+          <div class="specimen-accent"></div>
+          <div class="sp-label">Valor Genetico</div>
+          <div class="sp-value dv">R$ 3.2M</div>
+          <div class="sp-foot"><span class="sp-delta up">&#x25B2; 8.7%</span><span class="pulse-dot dp"></span></div>
+          <div class="sparkline"><svg viewBox="0 0 100 24"><path class="spark-area gold" d="M0,18 L14,16 L28,14 L42,12 L56,10 L70,8 L84,5 L100,4 L100,24 L0,24Z"/><path class="spark-line gold" d="M0,18 L14,16 L28,14 L42,12 L56,10 L70,8 L84,5 L100,4"/></svg></div>
+        </div>
+        <div class="specimen gold-s">
+          <div class="specimen-accent"></div>
+          <div class="sp-label">Receita Mensal</div>
+          <div class="sp-value dv">R$ 847K</div>
+          <div class="sp-foot"><span class="sp-delta up">&#x25B2; 15.2%</span><span class="pulse-dot dp"></span></div>
+          <div class="sparkline"><svg viewBox="0 0 100 24"><path class="spark-area gold" d="M0,20 L14,14 L28,16 L42,10 L56,8 L70,12 L84,5 L100,3 L100,24 L0,24Z"/><path class="spark-line gold" d="M0,20 L14,14 L28,16 L42,10 L56,8 L70,12 L84,5 L100,3"/></svg></div>
+        </div>
+      </div>
+
+      <div class="bio-box">
+        <div class="bio-header">
+          <span class="bio-title">Top Doadoras</span>
+          <div class="bio-tabs"><button class="bio-tab active">Performance</button><button class="bio-tab">Valor</button></div>
+        </div>
+        <div class="t-head"><span>ID</span><span>Nome</span><span>Raca</span><span>Status</span><span>Embr.</span><span style="text-align:right;">Valor</span></div>
+        <div class="t-body">
+          <div class="t-row"><span class="t-id">DOA-0012</span><span class="t-name">FIV Garbosa TE</span><span class="t-breed">Nelore</span><span><span class="status prenhe">PRENHE</span></span><span class="t-emb">24</span><span class="t-val">R$ 450.000</span></div>
+          <div class="t-row"><span class="t-id">DOA-0056</span><span class="t-name">FIV Imperatriz</span><span class="t-breed">Nelore</span><span><span class="status vazia">VAZIA</span></span><span class="t-emb">31</span><span class="t-val">R$ 680.000</span></div>
+          <div class="t-row"><span class="t-id">DOA-0034</span><span class="t-name">FIV Elegancia</span><span class="t-breed">Gir Leiteiro</span><span><span class="status servida">SERVIDA</span></span><span class="t-emb">18</span><span class="t-val">R$ 320.000</span></div>
+          <div class="t-row"><span class="t-id">DOA-0078</span><span class="t-name">FIV Baronesa</span><span class="t-breed">Brahman</span><span><span class="status prenhe">PRENHE</span></span><span class="t-emb">12</span><span class="t-val">R$ 275.000</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ VOICE FAB — Gen.IA Button ═══ -->
+<button class="voice-fab" id="voiceFab">
+  <div class="fab-aura"><div class="fab-aura-inner"></div></div>
+  <div class="fab-core"></div>
+  <div class="fab-text">
+    <div class="gen">Gen</div>
+    <div class="ia">.IA</div>
+  </div>
+  <div class="fab-tooltip">Segure para Falar</div>
+</button>
+
+<!-- View switcher (demo) -->
+<div class="view-switch">
+  <button class="v-btn active" onclick="switchView('chat')">Genia</button>
+  <button class="v-btn" onclick="switchView('dashboard')">Dashboard</button>
+</div>
+
+<script>
+// ═══ LoaderDNA animation ═══
+(function(){
+  const helix = document.getElementById('helix');
+  const NUM = 7;
+  const DURATION = 1.5;
+  const DELAY_SPAN = 0.75;
+  const cols = [];
+
+  for(let i=0;i<NUM;i++){
+    const col = document.createElement('div');
+    col.className='loader-col';
+    const front = document.createElement('div');
+    front.className='loader-dot front';
+    const back = document.createElement('div');
+    back.className='loader-dot back';
+    col.appendChild(front);
+    col.appendChild(back);
+    helix.appendChild(col);
+    cols.push({front,back,delay:-(i/(NUM-1))*DELAY_SPAN});
+  }
+
+  let start=null;
+  function animate(ts){
+    if(!start)start=ts;
+    const t=(ts-start)/1000;
+    cols.forEach(c=>{
+      const abs=t-c.delay;
+      const prog=(((abs%DURATION)+DURATION)%DURATION)/DURATION;
+      const cos=Math.cos(prog*2*Math.PI);
+      const top1=50*(1-cos);
+      const scale1=0.75+0.25*cos;
+      const z1=cos>=0?2:1;
+      const bot2=50*(1-cos);
+      const scale2=0.75-0.25*cos;
+      const z2=-cos>=0?2:1;
+      c.front.style.top=`${Math.abs(top1)}%`;
+      c.front.style.transform=`translateX(-50%) scale(${scale1})`;
+      c.front.style.zIndex=z1;
+      c.back.style.bottom=`${Math.abs(bot2)}%`;
+      c.back.style.transform=`translateX(-50%) scale(${scale2})`;
+      c.back.style.zIndex=z2;
+    });
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+
+  // Dismiss loading after 2.5s
+  setTimeout(()=>{
+    document.getElementById('loading').classList.remove('show');
+  },2500);
+})();
+
+// ═══ View switching ═══
+function switchView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.v-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.v-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(name.substring(0,4)))b.classList.add('active');});
+  document.querySelectorAll('.hub-tab').forEach(t=>t.classList.remove('active'));
+  if(name==='chat')document.querySelectorAll('.hub-tab')[0].classList.add('active');
+  if(name==='dashboard')document.querySelectorAll('.hub-tab')[1].classList.add('active');
+  // FAB hidden on Genia page
+  document.getElementById('voiceFab').style.display=name==='chat'?'none':'flex';
+}
+document.getElementById('voiceFab').style.display='none';
+
+// Hub tabs
+document.querySelectorAll('.hub-tab').forEach(t=>{
+  t.addEventListener('click',()=>{document.querySelectorAll('.hub-tab').forEach(h=>h.classList.remove('active'));t.classList.add('active');});
+});
+
+// Bio tabs
+document.querySelectorAll('.bio-tab').forEach(t=>{
+  t.addEventListener('click',()=>{t.parentElement.querySelectorAll('.bio-tab').forEach(b=>b.classList.remove('active'));t.classList.add('active');});
+});
+</script>
+</body>
+</html>
