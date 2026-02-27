@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Type, Image, BarChart3, MapPin, PawPrint } from 'lucide-react';
+import { Loader2, Type, Image, BarChart3, MapPin, PawPrint, Briefcase, Award, FolderOpen, Building2 } from 'lucide-react';
 import { useUpsertSection } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import type { ProfileSection, ProfileSectionType, ProfileSectionContent, TextSectionContent } from '@/lib/types';
@@ -20,6 +20,7 @@ interface ProfileSectionEditorProps {
   onOpenChange: (open: boolean) => void;
   section?: ProfileSection | null;
   nextSortOrder: number;
+  fazendaProfileId?: string;
 }
 
 const sectionTypeLabels: Record<ProfileSectionType, { label: string; icon: React.ReactNode }> = {
@@ -28,6 +29,11 @@ const sectionTypeLabels: Record<ProfileSectionType, { label: string; icon: React
   photo_gallery: { label: 'Galeria de Fotos', icon: <Image className="w-4 h-4" /> },
   stats: { label: 'Estatísticas', icon: <BarChart3 className="w-4 h-4" /> },
   fazenda_highlight: { label: 'Destaque Fazenda', icon: <MapPin className="w-4 h-4" /> },
+  production_stats: { label: 'Stats de Produção', icon: <BarChart3 className="w-4 h-4" /> },
+  service_stats: { label: 'Stats de Serviços', icon: <Briefcase className="w-4 h-4" /> },
+  specialties: { label: 'Especialidades', icon: <Award className="w-4 h-4" /> },
+  service_portfolio: { label: 'Portfolio', icon: <FolderOpen className="w-4 h-4" /> },
+  fazenda_links: { label: 'Minhas Fazendas', icon: <Building2 className="w-4 h-4" /> },
 };
 
 export default function ProfileSectionEditor({
@@ -35,6 +41,7 @@ export default function ProfileSectionEditor({
   onOpenChange,
   section,
   nextSortOrder,
+  fazendaProfileId,
 }: ProfileSectionEditorProps) {
   const upsertSection = useUpsertSection();
   const isEditing = !!section;
@@ -72,6 +79,16 @@ export default function ProfileSectionEditor({
         return { show_doadoras: true, show_receptoras: true, show_embrioes: true };
       case 'fazenda_highlight':
         return { fazenda_id: '', show_animal_count: true, custom_description: '' };
+      case 'production_stats':
+        return { fazenda_id: '', visibility: {} };
+      case 'service_stats':
+        return { user_id: '', visibility: {} };
+      case 'specialties':
+        return { description: '', specialties: [] };
+      case 'service_portfolio':
+        return { items: [] };
+      case 'fazenda_links':
+        return { show_stats: true };
     }
   };
 
@@ -86,6 +103,7 @@ export default function ProfileSectionEditor({
           : buildContent(),
         sort_order: section?.sort_order ?? nextSortOrder,
         is_public: isPublic,
+        fazenda_profile_id: fazendaProfileId,
       });
       toast.success(isEditing ? 'Seção atualizada!' : 'Seção adicionada!');
       onOpenChange(false);
