@@ -172,6 +172,24 @@ export default {
           "50%": { bottom: "100%", transform: "scale(1)", zIndex: "2", opacity: "1" },
           "100%": { bottom: "0", transform: "scale(0.5)", zIndex: "1", opacity: "0.3" },
         },
+        /* 06 — Slide In: entrada de cards, painéis, toasts */
+        "slide-in": {
+          "0%": { transform: "translateX(-100%)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        "slide-in-right": {
+          "0%": { transform: "translateX(100%)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        "slide-in-up": {
+          "0%": { transform: "translateY(24px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        /* 43 — Spotlight Sweep: destaque premium em cards e headers */
+        "spotlight-sweep": {
+          "0%": { transform: "translateX(-200%) skewX(-15deg)" },
+          "100%": { transform: "translateX(400%) skewX(-15deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -182,6 +200,13 @@ export default {
         "bio-breathe-fast": "bio-breathe 2s ease-in-out infinite",
         "dna-spin": "dna-spin 1.5s ease-in-out infinite",
         "dna-spin-rev": "dna-spin-rev 1.5s ease-in-out infinite",
+        /* 06 — Slide In variants */
+        "slide-in": "slide-in 0.3s ease-out both",
+        "slide-in-right": "slide-in-right 0.3s ease-out both",
+        "slide-in-up": "slide-in-up 0.3s ease-out both",
+        "slide-in-slow": "slide-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        /* 43 — Spotlight Sweep */
+        "spotlight-sweep": "spotlight-sweep 2.5s linear infinite",
       },
     },
   },

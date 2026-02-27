@@ -697,6 +697,242 @@ html.font-grande {
   }
 }
 
+/* ═══════════════════════════════════════════════════
+   DNA Gradient Animations (from catalog: 06, 31, 39, 43, 46, 48)
+   Cada animação comunica algo. Nenhuma é cosmética.
+   ═══════════════════════════════════════════════════ */
+
+/* 31 — Neon Glow DNA: destaque de valores financeiros e scores premium
+   Uso: one-shot em montagem de KPIs, valores de leilão, EmbryoScore
+   Trigger: animation-fill-mode: both (roda uma vez e mantém) */
+@keyframes neon-glow-dna {
+  0% {
+    text-shadow:
+      0 0 4px rgba(52, 211, 153, 0.4),
+      0 0 8px rgba(52, 211, 153, 0.2),
+      0 0 16px rgba(52, 211, 153, 0.1);
+  }
+  50% {
+    text-shadow:
+      0 0 8px rgba(52, 211, 153, 0.6),
+      0 0 20px rgba(52, 211, 153, 0.4),
+      0 0 40px rgba(212, 162, 76, 0.2),
+      0 0 60px rgba(212, 162, 76, 0.1);
+  }
+  100% {
+    text-shadow:
+      0 0 4px rgba(52, 211, 153, 0.3),
+      0 0 12px rgba(212, 162, 76, 0.15);
+  }
+}
+
+/* 39 — Progress Bar DNA: barra de progresso com gradiente verde→dourado
+   Usa transform: scaleX() (GPU) ao invés de width (regra do design system)
+   Uso: upload, análise EmbryoScore, processamento de lotes */
+@keyframes progress-fill-dna {
+  0% {
+    transform: scaleX(0);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+/* 46 — Glow Pulse DNA: pulso de brilho verde→dourado
+   Uso: elementos ativos, CTAs premium, focus states de destaque
+   Similar ao breathe-glow mas com pulso mais rápido e definido */
+@keyframes glow-pulse-dna {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 16px rgba(52, 211, 153, 0.4),
+      0 0 32px rgba(212, 162, 76, 0.15);
+  }
+}
+
+/* 48 — Background Pan DNA: faixa gradiente animada
+   Uso: loading strips, indicadores de progresso indeterminado
+   NÃO usar como decoração — só para comunicar "processando" */
+@keyframes bg-pan-dna {
+  from {
+    background-position: 0% center;
+  }
+  to {
+    background-position: -200% center;
+  }
+}
+
+/* ── Utility classes para as animações ── */
+
+@layer utilities {
+  /* 06 — Slide In: delays escalonados para listas */
+  .slide-in-delay-1 { animation-delay: 50ms; }
+  .slide-in-delay-2 { animation-delay: 100ms; }
+  .slide-in-delay-3 { animation-delay: 150ms; }
+  .slide-in-delay-4 { animation-delay: 200ms; }
+  .slide-in-delay-5 { animation-delay: 250ms; }
+
+  /* 31 — Neon Glow DNA (one-shot: roda 1x na montagem e mantém o estado final) */
+  .neon-glow-dna {
+    animation: neon-glow-dna 1.5s ease-in-out both;
+  }
+  /* Versão sutil para dark mode (intensidade reduzida) */
+  .dark .neon-glow-dna-subtle {
+    animation: neon-glow-dna 2s ease-in-out both;
+  }
+
+  /* 39 — Progress Bar DNA */
+  .progress-bar-dna {
+    position: relative;
+    overflow: hidden;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--border-default);
+  }
+  .progress-bar-dna::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #34D399, #D4A24C, #34D399);
+    background-size: 200% 100%;
+    transform-origin: left;
+    animation: progress-fill-dna 2s ease-in-out infinite;
+  }
+  /* Progress determinado: sem loop, fill direto via CSS var */
+  .progress-bar-dna-fill {
+    position: relative;
+    overflow: hidden;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--border-default);
+  }
+  .progress-bar-dna-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    border-radius: inherit;
+    background: var(--gradient-dna);
+    transform-origin: left;
+    transform: scaleX(var(--progress, 0));
+    transition: transform 0.3s ease-out;
+  }
+
+  /* 43 — Spotlight Sweep (pseudo-element sweep via Tailwind animate-spotlight-sweep) */
+  .spotlight-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .spotlight-sweep::before {
+    content: '';
+    position: absolute;
+    width: 100px;
+    height: 200%;
+    top: -50%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(52, 211, 153, 0.08),
+      rgba(212, 162, 76, 0.06),
+      transparent
+    );
+    animation: spotlight-sweep 3s linear infinite;
+    pointer-events: none;
+  }
+  /* One-shot: sweep uma vez e some (para highlight de valor) */
+  .spotlight-sweep-once {
+    position: relative;
+    overflow: hidden;
+  }
+  .spotlight-sweep-once::before {
+    content: '';
+    position: absolute;
+    width: 100px;
+    height: 200%;
+    top: -50%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(52, 211, 153, 0.12),
+      rgba(212, 162, 76, 0.08),
+      transparent
+    );
+    animation: spotlight-sweep 1.5s ease-out both;
+    pointer-events: none;
+  }
+
+  /* 46 — Glow Pulse DNA */
+  .glow-pulse-dna {
+    animation: glow-pulse-dna 2s ease-in-out infinite;
+  }
+  /* Versão one-shot (para focus states) */
+  .glow-pulse-dna-once {
+    animation: glow-pulse-dna 1s ease-in-out both;
+  }
+
+  /* 48 — Background Pan DNA (loading strip) */
+  .bg-pan-dna {
+    background: repeating-linear-gradient(
+      90deg,
+      #34D399,
+      #D4A24C,
+      #34D399
+    );
+    background-size: 200% 100%;
+    animation: bg-pan-dna 2s linear infinite;
+  }
+  /* Versão sutil (fundo de card em processamento) */
+  .bg-pan-dna-subtle {
+    background: repeating-linear-gradient(
+      90deg,
+      rgba(52, 211, 153, 0.15),
+      rgba(212, 162, 76, 0.10),
+      rgba(52, 211, 153, 0.15)
+    );
+    background-size: 200% 100%;
+    animation: bg-pan-dna 3s linear infinite;
+  }
+}
+
+/* ── Reduce Motion: respeitar preferência do usuário ── */
+@media (prefers-reduced-motion: reduce) {
+  .neon-glow-dna,
+  .neon-glow-dna-subtle {
+    animation: none;
+    text-shadow: 0 0 8px rgba(52, 211, 153, 0.3), 0 0 16px rgba(212, 162, 76, 0.15);
+  }
+
+  .progress-bar-dna::after {
+    animation: none;
+    transform: scaleX(1);
+  }
+
+  .spotlight-sweep::before,
+  .spotlight-sweep-once::before {
+    animation: none;
+    display: none;
+  }
+
+  .glow-pulse-dna,
+  .glow-pulse-dna-once {
+    animation: none;
+    box-shadow: 0 0 12px rgba(52, 211, 153, 0.3), 0 0 24px rgba(212, 162, 76, 0.12);
+  }
+
+  .bg-pan-dna,
+  .bg-pan-dna-subtle {
+    animation: none;
+  }
+}
+
 /* Bancada — SVG marker pulse */
 @keyframes marker-pulse {
   0%, 100% { opacity: 0.3; r: inherit; }

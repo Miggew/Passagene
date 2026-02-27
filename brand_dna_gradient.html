@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassaGene — Brand DNA Gradient: Verde & Dourado (Unificado)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        :root {
+            /* Brand Core */
+            --brand: #09C972;
+            --brand-deep: #049357;
+
+            /* Green Scale (Ciencia) */
+            --green-50: #EEFBF4;
+            --green-100: #D7F5E5;
+            --green-200: #B3EBD0;
+            --green-300: #7ADCB0;
+            --green-400: #3EC98A;
+            --green: #34D399;
+            --green-500: #1A7A50;
+            --green-600: #156842;
+            --green-700: #105434;
+            --green-800: #0C4229;
+            --green-dark: #064e3b;
+            --green-900: #08311E;
+            --green-950: #041A10;
+            --green-mint: #dcfce7;
+
+            /* Gold Scale (Valor) */
+            --gold-50: #FDF8ED;
+            --gold-100: #FAF0D4;
+            --gold-200: #F4DFA8;
+            --gold-300: #ECCC73;
+            --gold: #D4A24C;
+            --gold-500: #B8862E;
+            --gold-deep: #8B6A2F;
+            --gold-700: #745016;
+            --gold-800: #5A3E11;
+            --gold-900: #3D2A0B;
+            --gold-light: #E8C77B;
+
+            /* DNA Gradients */
+            --gradient-dna: linear-gradient(135deg, #34D399, #D4A24C);
+            --gradient-dna-subtle: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.10));
+            --gradient-dna-text: linear-gradient(135deg, #09C972, #D4A24C);
+            --gradient-dna-border: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(212, 162, 76, 0.15));
+
+            /* Surfaces */
+            --bg-page: #F7FAF8;
+            --bg-card: #FFFFFF;
+            --bg-dark: #080B0A;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-page);
+            color: #333;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            width: 100%;
+            background: var(--green-950);
+            padding: 80px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at 30% 50%, rgba(52, 211, 153, 0.08) 0%, transparent 60%),
+                        radial-gradient(ellipse at 70% 50%, rgba(212, 162, 76, 0.06) 0%, transparent 60%);
+        }
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            background: var(--gradient-dna-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+        }
+        .hero p {
+            color: rgba(255,255,255,0.6);
+            max-width: 650px;
+            margin: 16px auto 0;
+            font-size: 16px;
+            line-height: 1.6;
+            position: relative;
+        }
+        .hero .formula {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--green);
+            background: rgba(52, 211, 153, 0.08);
+            padding: 8px 20px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 20px;
+            border: 1px solid rgba(52, 211, 153, 0.15);
+            position: relative;
+        }
+
+        /* ===== SECTIONS ===== */
+        section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 40px;
+        }
+        section h2 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        section .section-desc {
+            color: #777;
+            margin-bottom: 32px;
+            font-size: 15px;
+        }
+
+        /* ===== COLOR PALETTE ===== */
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
+        }
+        .swatch {
+            border-radius: 12px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 8px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            transition: transform 0.15s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .swatch:hover { transform: translateY(-2px); }
+        .swatch.light-text { color: white; }
+        .swatch.dark-text { color: #111; }
+
+        .palette-label {
+            font-weight: 700;
+            font-size: 13px;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #999;
+        }
+
+        /* ===== GRADIENT SHOWCASE ===== */
+        .gradient-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .gradient-card {
+            border-radius: 16px;
+            height: 120px;
+            display: flex;
+            align-items: flex-end;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .gradient-card .gname {
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .gradient-card .gval {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 2px;
+        }
+
+        /* ===== LOGO PILLS ===== */
+        .pills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 32px;
+        }
+        .pill-card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .pill-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.07);
+        }
+        .pill-showcase {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 80px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        .pill-card h4 {
+            margin-top: 16px;
+            font-size: 15px;
+            color: #111;
+        }
+        .pill-card .pill-desc {
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+        .pill-tag {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+        .pill-tag.dna {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.15));
+            color: var(--green-500);
+        }
+        .pill-tag.default {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        /* PILL COMPONENT */
+        .dna-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .dna-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            transform: rotate(-45deg) scale(0.93);
+        }
+        .dot-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .dot {
+            position: absolute;
+            border-radius: 50%;
+        }
+        .opt-base {
+            display: flex;
+            align-items: center;
+            border-radius: 50px;
+            padding: 2px 20px 2px 4px;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            height: 52px;
+            box-sizing: border-box;
+            border: 2px solid transparent;
+        }
+        .wordmark {
+            font-size: 30px;
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: -1px;
+            display: flex;
+            white-space: nowrap;
+        }
+        .wordmark span.light { font-weight: 400; }
+
+        /* ===== DNA ICON STATIC GRID ===== */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 32px;
+        }
+        .icon-card {
+            text-align: center;
+        }
+        .icon-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin: 0 auto 12px;
+        }
+        .icon-box .dna-inner-static {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            transform: rotate(-45deg) scale(0.93);
+        }
+        .icon-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+        .icon-sublabel {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        /* ===== USAGE RULES ===== */
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .rule-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid;
+        }
+        .rule-card.green { border-color: var(--green); }
+        .rule-card.gold { border-color: var(--gold); }
+        .rule-card.both { border-image: var(--gradient-dna) 1; }
+        .rule-card h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .rule-card p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #aaa;
+            font-size: 13px;
+        }
+        footer code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HERO -->
+    <div class="hero">
+        <h1>PassaGene DNA Gradient</h1>
+        <p>Guia visual unificado da identidade verde & dourado.
+           Verde = Ciencia. Dourado = Valor. O gradiente DNA conecta os dois mundos.</p>
+        <div class="formula">--gradient-dna: linear-gradient(135deg, #34D399, #D4A24C)</div>
+    </div>
+
+    <!-- 1. PALETA -->
+    <section>
+        <h2>1. Paleta de Cores</h2>
+        <p class="section-desc">As duas escalas cromaticas do design system + tokens do gradiente DNA.</p>
+
+        <div class="palette-label">Verde (Ciencia)</div>
+        <div class="palette-grid" id="green-palette"></div>
+
+        <div class="palette-label">Dourado (Valor)</div>
+        <div class="palette-grid" id="gold-palette"></div>
+    </section>
+
+    <!-- 2. GRADIENTES -->
+    <section>
+        <h2>2. DNA Gradients</h2>
+        <p class="section-desc">Os 4 gradientes registrados como custom properties no app.</p>
+        <div class="gradient-row" id="gradients"></div>
+    </section>
+
+    <!-- 3. LOGO PILLS -->
+    <section>
+        <h2>3. Propostas de Logo (Pilula)</h2>
+        <p class="section-desc">8 variantes da pilula com o esquema verde & dourado. Hover para animar a fita DNA.</p>
+        <div class="pills-grid" id="pills-grid"></div>
+    </section>
+
+    <!-- 4. ICONE DNA ESTATICO -->
+    <section>
+        <h2>4. Icone DNA (Frame Zero)</h2>
+        <p class="section-desc">Perspectiva torcida 3D do icone em diferentes fundos.</p>
+        <div class="icon-grid" id="icon-grid"></div>
+    </section>
+
+    <!-- 5. REGRAS -->
+    <section>
+        <h2>5. Regras de Uso</h2>
+        <p class="section-desc">Quando usar verde, quando usar dourado, quando combinar.</p>
+        <div class="rules-grid">
+            <div class="rule-card green">
+                <h4>Modulos Tecnicos</h4>
+                <p>Embrioes, protocolos, laboratorio. Verde como primary. Dourado ausente ou minimo. A ciencia e protagonista.</p>
+            </div>
+            <div class="rule-card gold">
+                <h4>Modulos de Negocio</h4>
+                <p>Dashboard, clientes, vendas, perfil. Dourado aparece em headers, CTAs, badges premium. O valor e visivel.</p>
+            </div>
+            <div class="rule-card both">
+                <h4>Genia (AI)</h4>
+                <p>Fusao completa: verde na estrutura, dourado nos highlights de valor (precos, metricas, recomendacoes).</p>
+            </div>
+            <div class="rule-card green">
+                <h4>Tipografia Dourada</h4>
+                <p>Valores financeiros em contextos de negocio usam gold-500 (dark) / gold-600 (light). Nunca em body text corrido.</p>
+            </div>
+            <div class="rule-card both">
+                <h4>DNA Gradient</h4>
+                <p>Usado em: bordas de glass-panel, progress bars, focus rings, text-gradient de headings de destaque.</p>
+            </div>
+            <div class="rule-card gold">
+                <h4>Intensidade do Dourado</h4>
+                <p>Sobe proporcional ao contexto de valor economico. Maximo em telas de vendas e leiloes. Zero em telas de lab.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        PassaGene Design System v3.0 — DNA Gradient Reference<br>
+        Gerado de <code>DESIGN-SYSTEM.md</code> + <code>src/index.css</code>
+    </footer>
+
+    <script>
+        // === 1. PALETA ===
+        function createSwatch(parent, color, label, isDark) {
+            var el = document.createElement('div');
+            el.className = 'swatch ' + (isDark ? 'light-text' : 'dark-text');
+            el.style.background = color;
+            var nameEl = document.createElement('span');
+            nameEl.textContent = label;
+            var hexEl = document.createElement('span');
+            hexEl.textContent = color;
+            hexEl.style.opacity = '0.7';
+            el.appendChild(nameEl);
+            el.appendChild(hexEl);
+            parent.appendChild(el);
+        }
+
+        var greenPalette = document.getElementById('green-palette');
+        var greens = [
+            ['#EEFBF4','50',false],['#D7F5E5','100',false],['#B3EBD0','200',false],
+            ['#7ADCB0','300',false],['#3EC98A','400',false],['#34D399','main',false],
+            ['#1A7A50','500',true],['#156842','600',true],['#105434','700',true],
+            ['#0C4229','800',true],['#08311E','900',true],['#041A10','950',true]
+        ];
+        greens.forEach(function(g) { createSwatch(greenPalette, g[0], g[1], g[2]); });
+
+        var goldPalette = document.getElementById('gold-palette');
+        var golds = [
+            ['#FDF8ED','50',false],['#FAF0D4','100',false],['#F4DFA8','200',false],
+            ['#ECCC73','300',false],['#D4A24C','400',false],['#B8862E','500',true],
+            ['#8B6A2F','deep',true],['#745016','700',true],['#5A3E11','800',true],
+            ['#3D2A0B','900',true]
+        ];
+        golds.forEach(function(g) { createSwatch(goldPalette, g[0], g[1], g[2]); });
+
+
+        // === 2. GRADIENTES ===
+        var gradientsEl = document.getElementById('gradients');
+        var gradients = [
+            { name: '--gradient-dna', val: 'linear-gradient(135deg, #34D399, #D4A24C)', bg: 'linear-gradient(135deg, #34D399, #D4A24C)' },
+            { name: '--gradient-dna-text', val: 'linear-gradient(135deg, #09C972, #D4A24C)', bg: 'linear-gradient(135deg, #09C972, #D4A24C)' },
+            { name: '--gradient-dna-subtle', val: 'rgba green 15% → gold 10%', bg: 'linear-gradient(135deg, rgba(52,211,153,0.35), rgba(212,162,76,0.25))' },
+            { name: '--gradient-dna-border', val: 'rgba green 25% → gold 15%', bg: 'linear-gradient(135deg, rgba(52,211,153,0.5), rgba(212,162,76,0.35))' }
+        ];
+        gradients.forEach(function(g) {
+            var card = document.createElement('div');
+            card.className = 'gradient-card';
+            card.style.background = g.bg;
+            var info = document.createElement('div');
+            var nameEl = document.createElement('div');
+            nameEl.className = 'gname';
+            nameEl.textContent = g.name;
+            var valEl = document.createElement('div');
+            valEl.className = 'gval';
+            valEl.textContent = g.val;
+            info.appendChild(nameEl);
+            info.appendChild(valEl);
+            card.appendChild(info);
+            gradientsEl.appendChild(card);
+        });
+
+
+        // === 3. LOGO PILLS ===
+        function createDNAComponent(containerId, size, strandColors) {
+            var parent = document.getElementById(containerId);
+            var numDots = 7;
+            var targetLength = size * (194 / 200);
+            var wrapperSize = targetLength / numDots;
+            var dotSize = wrapperSize * 0.93;
+            var delaySpan = 0.75;
+            var ANIM_DURATION = 1.5;
+
+            var container = document.createElement('div');
+            container.className = 'dna-container';
+            container.style.width = '48px';
+            container.style.height = '48px';
+
+            var inner = document.createElement('div');
+            inner.className = 'dna-inner';
+
+            var dotsData = [];
+
+            for (var i = 0; i < numDots; i++) {
+                var delaySec = -((i / (numDots - 1)) * delaySpan);
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'dot-wrapper';
+                wrapper.style.width = wrapperSize + 'px';
+
+                var dotBase = document.createElement('div');
+                dotBase.className = 'dot';
+                dotBase.style.width = dotSize + 'px';
+                dotBase.style.height = dotSize + 'px';
+                dotBase.style.background = strandColors.front;
+                dotBase.style.left = 'calc(50% - ' + (dotSize / 2) + 'px)';
+
+                var dotRev = document.createElement('div');
+                dotRev.className = 'dot';
+                dotRev.style.width = dotSize + 'px';
+                dotRev.style.height = dotSize + 'px';
+                dotRev.style.background = strandColors.back;
+                dotRev.style.left = 'calc(50% - ' + (dotSize / 2) + 'px)';
+
+                wrapper.appendChild(dotBase);
+                wrapper.appendChild(dotRev);
+                inner.appendChild(wrapper);
+
+                dotsData.push({ dotBase: dotBase, dotRev: dotRev, delaySec: delaySec });
+            }
+
+            container.appendChild(inner);
+            parent.appendChild(container);
+
+            function updateDots(timeProgress) {
+                dotsData.forEach(function(data) {
+                    var absTime = timeProgress - data.delaySec;
+                    var progress = ((absTime % ANIM_DURATION) + ANIM_DURATION) % ANIM_DURATION / ANIM_DURATION;
+                    var cosVal = Math.cos(progress * 2 * Math.PI);
+
+                    var top1Percent = 50 * (1 - cosVal);
+                    var scale1 = 0.75 + 0.25 * cosVal;
+                    var z1 = cosVal >= 0 ? 2 : 1;
+
+                    var bottom2Percent = 50 * (1 - cosVal);
+                    var scale2 = 0.75 - 0.25 * cosVal;
+                    var z2 = -cosVal >= 0 ? 2 : 1;
+
+                    data.dotBase.style.top = 'calc(' + top1Percent + '% - ' + ((dotSize * top1Percent) / 100) + 'px)';
+                    data.dotBase.style.transform = 'scale(' + scale1 + ')';
+                    data.dotBase.style.zIndex = z1;
+
+                    data.dotRev.style.bottom = 'calc(' + bottom2Percent + '% - ' + ((dotSize * bottom2Percent) / 100) + 'px)';
+                    data.dotRev.style.transform = 'scale(' + scale2 + ')';
+                    data.dotRev.style.zIndex = z2;
+                });
+            }
+
+            updateDots(0.0);
+            return updateDots;
+        }
+
+        var pillsGrid = document.getElementById('pills-grid');
+
+        var pillConfigs = [
+            { bg: '#09C972', fg: '#064e3b', gene: '#D4A24C', dna: { front: '#064e3b', back: '#D4A24C' }, title: 'V1. Verde + Dourado', desc: 'Fundo brand, "Passa" musgo, "Gene" dourado', tag: 'dna' },
+            { bg: '#09C972', fg: '#E8C77B', gene: '#064e3b', dna: { front: '#E8C77B', back: '#064e3b' }, title: 'V2. Dourado + Musgo', desc: 'Dourado claro lidera, musgo fecha', tag: 'default' },
+            { bg: '#09C972', fg: '#ffffff', gene: '#E8C77B', dna: { front: '#ffffff', back: '#D4A24C' }, title: 'V3. Branco + Dourado', desc: 'Puro + premium sobre verde', tag: 'default' },
+            { bg: '#064e3b', fg: '#09C972', gene: '#D4A24C', dna: { front: '#34D399', back: '#D4A24C' }, title: 'V4. Musgo Premium', desc: 'Verde neon + dourado em fundo escuro', tag: 'dna' },
+            { bg: '#064e3b', fg: '#D4A24C', gene: '#09C972', dna: { front: '#D4A24C', back: '#34D399' }, title: 'V5. Gold Lead', desc: 'Dourado lidera, verde fecha', tag: 'default' },
+            { bg: '#ffffff', fg: '#064e3b', gene: '#D4A24C', dna: { front: '#064e3b', back: '#D4A24C' }, title: 'V6. Vazado Dourado', desc: 'Pill branca, borda dourada', tag: 'default', border: '#D4A24C', noShadow: true },
+            { bg: '#FAF0D4', fg: '#064e3b', gene: '#8B6A2F', dna: { front: '#064e3b', back: '#8B6A2F' }, title: 'V7. Surface Dourada', desc: 'Fundo gold-100, tons de terra', tag: 'default' },
+            { bg: '#041A10', fg: '#34D399', gene: '#D4A24C', dna: { front: '#34D399', back: '#D4A24C' }, title: 'V8. Night DNA', desc: 'Dark mode, neon verde/dourado', tag: 'default' }
+        ];
+
+        pillConfigs.forEach(function(conf, idx) {
+            var n = idx + 1;
+            var card = document.createElement('div');
+            card.className = 'pill-card';
+
+            var showcase = document.createElement('div');
+            showcase.className = 'pill-showcase';
+
+            var pill = document.createElement('div');
+            pill.className = 'opt-base';
+            pill.id = 'hover-pill-' + n;
+            pill.style.background = conf.bg;
+            if (conf.border) pill.style.borderColor = conf.border;
+            if (conf.noShadow) pill.style.boxShadow = 'none';
+
+            var dnaSlot = document.createElement('div');
+            dnaSlot.id = 'pill-dna-' + n;
+
+            var wm = document.createElement('div');
+            wm.className = 'wordmark';
+            wm.style.color = conf.fg;
+            var passaText = document.createTextNode('Passa');
+            var geneSpan = document.createElement('span');
+            geneSpan.className = 'light';
+            geneSpan.style.color = conf.gene;
+            geneSpan.textContent = 'Gene';
+            wm.appendChild(passaText);
+            wm.appendChild(geneSpan);
+
+            pill.appendChild(dnaSlot);
+            pill.appendChild(wm);
+            showcase.appendChild(pill);
+
+            var h4 = document.createElement('h4');
+            h4.textContent = conf.title;
+
+            var desc = document.createElement('div');
+            desc.className = 'pill-desc';
+            desc.textContent = conf.desc;
+
+            var tag = document.createElement('div');
+            tag.className = 'pill-tag ' + conf.tag;
+            tag.textContent = conf.tag === 'dna' ? 'DNA Gradient' : 'Variante';
+
+            card.appendChild(showcase);
+            card.appendChild(h4);
+            card.appendChild(desc);
+            card.appendChild(tag);
+            pillsGrid.appendChild(card);
+
+            // Create DNA + hover animation
+            var updateFrame = createDNAComponent('pill-dna-' + n, 48, conf.dna);
+            var startTime = null;
+            var isHovered = false;
+
+            function animate(timestamp) {
+                if (!startTime) startTime = timestamp;
+                var elapsedSec = (timestamp - startTime) / 1000;
+                updateFrame(elapsedSec);
+                if (isHovered) {
+                    requestAnimationFrame(animate);
+                } else {
+                    updateFrame(0.0);
+                    startTime = null;
+                }
+            }
+
+            pill.addEventListener('mouseenter', function() {
+                isHovered = true;
+                startTime = null;
+                requestAnimationFrame(animate);
+            });
+            pill.addEventListener('mouseleave', function() {
+                isHovered = false;
+            });
+        });
+
+
+        // === 4. DNA ICON STATIC ===
+        var iconGrid = document.getElementById('icon-grid');
+        var SIZE = 140;
+
+        var iconVariants = [
+            { bg: '#09C972', front: '#064e3b', back: '#D4A24C', label: 'Brand + Dourado' },
+            { bg: '#064e3b', front: '#34D399', back: '#D4A24C', label: 'DNA Gradient' },
+            { bg: '#041A10', front: '#34D399', back: '#D4A24C', label: 'Night DNA' },
+            { bg: '#FAF0D4', front: '#064e3b', back: '#8B6A2F', label: 'Gold Surface' },
+            { bg: '#ffffff', front: '#1A7A50', back: '#D4A24C', label: 'Clean DNA' }
+        ];
+
+        var numDots = 7;
+        var tgtLen = SIZE * (194 / 200);
+        var wSz = tgtLen / numDots;
+        var dSz = wSz * 0.93;
+        var dSpan = 0.75;
+        var aDur = 1.5;
+
+        iconVariants.forEach(function(v) {
+            var card = document.createElement('div');
+            card.className = 'icon-card';
+
+            var box = document.createElement('div');
+            box.className = 'icon-box';
+            box.style.width = SIZE + 'px';
+            box.style.height = SIZE + 'px';
+            box.style.borderRadius = Math.round(SIZE * 0.2) + 'px';
+            box.style.background = v.bg;
+            if (v.bg === '#ffffff') box.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)';
+
+            var inner = document.createElement('div');
+            inner.className = 'dna-inner-static';
+            inner.style.display = 'flex';
+            inner.style.alignItems = 'center';
+            inner.style.justifyContent = 'center';
+            inner.style.height = '60%';
+            inner.style.transform = 'rotate(-45deg) scale(0.93)';
+
+            for (var i = 0; i < numDots; i++) {
+                var isFlipped = i > 3;
+                var delay = -((i / (numDots - 1)) * dSpan);
+                if (isFlipped) delay -= 0.75;
+
+                var absTime = 0 - delay;
+                var progress = ((absTime % aDur) + aDur) % aDur / aDur;
+                var cosVal = Math.cos(progress * 2 * Math.PI);
+
+                var t1, s1, z1, b2, s2, z2;
+                if (!isFlipped) {
+                    t1 = 50 * (1 - cosVal); s1 = 0.75 + 0.25 * cosVal; z1 = cosVal >= 0 ? 2 : 1;
+                    b2 = 50 * (1 - cosVal); s2 = 0.75 - 0.25 * cosVal; z2 = -cosVal >= 0 ? 2 : 1;
+                } else {
+                    t1 = 50 * (1 + cosVal); s1 = 0.75 + 0.25 * cosVal; z1 = cosVal >= 0 ? 2 : 1;
+                    b2 = 50 * (1 + cosVal); s2 = 0.75 - 0.25 * cosVal; z2 = -cosVal >= 0 ? 2 : 1;
+                }
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'dot-wrapper';
+                wrapper.style.width = wSz + 'px';
+
+                var d1 = document.createElement('div');
+                d1.className = 'dot';
+                d1.style.width = dSz + 'px'; d1.style.height = dSz + 'px';
+                d1.style.background = v.front;
+                d1.style.left = 'calc(50% - ' + (dSz/2) + 'px)';
+                d1.style.top = 'calc(' + t1 + '% - ' + ((dSz*t1)/100) + 'px)';
+                d1.style.transform = 'scale(' + s1 + ')';
+                d1.style.zIndex = z1;
+
+                var d2 = document.createElement('div');
+                d2.className = 'dot';
+                d2.style.width = dSz + 'px'; d2.style.height = dSz + 'px';
+                d2.style.background = v.back;
+                d2.style.left = 'calc(50% - ' + (dSz/2) + 'px)';
+                d2.style.bottom = 'calc(' + b2 + '% - ' + ((dSz*b2)/100) + 'px)';
+                d2.style.transform = 'scale(' + s2 + ')';
+                d2.style.zIndex = z2;
+
+                wrapper.appendChild(d1);
+                wrapper.appendChild(d2);
+                inner.appendChild(wrapper);
+            }
+
+            box.appendChild(inner);
+
+            var lbl = document.createElement('div');
+            lbl.className = 'icon-label';
+            lbl.textContent = v.label;
+
+            card.appendChild(box);
+            card.appendChild(lbl);
+            iconGrid.appendChild(card);
+        });
+    </script>
+</body>
+
+</html>

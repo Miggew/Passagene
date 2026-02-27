@@ -4,12 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PassaGene: Paleta Forest Premium - Ajuste Fino</title>
+    <title>PassaGene: Paleta DNA Gradient — Verde & Dourado</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
+        :root {
+            /* DNA Gradient Colors (from app design system) */
+            --brand: #09C972;
+            --brand-deep: #049357;
+            --green: #34D399;
+            --green-deep: #1A7A50;
+            --green-dark: #064e3b;
+            --green-900: #08311E;
+            --green-950: #041A10;
+            --green-mint: #dcfce7;
+
+            --gold: #D4A24C;
+            --gold-deep: #8B6A2F;
+            --gold-light: #E8C77B;
+            --gold-50: #FDF8ED;
+            --gold-100: #FAF0D4;
+            --gold-900: #3D2A0B;
+
+            /* DNA Gradients */
+            --gradient-dna: linear-gradient(135deg, #34D399, #D4A24C);
+            --gradient-dna-subtle: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.10));
+            --gradient-dna-text: linear-gradient(135deg, #09C972, #D4A24C);
+            --gradient-dna-border: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(212, 162, 76, 0.15));
+        }
+
         body {
-            background: #fafafa;
+            background: #F7FAF8;
             color: #333;
             font-family: 'Outfit', sans-serif;
             display: flex;
@@ -33,6 +58,10 @@
             font-weight: 800;
             font-size: 32px;
             letter-spacing: -1px;
+            background: var(--gradient-dna-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         p.subtitle {
@@ -60,7 +89,7 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .card:hover {
@@ -85,6 +114,11 @@
             font-weight: 600;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+        }
+
+        .card .badge.recommended {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(212, 162, 76, 0.15));
+            color: var(--green-deep);
         }
 
         .card p {
@@ -136,26 +170,22 @@
             border-radius: 50%;
         }
 
-        /* COMPONENTE DA PÍLULA (MAX TIGHTNESS) */
+        /* COMPONENTE DA PÍLULA */
         .opt-base {
             display: flex;
             align-items: center;
             border-radius: 50px;
-            /* Padding reduzido no topo/baixo para a letra colar mais nas margens (maximiza font-size) */
             padding: 2px 20px 2px 4px;
             gap: 10px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
             cursor: pointer;
             height: 52px;
-            /* Forçado pra altura de navbar real do tailwind */
             box-sizing: border-box;
             border: 2px solid transparent;
-            /* Para as opções invertidas Hollow */
         }
 
         /* TIPOGRAFIA ESCALADA */
         .wordmark {
-            /* Tamanho aumentado consideravelmente. Linha de altura travada pra ele não amassar a pílula */
             font-size: 30px;
             line-height: 1;
             font-weight: 800;
@@ -169,163 +199,83 @@
         }
 
 
-        /* PALETAS DE CORES FOREST PREMIUM EXPANDIDAS */
+        /* === PALETAS DNA GRADIENT (Verde + Dourado) === */
 
-        /* Tema V1: O seu escolhido (Base Forte) 
-           Fundo: Verde PassaGene (#09C972)
-           Passa/Frente: Verde Musgo (#064e3b)
-           Gene/Tras: Menta Claro (#dcfce7) */
+        /* V1: DNA Gradient — Brand verde fundo, texto verde escuro + dourado */
         .v1 {
-            background: #09C972;
+            background: var(--brand);
             border-color: transparent;
         }
+        .v1 .wordmark { color: var(--green-dark); }
+        .v1 .wordmark span.light { color: var(--gold); }
 
-        .v1 .wordmark {
-            color: #064e3b;
-        }
-
-        .v1 .wordmark span.light {
-            color: #dcfce7;
-        }
-
-        /* Tema V2: Invertendo Textos
-           Fundo: Verde PassaGene
-           Passa/Frente: Menta Claro
-           Gene/Trás: Musgo */
+        /* V2: DNA Gradient Invertido — Brand verde fundo, dourado + verde escuro */
         .v2 {
-            background: #09C972;
+            background: var(--brand);
             border-color: transparent;
         }
+        .v2 .wordmark { color: var(--gold-light); }
+        .v2 .wordmark span.light { color: var(--green-dark); }
 
-        .v2 .wordmark {
-            color: #ffffff;
-        }
-
-        /* Textos claros são melhores com fundo colorido, Menta ficaria muito sujo no passa */
-        .v2 .wordmark span.light {
-            color: #064e3b;
-        }
-
-        /* Tema V3: Gelo Forest (Pureza)
-           Fundo: Verde PassaGene
-           Passa/Frente: Branco
-           Gene/Tras: Branco 
-           (Um clássico puro pra ver como fica com a tipografia gigantesca nova) */
+        /* V3: Gelo DNA — Brand verde fundo, branco + dourado claro */
         .v3 {
-            background: #09C972;
+            background: var(--brand);
             border-color: transparent;
         }
+        .v3 .wordmark { color: #ffffff; }
+        .v3 .wordmark span.light { color: var(--gold-light); }
 
-        .v3 .wordmark {
-            color: #ffffff;
-        }
-
-        .v3 .wordmark span.light {
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        /* Tema V4: O Premium Brutal ("Fundo Escuro")
-           Fundo: Musgo (#064e3b) 
-           Passa/Frente: Verde PassaGene (#09C972)
-           Gene/Trás: Branco */
+        /* V4: Premium Musgo — Fundo musgo escuro, verde brand + dourado */
         .v4 {
-            background: #064e3b;
+            background: var(--green-dark);
             border-color: transparent;
         }
+        .v4 .wordmark { color: var(--brand); }
+        .v4 .wordmark span.light { color: var(--gold); }
 
-        .v4 .wordmark {
-            color: #09C972;
-        }
-
-        .v4 .wordmark span.light {
-            color: #ffffff;
-        }
-
-        /* Tema V5: O Premium Brutal (Alternado)
-           Fundo: Musgo (#064e3b) 
-           Passa/Frente: Branco
-           Gene/Trás: Verde PassaGene (#09C972) */
+        /* V5: Elite Invertido — Fundo musgo, dourado + verde */
         .v5 {
-            background: #064e3b;
+            background: var(--green-dark);
             border-color: transparent;
         }
+        .v5 .wordmark { color: var(--gold); }
+        .v5 .wordmark span.light { color: var(--brand); }
 
-        .v5 .wordmark {
-            color: #ffffff;
-        }
-
-        .v5 .wordmark span.light {
-            color: #09C972;
-        }
-
-        /* Tema V6: Vazado Clean (Pra fundos brancos)
-           Fundo: Branco (Borda Verde Passagene)
-           Passa/Frente: Musgo (#064e3b)
-           Gene/Trás: Verde Passagene */
+        /* V6: Vazado DNA — Fundo branco, borda gradient, texto musgo + dourado */
         .v6 {
             background: #ffffff;
-            border-color: #09C972;
+            border-color: var(--gold);
             box-shadow: none;
         }
+        .v6 .wordmark { color: var(--green-dark); }
+        .v6 .wordmark span.light { color: var(--gold); font-weight: 500; }
 
-        .v6 .wordmark {
-            color: #064e3b;
-        }
-
-        .v6 .wordmark span.light {
-            color: #09C972;
-            font-weight: 500;
-        }
-
-        /* Aumenta peso pra ler bem no branco */
-
-        /* Tema V7: Menta Soft (Pra não pesar os olhos)
-           Fundo: Menta (#dcfce7)
-           Passa/Frente: Musgo (#064e3b)
-           Gene/Trás: Verde Passagene */
+        /* V7: Gold Premium — Fundo dourado suave, musgo + verde */
         .v7 {
-            background: #dcfce7;
+            background: var(--gold-100);
             border-color: transparent;
         }
+        .v7 .wordmark { color: var(--green-dark); }
+        .v7 .wordmark span.light { color: var(--gold-deep); font-weight: 500; }
 
-        .v7 .wordmark {
-            color: #064e3b;
-        }
-
-        .v7 .wordmark span.light {
-            color: #059669;
-            font-weight: 500;
-        }
-
-        /* Tema V8: Night Mode (Gama inteira invertida)
-           Fundo: Cinza Chumbo Escuro (#0f172a)
-           Passa/Frente: Branco
-           Gene/Trás: Verde Passagene */
+        /* V8: Night DNA — Fundo escuro, branco + gradient DNA */
         .v8 {
-            background: #0f172a;
+            background: var(--green-950);
             border-color: transparent;
         }
-
-        .v8 .wordmark {
-            color: #ffffff;
-        }
-
-        .v8 .wordmark span.light {
-            color: #09C972;
-        }
+        .v8 .wordmark { color: var(--green); }
+        .v8 .wordmark span.light { color: var(--gold); }
     </style>
 </head>
 
 <body>
 
     <header>
-        <h1>A Pílula Definitiva: Proporções & Inversões</h1>
-        <p class="subtitle">Ótimo! A "Pílula Infinita" é o caminho a seguir. A primeira coisa que fiz foi
-            <strong>esmagar o padding vertical</strong> da Pílula, forçando a tipografia crescer de 26px para 30px
-            dentro de uma altura engessada de 52px (O padrão espremido de Navbar web). O preenchimento da caixa ficou
-            perfeito.<br />
-            Aqui estão 8 paletas geradas com permutações dos 3 tons principais (Verde Original, Musgo, Branco e Menta),
-            rodando a Animação Fluida Matemática no mouse.</p>
+        <h1>DNA Gradient: Verde & Dourado</h1>
+        <p class="subtitle">Paleta atualizada com o esquema <strong>DNA Gradient</strong> do app —
+            <code>linear-gradient(135deg, #34D399, #D4A24C)</code>.
+            Verde = Ciência, Dourado = Valor. As fitas DNA agora usam as duas cores do gradiente,
+            reforçando a identidade em cada variação da pílula.</p>
     </header>
 
     <div class="grid-container">
@@ -338,10 +288,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">A Aprovada</div>
-            <h3>V1. Original Escolhida</h3>
-            <p>Fundo Verde, Texto Passa Musgo, Texto Gene Menta. O novo tamanho da Letra esticou a pílula preenchendo o
-                vazio perfeitamente.</p>
+            <div class="badge recommended">DNA Gradient</div>
+            <h3>V1. Verde + Dourado</h3>
+            <p>Fundo Brand Verde. "Passa" em musgo escuro, "Gene" em dourado. A fita DNA usa verde/dourado — identidade completa do gradiente.</p>
         </div>
 
         <!-- V2 -->
@@ -352,10 +301,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Inversão Fios</div>
-            <h3>V2. Passe Inverso</h3>
-            <p>Fundo Verde. Passa/Frente são Brancos. Gene/Fundo são Verde Musgo Escuro. Cria uma âncora muito pesada no
-                final do nome.</p>
+            <div class="badge">Inversão DNA</div>
+            <h3>V2. Dourado + Musgo</h3>
+            <p>Fundo Verde. "Passa" dourado claro, "Gene" musgo. O dourado no peso 800 cria uma âncora visual premium no início.</p>
         </div>
 
         <!-- V3 -->
@@ -366,10 +314,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Limpeza Total</div>
-            <h3>V3. O Gelo Base</h3>
-            <p>A prova dos nove com a Tipografia aumentada: Fundo Verde com tudo puramente branco sólido translúcido.
-                Uma pegada clínica impecável.</p>
+            <div class="badge">Gelo + Gold</div>
+            <h3>V3. Branco + Dourado</h3>
+            <p>Fundo Verde com "Passa" branco puro e "Gene" em dourado claro. A fita DNA em dourado sobre verde é a combinação mais impactante.</p>
         </div>
 
         <!-- V4 -->
@@ -380,10 +327,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Inversão Fundo V.1</div>
-            <h3>V4. O Fundo Musgo</h3>
-            <p>Isso traz muita autoridade. O fundo da pílula vira o Musgo escuro. O "Passa" acende como neon com o Verde
-                Base original, e o "Gene" branco apazigua e moderniza.</p>
+            <div class="badge recommended">Premium DNA</div>
+            <h3>V4. Musgo Premium</h3>
+            <p>Fundo musgo escuro. "Passa" verde brand neon, "Gene" dourado. A fita alterna verde e dourado — máxima sofisticação.</p>
         </div>
 
         <!-- V5 -->
@@ -394,10 +340,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Inversão Fundo V.2</div>
-            <h3>V5. Passa Branco, Gene Verde</h3>
-            <p>Ainda com o fundo escurão, o fluxo do olho pega primeiro o Branco puro e descansa no Verde brilhante. A
-                fita 3D lá dentro acompanha 100%.</p>
+            <div class="badge">Elite Invertida</div>
+            <h3>V5. Gold Lead</h3>
+            <p>Fundo musgo. O dourado lidera no "Passa" pesado, o verde fecha no "Gene" leve. Lê como ouro sobre floresta.</p>
         </div>
 
         <!-- V6 -->
@@ -408,10 +353,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Modo Claro V.1</div>
-            <h3>V6. O Vazado Clean</h3>
-            <p>Pill Branca com Borda Colorida. Se as cores do layout do software e dashboard já forem pesadas, ele
-                garante que a marca não vai gritar na tela, vai só assinar digitalmente.</p>
+            <div class="badge">Modo Claro</div>
+            <h3>V6. Vazado Dourado</h3>
+            <p>Pill branca com borda dourada. Textos musgo + dourado. Para dashboards e layouts claros onde a marca assina sem gritar.</p>
         </div>
 
         <!-- V7 -->
@@ -422,10 +366,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Modo Claro V.2</div>
-            <h3>V7. Menta Calmo</h3>
-            <p>Um esverdeado pastel de fundo ao invés do Verde Neon Base. Muito comum em marcas contemporâneas por
-                abraçar logotipos Musgo muito escuros sem fatigar o olho.</p>
+            <div class="badge">Gold Surface</div>
+            <h3>V7. Superfície Dourada</h3>
+            <p>Fundo dourado suave (#FAF0D4). Textos musgo + dourado profundo. Para contextos de negócio e prestígio onde o gold predomina.</p>
         </div>
 
         <!-- V8 -->
@@ -436,10 +379,9 @@
                     <div class="wordmark">Passa<span class="light">Gene</span></div>
                 </div>
             </div>
-            <div class="badge">Dark Mode Preview</div>
-            <h3>V8. Preview de Tema Escuro</h3>
-            <p>Só pra exemplificar como qualquer uma dessas paletas verdes se comporta se a Pílula assumir o cinza
-                azulado das abas de navegadores e softwares em modo noturno corporativo.</p>
+            <div class="badge">Dark Mode</div>
+            <h3>V8. Night DNA</h3>
+            <p>Fundo quase-preto (#041A10). Verde luminoso no "Passa", dourado no "Gene". A fita DNA brilha como neon — dark mode completo.</p>
         </div>
 
     </div>
@@ -458,8 +400,6 @@
 
             const container = document.createElement('div');
             container.className = 'dna-container';
-
-            // Força a altura dinâmica do ícone pra ser a mesma altura máxima (48px de inner - padding da border) da pílula, preservando a matemática
             container.style.width = '48px';
             container.style.height = '48px';
 
@@ -529,22 +469,20 @@
         }
 
 
-        // Paletas Coordenadas com as Classes CSS (Frente e Tras/Gene)
+        // Paletas DNA Gradient — Verde (#34D399) e Dourado (#D4A24C)
         const configs = [
-            { id: 'render-v1', parentId: 'hover-target-1', colors: { front: '#064e3b', back: '#dcfce7' } },
-            { id: 'render-v2', parentId: 'hover-target-2', colors: { front: '#ffffff', back: '#064e3b' } },
-            { id: 'render-v3', parentId: 'hover-target-3', colors: { front: '#ffffff', back: 'rgba(255,255,255,0.7)' } },
-            { id: 'render-v4', parentId: 'hover-target-4', colors: { front: '#09C972', back: '#ffffff' } },
-            { id: 'render-v5', parentId: 'hover-target-5', colors: { front: '#ffffff', back: '#09C972' } },
-            { id: 'render-v6', parentId: 'hover-target-6', colors: { front: '#064e3b', back: '#09C972' } },
-            { id: 'render-v7', parentId: 'hover-target-7', colors: { front: '#064e3b', back: '#059669' } },
-            { id: 'render-v8', parentId: 'hover-target-8', colors: { front: '#ffffff', back: '#09C972' } }
+            { id: 'render-v1', parentId: 'hover-target-1', colors: { front: '#064e3b', back: '#D4A24C' } },
+            { id: 'render-v2', parentId: 'hover-target-2', colors: { front: '#E8C77B', back: '#064e3b' } },
+            { id: 'render-v3', parentId: 'hover-target-3', colors: { front: '#ffffff', back: '#D4A24C' } },
+            { id: 'render-v4', parentId: 'hover-target-4', colors: { front: '#34D399', back: '#D4A24C' } },
+            { id: 'render-v5', parentId: 'hover-target-5', colors: { front: '#D4A24C', back: '#34D399' } },
+            { id: 'render-v6', parentId: 'hover-target-6', colors: { front: '#064e3b', back: '#D4A24C' } },
+            { id: 'render-v7', parentId: 'hover-target-7', colors: { front: '#064e3b', back: '#8B6A2F' } },
+            { id: 'render-v8', parentId: 'hover-target-8', colors: { front: '#34D399', back: '#D4A24C' } }
         ];
 
         configs.forEach(conf => {
             const root = document.getElementById(conf.id);
-
-            // Passamos 48px pois apertamos as margens e engessamos a altura do flex para 52px total. E o quadrado interno (com margens) do icone no padding vai a 48
             const updateFrame = createDNAComponent(conf.id, 48, conf.colors);
             const parentArea = document.getElementById(conf.parentId);
 

@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Animations — Mega Catálogo (100+)</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   RESET & VARIABLES
+   ═══════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #07070d;
+  --surface: #0e0e18;
+  --surface2: #141422;
+  --border: #1c1c30;
+  --text: #e4e4ef;
+  --muted: #5a5a72;
+  --a1: #6366f1; /* indigo */
+  --a2: #ec4899; /* pink */
+  --a3: #06b6d4; /* cyan */
+  --a4: #f59e0b; /* amber */
+  --a5: #10b981; /* emerald */
+  --a6: #f43f5e; /* rose */
+  --a7: #8b5cf6; /* violet */
+  --a8: #14b8a6; /* teal */
+  --a9: #f97316; /* orange */
+  --a10: #3b82f6; /* blue */
+  --r: 14px;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ═══════ LAYOUT ═══════ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 7vw, 5.5rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--a1), var(--a2), var(--a3), var(--a4));
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradShift 5s ease infinite;
+  text-align: center;
+  z-index: 2;
+  position: relative;
+}
+
+.hero .sub { color: var(--muted); font-size: 1.15rem; margin-top: 1rem; animation: fadeUp 1s ease 0.4s both; z-index: 2; position: relative; }
+.hero .counter { font-size: 4rem; font-weight: 900; color: var(--a1); margin-bottom: 0.5rem; z-index: 2; position: relative; animation: countPop 0.6s ease 0.2s both; }
+
+@keyframes countPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.container { max-width: 1500px; margin: 0 auto; padding: 1.5rem; }
+
+.section { margin: 5rem 0; }
+.section-title {
+  font-size: 1.6rem; font-weight: 800; margin-bottom: 0.3rem;
+  background: linear-gradient(90deg, var(--a1), var(--a3));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.section-desc { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+.section-num { color: var(--a7); font-weight: 900; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.2rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.card:hover { border-color: var(--a1); box-shadow: 0 0 20px rgba(99,102,241,0.1); }
+
+.card-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); align-self: flex-start; }
+.card-stage { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; }
+
+/* Wide card */
+.card.wide { grid-column: span 2; }
+@media (max-width: 600px) { .card.wide { grid-column: span 1; } }
+
+/* ═══════ HERO PARTICLES ═══════ */
+.particles { position: absolute; inset: 0; z-index: 0; }
+.p { position: absolute; width: 4px; height: 4px; border-radius: 50%; opacity: 0.4; animation: pFloat linear infinite; }
+.p:nth-child(1)  { left:5%;  animation-duration:11s; background:var(--a1); }
+.p:nth-child(2)  { left:12%; animation-duration:14s; animation-delay:1s; background:var(--a2); width:6px; height:6px; }
+.p:nth-child(3)  { left:20%; animation-duration:9s;  animation-delay:2s; background:var(--a3); }
+.p:nth-child(4)  { left:28%; animation-duration:16s; animation-delay:0.5s; background:var(--a4); width:3px; height:3px; }
+.p:nth-child(5)  { left:35%; animation-duration:13s; animation-delay:3s; background:var(--a5); width:5px; height:5px; }
+.p:nth-child(6)  { left:42%; animation-duration:10s; animation-delay:1.5s; background:var(--a6); }
+.p:nth-child(7)  { left:50%; animation-duration:15s; animation-delay:2.5s; background:var(--a7); width:7px; height:7px; }
+.p:nth-child(8)  { left:58%; animation-duration:12s; animation-delay:0.3s; background:var(--a8); }
+.p:nth-child(9)  { left:65%; animation-duration:17s; animation-delay:4s; background:var(--a9); width:5px; height:5px; }
+.p:nth-child(10) { left:72%; animation-duration:18s; animation-delay:1.2s; background:var(--a10); }
+.p:nth-child(11) { left:80%; animation-duration:8s;  animation-delay:0.8s; background:var(--a1); width:3px; height:3px; }
+.p:nth-child(12) { left:88%; animation-duration:19s; animation-delay:3.5s; background:var(--a2); width:8px; height:8px; }
+.p:nth-child(13) { left:95%; animation-duration:11s; animation-delay:2s; background:var(--a5); }
+.p:nth-child(14) { left:8%;  animation-duration:20s; animation-delay:5s; background:var(--a6); width:4px; height:4px; }
+.p:nth-child(15) { left:55%; animation-duration:7s;  animation-delay:1s; background:var(--a8); width:6px; height:6px; }
+
+@keyframes pFloat {
+  0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-100px) scale(1); opacity: 0; }
+}
+
+/* ═══════ SCROLL REVEAL ═══════ */
+.sr { opacity: 0; transform: translateY(30px); transition: opacity 0.5s, transform 0.5s; }
+.sr.v { opacity: 1; transform: translateY(0); }
+
+/* ════════════════════════════════════════════════
+   KEYFRAMES LIBRARY
+   ════════════════════════════════════════════════ */
+
+@keyframes gradShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(25px)} to{opacity:1;transform:translateY(0)} }
+
+/* 1 Bounce */
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-35px)} }
+/* 2 Pulse */
+@keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.35);opacity:0.5} }
+/* 3 Spin */
+@keyframes spin { to{transform:rotate(360deg)} }
+/* 4 Shake */
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px) rotate(-5deg)} 75%{transform:translateX(8px) rotate(5deg)} }
+/* 5 Float */
+@keyframes float { 0%,100%{transform:translateY(0) rotate(0)} 33%{transform:translateY(-12px) rotate(2deg)} 66%{transform:translateY(-22px) rotate(-2deg)} }
+/* 6 SlideIn */
+@keyframes slideIn { 0%{transform:translateX(-160%);opacity:0} 30%,70%{transform:translateX(0);opacity:1} 100%{transform:translateX(160%);opacity:0} }
+/* 7 ScaleRotate */
+@keyframes scaleRot { 0%{transform:scale(1) rotate(0)} 25%{transform:scale(1.4) rotate(90deg)} 50%{transform:scale(1) rotate(180deg)} 75%{transform:scale(1.4) rotate(270deg)} 100%{transform:scale(1) rotate(360deg)} }
+/* 8 ColorCycle */
+@keyframes colorCycle { 0%{background:var(--a1)} 20%{background:var(--a2)} 40%{background:var(--a3)} 60%{background:var(--a4)} 80%{background:var(--a5)} 100%{background:var(--a1)} }
+/* 9 RubberBand */
+@keyframes rubber { 0%{transform:scale(1)} 30%{transform:scaleX(1.25) scaleY(0.75)} 40%{transform:scaleX(0.75) scaleY(1.25)} 50%{transform:scaleX(1.15) scaleY(0.85)} 65%{transform:scaleX(0.95) scaleY(1.05)} 75%{transform:scaleX(1.05) scaleY(0.95)} 100%{transform:scale(1)} }
+/* 10 Jello */
+@keyframes jello { 0%,100%{transform:skew(0)} 11%{transform:skew(-12.5deg,-12.5deg)} 22%{transform:skew(6.25deg,6.25deg)} 33%{transform:skew(-3.1deg,-3.1deg)} 44%{transform:skew(1.56deg,1.56deg)} 55%{transform:skew(-0.78deg,-0.78deg)} }
+/* 11 Elastic */
+@keyframes elastic { 0%{transform:scaleX(1)} 30%{transform:scaleX(1.5)} 40%{transform:scaleX(0.75)} 50%{transform:scaleX(1.2)} 65%{transform:scaleX(0.9)} 75%{transform:scaleX(1.05)} 100%{transform:scaleX(1)} }
+/* 12 Morph */
+@keyframes morph { 0%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%} 25%{border-radius:30% 60% 70% 40%/50% 60% 30% 60%} 50%{border-radius:50% 60% 30% 60%/30% 60% 70% 40%} 75%{border-radius:60% 30% 60% 40%/70% 40% 50% 60%} 100%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%} }
+/* 13 Heartbeat */
+@keyframes heartbeat { 0%{transform:scale(1)} 14%{transform:scale(1.3)} 28%{transform:scale(1)} 42%{transform:scale(1.3)} 70%{transform:scale(1)} }
+/* 14 Swing */
+@keyframes swing { 0%,100%{transform:rotate(20deg)} 50%{transform:rotate(-20deg)} }
+/* 15 Pendulum */
+@keyframes pendulum { 0%,100%{transform:rotate(30deg)} 50%{transform:rotate(-30deg)} }
+/* 16 DNA */
+@keyframes dna { 0%,100%{transform:translateY(-18px) scale(0.6);opacity:0.4} 50%{transform:translateY(18px) scale(1);opacity:1} }
+/* 17 Typing */
+@keyframes typing { 0%,10%{width:0} 50%,70%{width:14ch} 90%,100%{width:0} }
+@keyframes blink { 50%{border-color:transparent} }
+/* 18 Wave */
+@keyframes wave { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+/* 19 Glitch1 */
+@keyframes g1 { 0%,100%{transform:translate(0)} 20%{transform:translate(-3px,3px)} 40%{transform:translate(3px,-3px)} 60%{transform:translate(-2px,1px)} 80%{transform:translate(2px,-2px)} }
+/* 20 Glitch2 */
+@keyframes g2 { 0%,100%{transform:translate(0)} 20%{transform:translate(3px,-3px)} 40%{transform:translate(-3px,3px)} 60%{transform:translate(2px,-1px)} 80%{transform:translate(-2px,2px)} }
+/* 21 Neon */
+@keyframes neon { from{text-shadow:0 0 5px var(--a1),0 0 10px var(--a1),0 0 20px var(--a1),0 0 40px var(--a2)} to{text-shadow:0 0 10px var(--a1),0 0 20px var(--a1),0 0 40px var(--a1),0 0 80px var(--a2),0 0 120px var(--a2)} }
+/* 22 DotBounce */
+@keyframes dotB { 0%,80%,100%{transform:scale(0.6);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+/* 23 Shimmer */
+@keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+/* 24 ProgressFill */
+@keyframes progFill { 0%{width:0%} 50%{width:100%} 100%{width:0%} }
+/* 25 Ripple */
+@keyframes ripple { 0%{transform:scale(0.5);opacity:1} 100%{transform:scale(2.5);opacity:0} }
+/* 26 CubeRotate */
+@keyframes cubeRot { 0%{transform:rotateX(0) rotateY(0)} 100%{transform:rotateX(360deg) rotateY(360deg)} }
+/* 27 Flip */
+@keyframes flip { 0%{transform:perspective(400px) rotateY(0)} 50%{transform:perspective(400px) rotateY(180deg)} 100%{transform:perspective(400px) rotateY(360deg)} }
+/* 28 BorderSpin */
+@keyframes bSpin { to{transform:rotate(360deg)} }
+/* 29 Orbit */
+@keyframes orbit { from{transform:rotate(0deg) translateX(40px) rotate(0deg)} to{transform:rotate(360deg) translateX(40px) rotate(-360deg)} }
+/* 30 barPulse */
+@keyframes barP { to{height:55px} }
+/* 31 clockHand */
+@keyframes cHand { from{transform:translate(-50%,0) rotate(0)} to{transform:translate(-50%,0) rotate(360deg)} }
+/* 32 Spotlight */
+@keyframes spotlight { from{transform:translateX(-200px) skewX(-15deg)} to{transform:translateX(400px) skewX(-15deg)} }
+/* 33 drawCircle */
+@keyframes drawC { 0%{stroke-dashoffset:220} 50%{stroke-dashoffset:0} 100%{stroke-dashoffset:-220} }
+/* 34 StaggerIn */
+@keyframes stagIn { 0%,100%{transform:scale(0) rotate(45deg);opacity:0} 20%,80%{transform:scale(1) rotate(0);opacity:1} }
+/* 35 Unfold */
+@keyframes unfold { 0%,100%{height:0;opacity:0} 20%,80%{height:14px;opacity:1} }
+/* 36 matrixFall */
+@keyframes mFall { to{transform:translateY(120px);opacity:0} }
+/* 37 confettiFall */
+@keyframes confFall { to{transform:translateY(120px) rotate(720deg);opacity:0} }
+/* 38 blobMove 1-3 */
+@keyframes bm1 { 0%,100%{transform:translate(0)} 33%{transform:translate(20px,-15px)} 66%{transform:translate(-10px,15px)} }
+@keyframes bm2 { 0%,100%{transform:translate(0)} 33%{transform:translate(-20px,10px)} 66%{transform:translate(15px,-20px)} }
+@keyframes bm3 { 0%,100%{transform:translate(0)} 33%{transform:translate(15px,20px)} 66%{transform:translate(-15px,-10px)} }
+
+/* ═══ NEW ANIMATIONS 39-110 ═══ */
+
+/* 39 Wobble */
+@keyframes wobble { 0%{transform:translateX(0)} 15%{transform:translateX(-25%) rotate(-5deg)} 30%{transform:translateX(20%) rotate(3deg)} 45%{transform:translateX(-15%) rotate(-3deg)} 60%{transform:translateX(10%) rotate(2deg)} 75%{transform:translateX(-5%) rotate(-1deg)} 100%{transform:translateX(0)} }
+/* 40 TaDa */
+@keyframes tada { 0%{transform:scale(1) rotate(0)} 10%,20%{transform:scale(0.9) rotate(-3deg)} 30%,50%,70%,90%{transform:scale(1.1) rotate(3deg)} 40%,60%,80%{transform:scale(1.1) rotate(-3deg)} 100%{transform:scale(1) rotate(0)} }
+/* 41 Squeeze */
+@keyframes squeeze { 0%,100%{transform:scaleY(1)} 30%{transform:scaleY(0.5)} 60%{transform:scaleY(1.15)} 80%{transform:scaleY(0.9)} }
+/* 42 Pop */
+@keyframes pop { 0%{transform:scale(0);opacity:0} 50%{transform:scale(1.2);opacity:1} 70%{transform:scale(0.9)} 100%{transform:scale(1)} }
+/* 43 FadeInLeft */
+@keyframes fadeInLeft { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
+/* 44 FadeInRight */
+@keyframes fadeInRight { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+/* 45 FadeInDown */
+@keyframes fadeInDown { from{opacity:0;transform:translateY(-30px)} to{opacity:1;transform:translateY(0)} }
+/* 46 ZoomIn */
+@keyframes zoomIn { from{transform:scale(0.3);opacity:0} to{transform:scale(1);opacity:1} }
+/* 47 ZoomOut */
+@keyframes zoomOut { 0%{transform:scale(1);opacity:1} 50%{transform:scale(0.3);opacity:0} 51%{transform:scale(0.3);opacity:0} 100%{transform:scale(1);opacity:1} }
+/* 48 RotateIn */
+@keyframes rotateIn { from{transform:rotate(-200deg) scale(0);opacity:0} to{transform:rotate(0) scale(1);opacity:1} }
+/* 49 FlipInX */
+@keyframes flipX { 0%{transform:perspective(400px) rotateX(90deg);opacity:0} 40%{transform:perspective(400px) rotateX(-10deg)} 70%{transform:perspective(400px) rotateX(10deg)} 100%{transform:perspective(400px) rotateX(0);opacity:1} }
+/* 50 FlipInY */
+@keyframes flipY { 0%{transform:perspective(400px) rotateY(90deg);opacity:0} 40%{transform:perspective(400px) rotateY(-10deg)} 70%{transform:perspective(400px) rotateY(10deg)} 100%{transform:perspective(400px) rotateY(0);opacity:1} }
+/* 51 LightSpeed */
+@keyframes lightSpeed { 0%{transform:translateX(100%) skewX(-30deg);opacity:0} 60%{transform:translateX(0) skewX(20deg);opacity:1} 80%{transform:skewX(-5deg)} 100%{transform:skewX(0)} }
+/* 52 Hinge */
+@keyframes hinge { 0%{transform-origin:top left;animation-timing-function:ease-in-out} 20%,60%{transform:rotate(80deg);transform-origin:top left;animation-timing-function:ease-in-out} 40%,80%{transform:rotate(60deg);transform-origin:top left;animation-timing-function:ease-in-out;opacity:1} 100%{transform:translateY(500px);opacity:0} }
+/* 53 RollIn */
+@keyframes rollIn { from{transform:translateX(-100%) rotate(-120deg);opacity:0} to{transform:translateX(0) rotate(0);opacity:1} }
+/* 54 Sway */
+@keyframes sway { 0%,100%{transform:rotate(0)} 25%{transform:rotate(6deg)} 75%{transform:rotate(-6deg)} }
+/* 55 Breathe */
+@keyframes breathe { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.08);opacity:1} }
+/* 56 Flicker */
+@keyframes flicker { 0%,100%{opacity:1} 10%{opacity:0.8} 20%{opacity:1} 30%{opacity:0.6} 40%{opacity:1} 50%{opacity:0.9} 60%{opacity:0.4} 70%{opacity:1} }
+/* 57 Typewriter cursor */
+@keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+/* 58 GlowPulse */
+@keyframes glowPulse { 0%,100%{box-shadow:0 0 5px var(--a1)} 50%{box-shadow:0 0 25px var(--a1),0 0 50px var(--a2)} }
+/* 59 Skew */
+@keyframes skewAnim { 0%,100%{transform:skewX(0)} 25%{transform:skewX(10deg)} 75%{transform:skewX(-10deg)} }
+/* 60 Rotate3D */
+@keyframes rot3d { from{transform:rotate3d(1,1,0,0deg)} to{transform:rotate3d(1,1,0,360deg)} }
+/* 61 Bounce2 (realistic) */
+@keyframes bounce2 { 0%{transform:translateY(-100px);animation-timing-function:ease-in} 25%{transform:translateY(0);animation-timing-function:ease-out} 37.5%{transform:translateY(-30px);animation-timing-function:ease-in} 50%{transform:translateY(0);animation-timing-function:ease-out} 62.5%{transform:translateY(-10px);animation-timing-function:ease-in} 75%,100%{transform:translateY(0)} }
+/* 62 Flash */
+@keyframes flash { 0%,50%,100%{opacity:1} 25%,75%{opacity:0} }
+/* 63 Vibrate */
+@keyframes vibrate { 0%{transform:translate(0)} 20%{transform:translate(-2px,2px)} 40%{transform:translate(-2px,-2px)} 60%{transform:translate(2px,2px)} 80%{transform:translate(2px,-2px)} 100%{transform:translate(0)} }
+/* 64 Blur */
+@keyframes blurIn { 0%{filter:blur(12px);opacity:0} 100%{filter:blur(0);opacity:1} }
+/* 65 Slide Down Fade */
+@keyframes slideDownFade { 0%{transform:translateY(-20px);opacity:0} 100%{transform:translateY(0);opacity:1} }
+/* 66 Pinwheel */
+@keyframes pinwheel { from{transform:rotate(0)} to{transform:rotate(720deg)} }
+/* 67 Squish */
+@keyframes squish { 0%,100%{transform:scaleX(1) scaleY(1)} 50%{transform:scaleX(1.3) scaleY(0.7)} }
+/* 68 Bounce Side */
+@keyframes bounceSide { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-20px)} 50%{transform:translateX(0)} 75%{transform:translateX(20px)} }
+/* 69 Swing Horizontal */
+@keyframes swingH { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px) rotate(-5deg)} 75%{transform:translateX(10px) rotate(5deg)} }
+/* 70 Wiggle */
+@keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-10deg)} 50%{transform:rotate(10deg)} 75%{transform:rotate(-5deg)} }
+/* 71 Stretch */
+@keyframes stretch { 0%,100%{transform:scale(1,1)} 25%{transform:scale(1.3,0.7)} 50%{transform:scale(0.8,1.2)} 75%{transform:scale(1.1,0.9)} }
+/* 72 Slide Rotate */
+@keyframes slideRot { 0%{transform:translateX(-100px) rotate(-180deg);opacity:0} 50%{transform:translateX(0) rotate(0);opacity:1} 100%{transform:translateX(100px) rotate(180deg);opacity:0} }
+/* 73 Scanner */
+@keyframes scanner { 0%{top:0} 50%{top:calc(100% - 2px)} 100%{top:0} }
+/* 74 Radar */
+@keyframes radar { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+/* 75 Caret */
+@keyframes caret { 0%,100%{border-right-color:var(--a5)} 50%{border-right-color:transparent} }
+/* 76 Spiral */
+@keyframes spiral { 0%{transform:rotate(0) scale(0);opacity:0} 50%{transform:rotate(360deg) scale(1);opacity:1} 100%{transform:rotate(720deg) scale(0);opacity:0} }
+/* 77 Flip Horizontal */
+@keyframes flipH { 0%{transform:perspective(400px) rotateY(0)} 100%{transform:perspective(400px) rotateY(360deg)} }
+/* 78 Typewriter multi */
+@keyframes twM { 0%,100%{width:0;border-right-color:var(--a3)} 40%,60%{width:18ch;border-right-color:var(--a3)} }
+/* 79 Background Pan */
+@keyframes bgPan { from{background-position:0% center} to{background-position:-200% center} }
+/* 80 Text Shadow Pop */
+@keyframes shadowPop { 0%,100%{text-shadow:0 0 0 transparent} 50%{text-shadow:4px 4px 0 var(--a2),-4px -4px 0 var(--a3)} }
+/* 81 Swing Door */
+@keyframes swingDoor { 0%{transform:perspective(400px) rotateY(-90deg)} 50%{transform:perspective(400px) rotateY(10deg)} 70%{transform:perspective(400px) rotateY(-5deg)} 100%{transform:perspective(400px) rotateY(0)} }
+/* 82 Drop */
+@keyframes drop { 0%{transform:translateY(-200px) scaleY(0.6);opacity:0} 60%{transform:translateY(10px) scaleY(1.1);opacity:1} 80%{transform:translateY(-5px) scaleY(0.95)} 100%{transform:translateY(0) scaleY(1)} }
+/* 83 Slinky */
+@keyframes slinky { 0%,100%{transform:scaleX(1) translateX(0)} 25%{transform:scaleX(0.5) translateX(-15px)} 50%{transform:scaleX(1) translateX(0)} 75%{transform:scaleX(0.5) translateX(15px)} }
+/* 84 Marquee */
+@keyframes marquee { from{transform:translateX(100%)} to{transform:translateX(-100%)} }
+/* 85 Fold */
+@keyframes fold { 0%,100%{transform:perspective(400px) rotateX(0)} 50%{transform:perspective(400px) rotateX(180deg)} }
+/* 86 Snake */
+@keyframes snake { 0%{border-radius:50% 20% 50% 20%} 25%{border-radius:20% 50% 20% 50%} 50%{border-radius:50% 20% 50% 20%} 75%{border-radius:20% 50% 20% 50%} 100%{border-radius:50% 20% 50% 20%} }
+/* 87 Smoke */
+@keyframes smoke { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-60px) scale(2)} }
+/* 88 Dash */
+@keyframes dash { to{stroke-dashoffset:0} }
+/* 89 Path */
+@keyframes pathDraw { from{stroke-dashoffset:300} to{stroke-dashoffset:0} }
+/* 90 Gradient text */
+@keyframes gradText { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+/* 91 Bounce scale */
+@keyframes bounceScale { 0%,100%{transform:scale(1)} 30%{transform:scale(0.8)} 60%{transform:scale(1.15)} 80%{transform:scale(0.95)} }
+/* 92 Flip book */
+@keyframes flipBook { 0%{transform:perspective(600px) rotateY(0)} 25%{transform:perspective(600px) rotateY(90deg)} 50%{transform:perspective(600px) rotateY(180deg)} 75%{transform:perspective(600px) rotateY(270deg)} 100%{transform:perspective(600px) rotateY(360deg)} }
+/* 93 Meteor */
+@keyframes meteor { 0%{transform:translateX(-50px) translateY(-50px) rotate(45deg);opacity:0} 30%{opacity:1} 100%{transform:translateX(200px) translateY(200px) rotate(45deg);opacity:0} }
+/* 94 Kaleidoscope */
+@keyframes kaleidoscope { 0%{border-radius:50%;transform:rotate(0)} 25%{border-radius:10%;transform:rotate(90deg)} 50%{border-radius:50%;transform:rotate(180deg)} 75%{border-radius:10%;transform:rotate(270deg)} 100%{border-radius:50%;transform:rotate(360deg)} }
+/* 95 Pulsating Ring */
+@keyframes pulseRing { 0%{box-shadow:0 0 0 0 rgba(99,102,241,0.5)} 50%{box-shadow:0 0 0 20px rgba(99,102,241,0)} 100%{box-shadow:0 0 0 0 rgba(99,102,241,0)} }
+/* 96 Spin Shrink */
+@keyframes spinShrink { 0%{transform:rotate(0) scale(1)} 50%{transform:rotate(180deg) scale(0.4)} 100%{transform:rotate(360deg) scale(1)} }
+/* 97 Typewriter Blink */
+@keyframes twBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+/* 98 Tilt Shift */
+@keyframes tiltShift { 0%,100%{transform:perspective(500px) rotateX(0) rotateY(0)} 25%{transform:perspective(500px) rotateX(5deg) rotateY(5deg)} 50%{transform:perspective(500px) rotateX(-3deg) rotateY(-3deg)} 75%{transform:perspective(500px) rotateX(2deg) rotateY(-2deg)} }
+/* 99 Clock tick */
+@keyframes clockTick { 0%{transform:rotate(0)} 50%{transform:rotate(6deg)} 100%{transform:rotate(0)} }
+/* 100 Domino */
+@keyframes domino { 0%{transform:rotateX(0)} 30%{transform:rotateX(90deg)} 60%{transform:rotateX(0)} }
+/* 101 Parallax Drift */
+@keyframes drift { 0%,100%{transform:translateX(0) translateY(0)} 25%{transform:translateX(10px) translateY(-5px)} 50%{transform:translateX(-5px) translateY(10px)} 75%{transform:translateX(-10px) translateY(-5px)} }
+/* 102 Heartbeat Glow */
+@keyframes hbGlow { 0%{box-shadow:0 0 0 0 rgba(236,72,153,0.6)} 14%{box-shadow:0 0 20px 10px rgba(236,72,153,0.4)} 28%{box-shadow:0 0 0 0 rgba(236,72,153,0)} 42%{box-shadow:0 0 20px 10px rgba(236,72,153,0.4)} 70%,100%{box-shadow:0 0 0 0 rgba(236,72,153,0)} }
+/* 103 Infinite Scroll */
+@keyframes infScroll { from{transform:translateY(0)} to{transform:translateY(-50%)} }
+/* 104 Zigzag */
+@keyframes zigzag { 0%{transform:translateX(-20px)} 25%{transform:translateX(20px) translateY(-10px)} 50%{transform:translateX(-20px)} 75%{transform:translateX(20px) translateY(10px)} 100%{transform:translateX(-20px)} }
+/* 105 Cross fade */
+@keyframes crossFade1 { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
+@keyframes crossFade2 { 0%,45%{opacity:0} 50%,95%{opacity:1} 100%{opacity:0} }
+/* 106 Disintegrate */
+@keyframes disintegrate { 0%{filter:blur(0);opacity:1;transform:scale(1)} 100%{filter:blur(8px);opacity:0;transform:scale(1.2)} }
+/* 107 Morph Shadow */
+@keyframes morphShadow { 0%{box-shadow:10px 10px 0 var(--a1)} 25%{box-shadow:-10px 10px 0 var(--a2)} 50%{box-shadow:-10px -10px 0 var(--a3)} 75%{box-shadow:10px -10px 0 var(--a4)} 100%{box-shadow:10px 10px 0 var(--a1)} }
+/* 108 Letter spacing */
+@keyframes letterSpace { 0%,100%{letter-spacing:0} 50%{letter-spacing:0.5em} }
+/* 109 Rotate Scale Fade */
+@keyframes rotScaleFade { 0%{transform:rotate(0) scale(1);opacity:1} 50%{transform:rotate(180deg) scale(0.5);opacity:0.3} 100%{transform:rotate(360deg) scale(1);opacity:1} }
+/* 110 Stack */
+@keyframes stackUp { 0%{transform:translateY(50px) scale(0.8);opacity:0} 100%{transform:translateY(0) scale(1);opacity:1} }
+
+/* ════════════════════════════════════════════════
+   INDIVIDUAL CARD STYLES
+   ════════════════════════════════════════════════ */
+
+/* -- Basic -- */
+.a-bounce { width:45px;height:45px;background:var(--a1);border-radius:50%;animation:bounce 1s ease infinite; }
+.a-pulse { width:50px;height:50px;background:var(--a2);border-radius:50%;animation:pulse 2s ease-in-out infinite; }
+.a-spin { width:45px;height:45px;border:4px solid var(--border);border-top-color:var(--a3);border-radius:50%;animation:spin 1s linear infinite; }
+.a-shake { width:45px;height:45px;background:var(--a4);border-radius:8px;animation:shake 0.5s ease-in-out infinite; }
+.a-float { width:50px;height:50px;background:linear-gradient(135deg,var(--a3),var(--a5));border-radius:16px;animation:float 3s ease-in-out infinite;box-shadow:0 8px 25px rgba(6,182,212,0.3); }
+.a-slidein { width:110px;height:26px;background:var(--a1);border-radius:6px;animation:slideIn 2s ease infinite; }
+.a-scalerot { width:40px;height:40px;background:var(--a5);border-radius:8px;animation:scaleRot 2s ease-in-out infinite; }
+.a-colorcycle { width:50px;height:50px;border-radius:50%;animation:colorCycle 4s linear infinite; }
+.a-wobble { width:50px;height:50px;background:var(--a6);border-radius:10px;animation:wobble 1.5s ease infinite; }
+.a-tada { width:50px;height:50px;background:var(--a7);border-radius:12px;animation:tada 1.5s ease infinite; }
+.a-squeeze { width:50px;height:50px;background:var(--a8);border-radius:10px;animation:squeeze 1s ease infinite; }
+.a-pop { width:45px;height:45px;background:var(--a9);border-radius:50%;animation:pop 1.5s ease infinite; }
+
+/* -- Elastic & Organic -- */
+.a-rubber { font-size:1.8rem;font-weight:900;color:var(--a3);animation:rubber 1.5s ease infinite; }
+.a-jello { width:55px;height:55px;background:var(--a4);border-radius:10px;animation:jello 2s ease infinite; }
+.a-elastic { width:70px;height:18px;background:var(--a3);border-radius:999px;animation:elastic 1.5s ease infinite; }
+.a-morph { width:70px;height:70px;background:linear-gradient(45deg,var(--a2),var(--a3));animation:morph 4s ease-in-out infinite; }
+.a-heartbeat { font-size:2.5rem;color:var(--a2);animation:heartbeat 1.2s ease-in-out infinite; }
+.a-swing { width:3px;height:70px;background:var(--muted);transform-origin:top center;animation:swing 2s ease-in-out infinite;position:relative; }
+.a-swing::after { content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);width:20px;height:20px;background:var(--a5);border-radius:50%; }
+.a-pendulum { position:relative;width:90px;height:75px; }
+.a-pendarm { position:absolute;top:0;left:50%;width:2px;height:55px;background:var(--muted);transform-origin:top center;animation:pendulum 2s ease-in-out infinite; }
+.a-pendarm::after { content:'';position:absolute;bottom:-10px;left:-9px;width:20px;height:20px;background:var(--a4);border-radius:50%; }
+.a-dna { display:flex;gap:5px;height:50px;align-items:center; }
+.a-dna span { width:7px;height:7px;border-radius:50%;animation:dna 1.5s ease-in-out infinite; }
+.a-dna span:nth-child(odd) { background:var(--a1); }
+.a-dna span:nth-child(even) { background:var(--a2);animation-direction:reverse; }
+.a-dna span:nth-child(1){animation-delay:0s} .a-dna span:nth-child(2){animation-delay:0.1s} .a-dna span:nth-child(3){animation-delay:0.2s} .a-dna span:nth-child(4){animation-delay:0.3s} .a-dna span:nth-child(5){animation-delay:0.4s} .a-dna span:nth-child(6){animation-delay:0.5s} .a-dna span:nth-child(7){animation-delay:0.6s} .a-dna span:nth-child(8){animation-delay:0.7s}
+.a-sway { width:50px;height:50px;background:var(--a9);border-radius:12px;animation:sway 2s ease-in-out infinite; }
+.a-breathe { width:60px;height:60px;background:var(--a10);border-radius:50%;animation:breathe 4s ease-in-out infinite; }
+.a-squish { width:50px;height:50px;background:var(--a6);border-radius:10px;animation:squish 1s ease infinite; }
+.a-stretch { width:50px;height:50px;background:var(--a7);border-radius:12px;animation:stretch 1.5s ease infinite; }
+.a-slinky { width:80px;height:20px;background:var(--a8);border-radius:999px;animation:slinky 1.5s ease infinite; }
+.a-snake { width:60px;height:60px;background:linear-gradient(135deg,var(--a4),var(--a6));animation:snake 2s ease infinite; }
+.a-kaleidoscope { width:50px;height:50px;background:linear-gradient(45deg,var(--a1),var(--a3),var(--a5));animation:kaleidoscope 3s linear infinite; }
+
+/* -- Text -- */
+.a-typing { font-family:monospace;font-size:1rem;color:var(--a5);border-right:2px solid var(--a5);white-space:nowrap;overflow:hidden;width:0;animation:typing 3s steps(20) infinite,blink 0.6s step-end infinite; }
+.a-wave { display:flex;gap:2px;font-size:1.6rem;font-weight:800; }
+.a-wave span { display:inline-block;animation:wave 1.2s ease-in-out infinite; }
+.a-wave span:nth-child(1){color:var(--a1)} .a-wave span:nth-child(2){color:var(--a2);animation-delay:0.1s} .a-wave span:nth-child(3){color:var(--a3);animation-delay:0.2s} .a-wave span:nth-child(4){color:var(--a4);animation-delay:0.3s} .a-wave span:nth-child(5){color:var(--a5);animation-delay:0.4s}
+.a-glitch { font-size:1.8rem;font-weight:900;color:var(--text);position:relative; }
+.a-glitch::before,.a-glitch::after { content:attr(data-t);position:absolute;left:0;top:0;width:100%;height:100%; }
+.a-glitch::before { color:var(--a2);animation:g1 2s infinite linear;clip-path:inset(0 0 70% 0); }
+.a-glitch::after { color:var(--a3);animation:g2 2s infinite linear;clip-path:inset(70% 0 0 0); }
+.a-neon { font-size:1.8rem;font-weight:900;color:#fff;animation:neon 1.5s ease-in-out infinite alternate; }
+.a-flicker { font-size:1.8rem;font-weight:900;color:var(--a4);animation:flicker 1s infinite; }
+.a-shadowpop { font-size:1.8rem;font-weight:900;color:var(--text);animation:shadowPop 2s ease infinite; }
+.a-letterspace { font-size:1.2rem;font-weight:800;color:var(--a5);letter-spacing:0;animation:letterSpace 2s ease infinite; }
+.a-gradtext { font-size:1.8rem;font-weight:900;background:linear-gradient(90deg,var(--a1),var(--a2),var(--a3),var(--a4),var(--a1));background-size:300% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gradText 3s linear infinite; }
+.a-marquee { overflow:hidden;width:100%;white-space:nowrap; }
+.a-marquee span { display:inline-block;animation:marquee 4s linear infinite;color:var(--a7);font-weight:700; }
+
+/* -- Loading & UI -- */
+.a-dots { display:flex;gap:7px; }
+.a-dots span { width:12px;height:12px;border-radius:50%;background:var(--a5);animation:dotB 1.4s ease-in-out infinite; }
+.a-dots span:nth-child(2){animation-delay:0.16s;background:var(--a1)} .a-dots span:nth-child(3){animation-delay:0.32s;background:var(--a2)}
+.a-skeleton { width:100%;display:flex;flex-direction:column;gap:10px; }
+.a-skeleton div { height:12px;background:linear-gradient(90deg,var(--border) 25%,#2a2a3a 50%,var(--border) 75%);background-size:200% 100%;border-radius:5px;animation:shimmer 1.5s infinite; }
+.a-skeleton div:nth-child(2){width:75%} .a-skeleton div:nth-child(3){width:55%}
+.a-progress { width:100%;height:7px;background:var(--border);border-radius:999px;overflow:hidden; }
+.a-progress-bar { height:100%;background:linear-gradient(90deg,var(--a1),var(--a2),var(--a3));background-size:200% 100%;border-radius:999px;animation:progFill 2s ease-in-out infinite,gradShift 2s ease infinite; }
+.a-ripple { width:55px;height:55px;position:relative; }
+.a-ripple span { position:absolute;inset:0;border:2px solid var(--a1);border-radius:50%;animation:ripple 2s ease-out infinite; }
+.a-ripple span:nth-child(2){animation-delay:0.5s} .a-ripple span:nth-child(3){animation-delay:1s}
+.a-bars { display:flex;align-items:flex-end;gap:4px;height:55px; }
+.a-bars span { width:7px;background:var(--a1);border-radius:3px 3px 0 0;animation:barP 0.8s ease-in-out infinite alternate; }
+.a-bars span:nth-child(1){animation-delay:0s;height:18px} .a-bars span:nth-child(2){animation-delay:0.1s;height:35px;background:var(--a2)} .a-bars span:nth-child(3){animation-delay:0.2s;height:25px;background:var(--a3)} .a-bars span:nth-child(4){animation-delay:0.3s;height:45px;background:var(--a4)} .a-bars span:nth-child(5){animation-delay:0.4s;height:20px;background:var(--a5)}
+.a-clock { width:55px;height:55px;border:3px solid var(--border);border-radius:50%;position:relative; }
+.a-clock::before { content:'';position:absolute;top:50%;left:50%;width:2px;height:18px;background:var(--a4);transform-origin:top center;animation:cHand 2s linear infinite; }
+.a-clock::after { content:'';position:absolute;top:50%;left:50%;width:2px;height:12px;background:var(--a2);transform-origin:top center;animation:cHand 12s linear infinite; }
+.a-spotlight { width:100%;height:70px;position:relative;overflow:hidden;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;color:var(--muted); }
+.a-spotlight::before { content:'';position:absolute;width:100px;height:200%;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.15),transparent);animation:spotlight 2.5s linear infinite; }
+.a-draw svg { width:70px;height:70px; }
+.a-draw circle { fill:none;stroke:var(--a1);stroke-width:3;stroke-dasharray:220;stroke-dashoffset:220;animation:drawC 2s ease infinite; }
+.a-draw path { fill:none;stroke:var(--a5);stroke-width:3;stroke-dasharray:50;stroke-dashoffset:50;animation:dash 0.5s ease 1s infinite; }
+.a-scanner { width:100%;height:70px;position:relative;overflow:hidden;border-radius:10px;background:var(--surface2);border:1px solid var(--border); }
+.a-scanner::before { content:'';position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--a5),transparent);animation:scanner 2s ease-in-out infinite; }
+.a-glowpulse { width:50px;height:50px;background:var(--a1);border-radius:50%;animation:glowPulse 2s ease-in-out infinite; }
+.a-pulsering { width:50px;height:50px;background:var(--a1);border-radius:50%;animation:pulseRing 2s ease infinite; }
+.a-infscroll { width:100%;height:70px;overflow:hidden;border-radius:10px;position:relative;background:var(--surface2); }
+.a-infscroll-inner { animation:infScroll 3s linear infinite; }
+.a-infscroll-inner div { padding:4px 8px;font-size:0.75rem;color:var(--muted);border-bottom:1px solid var(--border); }
+
+/* -- 3D & Advanced -- */
+.a-cube-scene { perspective:400px;width:70px;height:70px; }
+.a-cube { width:100%;height:100%;position:relative;transform-style:preserve-3d;animation:cubeRot 4s linear infinite; }
+.a-cube div { position:absolute;width:70px;height:70px;border:2px solid rgba(99,102,241,0.3);background:rgba(99,102,241,0.06);display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--a1); }
+.cf{transform:translateZ(35px)} .cb{transform:rotateY(180deg) translateZ(35px)} .cr{transform:rotateY(90deg) translateZ(35px)} .cl{transform:rotateY(-90deg) translateZ(35px)} .ct{transform:rotateX(90deg) translateZ(35px)} .cbo{transform:rotateX(-90deg) translateZ(35px)}
+.a-flip { width:55px;height:55px;background:linear-gradient(135deg,var(--a1),var(--a2));border-radius:10px;animation:flip 2s ease-in-out infinite; }
+.a-gborder { width:90px;height:90px;border-radius:14px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--surface);z-index:1; }
+.a-gborder::before { content:'';position:absolute;inset:-3px;border-radius:17px;background:conic-gradient(from 0deg,var(--a1),var(--a2),var(--a3),var(--a4),var(--a5),var(--a1));z-index:-1;animation:bSpin 3s linear infinite; }
+.a-gborder::after { content:'';position:absolute;inset:3px;border-radius:11px;background:var(--surface);z-index:-1; }
+.a-orbit-c { width:90px;height:90px;position:relative; }
+.a-orbit-sun { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;background:var(--a1);border-radius:50%; }
+.a-orbit-p { position:absolute;top:50%;left:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;animation:orbit 3s linear infinite; }
+.a-orbit-p:nth-child(2){background:var(--a2)} .a-orbit-p:nth-child(3){background:var(--a3);animation-duration:2s;animation-delay:-0.5s}
+.a-blobs { width:100px;height:100px;position:relative; }
+.a-blob { position:absolute;width:65px;height:65px;border-radius:50%;filter:blur(14px);opacity:0.8;mix-blend-mode:screen; }
+.bl1{background:var(--a1);top:0;left:8px;animation:bm1 4s ease-in-out infinite} .bl2{background:var(--a2);top:18px;left:25px;animation:bm2 5s ease-in-out infinite} .bl3{background:var(--a3);top:8px;left:16px;animation:bm3 6s ease-in-out infinite}
+.a-tilt { width:90px;height:60px;background:linear-gradient(135deg,var(--a1),var(--a3));border-radius:10px;transition:transform 0.3s;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#fff;font-weight:600; }
+.a-tilt:hover { transform:perspective(500px) rotateY(15deg) rotateX(-5deg) scale(1.05);box-shadow:-5px 5px 20px rgba(99,102,241,0.3); }
+.a-rot3d { width:50px;height:50px;background:linear-gradient(var(--a7),var(--a9));border-radius:10px;animation:rot3d 3s linear infinite; }
+.a-flipH { width:55px;height:55px;background:linear-gradient(var(--a3),var(--a10));border-radius:10px;animation:flipH 2.5s ease-in-out infinite; }
+.a-fold { width:60px;height:40px;background:var(--a8);border-radius:6px;animation:fold 3s ease-in-out infinite; }
+.a-tiltshift { width:50px;height:50px;background:var(--a9);border-radius:10px;animation:tiltShift 3s ease-in-out infinite; }
+.a-swingdoor { width:60px;height:60px;background:var(--a10);border-radius:8px;transform-origin:left center;animation:swingDoor 2s ease infinite; }
+.a-morphshadow { width:40px;height:40px;background:var(--surface2);border-radius:8px;animation:morphShadow 3s ease infinite; }
+.a-spinShrink { width:50px;height:50px;background:var(--a6);border-radius:50%;animation:spinShrink 2s ease-in-out infinite; }
+
+/* -- Entrance -- */
+.a-fadeinleft { width:100px;height:25px;background:var(--a1);border-radius:6px;animation:fadeInLeft 2s ease infinite; }
+.a-fadeinright { width:100px;height:25px;background:var(--a2);border-radius:6px;animation:fadeInRight 2s ease infinite; }
+.a-fadeindown { width:50px;height:50px;background:var(--a3);border-radius:50%;animation:fadeInDown 2s ease infinite; }
+.a-zoomin { width:50px;height:50px;background:var(--a4);border-radius:10px;animation:zoomIn 2s ease infinite; }
+.a-zoomout { width:50px;height:50px;background:var(--a5);border-radius:50%;animation:zoomOut 3s ease infinite; }
+.a-rotatein { width:50px;height:50px;background:var(--a6);border-radius:10px;animation:rotateIn 2s ease infinite; }
+.a-flipx { width:55px;height:55px;background:var(--a7);border-radius:10px;animation:flipX 2s ease infinite; }
+.a-flipy { width:55px;height:55px;background:var(--a8);border-radius:10px;animation:flipY 2s ease infinite; }
+.a-lightspeed { width:100px;height:25px;background:var(--a9);border-radius:6px;animation:lightSpeed 2.5s ease infinite; }
+.a-rollin { width:50px;height:50px;background:var(--a10);border-radius:50%;animation:rollIn 2.5s ease infinite; }
+.a-drop { width:50px;height:50px;background:var(--a1);border-radius:12px;animation:drop 2s ease infinite; }
+.a-sliderot { width:40px;height:40px;background:var(--a2);border-radius:8px;animation:slideRot 2.5s ease infinite; }
+.a-spiral { width:40px;height:40px;background:var(--a3);border-radius:50%;animation:spiral 2.5s ease infinite; }
+.a-bounce2 { width:45px;height:45px;background:var(--a4);border-radius:50%;animation:bounce2 2s ease infinite; }
+
+/* -- Compositions -- */
+.a-stagger { display:grid;grid-template-columns:repeat(3,1fr);gap:5px; }
+.a-stagger span { width:25px;height:25px;border-radius:5px;animation:stagIn 2s ease infinite;opacity:0; }
+.a-stagger span:nth-child(1){animation-delay:0s;background:var(--a1)} .a-stagger span:nth-child(2){animation-delay:0.1s;background:var(--a2)} .a-stagger span:nth-child(3){animation-delay:0.2s;background:var(--a3)} .a-stagger span:nth-child(4){animation-delay:0.3s;background:var(--a4)} .a-stagger span:nth-child(5){animation-delay:0.4s;background:var(--a5)} .a-stagger span:nth-child(6){animation-delay:0.5s;background:var(--a6)} .a-stagger span:nth-child(7){animation-delay:0.6s;background:var(--a7)} .a-stagger span:nth-child(8){animation-delay:0.7s;background:var(--a8)} .a-stagger span:nth-child(9){animation-delay:0.8s;background:var(--a9)}
+.a-accordion { width:100%;display:flex;flex-direction:column;gap:3px; }
+.a-accordion div { height:0;border-radius:3px;animation:unfold 2s ease infinite;opacity:0; }
+.a-accordion div:nth-child(1){animation-delay:0s;background:var(--a1)} .a-accordion div:nth-child(2){animation-delay:0.2s;background:var(--a2)} .a-accordion div:nth-child(3){animation-delay:0.4s;background:var(--a3)} .a-accordion div:nth-child(4){animation-delay:0.6s;background:var(--a4)}
+.a-matrix { width:100%;height:80px;position:relative;overflow:hidden;border-radius:10px;background:#000;font-family:monospace;font-size:12px; }
+.a-matrix span { position:absolute;top:-18px;color:#0f0;animation:mFall linear infinite;opacity:0.7; }
+.a-matrix span:nth-child(1){left:5%;animation-duration:1.5s} .a-matrix span:nth-child(2){left:15%;animation-duration:2s;animation-delay:0.3s} .a-matrix span:nth-child(3){left:25%;animation-duration:1.2s;animation-delay:0.6s} .a-matrix span:nth-child(4){left:35%;animation-duration:1.8s;animation-delay:0.1s} .a-matrix span:nth-child(5){left:45%;animation-duration:2.2s;animation-delay:0.8s} .a-matrix span:nth-child(6){left:55%;animation-duration:1.4s;animation-delay:0.4s} .a-matrix span:nth-child(7){left:65%;animation-duration:1.9s;animation-delay:0.7s} .a-matrix span:nth-child(8){left:75%;animation-duration:1.6s;animation-delay:0.2s}
+.a-confetti { width:100%;height:80px;position:relative;overflow:hidden; }
+.a-confetti div { position:absolute;width:7px;height:7px;top:-10px;animation:confFall linear infinite; }
+.a-confetti div:nth-child(1){left:10%;background:var(--a1);animation-duration:2s;border-radius:50%} .a-confetti div:nth-child(2){left:20%;background:var(--a2);animation-duration:2.5s;animation-delay:0.3s} .a-confetti div:nth-child(3){left:30%;background:var(--a3);animation-duration:1.8s;animation-delay:0.6s;border-radius:50%} .a-confetti div:nth-child(4){left:40%;background:var(--a4);animation-duration:2.2s;animation-delay:0.1s} .a-confetti div:nth-child(5){left:50%;background:var(--a5);animation-duration:1.9s;animation-delay:0.4s;border-radius:50%} .a-confetti div:nth-child(6){left:60%;background:var(--a6);animation-duration:2.3s;animation-delay:0.7s} .a-confetti div:nth-child(7){left:70%;background:var(--a7);animation-duration:2.1s;animation-delay:0.2s;border-radius:50%} .a-confetti div:nth-child(8){left:80%;background:var(--a8);animation-duration:1.7s;animation-delay:0.5s} .a-confetti div:nth-child(9){left:90%;background:var(--a9);animation-duration:2.4s;animation-delay:0.8s;border-radius:50%}
+.a-hinge { width:80px;height:30px;background:var(--a6);border-radius:6px;animation:hinge 3s ease infinite;transform-origin:top left; }
+.a-domino { display:flex;gap:4px; }
+.a-domino span { width:20px;height:40px;background:var(--a10);border-radius:4px;animation:domino 2s ease infinite;transform-origin:bottom; }
+.a-domino span:nth-child(1){animation-delay:0s} .a-domino span:nth-child(2){animation-delay:0.15s} .a-domino span:nth-child(3){animation-delay:0.3s} .a-domino span:nth-child(4){animation-delay:0.45s} .a-domino span:nth-child(5){animation-delay:0.6s}
+.a-meteor { width:100%;height:80px;position:relative;overflow:hidden; }
+.a-meteor-line { position:absolute;width:40px;height:2px;background:linear-gradient(90deg,var(--a4),transparent);animation:meteor 2s ease-in-out infinite;border-radius:999px; }
+.a-meteor-line:nth-child(2) { animation-delay:0.7s;top:30px; }
+.a-meteor-line:nth-child(3) { animation-delay:1.4s;top:50px; }
+.a-zigzag { width:12px;height:12px;background:var(--a5);border-radius:50%;animation:zigzag 2s ease infinite; }
+.a-crossfade { position:relative;width:60px;height:60px; }
+.a-crossfade div { position:absolute;inset:0;border-radius:10px; }
+.a-crossfade div:first-child { background:var(--a1);animation:crossFade1 3s ease infinite; }
+.a-crossfade div:last-child { background:var(--a6);animation:crossFade2 3s ease infinite; }
+.a-bgpan { width:100%;height:40px;border-radius:8px;background:repeating-linear-gradient(90deg,var(--a1),var(--a2),var(--a3),var(--a4),var(--a5),var(--a1));background-size:200% 100%;animation:bgPan 3s linear infinite; }
+.a-drift { display:flex;gap:8px; }
+.a-drift span { width:15px;height:15px;border-radius:50%;animation:drift 3s ease-in-out infinite; }
+.a-drift span:nth-child(1){background:var(--a1)} .a-drift span:nth-child(2){background:var(--a2);animation-delay:0.5s} .a-drift span:nth-child(3){background:var(--a3);animation-delay:1s} .a-drift span:nth-child(4){background:var(--a4);animation-delay:1.5s}
+.a-rotscalefade { width:45px;height:45px;background:var(--a7);border-radius:10px;animation:rotScaleFade 2.5s ease infinite; }
+.a-hbglow { width:50px;height:50px;background:var(--a2);border-radius:50%;animation:heartbeat 1.2s ease-in-out infinite,hbGlow 1.2s ease-in-out infinite; }
+
+/* -- Hover / Interaction -- */
+.a-hover-grow { width:60px;height:40px;background:var(--a1);border-radius:8px;transition:transform 0.3s,box-shadow 0.3s;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#fff;font-weight:600; }
+.a-hover-grow:hover { transform:scale(1.2);box-shadow:0 4px 20px rgba(99,102,241,0.4); }
+.a-hover-rotate { width:50px;height:50px;background:var(--a3);border-radius:10px;transition:transform 0.5s;cursor:pointer; }
+.a-hover-rotate:hover { transform:rotate(180deg); }
+.a-hover-shadow { width:60px;height:40px;background:var(--a5);border-radius:8px;transition:box-shadow 0.3s,transform 0.3s;cursor:pointer; }
+.a-hover-shadow:hover { box-shadow:0 0 0 4px var(--a5),0 0 30px rgba(16,185,129,0.4);transform:translateY(-3px); }
+.a-hover-fill { width:120px;height:36px;border:2px solid var(--a2);border-radius:8px;position:relative;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--a2);font-weight:700;font-size:0.75rem;transition:color 0.3s; }
+.a-hover-fill::before { content:'';position:absolute;bottom:0;left:0;width:100%;height:0;background:var(--a2);transition:height 0.3s;z-index:-1; }
+.a-hover-fill:hover { color:#fff; }
+.a-hover-fill:hover::before { height:100%; }
+.a-hover-border { width:60px;height:60px;background:var(--surface2);border-radius:10px;border:2px solid transparent;transition:border-color 0.3s,transform 0.3s;cursor:pointer; }
+.a-hover-border:hover { border-color:var(--a4);transform:rotate(5deg); }
+.a-hover-blur { width:60px;height:40px;background:linear-gradient(135deg,var(--a7),var(--a9));border-radius:8px;transition:filter 0.3s,transform 0.3s;cursor:pointer; }
+.a-hover-blur:hover { filter:blur(4px) brightness(1.3);transform:scale(1.1); }
+.a-hover-skew { width:80px;height:35px;background:var(--a8);border-radius:6px;transition:transform 0.3s;cursor:pointer; }
+.a-hover-skew:hover { transform:skewX(-10deg); }
+.a-hover-underline { font-size:1rem;font-weight:700;color:var(--a1);position:relative;cursor:pointer;text-decoration:none; }
+.a-hover-underline::after { content:'';position:absolute;bottom:-2px;left:0;width:0;height:2px;background:var(--a1);transition:width 0.3s; }
+.a-hover-underline:hover::after { width:100%; }
+
+/* ═══════ FOOTER ═══════ */
+footer { text-align:center;padding:3rem 2rem;color:var(--muted);font-size:0.85rem;border-top:1px solid var(--border); }
+footer span { background:linear-gradient(135deg,var(--a1),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700; }
+</style>
+</head>
+<body>
+
+<!-- ████ HERO ████ -->
+<section class="hero">
+  <div class="particles">
+    <div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div>
+    <div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div>
+    <div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div>
+  </div>
+  <div class="counter">110+</div>
+  <h1>CSS Animations</h1>
+  <p class="sub">Mega catálogo — puro CSS, zero dependências</p>
+</section>
+
+<div class="container">
+
+<!-- ═══════════════════ SECTION 1: BÁSICAS ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 01 / 11</p>
+<h2 class="section-title">Básicas</h2>
+<p class="section-desc">Translate, scale, rotate, opacity — os building blocks</p>
+<div class="grid">
+  <div class="card"><span class="card-label">01 — Bounce</span><div class="card-stage"><div class="a-bounce"></div></div></div>
+  <div class="card"><span class="card-label">02 — Pulse</span><div class="card-stage"><div class="a-pulse"></div></div></div>
+  <div class="card"><span class="card-label">03 — Spin</span><div class="card-stage"><div class="a-spin"></div></div></div>
+  <div class="card"><span class="card-label">04 — Shake</span><div class="card-stage"><div class="a-shake"></div></div></div>
+  <div class="card"><span class="card-label">05 — Float</span><div class="card-stage"><div class="a-float"></div></div></div>
+  <div class="card"><span class="card-label">06 — Slide In</span><div class="card-stage"><div class="a-slidein"></div></div></div>
+  <div class="card"><span class="card-label">07 — Scale + Rotate</span><div class="card-stage"><div class="a-scalerot"></div></div></div>
+  <div class="card"><span class="card-label">08 — Color Cycle</span><div class="card-stage"><div class="a-colorcycle"></div></div></div>
+  <div class="card"><span class="card-label">09 — Wobble</span><div class="card-stage"><div class="a-wobble"></div></div></div>
+  <div class="card"><span class="card-label">10 — Ta-Da!</span><div class="card-stage"><div class="a-tada"></div></div></div>
+  <div class="card"><span class="card-label">11 — Squeeze</span><div class="card-stage"><div class="a-squeeze"></div></div></div>
+  <div class="card"><span class="card-label">12 — Pop</span><div class="card-stage"><div class="a-pop"></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 2: ELÁSTICAS & ORGÂNICAS ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 02 / 11</p>
+<h2 class="section-title">Elásticas & Orgânicas</h2>
+<p class="section-desc">Rubber band, jello, morph, breathe — personalidade nas curvas</p>
+<div class="grid">
+  <div class="card"><span class="card-label">13 — Rubber Band</span><div class="card-stage"><div class="a-rubber">CSS!</div></div></div>
+  <div class="card"><span class="card-label">14 — Jello</span><div class="card-stage"><div class="a-jello"></div></div></div>
+  <div class="card"><span class="card-label">15 — Elastic</span><div class="card-stage"><div class="a-elastic"></div></div></div>
+  <div class="card"><span class="card-label">16 — Morph Blob</span><div class="card-stage"><div class="a-morph"></div></div></div>
+  <div class="card"><span class="card-label">17 — Heartbeat</span><div class="card-stage"><div class="a-heartbeat">&#10084;</div></div></div>
+  <div class="card"><span class="card-label">18 — Swing</span><div class="card-stage"><div class="a-swing"></div></div></div>
+  <div class="card"><span class="card-label">19 — Pendulum</span><div class="card-stage"><div class="a-pendulum"><div class="a-pendarm"></div></div></div></div>
+  <div class="card"><span class="card-label">20 — DNA Helix</span><div class="card-stage"><div class="a-dna"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div></div>
+  <div class="card"><span class="card-label">21 — Sway</span><div class="card-stage"><div class="a-sway"></div></div></div>
+  <div class="card"><span class="card-label">22 — Breathe</span><div class="card-stage"><div class="a-breathe"></div></div></div>
+  <div class="card"><span class="card-label">23 — Squish</span><div class="card-stage"><div class="a-squish"></div></div></div>
+  <div class="card"><span class="card-label">24 — Stretch</span><div class="card-stage"><div class="a-stretch"></div></div></div>
+  <div class="card"><span class="card-label">25 — Slinky</span><div class="card-stage"><div class="a-slinky"></div></div></div>
+  <div class="card"><span class="card-label">26 — Snake</span><div class="card-stage"><div class="a-snake"></div></div></div>
+  <div class="card"><span class="card-label">27 — Kaleidoscope</span><div class="card-stage"><div class="a-kaleidoscope"></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 3: TEXTO ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 03 / 11</p>
+<h2 class="section-title">Texto & Tipografia</h2>
+<p class="section-desc">Typing, wave, glitch, neon, gradientes, marquee</p>
+<div class="grid">
+  <div class="card"><span class="card-label">28 — Typing</span><div class="card-stage"><div class="a-typing">Hello, World!</div></div></div>
+  <div class="card"><span class="card-label">29 — Wave</span><div class="card-stage"><div class="a-wave"><span>W</span><span>A</span><span>V</span><span>E</span><span>!</span></div></div></div>
+  <div class="card"><span class="card-label">30 — Glitch</span><div class="card-stage"><div class="a-glitch" data-t="GLITCH">GLITCH</div></div></div>
+  <div class="card"><span class="card-label">31 — Neon Glow</span><div class="card-stage"><div class="a-neon">NEON</div></div></div>
+  <div class="card"><span class="card-label">32 — Flicker</span><div class="card-stage"><div class="a-flicker">LIGHT</div></div></div>
+  <div class="card"><span class="card-label">33 — Shadow Pop</span><div class="card-stage"><div class="a-shadowpop">POP</div></div></div>
+  <div class="card"><span class="card-label">34 — Letter Space</span><div class="card-stage"><div class="a-letterspace">EXPAND</div></div></div>
+  <div class="card"><span class="card-label">35 — Gradient Text</span><div class="card-stage"><div class="a-gradtext">RAINBOW</div></div></div>
+  <div class="card wide"><span class="card-label">36 — Marquee</span><div class="card-stage"><div class="a-marquee"><span>&#9733; CSS Animations are awesome &#9733; No JavaScript needed &#9733; Pure CSS magic &#9733;</span></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 4: LOADING & UI ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 04 / 11</p>
+<h2 class="section-title">Loading & UI Patterns</h2>
+<p class="section-desc">Loaders, progress, skeleton, scanner, ripple — UX essencial</p>
+<div class="grid">
+  <div class="card"><span class="card-label">37 — Loading Dots</span><div class="card-stage"><div class="a-dots"><span></span><span></span><span></span></div></div></div>
+  <div class="card"><span class="card-label">38 — Skeleton</span><div class="card-stage"><div class="a-skeleton"><div></div><div></div><div></div></div></div></div>
+  <div class="card"><span class="card-label">39 — Progress Bar</span><div class="card-stage"><div class="a-progress"><div class="a-progress-bar"></div></div></div></div>
+  <div class="card"><span class="card-label">40 — Ripple</span><div class="card-stage"><div class="a-ripple"><span></span><span></span><span></span></div></div></div>
+  <div class="card"><span class="card-label">41 — Equalizer</span><div class="card-stage"><div class="a-bars"><span></span><span></span><span></span><span></span><span></span></div></div></div>
+  <div class="card"><span class="card-label">42 — Clock</span><div class="card-stage"><div class="a-clock"></div></div></div>
+  <div class="card wide"><span class="card-label">43 — Spotlight Sweep</span><div class="card-stage"><div class="a-spotlight">SPOTLIGHT</div></div></div>
+  <div class="card"><span class="card-label">44 — SVG Draw</span><div class="card-stage"><div class="a-draw"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="35"/><path d="M25 42 L35 52 L55 30"/></svg></div></div></div>
+  <div class="card wide"><span class="card-label">45 — Scanner Line</span><div class="card-stage"><div class="a-scanner"></div></div></div>
+  <div class="card"><span class="card-label">46 — Glow Pulse</span><div class="card-stage"><div class="a-glowpulse"></div></div></div>
+  <div class="card"><span class="card-label">47 — Pulse Ring</span><div class="card-stage"><div class="a-pulsering"></div></div></div>
+  <div class="card wide"><span class="card-label">48 — Background Pan</span><div class="card-stage"><div class="a-bgpan"></div></div></div>
+  <div class="card wide"><span class="card-label">49 — Infinite Scroll</span><div class="card-stage"><div class="a-infscroll"><div class="a-infscroll-inner"><div>Item 1 — Data loading...</div><div>Item 2 — Processing...</div><div>Item 3 — Syncing...</div><div>Item 4 — Updating...</div><div>Item 5 — Fetching...</div><div>Item 1 — Data loading...</div><div>Item 2 — Processing...</div><div>Item 3 — Syncing...</div><div>Item 4 — Updating...</div><div>Item 5 — Fetching...</div></div></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 5: 3D & AVANÇADAS ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 05 / 11</p>
+<h2 class="section-title">3D & Avançadas</h2>
+<p class="section-desc">Perspective, preserve-3d, conic-gradient, rotate3d, fold</p>
+<div class="grid">
+  <div class="card"><span class="card-label">50 — 3D Cube</span><div class="card-stage"><div class="a-cube-scene"><div class="a-cube"><div class="cf">F</div><div class="cb">B</div><div class="cr">R</div><div class="cl">L</div><div class="ct">T</div><div class="cbo">Bo</div></div></div></div></div>
+  <div class="card"><span class="card-label">51 — Flip Card</span><div class="card-stage"><div class="a-flip"></div></div></div>
+  <div class="card"><span class="card-label">52 — Gradient Border</span><div class="card-stage"><div class="a-gborder">&#10024;</div></div></div>
+  <div class="card"><span class="card-label">53 — Orbit</span><div class="card-stage"><div class="a-orbit-c"><div class="a-orbit-sun"></div><div class="a-orbit-p"></div><div class="a-orbit-p"></div></div></div></div>
+  <div class="card"><span class="card-label">54 — Blobs</span><div class="card-stage"><div class="a-blobs"><div class="a-blob bl1"></div><div class="a-blob bl2"></div><div class="a-blob bl3"></div></div></div></div>
+  <div class="card"><span class="card-label">55 — Rotate 3D</span><div class="card-stage"><div class="a-rot3d"></div></div></div>
+  <div class="card"><span class="card-label">56 — Flip Horizontal</span><div class="card-stage"><div class="a-flipH"></div></div></div>
+  <div class="card"><span class="card-label">57 — Fold</span><div class="card-stage"><div class="a-fold"></div></div></div>
+  <div class="card"><span class="card-label">58 — Tilt Shift</span><div class="card-stage"><div class="a-tiltshift"></div></div></div>
+  <div class="card"><span class="card-label">59 — Swing Door</span><div class="card-stage"><div class="a-swingdoor"></div></div></div>
+  <div class="card"><span class="card-label">60 — Morph Shadow</span><div class="card-stage"><div class="a-morphshadow"></div></div></div>
+  <div class="card"><span class="card-label">61 — Spin Shrink</span><div class="card-stage"><div class="a-spinShrink"></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 6: ENTRADAS ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 06 / 11</p>
+<h2 class="section-title">Entradas & Transições</h2>
+<p class="section-desc">Fade, zoom, rotate, flip, lightspeed, roll, drop, spiral</p>
+<div class="grid">
+  <div class="card"><span class="card-label">62 — Fade In Left</span><div class="card-stage"><div class="a-fadeinleft"></div></div></div>
+  <div class="card"><span class="card-label">63 — Fade In Right</span><div class="card-stage"><div class="a-fadeinright"></div></div></div>
+  <div class="card"><span class="card-label">64 — Fade In Down</span><div class="card-stage"><div class="a-fadeindown"></div></div></div>
+  <div class="card"><span class="card-label">65 — Zoom In</span><div class="card-stage"><div class="a-zoomin"></div></div></div>
+  <div class="card"><span class="card-label">66 — Zoom Out</span><div class="card-stage"><div class="a-zoomout"></div></div></div>
+  <div class="card"><span class="card-label">67 — Rotate In</span><div class="card-stage"><div class="a-rotatein"></div></div></div>
+  <div class="card"><span class="card-label">68 — Flip In X</span><div class="card-stage"><div class="a-flipx"></div></div></div>
+  <div class="card"><span class="card-label">69 — Flip In Y</span><div class="card-stage"><div class="a-flipy"></div></div></div>
+  <div class="card"><span class="card-label">70 — Light Speed</span><div class="card-stage"><div class="a-lightspeed"></div></div></div>
+  <div class="card"><span class="card-label">71 — Roll In</span><div class="card-stage"><div class="a-rollin"></div></div></div>
+  <div class="card"><span class="card-label">72 — Drop</span><div class="card-stage"><div class="a-drop"></div></div></div>
+  <div class="card"><span class="card-label">73 — Slide Rotate</span><div class="card-stage"><div class="a-sliderot"></div></div></div>
+  <div class="card"><span class="card-label">74 — Spiral</span><div class="card-stage"><div class="a-spiral"></div></div></div>
+  <div class="card"><span class="card-label">75 — Bounce (realistic)</span><div class="card-stage"><div class="a-bounce2"></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 7: COMPOSIÇÕES ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 07 / 11</p>
+<h2 class="section-title">Composições & Efeitos</h2>
+<p class="section-desc">Stagger, confetti, matrix, domino, meteor, hinge</p>
+<div class="grid">
+  <div class="card"><span class="card-label">76 — Stagger Grid</span><div class="card-stage"><div class="a-stagger"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div></div>
+  <div class="card"><span class="card-label">77 — Accordion</span><div class="card-stage"><div class="a-accordion"><div></div><div></div><div></div><div></div></div></div></div>
+  <div class="card wide"><span class="card-label">78 — Matrix Rain</span><div class="card-stage" style="width:100%"><div class="a-matrix"><span>0</span><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span></div></div></div>
+  <div class="card wide"><span class="card-label">79 — Confetti</span><div class="card-stage" style="width:100%"><div class="a-confetti"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div></div>
+  <div class="card"><span class="card-label">80 — Hinge</span><div class="card-stage"><div class="a-hinge"></div></div></div>
+  <div class="card"><span class="card-label">81 — Domino</span><div class="card-stage"><div class="a-domino"><span></span><span></span><span></span><span></span><span></span></div></div></div>
+  <div class="card wide"><span class="card-label">82 — Meteor Shower</span><div class="card-stage" style="width:100%"><div class="a-meteor"><div class="a-meteor-line"></div><div class="a-meteor-line"></div><div class="a-meteor-line"></div></div></div></div>
+  <div class="card"><span class="card-label">83 — Zigzag</span><div class="card-stage"><div class="a-zigzag"></div></div></div>
+  <div class="card"><span class="card-label">84 — Cross Fade</span><div class="card-stage"><div class="a-crossfade"><div></div><div></div></div></div></div>
+  <div class="card"><span class="card-label">85 — Drift</span><div class="card-stage"><div class="a-drift"><span></span><span></span><span></span><span></span></div></div></div>
+  <div class="card"><span class="card-label">86 — Rotate Scale Fade</span><div class="card-stage"><div class="a-rotscalefade"></div></div></div>
+  <div class="card"><span class="card-label">87 — Heartbeat Glow</span><div class="card-stage"><div class="a-hbglow"></div></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 8: HOVER / INTERAÇÃO ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 08 / 11</p>
+<h2 class="section-title">Hover & Interação</h2>
+<p class="section-desc">CSS transitions ativadas por :hover — passe o mouse!</p>
+<div class="grid">
+  <div class="card"><span class="card-label">88 — Hover Grow</span><div class="card-stage"><div class="a-hover-grow">GROW</div></div></div>
+  <div class="card"><span class="card-label">89 — Hover Tilt 3D</span><div class="card-stage"><div class="a-tilt">TILT</div></div></div>
+  <div class="card"><span class="card-label">90 — Hover Rotate</span><div class="card-stage"><div class="a-hover-rotate"></div></div></div>
+  <div class="card"><span class="card-label">91 — Hover Shadow</span><div class="card-stage"><div class="a-hover-shadow"></div></div></div>
+  <div class="card"><span class="card-label">92 — Hover Fill</span><div class="card-stage"><div class="a-hover-fill">FILL ME</div></div></div>
+  <div class="card"><span class="card-label">93 — Hover Border</span><div class="card-stage"><div class="a-hover-border"></div></div></div>
+  <div class="card"><span class="card-label">94 — Hover Blur</span><div class="card-stage"><div class="a-hover-blur"></div></div></div>
+  <div class="card"><span class="card-label">95 — Hover Skew</span><div class="card-stage"><div class="a-hover-skew"></div></div></div>
+  <div class="card"><span class="card-label">96 — Hover Underline</span><div class="card-stage"><span class="a-hover-underline">Hover me</span></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 9: SVG & PATH ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 09 / 11</p>
+<h2 class="section-title">SVG & Path Animations</h2>
+<p class="section-desc">stroke-dasharray, stroke-dashoffset — desenhando com CSS</p>
+<div class="grid">
+  <div class="card"><span class="card-label">97 — Draw Circle</span><div class="card-stage"><svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="30" fill="none" stroke="var(--a1)" stroke-width="3" stroke-dasharray="190" stroke-dashoffset="190" style="animation:drawC 2s ease infinite"/></svg></div></div>
+  <div class="card"><span class="card-label">98 — Draw Square</span><div class="card-stage"><svg width="60" height="60" viewBox="0 0 60 60"><rect x="5" y="5" width="50" height="50" rx="8" fill="none" stroke="var(--a3)" stroke-width="3" stroke-dasharray="200" stroke-dashoffset="200" style="animation:dash 2s ease infinite"/></svg></div></div>
+  <div class="card"><span class="card-label">99 — Draw Triangle</span><div class="card-stage"><svg width="70" height="65" viewBox="0 0 70 65"><polygon points="35,5 65,60 5,60" fill="none" stroke="var(--a4)" stroke-width="3" stroke-dasharray="180" stroke-dashoffset="180" style="animation:dash 2s ease infinite"/></svg></div></div>
+  <div class="card"><span class="card-label">100 — Draw Star</span><div class="card-stage"><svg width="70" height="70" viewBox="0 0 70 70"><polygon points="35,5 42,28 65,28 47,42 53,65 35,50 17,65 23,42 5,28 28,28" fill="none" stroke="var(--a2)" stroke-width="2" stroke-dasharray="250" stroke-dashoffset="250" style="animation:dash 3s ease infinite"/></svg></div></div>
+  <div class="card"><span class="card-label">101 — Draw Heart</span><div class="card-stage"><svg width="70" height="70" viewBox="0 0 70 70"><path d="M35 60 C15 40 0 25 10 15 C18 8 30 10 35 20 C40 10 52 8 60 15 C70 25 55 40 35 60Z" fill="none" stroke="var(--a6)" stroke-width="2" stroke-dasharray="200" stroke-dashoffset="200" style="animation:dash 2.5s ease infinite"/></svg></div></div>
+  <div class="card"><span class="card-label">102 — Draw Infinity</span><div class="card-stage"><svg width="90" height="50" viewBox="0 0 90 50"><path d="M45 25 C45 10 60 0 70 10 C80 20 80 30 70 40 C60 50 45 40 45 25 C45 10 30 0 20 10 C10 20 10 30 20 40 C30 50 45 40 45 25" fill="none" stroke="var(--a7)" stroke-width="2.5" stroke-dasharray="250" stroke-dashoffset="250" style="animation:dash 3s ease infinite"/></svg></div></div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 10: PSEUDO-ELEMENTS ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 10 / 11</p>
+<h2 class="section-title">Pseudo-Elements & Borders</h2>
+<p class="section-desc">::before, ::after, box-shadow, outline — camadas extras</p>
+<div class="grid">
+  <div class="card"><span class="card-label">103 — Gradient Border Spin</span><div class="card-stage"><div class="a-gborder">&#9733;</div></div></div>
+  <div class="card">
+    <span class="card-label">104 — Pulse Outline</span>
+    <div class="card-stage">
+      <div style="width:50px;height:50px;background:var(--a3);border-radius:50%;animation:pulseRing 2s ease infinite,breathe 2s ease-in-out infinite;"></div>
+    </div>
+  </div>
+  <div class="card">
+    <span class="card-label">105 — Multi-Shadow Orbit</span>
+    <div class="card-stage">
+      <div style="width:20px;height:20px;background:var(--a1);border-radius:50%;animation:spin 2s linear infinite;box-shadow:30px 0 0 var(--a2),-30px 0 0 var(--a3),0 30px 0 var(--a4),0 -30px 0 var(--a5);"></div>
+    </div>
+  </div>
+  <div class="card">
+    <span class="card-label">106 — Shadow Morph</span>
+    <div class="card-stage"><div class="a-morphshadow"></div></div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 11: COMBINAÇÕES AVANÇADAS ═══════════════════ -->
+<section class="section sr">
+<p class="section-num">Seção 11 / 11</p>
+<h2 class="section-title">Combinações Avançadas</h2>
+<p class="section-desc">Múltiplos @keyframes, mix-blend-mode, filter — sinergia</p>
+<div class="grid">
+  <div class="card">
+    <span class="card-label">107 — Bounce + Spin</span>
+    <div class="card-stage"><div style="width:40px;height:40px;background:var(--a9);border-radius:8px;animation:bounce 1s ease infinite,spin 2s linear infinite;"></div></div>
+  </div>
+  <div class="card">
+    <span class="card-label">108 — Pulse + Color</span>
+    <div class="card-stage"><div style="width:50px;height:50px;border-radius:50%;animation:pulse 2s ease-in-out infinite,colorCycle 4s linear infinite;"></div></div>
+  </div>
+  <div class="card">
+    <span class="card-label">109 — Float + Morph</span>
+    <div class="card-stage"><div style="width:60px;height:60px;background:linear-gradient(135deg,var(--a7),var(--a3));animation:float 3s ease-in-out infinite,morph 4s ease-in-out infinite;"></div></div>
+  </div>
+  <div class="card">
+    <span class="card-label">110 — Heartbeat + Neon</span>
+    <div class="card-stage"><div style="font-size:2rem;color:#fff;animation:heartbeat 1.2s ease-in-out infinite,neon 1.5s ease-in-out infinite alternate;">&#10084;</div></div>
+  </div>
+  <div class="card">
+    <span class="card-label">111 — Scale + Blur</span>
+    <div class="card-stage"><div style="width:50px;height:50px;background:var(--a5);border-radius:50%;animation:pulse 2s ease-in-out infinite,glowPulse 2s ease-in-out infinite;"></div></div>
+  </div>
+  <div class="card">
+    <span class="card-label">112 — Spin + Scale + Fade</span>
+    <div class="card-stage"><div style="width:45px;height:45px;background:linear-gradient(var(--a1),var(--a6));border-radius:10px;animation:rotScaleFade 2.5s ease infinite;"></div></div>
+  </div>
+</div>
+</section>
+
+</div>
+
+<footer>
+  <p>112 animações CSS puras — <span>zero JavaScript</span> nas animações</p>
+  <p style="margin-top:0.4rem;font-size:0.8rem">*scroll reveal usa IntersectionObserver (10 linhas de JS)</p>
+</footer>
+
+<script>
+const o=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('v')}),{threshold:0.08});
+document.querySelectorAll('.sr').forEach(el=>o.observe(el));
+</script>
+
+</body>
+</html>
