@@ -12,9 +12,16 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Type, Image, BarChart3, MapPin, PawPrint, Briefcase, Award, FolderOpen, Building2, Globe, Sparkles } from 'lucide-react';
 import { useUpsertSection, useProfileData } from '@/hooks/useProfile';
+import { useMyFazendaProfiles } from '@/hooks/useFazendaProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import type { ProfileSection, ProfileSectionType, ProfileSectionContent, TextSectionContent } from '@/lib/types';
+import AnimalShowcaseEditor from './editors/AnimalShowcaseEditor';
+import PhotoGalleryEditor from './editors/PhotoGalleryEditor';
+import ServicePortfolioEditor from './editors/ServicePortfolioEditor';
+import type {
+  ProfileSection, ProfileSectionType, ProfileSectionContent, TextSectionContent,
+  AnimalShowcaseContent, PhotoGalleryContent, ServicePortfolioContent,
+} from '@/lib/types';
 
 interface ProfileSectionEditorProps {
   open: boolean;
@@ -49,6 +56,7 @@ export default function ProfileSectionEditor({
   const { user } = useAuth();
   const { data: profile } = useProfileData(user?.id ?? null);
   const isAdmin = profile?.user_type === 'admin';
+  const { data: fazendas } = useMyFazendaProfiles(profile?.cliente_id ?? null);
   const upsertSection = useUpsertSection();
   const isEditing = !!section;
 
@@ -56,6 +64,10 @@ export default function ProfileSectionEditor({
   const [title, setTitle] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [textBody, setTextBody] = useState('');
+  const [selectedFazendaId, setSelectedFazendaId] = useState('');
+  const [animals, setAnimals] = useState<AnimalShowcaseContent['animals']>([]);
+  const [photos, setPhotos] = useState<PhotoGalleryContent['photos']>([]);
+  const [portfolioItems, setPortfolioItems] = useState<ServicePortfolioContent['items']>([]);
 
   useEffect(() => {
     if (section) {
@@ -65,34 +77,49 @@ export default function ProfileSectionEditor({
       if (section.section_type === 'text') {
         setTextBody((section.content as TextSectionContent).body || '');
       }
+      if (section.section_type === 'animal_showcase') {
+        setAnimals((section.content as AnimalShowcaseContent).animals || []);
+      }
+      if (section.section_type === 'photo_gallery') {
+        setPhotos((section.content as PhotoGalleryContent).photos || []);
+      }
+      if (section.section_type === 'service_portfolio') {
+        setPortfolioItems((section.content as ServicePortfolioContent).items || []);
+      }
+      const content = section.content as Record<string, unknown>;
+      if (content?.fazenda_id) setSelectedFazendaId(content.fazenda_id as string);
     } else {
       setSectionType('text');
       setTitle('');
       setIsPublic(true);
       setTextBody('');
+      setSelectedFazendaId(fazendas?.[0]?.fazenda?.id || '');
+      setAnimals([]);
+      setPhotos([]);
+      setPortfolioItems([]);
     }
-  }, [section, open]);
+  }, [section, open, fazendas]);
 
   const buildContent = (): ProfileSectionContent => {
     switch (sectionType) {
       case 'text':
         return { body: textBody };
       case 'animal_showcase':
-        return { animals: [], layout: 'grid' };
+        return { animals, layout: 'grid' };
       case 'photo_gallery':
-        return { photos: [], layout: 'grid' };
+        return { photos, layout: 'grid' };
       case 'stats':
         return { show_doadoras: true, show_receptoras: true, show_embrioes: true };
       case 'fazenda_highlight':
-        return { fazenda_id: '', show_animal_count: true, custom_description: '' };
+        return { fazenda_id: selectedFazendaId, show_animal_count: true, custom_description: '' };
       case 'production_stats':
-        return { fazenda_id: '', visibility: {} };
+        return { fazenda_id: selectedFazendaId, visibility: {} };
       case 'service_stats':
-        return { user_id: '', visibility: {} };
+        return { user_id: user?.id || '', visibility: {} };
       case 'specialties':
         return { description: '', specialties: [] };
       case 'service_portfolio':
-        return { items: [] };
+        return { items: portfolioItems };
       case 'fazenda_links':
         return { show_stats: true };
       case 'platform_stats':
@@ -119,7 +146,13 @@ export default function ProfileSectionEditor({
         section_type: sectionType,
         title: title.trim(),
         content: isEditing && section?.section_type === sectionType
-          ? { ...section.content, ...(sectionType === 'text' ? { body: textBody } : {}) }
+          ? {
+              ...section.content,
+              ...(sectionType === 'text' ? { body: textBody } : {}),
+              ...(sectionType === 'animal_showcase' ? { animals } : {}),
+              ...(sectionType === 'photo_gallery' ? { photos } : {}),
+              ...(sectionType === 'service_portfolio' ? { items: portfolioItems } : {}),
+            }
           : buildContent(),
         sort_order: section?.sort_order ?? nextSortOrder,
         is_public: isPublic,
@@ -134,7 +167,7 @@ export default function ProfileSectionEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Seção' : 'Nova Seção'}</DialogTitle>
         </DialogHeader>
@@ -190,16 +223,47 @@ export default function ProfileSectionEditor({
             </div>
           )}
 
-          {sectionType === 'animal_showcase' && !isEditing && (
-            <p className="text-sm text-muted-foreground">
-              Você poderá adicionar animais após criar a seção.
-            </p>
+          {/* Seletor de fazenda para seções que precisam */}
+          {(sectionType === 'production_stats' || sectionType === 'fazenda_highlight') && fazendas && fazendas.length > 0 && (
+            <div className="space-y-2">
+              <Label>Fazenda</Label>
+              <Select value={selectedFazendaId} onValueChange={setSelectedFazendaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a fazenda" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fazendas.map(({ fazenda }) => (
+                    <SelectItem key={fazenda.id} value={fazenda.id}>
+                      {fazenda.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
-          {sectionType === 'photo_gallery' && !isEditing && (
-            <p className="text-sm text-muted-foreground">
-              Você poderá adicionar fotos após criar a seção.
-            </p>
+          {sectionType === 'animal_showcase' && profile?.cliente_id && (
+            <AnimalShowcaseEditor
+              animals={animals}
+              onChange={setAnimals}
+              clienteId={profile.cliente_id}
+            />
+          )}
+
+          {sectionType === 'photo_gallery' && (
+            <PhotoGalleryEditor
+              photos={photos}
+              onChange={setPhotos}
+              sectionId={section?.id}
+            />
+          )}
+
+          {sectionType === 'service_portfolio' && (
+            <ServicePortfolioEditor
+              items={portfolioItems}
+              onChange={setPortfolioItems}
+              sectionId={section?.id}
+            />
           )}
 
           {/* Público */}
